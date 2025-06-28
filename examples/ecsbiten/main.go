@@ -114,6 +114,10 @@ type BlinkValues struct {
 func blinkSystem(query ecs.Query[BlinkValues], time VirtualTime) {
 	for item := range query.Items() {
 		alpha := math.Abs(math.Sin(time.Elapsed.Seconds() / item.Frequency.Value * math.Pi * 2))
-		item.ColorTint.A = float32(alpha)
+		green := math.Abs(math.Sin(time.Elapsed.Seconds() / item.Frequency.Value * math.Pi * 2.1))
+
+		item.ColorTint.R = float32(green)*0.75 + 0.25
+		item.ColorTint.B = float32(green)*0.75 + 0.25
+		item.ColorTint.A = float32(alpha)*0.75 + 0.25
 	}
 }

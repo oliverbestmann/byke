@@ -113,11 +113,17 @@ type Schedule struct {
 
 type System any
 
+type preparedSystem struct {
+	// A function that executes the system against
+	// the given world
+	Run func()
+}
+
 type World struct {
 	entityIdSeq EntityId
 	entities    map[EntityId]*Entity
 	resources   map[reflect.Type]resourceValue
-	schedules   map[*Schedule][]System
+	schedules   map[*Schedule][]preparedSystem
 	queryCache  map[reflect.Type]reflect.Value
 }
 
@@ -125,23 +131,65 @@ func NewWorld() World {
 	return World{
 		entities:   map[EntityId]*Entity{},
 		resources:  map[reflect.Type]resourceValue{},
-		schedules:  map[*Schedule][]System{},
+		schedules:  map[*Schedule][]preparedSystem{},
 		queryCache: map[reflect.Type]reflect.Value{},
 	}
 }
 
 func (w *World) AddSystems(schedule *Schedule, systems ...System) {
-	w.schedules[schedule] = append(w.schedules[schedule], systems...)
+	for _, system := range systems {
+		preparedSystem := prepareSystem(w, system)
+		w.schedules[schedule] = append(w.schedules[schedule], preparedSystem)
+	}
 }
 
 func (w *World) RunSchedule(schedule *Schedule) {
 	for _, system := range w.schedules[schedule] {
-		w.RunSystem(system)
+		system.Run()
 	}
 }
 
-func (w *World) Insert(entity *Entity) {
+func (w *World) Spawn(entityId EntityId, components []AnyComponent) {
+	entity := &Entity{
+		Id:         entityId,
+		Components: map[ComponentType]componentValue{},
+	}
+
+	if w.entities[entity.Id] != nil {
+		panic(fmt.Sprintf("entity with id %d already exists", entity.Id))
+	}
+
 	w.entities[entity.Id] = entity
+
+	w.insertComponents(entity, components)
+}
+
+func (w *World) insertComponents(entity *Entity, components []AnyComponent) {
+	queue := append([]AnyComponent(nil), components...)
+
+	for idx := 0; idx < len(queue); idx++ {
+		// if in question we'll overwrite the components if they
+		// where specified directly
+		overwrite := idx < len(components)
+
+		tyComponent := anyComponentTypeOf(queue[idx])
+
+		// maybe skip this one if it already exists on the entity
+		if _, exists := entity.Components[tyComponent]; exists && !overwrite {
+			continue
+		}
+
+		// and add it to the entity
+		entity.Components[tyComponent] = componentValue{
+			Type:       tyComponent,
+			PtrToValue: copyToHeap(queue[idx]),
+		}
+
+		// enqueue all required components
+		if component, ok := queue[idx].(RequireComponents); ok {
+			queue = append(queue, component.RequireComponents()...)
+		}
+	}
 }
 
 func (w *World) NewCommands() *Commands {
@@ -171,40 +219,12 @@ type Commands struct {
 }
 
 func (c *Commands) Spawn(components ...AnyComponent) EntityCommands {
+	// reserve the next entity id
 	entityId := c.world.entityIdSeq
 	c.world.entityIdSeq += 1
 
-	entity := &Entity{
-		Id:         entityId,
-		Components: map[ComponentType]componentValue{},
-	}
-
 	c.queue = append(c.queue, func(world *World) {
-		queue := append([]AnyComponent(nil), components...)
-
-		var added Set[ComponentType]
-
-		for idx := 0; idx < len(queue); idx++ {
-			tyComponent := anyComponentTypeOf(queue[idx])
-			if added.Has(tyComponent) {
-				continue
-			}
-
-			added.Insert(tyComponent)
-
-			// and add it to the entity
-			entity.Components[tyComponent] = componentValue{
-				Type:       tyComponent,
-				PtrToValue: copyToHeap(queue[idx]),
-			}
-
-			// enqueue all required components
-			if component, ok := queue[idx].(RequireComponents); ok {
-				queue = append(queue, component.RequireComponents()...)
-			}
-		}
-
-		world.Insert(entity)
+		world.Spawn(entityId, components)
 	})
 
 	return EntityCommands{
@@ -227,7 +247,10 @@ type EntityCommands struct {
 
 func (e EntityCommands) Update(commands ...EntityCommand) EntityCommands {
 	e.commands.queue = append(e.commands.queue, func(world *World) {
-		entity := world.entities[e.entityId]
+		entity, ok := world.entities[e.entityId]
+		if !ok {
+			panic(fmt.Sprintf("entity %d does not exist", e.entityId))
+		}
 
 		for _, command := range commands {
 			command(world, entity)
@@ -248,6 +271,21 @@ func RemoveComponent[C IsComponent[C]]() EntityCommand {
 
 	return func(world *World, entity *Entity) {
 		delete(entity.Components, componentType)
+	}
+}
+
+func InsertComponent[C IsComponent[C]](maybeValue ...C) EntityCommand {
+	if len(maybeValue) > 1 {
+		panic("InsertComponent must be called with at most one argument")
+	}
+
+	var component C
+	if len(maybeValue) == 1 {
+		component = maybeValue[0]
+	}
+
+	return func(world *World, entity *Entity) {
+		world.insertComponents(entity, []AnyComponent{component})
 	}
 }
 
@@ -409,6 +447,15 @@ func populateTargetStruct(target reflect.Value, ptrToValues []pointerValue) {
 }
 
 func (w *World) InsertResource(res any) {
+	resType := reflect.PointerTo(reflect.TypeOf(res))
+
+	if existing, ok := w.resources[resType]; ok {
+		// update existing value
+		existing.Reflect.Elem().Set(reflect.ValueOf(res))
+		return
+	}
+
+	// create a new pointer to the resource type
 	ptr := reflect.New(reflect.TypeOf(res))
 	ptr.Elem().Set(reflect.ValueOf(res))
 
@@ -419,17 +466,54 @@ func (w *World) InsertResource(res any) {
 }
 
 func (w *World) RunSystem(system System) {
-	runSystem(w, reflect.ValueOf(system))
-}
-
-func runSystem(w *World, system reflect.Value) []reflect.Value {
-	if system.Kind() != reflect.Func {
-		panic(fmt.Sprintf("not a function: %s", system.Type()))
+	if ps, ok := system.(preparedSystem); ok {
+		ps.Run()
+		return
 	}
 
-	tySystem := system.Type()
+	// prepare and execute directly
+	prepareSystem(w, system).Run()
+}
 
-	var params []reflect.Value
+type systemParameter interface {
+	Value() reflect.Value
+	Flush(value reflect.Value)
+}
+
+type valueSystemParameter reflect.Value
+
+func (w valueSystemParameter) Value() reflect.Value {
+	return reflect.Value(w)
+}
+
+func (w valueSystemParameter) Flush(reflect.Value) {
+	// no flush needed
+}
+
+type commandsSystemParameter struct {
+	World *World
+}
+
+func (c commandsSystemParameter) Value() reflect.Value {
+	return reflect.ValueOf(&Commands{world: c.World})
+}
+
+func (c commandsSystemParameter) Flush(value reflect.Value) {
+	commands := value.Interface().(*Commands)
+	c.World.Exec(commands)
+}
+
+func prepareSystem(w *World, system System) preparedSystem {
+	rSystem := reflect.ValueOf(system)
+
+	if rSystem.Kind() != reflect.Func {
+		panic(fmt.Sprintf("not a function: %s", rSystem.Type()))
+	}
+
+	tySystem := rSystem.Type()
+
+	// collect a number of functions that when called will prepare the systems parameters
+	var params []systemParameter
 
 	for idx := range tySystem.NumIn() {
 		tyIn := tySystem.In(idx)
@@ -439,33 +523,41 @@ func runSystem(w *World, system reflect.Value) []reflect.Value {
 
 		switch {
 		case reflect.PointerTo(tyIn).Implements(reflect.TypeFor[queryAccessor]()):
-			params = append(params, buildQuery(w, tyIn))
-
-		case tyIn == reflect.TypeFor[*Commands]():
-			commands := &Commands{world: w}
-
-			// Apply commands in the end
-			//goland:noinspection GoDeferInLoop
-			defer w.Exec(commands)
-
-			param := reflect.ValueOf(commands)
-			params = append(params, param)
+			params = append(params, valueSystemParameter(buildQuery(w, tyIn)))
 
 		case tyIn == reflect.TypeFor[*World]():
-			params = append(params, reflect.ValueOf(w))
+			params = append(params, valueSystemParameter(reflect.ValueOf(w)))
+
+		case tyIn == reflect.TypeFor[*Commands]():
+			params = append(params, commandsSystemParameter{World: w})
 
 		case resourceCopyOk:
-			params = append(params, resourceCopy.Reflect.Elem())
+			params = append(params, valueSystemParameter(resourceCopy.Reflect.Elem()))
 
 		case resourceOk:
-			params = append(params, resource.Reflect)
+			params = append(params, valueSystemParameter(resource.Reflect))
 
 		default:
 			panic(fmt.Sprintf("Can not handle system param of type %s", tyIn))
 		}
 	}
 
-	return system.Call(params)
+	var paramValues []reflect.Value
+
+	return preparedSystem{
+		Run: func() {
+			paramValues = paramValues[:0]
+			for _, param := range params {
+				paramValues = append(paramValues, param.Value())
+			}
+
+			rSystem.Call(paramValues)
+
+			for idx, param := range params {
+				param.Flush(paramValues[idx])
+			}
+		},
+	}
 }
 
 type queryAccessor interface {

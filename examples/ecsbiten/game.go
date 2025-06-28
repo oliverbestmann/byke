@@ -26,12 +26,14 @@ func Plugin(app *ecs.App) {
 
 	app.InsertResource(VirtualTime{Scale: 1})
 	app.InsertResource(MouseCursor{})
+	app.InsertResource(RenderTarget{})
+	app.InsertResource(ScreenSize{})
 
 	app.AddSystems(First, updateVirtualTime, updateMouseCursor)
 	app.AddSystems(Render, renderSpritesSystem)
 
 	// start the game
-	app.AddSystems(ecs.RunWorld, runGameSystem)
+	app.RunWorld(runWorld)
 }
 
 type WindowConfig struct {
@@ -40,11 +42,13 @@ type WindowConfig struct {
 	Height int
 }
 
-func runGameSystem(world *ecs.World, win WindowConfig) {
-	ebiten.SetWindowTitle(win.Title)
-	ebiten.SetWindowSize(win.Width, win.Height)
+func runWorld(world *ecs.World) error {
+	world.RunSystem(func(win WindowConfig) {
+		ebiten.SetWindowTitle(win.Title)
+		ebiten.SetWindowSize(win.Width, win.Height)
+	})
 
-	_ = ebiten.RunGame(&Game{World: world})
+	return ebiten.RunGame(&Game{World: world})
 }
 
 type Game struct {
@@ -78,7 +82,7 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	g.World.InsertResource(screen)
+	g.World.InsertResource(RenderTarget{Image: screen})
 
 	g.World.RunSchedule(PreRender)
 	g.World.RunSchedule(Render)

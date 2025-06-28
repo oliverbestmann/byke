@@ -1,12 +1,9 @@
 package ecs
 
-var RunWorld = &Schedule{}
-
 type App struct {
 	world *World
+	run   RunWorld
 }
-
-type Plugin func(app *App)
 
 func (a *App) World() *World {
 	if a.world == nil {
@@ -29,6 +26,14 @@ func (a *App) InsertResource(res any) {
 	a.World().InsertResource(res)
 }
 
-func (a *App) Run() {
-	a.World().RunSchedule(RunWorld)
+func (a *App) RunWorld(run RunWorld) {
+	a.run = run
 }
+
+func (a *App) Run() error {
+	return a.run(a.World())
+}
+
+type Plugin func(app *App)
+
+type RunWorld func(world *World) error

@@ -61,6 +61,10 @@ type ColorTint struct {
 	color.Color
 }
 
+type RenderTarget struct {
+	*ebiten.Image
+}
+
 type RenderSpritesValue struct {
 	Sprite    Sprite
 	Transform Transform
@@ -70,7 +74,7 @@ type RenderSpritesValue struct {
 	Size      ecs.Option[Size]
 }
 
-func renderSpritesSystem(screen *ebiten.Image, sprites ecs.Query[RenderSpritesValue]) {
+func renderSpritesSystem(screen RenderTarget, sprites ecs.Query[RenderSpritesValue]) {
 	items := slices.Collect(sprites.Items())
 
 	slices.SortFunc(items, func(a, b RenderSpritesValue) int {
