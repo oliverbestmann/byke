@@ -10,11 +10,13 @@ type AnyPtr any
 
 type PopulateTarget func(target reflect.Value, ptrToValues []pointerValue)
 
+type PopulateSingleTarget func(target reflect.Value, ptrToValues pointerValue)
+
 type Query[T any] struct {
-	innerQuery
+	erasedQuery
 }
 
-type innerQuery struct {
+type erasedQuery struct {
 	values   iter.Seq[[]pointerValue]
 	populate PopulateTarget
 }
@@ -25,8 +27,8 @@ func (*Query[T]) reflectType() reflect.Type {
 	return reflect.TypeFor[T]()
 }
 
-func (q *Query[T]) setInner(inner innerQuery) {
-	q.innerQuery = inner
+func (q *Query[T]) setInner(inner erasedQuery) {
+	q.erasedQuery = inner
 }
 
 func (q *Query[T]) Get() (value *T, ok bool) {
@@ -37,8 +39,18 @@ func (q *Query[T]) Get() (value *T, ok bool) {
 	return nil, false
 }
 
+func (q *Query[T]) Count() int {
+	var count int
+	for range q.values {
+		count += 1
+	}
+
+	return count
+}
+
 func (q *Query[T]) Items() iter.Seq[T] {
 	return func(yield func(T) bool) {
+		// is this safe?
 		var target T
 
 		for values := range q.values {
@@ -54,16 +66,23 @@ func (q *Query[T]) Items() iter.Seq[T] {
 type Resource[T any] *T
 
 type IsComponent[T any] interface {
+	AnyComponent
 	IsComponent(T)
 }
 
-type AnyComponent any
+type isAnyComponentMarker struct{}
+
+type AnyComponent interface {
+	isAnyComponent(isAnyComponentMarker)
+}
 
 type RequireComponents interface {
 	RequireComponents() []AnyComponent
 }
 
 type Component[T IsComponent[T]] struct{}
+
+func (Component[T]) isAnyComponent(isAnyComponentMarker) {}
 
 func (Component[T]) IsComponent(T) {}
 
@@ -101,7 +120,7 @@ func anyComponentTypeOf(component AnyComponent) ComponentType {
 }
 
 type resourceValue struct {
-	Reflect reflect.Value
+	Reflect pointerValue
 	Pointer AnyPtr
 }
 
@@ -124,19 +143,20 @@ type World struct {
 	entities    map[EntityId]*Entity
 	resources   map[reflect.Type]resourceValue
 	schedules   map[*Schedule][]preparedSystem
-	queryCache  map[reflect.Type]reflect.Value
 }
 
 func NewWorld() World {
 	return World{
-		entities:   map[EntityId]*Entity{},
-		resources:  map[reflect.Type]resourceValue{},
-		schedules:  map[*Schedule][]preparedSystem{},
-		queryCache: map[reflect.Type]reflect.Value{},
+		entities:  map[EntityId]*Entity{},
+		resources: map[reflect.Type]resourceValue{},
+		schedules: map[*Schedule][]preparedSystem{},
 	}
 }
 
-func (w *World) AddSystems(schedule *Schedule, systems ...System) {
+func (w *World) AddSystems(schedule *Schedule, firstSystem System, systems ...System) {
+	preparedSystem := prepareSystem(w, firstSystem)
+	w.schedules[schedule] = append(w.schedules[schedule], preparedSystem)
+
 	for _, system := range systems {
 		preparedSystem := prepareSystem(w, system)
 		w.schedules[schedule] = append(w.schedules[schedule], preparedSystem)
@@ -147,6 +167,14 @@ func (w *World) RunSchedule(schedule *Schedule) {
 	for _, system := range w.schedules[schedule] {
 		system.Run()
 	}
+}
+
+func (w *World) ReserveEntityId() EntityId {
+	entityId := w.entityIdSeq
+	w.entityIdSeq += 1
+
+	return entityId
+
 }
 
 func (w *World) Spawn(entityId EntityId, components []AnyComponent) {
@@ -213,15 +241,22 @@ func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
 	return resValue.Pointer, true
 }
 
+func ResourceOf[T any](w *World) (*T, bool) {
+	value, ok := w.Resource(reflect.TypeFor[T]())
+	if !ok {
+		return nil, false
+	}
+
+	return value.(*T), true
+}
+
 type Commands struct {
 	world *World
 	queue []Command
 }
 
 func (c *Commands) Spawn(components ...AnyComponent) EntityCommands {
-	// reserve the next entity id
-	entityId := c.world.entityIdSeq
-	c.world.entityIdSeq += 1
+	entityId := c.world.ReserveEntityId()
 
 	c.queue = append(c.queue, func(world *World) {
 		world.Spawn(entityId, components)
@@ -233,11 +268,15 @@ func (c *Commands) Spawn(components ...AnyComponent) EntityCommands {
 	}
 }
 
-func copyToHeap(component AnyComponent) pointerValue {
+func copyToHeap(value any) pointerValue {
+	if reflect.TypeOf(value).Kind() == reflect.Pointer {
+		panic("we do not want to have double pointers")
+	}
+
 	// move the component onto the heap
-	ptrToComponent := reflect.New(reflect.TypeOf(component))
-	ptrToComponent.Elem().Set(reflect.ValueOf(component))
-	return pointerValue{Value: ptrToComponent}
+	ptrToValue := reflect.New(reflect.TypeOf(value))
+	ptrToValue.Elem().Set(reflect.ValueOf(value))
+	return pointerValue{Value: ptrToValue}
 }
 
 type EntityCommands struct {
@@ -262,6 +301,11 @@ func (e EntityCommands) Update(commands ...EntityCommand) EntityCommands {
 
 func (e EntityCommands) Despawn() {
 	e.commands.queue = append(e.commands.queue, func(world *World) {
+		if world.entities[e.entityId] == nil {
+			fmt.Printf("[warn] cannot despawn entity %d: does not exist\n", e.entityId)
+			return
+		}
+
 		delete(world.entities, e.entityId)
 	})
 }
@@ -308,12 +352,17 @@ func extractComponentByType(ty ComponentType) Extractor {
 	}
 }
 
-type parsedQuery struct {
+type parsedQueryTarget struct {
 	extractors     []Extractor
-	populateValues PopulateTarget
+	populateTarget PopulateTarget
 }
 
-func (w *World) queryValues(q parsedQuery) iter.Seq[[]pointerValue] {
+type queryValueAccessor struct {
+	extractor      Extractor
+	populateTarget PopulateSingleTarget
+}
+
+func (w *World) queryValuesIter(extractors []Extractor) iter.Seq[[]pointerValue] {
 	return func(yield func([]pointerValue) bool) {
 		var values []pointerValue
 
@@ -321,7 +370,7 @@ func (w *World) queryValues(q parsedQuery) iter.Seq[[]pointerValue] {
 		for _, entity := range w.entities {
 			values = values[:0]
 
-			for _, extractor := range q.extractors {
+			for _, extractor := range extractors {
 				value, ok := extractor(entity)
 				if !ok {
 					continue outer
@@ -337,76 +386,128 @@ func (w *World) queryValues(q parsedQuery) iter.Seq[[]pointerValue] {
 	}
 }
 
-func parseQuery(tyTarget reflect.Type) parsedQuery {
-	if isComponentType(tyTarget) {
-		// the target is a single component
-		tyComponent := reflectComponentTypeOf(tyTarget)
-		extractor := extractComponentByType(tyComponent)
-		return parsedQuery{
-			extractors: []Extractor{extractor},
-			populateValues: func(target reflect.Value, ptrToValues []pointerValue) {
-				// target contains a target of type tyTarget.
+func parseQueryTarget(tyTarget reflect.Type) parsedQueryTarget {
+	isSingleTarget := isComponentType(tyTarget) ||
+		tyTarget.Kind() == reflect.Pointer && isComponentType(tyTarget.Elem()) ||
+		isOptionType(tyTarget)
 
-				if ptrToValues[0].Value.Kind() != reflect.Pointer {
-					panic(fmt.Sprintf("expected pointer, got %s", ptrToValues[0].Type()))
-				}
-
-				ptrToValue := ptrToValues[0].Value
-				if target.Kind() != reflect.Ptr {
-					ptrToValue = ptrToValue.Elem()
-				}
-
-				target.Set(ptrToValue)
-			},
-		}
+	if isSingleTarget {
+		return parseSingleQueryTarget(tyTarget)
 	}
 
-	// TODO check tyTarget == struct
+	if tyTarget.Kind() == reflect.Struct {
+		return parseStructQueryTarget(tyTarget)
+	}
 
+	panic(fmt.Sprintf("unknown query target type: %s", tyTarget))
+}
+
+func parseSingleQueryTarget(tyTarget reflect.Type) parsedQueryTarget {
+	value := buildQuerySingleValue(tyTarget)
+
+	return parsedQueryTarget{
+		extractors: []Extractor{value.extractor},
+		populateTarget: func(target reflect.Value, ptrToValues []pointerValue) {
+			value.populateTarget(target, ptrToValues[0])
+		},
+	}
+}
+
+func assertIsPointerType(t reflect.Type) {
+	if t.Kind() != reflect.Pointer {
+		panic(fmt.Sprintf("expected pointer type, got %s", t))
+	}
+}
+
+func assertIsNonPointerType(t reflect.Type) {
+	if t.Kind() == reflect.Pointer {
+		panic(fmt.Sprintf("expected non pointer type, got %s", t))
+	}
+}
+
+func parseStructQueryTarget(tyTarget reflect.Type) parsedQueryTarget {
 	var extractors []Extractor
+	var populateSingleTargets []PopulateSingleTarget
 
 	for idx := range tyTarget.NumField() {
 		field := tyTarget.Field(idx)
 		fieldTy := field.Type
 
-		if fieldTy.Kind() == reflect.Ptr {
-			// mutable
-			fieldTy = fieldTy.Elem()
-		}
-
-		var extractor Extractor
-
-		switch {
-		case fieldTy == reflect.TypeFor[EntityId]():
-			// fill in the entity id
-			extractor = func(entity *Entity) (pointerValue, bool) {
-				return pointerValueOf(&entity.Id), true
-			}
-
-		case isComponentType(fieldTy):
-			extractor = extractComponentByType(ComponentType{
-				GoType: fieldTy,
-			})
-
-		case reflect.PointerTo(fieldTy).Implements(reflect.TypeFor[optionAccessor]()):
-			extractor = extractOptionOf(fieldTy)
-
-		default:
-			panic(fmt.Sprintf("not a type we can extract: %s", fieldTy))
-		}
-
-		extractors = append(extractors, extractor)
+		value := buildQuerySingleValue(fieldTy)
+		extractors = append(extractors, value.extractor)
+		populateSingleTargets = append(populateSingleTargets, value.populateTarget)
 	}
 
-	return parsedQuery{
-		extractors:     extractors,
-		populateValues: populateTargetStruct,
+	return parsedQueryTarget{
+		extractors: extractors,
+		populateTarget: func(target reflect.Value, ptrToValues []pointerValue) {
+			if len(ptrToValues) != len(populateSingleTargets) {
+				panic("unexpected number of pointers")
+			}
+
+			// we expect the type to match
+			if target.Type() != tyTarget {
+				panic(fmt.Sprintf("target type does not match, expected %s, got %s", tyTarget, target.Type()))
+			}
+
+			for idx := range target.NumField() {
+				field := target.Field(idx)
+				populateSingleTargets[idx](field, ptrToValues[idx])
+			}
+		},
+	}
+}
+
+func buildQuerySingleValue(tyTarget reflect.Type) queryValueAccessor {
+	switch {
+	// the entity id is directly injectable
+	case tyTarget == reflect.TypeFor[EntityId]():
+		return queryValueAccessor{
+			extractor: func(entity *Entity) (pointerValue, bool) {
+				return pointerValueOf(&entity.Id), true
+			},
+
+			populateTarget: func(target reflect.Value, ptrToValue pointerValue) {
+				target.Set(ptrToValue.Elem())
+			},
+		}
+
+	case isComponentType(tyTarget):
+		return queryValueAccessor{
+			extractor: extractComponentByType(reflectComponentTypeOf(tyTarget)),
+
+			populateTarget: func(target reflect.Value, ptrToValue pointerValue) {
+				assertIsNonPointerType(target.Type())
+				assertIsPointerType(ptrToValue.Value.Type())
+
+				// copy value to target
+				target.Set(ptrToValue.Value.Elem())
+			},
+		}
+
+	case tyTarget.Kind() == reflect.Pointer && isComponentType(tyTarget.Elem()):
+		return queryValueAccessor{
+			extractor: extractComponentByType(reflectComponentTypeOf(tyTarget.Elem())),
+
+			populateTarget: func(target reflect.Value, ptrToValue pointerValue) {
+				assertIsNonPointerType(target.Type())
+				assertIsPointerType(ptrToValue.Value.Type())
+
+				// let target point to the component
+				target.Set(ptrToValue.Value)
+			},
+		}
+
+	case isOptionType(tyTarget):
+		return parseSingleValueForOption(tyTarget)
+
+	default:
+		panic(fmt.Sprintf("not a type we can extract: %s", tyTarget))
 	}
 }
 
 func isComponentType(t reflect.Type) bool {
-	_, ok := t.MethodByName("IsComponent")
-	return ok
+	return t.Kind() != reflect.Pointer && t.Implements(reflect.TypeFor[AnyComponent]())
 }
 
 func pointerValueOf(value any) pointerValue {
@@ -437,27 +538,21 @@ func populateTargetStruct(target reflect.Value, ptrToValues []pointerValue) {
 	for idx := range target.NumField() {
 		value := ptrToValues[idx].Value
 		field := target.Field(idx)
-
-		if field.Kind() != reflect.Ptr {
-			value = value.Elem()
-		}
-
 		field.Set(value)
 	}
 }
 
-func (w *World) InsertResource(res any) {
-	resType := reflect.PointerTo(reflect.TypeOf(res))
+func (w *World) InsertResource(resource any) {
+	resType := reflect.PointerTo(reflect.TypeOf(resource))
 
 	if existing, ok := w.resources[resType]; ok {
 		// update existing value
-		existing.Reflect.Elem().Set(reflect.ValueOf(res))
+		existing.Reflect.Elem().Set(reflect.ValueOf(resource))
 		return
 	}
 
 	// create a new pointer to the resource type
-	ptr := reflect.New(reflect.TypeOf(res))
-	ptr.Elem().Set(reflect.ValueOf(res))
+	ptr := copyToHeap(resource)
 
 	w.resources[ptr.Type()] = resourceValue{
 		Reflect: ptr,
@@ -475,32 +570,33 @@ func (w *World) RunSystem(system System) {
 	prepareSystem(w, system).Run()
 }
 
-type systemParameter interface {
-	Value() reflect.Value
-	Flush(value reflect.Value)
+type systemParameter struct {
+	// If constant is set, it will be used directly. GetValue will not be called
+	Constant reflect.Value
+
+	// GetValue gets the value from somewhere
+	GetValue func() reflect.Value
+
+	// Cleanup is an optional function that will be called with the value provided
+	// by GetValue or Constant after the system was finished it's work.
+	Cleanup func(value reflect.Value)
 }
 
-type valueSystemParameter reflect.Value
-
-func (w valueSystemParameter) Value() reflect.Value {
-	return reflect.Value(w)
+func valueSystemParameter(value reflect.Value) systemParameter {
+	return systemParameter{Constant: value}
 }
 
-func (w valueSystemParameter) Flush(reflect.Value) {
-	// no flush needed
-}
+func commandsSystemParameter(world *World) systemParameter {
+	return systemParameter{
+		GetValue: func() reflect.Value {
+			return reflect.ValueOf(&Commands{world: world})
+		},
 
-type commandsSystemParameter struct {
-	World *World
-}
-
-func (c commandsSystemParameter) Value() reflect.Value {
-	return reflect.ValueOf(&Commands{world: c.World})
-}
-
-func (c commandsSystemParameter) Flush(value reflect.Value) {
-	commands := value.Interface().(*Commands)
-	c.World.Exec(commands)
+		Cleanup: func(value reflect.Value) {
+			commands := value.Interface().(*Commands)
+			world.Exec(commands)
+		},
+	}
 }
 
 func prepareSystem(w *World, system System) preparedSystem {
@@ -529,13 +625,13 @@ func prepareSystem(w *World, system System) preparedSystem {
 			params = append(params, valueSystemParameter(reflect.ValueOf(w)))
 
 		case tyIn == reflect.TypeFor[*Commands]():
-			params = append(params, commandsSystemParameter{World: w})
+			params = append(params, commandsSystemParameter(w))
 
 		case resourceCopyOk:
 			params = append(params, valueSystemParameter(resourceCopy.Reflect.Elem()))
 
 		case resourceOk:
-			params = append(params, valueSystemParameter(resource.Reflect))
+			params = append(params, valueSystemParameter(resource.Reflect.Value))
 
 		default:
 			panic(fmt.Sprintf("Can not handle system param of type %s", tyIn))
@@ -548,13 +644,24 @@ func prepareSystem(w *World, system System) preparedSystem {
 		Run: func() {
 			paramValues = paramValues[:0]
 			for _, param := range params {
-				paramValues = append(paramValues, param.Value())
+				switch {
+				case param.Constant.IsValid():
+					paramValues = append(paramValues, param.Constant)
+
+				case param.GetValue != nil:
+					paramValues = append(paramValues, param.GetValue())
+
+				default:
+					panic("systemParameter not valid")
+				}
 			}
 
 			rSystem.Call(paramValues)
 
 			for idx, param := range params {
-				param.Flush(paramValues[idx])
+				if cleanup := param.Cleanup; cleanup != nil {
+					cleanup(paramValues[idx])
+				}
 			}
 		},
 	}
@@ -563,39 +670,29 @@ func prepareSystem(w *World, system System) preparedSystem {
 type queryAccessor interface {
 	__isQuery()
 	reflectType() reflect.Type
-	setInner(query innerQuery)
+	setInner(query erasedQuery)
 }
 
 func buildQuery(w *World, tyQuery reflect.Type) reflect.Value {
-	var query reflect.Value
+	var ptrToQuery = reflect.New(tyQuery)
+	queryAcc := ptrToQuery.Interface().(queryAccessor)
 
-	if cached := w.queryCache[tyQuery]; cached.IsValid() {
-		query = cached
+	// build the query from the target type
+	parsed := parseQueryTarget(queryAcc.reflectType())
 
-	} else {
-		var ptrToQuery = reflect.New(tyQuery)
-		queryAcc := ptrToQuery.Interface().(queryAccessor)
-
-		// build the query from the target type
-		parsed := parseQuery(queryAcc.reflectType())
-
-		inner := innerQuery{
-			values:   w.queryValues(parsed),
-			populate: parsed.populateValues,
-		}
-
-		ptrToQuery = reflect.New(tyQuery)
-		ptrToQuery.Interface().(queryAccessor).setInner(inner)
-
-		query = ptrToQuery.Elem()
-
-		// cache query
-		w.queryCache[tyQuery] = query
+	inner := erasedQuery{
+		values:   w.queryValuesIter(parsed.extractors),
+		populate: parsed.populateTarget,
 	}
 
-	return query
+	ptrToQuery = reflect.New(tyQuery)
+	ptrToQuery.Interface().(queryAccessor).setInner(inner)
+
+	return ptrToQuery.Elem()
 }
 
 type Name string
+
+func (n Name) isAnyComponent(isAnyComponentMarker) {}
 
 func (n Name) IsComponent(Name) {}

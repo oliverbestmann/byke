@@ -18,8 +18,8 @@ func (a *App) AddPlugin(plugin Plugin) {
 	plugin(a)
 }
 
-func (a *App) AddSystems(schedule *Schedule, systems ...System) {
-	a.World().AddSystems(schedule, systems...)
+func (a *App) AddSystems(schedule *Schedule, system System, systems ...System) {
+	a.World().AddSystems(schedule, system, systems...)
 }
 
 func (a *App) InsertResource(res any) {

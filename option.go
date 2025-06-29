@@ -8,10 +8,15 @@ type optionAccessor interface {
 	__isOption()
 	reflectType() reflect.Type
 	setValue(value any)
+	mutable() bool
 }
 
 type Option[T IsComponent[T]] struct {
 	value *T
+}
+
+func (o *Option[T]) mutable() bool {
+	return false
 }
 
 func (o *Option[T]) Get() (T, bool) {
@@ -38,25 +43,77 @@ func (o *Option[T]) reflectType() reflect.Type {
 }
 
 func (o *Option[T]) setValue(value any) {
-	o.value = value.(*T)
+	if value == nil {
+		o.value = nil
+	} else {
+		o.value = value.(*T)
+	}
 }
 
-func extractOptionOf(tyTarget reflect.Type) Extractor {
-	// tyTarget is of type Option[xx]
+type OptionMut[T IsComponent[T]] struct {
+	value *T
+}
 
-	option := pointerValueOf(reflect.New(tyTarget))
+func (o *OptionMut[T]) mutable() bool {
+	return true
+}
 
-	return func(entity *Entity) (pointerValue, bool) {
-		accessor := option.Interface().(optionAccessor)
+func (o *OptionMut[T]) Get() (*T, bool) {
+	return o.value, o.value != nil
+}
 
-		tyComponent := reflectComponentTypeOf(accessor.reflectType())
-		extractor := extractComponentByType(tyComponent)
+func (o *OptionMut[T]) __isOption() {}
 
-		value, ok := extractor(entity)
-		if ok {
-			accessor.setValue(value.Interface())
-		}
+func (o *OptionMut[T]) reflectType() reflect.Type {
+	return reflect.TypeFor[T]()
+}
 
-		return option, true
+func (o *OptionMut[T]) setValue(value any) {
+	if value == nil {
+		o.value = nil
+	} else {
+		o.value = value.(*T)
+	}
+}
+
+func isOptionType(tyTarget reflect.Type) bool {
+	tyOptionAccessor := reflect.TypeFor[optionAccessor]()
+
+	return tyTarget.Kind() != reflect.Pointer &&
+		reflect.PointerTo(tyTarget).Implements(tyOptionAccessor)
+}
+
+func parseSingleValueForOption(tyOption reflect.Type) queryValueAccessor {
+	assertIsNonPointerType(tyOption)
+
+	// instantiate a new option in memory
+	ptrToOption := pointerValue{Value: reflect.New(tyOption)}
+
+	// get the accessor
+	accessor := ptrToOption.Interface().(optionAccessor)
+
+	// get an extractor for the inner type
+	extractor := extractComponentByType(reflectComponentTypeOf(accessor.reflectType()))
+
+	return queryValueAccessor{
+		extractor: func(entity *Entity) (pointerValue, bool) {
+			ptrToValue, hasValue := extractor(entity)
+
+			if !hasValue {
+				accessor.setValue(nil)
+				return ptrToOption, true
+			}
+
+			// set the actual value in the option
+			accessor.setValue(ptrToValue.Interface())
+			return ptrToOption, true
+		},
+
+		populateTarget: func(target reflect.Value, ptrToValue pointerValue) {
+			assertIsNonPointerType(target.Type())
+			assertIsPointerType(ptrToValue.Type())
+
+			target.Set(ptrToValue.Elem())
+		},
 	}
 }
