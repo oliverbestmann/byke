@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"github.com/stretchr/testify/require"
+	"slices"
 	"testing"
 )
 
@@ -68,7 +69,7 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[Position]) {
 				allGood()
-				require.Equal(t, 3, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 3)
 			})
 		})
 	})
@@ -77,7 +78,7 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[*Position]) {
 				allGood()
-				require.Equal(t, 3, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 3)
 			})
 		})
 	})
@@ -86,7 +87,7 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[Option[Player]]) {
 				allGood()
-				require.Equal(t, 3, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 3)
 			})
 		})
 	})
@@ -95,7 +96,7 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[OptionMut[Player]]) {
 				allGood()
-				require.Equal(t, 3, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 3)
 			})
 		})
 	})
@@ -109,21 +110,21 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[MoveableItem]) {
 				allGood()
-				require.Equal(t, 2, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 2)
 			})
 		})
 	})
 
 	t.Run("query with struct (mutable)", func(t *testing.T) {
 		type MoveableItem struct {
-			Position *Position
 			Velocity Velocity
+			Position *Position
 		}
 
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[MoveableItem]) {
 				allGood()
-				require.Equal(t, 2, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 2)
 			})
 		})
 	})
@@ -138,7 +139,7 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[MoveableItem]) {
 				allGood()
-				require.Equal(t, 2, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 2)
 			})
 		})
 	})
@@ -152,7 +153,7 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[MoveableItem]) {
 				allGood()
-				require.Equal(t, 3, q.Count())
+				require.Len(t, slices.Collect(q.Items()), 3)
 
 				for item := range q.Items() {
 					value, ok := item.Velocity.Get()

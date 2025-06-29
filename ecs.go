@@ -490,7 +490,7 @@ func buildQuerySingleValue(tyTarget reflect.Type) queryValueAccessor {
 			extractor: extractComponentByType(reflectComponentTypeOf(tyTarget.Elem())),
 
 			populateTarget: func(target reflect.Value, ptrToValue pointerValue) {
-				assertIsNonPointerType(target.Type())
+				assertIsPointerType(target.Type())
 				assertIsPointerType(ptrToValue.Value.Type())
 
 				// let target point to the component
@@ -643,6 +643,7 @@ func prepareSystem(w *World, system System) preparedSystem {
 	return preparedSystem{
 		Run: func() {
 			paramValues = paramValues[:0]
+
 			for _, param := range params {
 				switch {
 				case param.Constant.IsValid():
