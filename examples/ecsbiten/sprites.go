@@ -2,20 +2,20 @@ package main
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	ecs "gobevy"
-	"gobevy/examples/ecsbiten/color"
+	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/examples/ecsbiten/color"
 	"slices"
 )
 
-var _ = ecs.ValidateComponent[Transform]()
-var _ = ecs.ValidateComponent[Sprite]()
-var _ = ecs.ValidateComponent[Layer]()
-var _ = ecs.ValidateComponent[Size]()
-var _ = ecs.ValidateComponent[ColorTint]()
-var _ = ecs.ValidateComponent[Anchor]()
+var _ = byke.ValidateComponent[Transform]()
+var _ = byke.ValidateComponent[Sprite]()
+var _ = byke.ValidateComponent[Layer]()
+var _ = byke.ValidateComponent[Size]()
+var _ = byke.ValidateComponent[ColorTint]()
+var _ = byke.ValidateComponent[Anchor]()
 
 type Transform struct {
-	ecs.Component[Transform]
+	byke.Component[Transform]
 	Translation Vec
 	Scale       Vec
 	Rotation    Rad
@@ -24,12 +24,12 @@ type Transform struct {
 type Rad float64
 
 type Sprite struct {
-	ecs.Component[Sprite]
+	byke.Component[Sprite]
 	Image *ebiten.Image
 }
 
-func (Sprite) RequireComponents() []ecs.AnyComponent {
-	return []ecs.AnyComponent{
+func (Sprite) RequireComponents() []byke.AnyComponent {
+	return []byke.AnyComponent{
 		Layer{},
 		Transform{
 			Scale: VecOf(1.0, 1.0),
@@ -40,24 +40,24 @@ func (Sprite) RequireComponents() []ecs.AnyComponent {
 }
 
 type Size struct {
-	ecs.Component[Size]
+	byke.Component[Size]
 	Vec
 }
 
 type Layer struct {
-	ecs.Component[Layer]
+	byke.Component[Layer]
 	Z float64
 }
 
 type Anchor struct {
-	ecs.Component[Anchor]
+	byke.Component[Anchor]
 	Vec
 }
 
 var AnchorCenter = Anchor{Vec: Vec{X: 0.5, Y: 0.5}}
 
 type ColorTint struct {
-	ecs.Component[ColorTint]
+	byke.Component[ColorTint]
 	color.Color
 }
 
@@ -71,10 +71,10 @@ type RenderSpritesValue struct {
 	Layer     Layer
 	ColorTint ColorTint
 	Anchor    Anchor
-	Size      ecs.Option[Size]
+	Size      byke.Option[Size]
 }
 
-func renderSpritesSystem(screen RenderTarget, sprites ecs.Query[RenderSpritesValue]) {
+func renderSpritesSystem(screen RenderTarget, sprites byke.Query[RenderSpritesValue]) {
 	items := slices.Collect(sprites.Items())
 
 	slices.SortFunc(items, func(a, b RenderSpritesValue) int {

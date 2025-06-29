@@ -2,25 +2,25 @@ package main
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
-	ecs "gobevy"
+	"github.com/oliverbestmann/byke"
 	"time"
 )
 
-var PreStartup = &ecs.Schedule{}
-var Startup = &ecs.Schedule{}
-var PostStartup = &ecs.Schedule{}
+var PreStartup = &byke.Schedule{}
+var Startup = &byke.Schedule{}
+var PostStartup = &byke.Schedule{}
 
-var First = &ecs.Schedule{}
-var PreUpdate = &ecs.Schedule{}
-var StateTransition = ecs.StateTransition
-var Update = &ecs.Schedule{}
-var PostUpdate = &ecs.Schedule{}
-var PreRender = &ecs.Schedule{}
-var Render = &ecs.Schedule{}
-var PostRender = &ecs.Schedule{}
-var Last = &ecs.Schedule{}
+var First = &byke.Schedule{}
+var PreUpdate = &byke.Schedule{}
+var StateTransition = byke.StateTransition
+var Update = &byke.Schedule{}
+var PostUpdate = &byke.Schedule{}
+var PreRender = &byke.Schedule{}
+var Render = &byke.Schedule{}
+var PostRender = &byke.Schedule{}
+var Last = &byke.Schedule{}
 
-var Plugin ecs.PluginFunc = func(app *ecs.App) {
+var Plugin byke.PluginFunc = func(app *byke.App) {
 	app.InsertResource(WindowConfig{
 		Title:  "Ebitengine",
 		Width:  800,
@@ -47,7 +47,7 @@ type WindowConfig struct {
 	Height int
 }
 
-func runWorld(world *ecs.World) error {
+func runWorld(world *byke.World) error {
 	world.RunSystem(func(win WindowConfig) {
 		ebiten.SetWindowTitle(win.Title)
 		ebiten.SetWindowSize(win.Width, win.Height)
@@ -57,7 +57,7 @@ func runWorld(world *ecs.World) error {
 }
 
 type Game struct {
-	World *ecs.World
+	World *byke.World
 
 	initialized bool
 	screenSize  Vec

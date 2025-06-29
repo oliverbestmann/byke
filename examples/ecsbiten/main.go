@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/oliverbestmann/byke"
 	"github.com/pkg/profile"
-	ecs "gobevy"
 	"math"
 	"math/rand/v2"
 )
@@ -14,7 +14,7 @@ import (
 func main() {
 	defer profile.Start(profile.CPUProfile).Stop()
 
-	var app ecs.App
+	var app byke.App
 
 	app.AddPlugin(Plugin)
 
@@ -22,22 +22,22 @@ func main() {
 	app.AddSystems(Update, movementSystem, blinkSystem)
 	app.AddSystems(Update, followMouseSystem)
 
-	app.InsertState(ecs.RegisterState[PauseState]{})
+	app.InsertState(byke.RegisterState[PauseState]{})
 
 	app.AddSystems(Update, togglePauseState)
 
-	app.AddSystems(ecs.OnEnter(PauseStatePaused), pausedSystem)
-	app.AddSystems(ecs.OnExit(PauseStatePaused), unpausedSystem)
+	app.AddSystems(byke.OnEnter(PauseStatePaused), pausedSystem)
+	app.AddSystems(byke.OnExit(PauseStatePaused), unpausedSystem)
 
 	fmt.Println(app.Run())
 }
 
 type BlinkFrequency struct {
-	ecs.Component[BlinkFrequency]
+	byke.Component[BlinkFrequency]
 	Value float64
 }
 
-func setupObjectsSystem(commands *ecs.Commands, screenSize ScreenSize) {
+func setupObjectsSystem(commands *byke.Commands, screenSize ScreenSize) {
 	gopher, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(GopherPNG))
 
 	randVec := func() Vec {
@@ -57,7 +57,7 @@ func setupObjectsSystem(commands *ecs.Commands, screenSize ScreenSize) {
 		size := rand.Float64()*32 + 16
 
 		commands.Spawn(
-			ecs.Name("Gopher"),
+			byke.Name("Gopher"),
 			Velocity{
 				Vec: randVec().Mul(50),
 			},
@@ -81,21 +81,21 @@ func setupObjectsSystem(commands *ecs.Commands, screenSize ScreenSize) {
 }
 
 type Velocity struct {
-	ecs.Component[Velocity]
+	byke.Component[Velocity]
 	Vec
 }
 
-var _ = ecs.ValidateComponent[Velocity]()
+var _ = byke.ValidateComponent[Velocity]()
 
 type MovementValues struct {
-	EntityId ecs.EntityId
-	Name     ecs.Name
+	EntityId byke.EntityId
+	Name     byke.Name
 
 	Velocity  Velocity
 	Transform *Transform
 }
 
-func movementSystem(query ecs.Query[MovementValues], vt VirtualTime) {
+func movementSystem(query byke.Query[MovementValues], vt VirtualTime) {
 	for item := range query.Items() {
 		item.Transform.Translation.X += item.Velocity.X * vt.DeltaSecs
 		item.Transform.Translation.Y += item.Velocity.Y * vt.DeltaSecs
@@ -108,7 +108,7 @@ type FollowMouseValues struct {
 	Transform Transform
 }
 
-func followMouseSystem(query ecs.Query[FollowMouseValues], cursor MouseCursor, vt VirtualTime) {
+func followMouseSystem(query byke.Query[FollowMouseValues], cursor MouseCursor, vt VirtualTime) {
 	for res := range query.Items() {
 		dir := Vec(cursor).Sub(res.Transform.Translation).Normalized()
 		res.Velocity.Vec = res.Velocity.Add(dir.Mul(200 * vt.DeltaSecs))
@@ -120,7 +120,7 @@ type BlinkValues struct {
 	Frequency BlinkFrequency
 }
 
-func blinkSystem(query ecs.Query[BlinkValues], time VirtualTime) {
+func blinkSystem(query byke.Query[BlinkValues], time VirtualTime) {
 	for item := range query.Items() {
 		alpha := math.Abs(math.Sin(time.Elapsed.Seconds() / item.Frequency.Value * math.Pi * 2))
 		green := math.Abs(math.Sin(time.Elapsed.Seconds() / item.Frequency.Value * math.Pi * 2.1))
@@ -137,8 +137,8 @@ const PauseStateRunning PauseState = 0
 const PauseStatePaused PauseState = 1
 
 func togglePauseState(
-	state ecs.State[PauseState],
-	nextState *ecs.NextState[PauseState],
+	state byke.State[PauseState],
+	nextState *byke.NextState[PauseState],
 	keys Keys,
 ) {
 	if keys.IsJustPressed(ebiten.KeyEscape) {
@@ -153,7 +153,7 @@ func togglePauseState(
 }
 
 func pausedSystem(
-	commands *ecs.Commands,
+	commands *byke.Commands,
 	vt *VirtualTime,
 	screenSize ScreenSize,
 ) {
@@ -161,7 +161,7 @@ func pausedSystem(
 
 	image, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(EbitenPNG))
 	commands.Spawn(
-		ecs.StateScoped(PauseStatePaused),
+		byke.StateScoped(PauseStatePaused),
 
 		Transform{
 			Translation: screenSize.Mul(0.5),

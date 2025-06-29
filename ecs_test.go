@@ -1,4 +1,4 @@
-package ecs
+package byke
 
 import (
 	"github.com/stretchr/testify/require"
