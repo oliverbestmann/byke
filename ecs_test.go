@@ -201,8 +201,11 @@ func BenchmarkWorld_RunSystem(b *testing.B) {
 	w := NewWorld()
 
 	w.RunSystem(func(c *Commands) {
-		for range 2000 {
-			c.Spawn(X{Value: 1}, Y{Value: 2})
+		for idx := range 2000 {
+			ec := c.Spawn(X{Value: 1}, Y{Value: 2})
+			if idx%2 == 0 {
+				ec.Update(InsertComponent(Name("Component")))
+			}
 		}
 	})
 
@@ -211,10 +214,11 @@ func BenchmarkWorld_RunSystem(b *testing.B) {
 		X    X
 	}
 
-	schedule := &Schedule{}
+	var schedule ScheduleId = &Schedule{}
 	w.AddSystems(schedule, func(q Query[Values]) {
-		for range q.Items() {
+		for item := range q.Items() {
 			// do nothing
+			_ = item
 		}
 	})
 

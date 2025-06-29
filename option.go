@@ -1,7 +1,6 @@
 package byke
 
 import (
-	"fmt"
 	"github.com/oliverbestmann/byke/internal/inner"
 	"reflect"
 )
@@ -9,13 +8,17 @@ import (
 type optionAccessor interface {
 	inner.HasType
 	__isOption()
-	setValue(value any)
 	mutable() bool
+	ptrInner() ptrValue
 }
 
 type Option[T IsComponent[T]] struct {
 	inner.Type[T]
 	value *T
+}
+
+func (o *Option[T]) ptrInner() ptrValue {
+	return ptrValueOf(reflect.ValueOf(&o.value).Elem())
 }
 
 func (o *Option[T]) mutable() bool {
@@ -41,14 +44,6 @@ func (o *Option[T]) OrDefault() T {
 
 func (o *Option[T]) __isOption() {}
 
-func (o *Option[T]) setValue(value any) {
-	if value == nil {
-		o.value = nil
-	} else {
-		o.value = value.(*T)
-	}
-}
-
 type OptionMut[T IsComponent[T]] struct {
 	inner.Type[T]
 	value *T
@@ -64,55 +59,43 @@ func (o *OptionMut[T]) Get() (*T, bool) {
 
 func (o *OptionMut[T]) __isOption() {}
 
-func (o *OptionMut[T]) setValue(value any) {
-	if value == nil {
-		o.value = nil
-	} else {
-		o.value = value.(*T)
-	}
+func (o *OptionMut[T]) ptrInner() ptrValue {
+	return ptrValueOf(reflect.ValueOf(&o.value).Elem())
 }
 
 func isOptionType(tyTarget reflect.Type) bool {
 	tyOptionAccessor := reflect.TypeFor[optionAccessor]()
 
-	fmt.Println(tyTarget, reflect.PointerTo(tyTarget).Implements(tyOptionAccessor))
-
 	return tyTarget.Kind() != reflect.Pointer &&
 		reflect.PointerTo(tyTarget).Implements(tyOptionAccessor)
 }
 
-func parseSingleValueForOption(tyOption reflect.Type) queryValueAccessor {
+func parseSingleValueForOption(tyOption reflect.Type) extractor {
 	assertIsNonPointerType(tyOption)
 
-	// instantiate a new option in memory
-	ptrToOption := pointerValue{Value: reflect.New(tyOption)}
-
-	// get the accessor
+	// instantiate a new option in memory. we do that to get access
+	// to the tyOptions inner type
+	ptrToOption := ptrValueOf(reflect.New(tyOption))
 	accessor := ptrToOption.Interface().(optionAccessor)
-
-	// get an extractor for the inner type
 	innerType := inner.TypeOf(accessor)
-	extractor := extractComponentByType(reflectComponentTypeOf(innerType))
 
-	return queryValueAccessor{
-		extractor: func(entity *Entity) (pointerValue, bool) {
-			ptrToValue, hasValue := extractor(entity)
+	innerExtractor := buildQuerySingleValue(reflect.PointerTo(innerType))
 
-			if !hasValue {
-				accessor.setValue(nil)
-				return ptrToOption, true
+	return extractor{
+		putValue: func(entity *Entity, target reflect.Value) bool {
+			// target should point to an Option[X]
+			assertIsNonPointerType(target.Type())
+
+			accessor := target.Addr().Interface().(optionAccessor)
+
+			ptrInner := accessor.ptrInner()
+			ok := innerExtractor.putValue(entity, ptrInner.Value)
+			if !ok {
+				// set pointer nil
+				ptrInner.Set(reflect.Zero(reflect.PointerTo(innerType)))
 			}
 
-			// set the actual value in the option
-			accessor.setValue(ptrToValue.Interface())
-			return ptrToOption, true
-		},
-
-		populateTarget: func(target reflect.Value, ptrToValue pointerValue) {
-			assertIsNonPointerType(target.Type())
-			assertIsPointerType(ptrToValue.Type())
-
-			target.Set(ptrToValue.Elem())
+			return true
 		},
 	}
 }

@@ -33,31 +33,29 @@ func isHasType(tyTarget reflect.Type) bool {
 		reflect.PointerTo(tyTarget).Implements(tyOptionAccessor)
 }
 
-func parseSingleValueForHas(tyHas reflect.Type) queryValueAccessor {
+func parseSingleValueForHas(tyHas reflect.Type) extractor {
 	assertIsNonPointerType(tyHas)
 
-	// instantiate a new option in memory
-	ptrToHas := pointerValue{Value: reflect.New(tyHas)}
-
-	// get the accessor
+	// instantiate a new option in memory. we do that to get access
+	// to the tyHas' inner type
+	ptrToHas := ptrValueOf(reflect.New(tyHas))
 	accessor := ptrToHas.Interface().(hasAccessor)
-
-	// get an extractor for the inner type
 	innerType := inner.TypeOf(accessor)
-	extractor := extractComponentByType(reflectComponentTypeOf(innerType))
 
-	return queryValueAccessor{
-		extractor: func(entity *Entity) (pointerValue, bool) {
-			_, hasValue := extractor(entity)
-			accessor.setValue(hasValue)
-			return ptrToHas, true
-		},
+	scratch := ptrValueOf(reflect.New(innerType))
+	innerExtractor := buildQuerySingleValue(innerType)
 
-		populateTarget: func(target reflect.Value, ptrToValue pointerValue) {
+	return extractor{
+		putValue: func(entity *Entity, target reflect.Value) bool {
+			// target should point to an Has[X]
 			assertIsNonPointerType(target.Type())
-			assertIsPointerType(ptrToValue.Type())
 
-			target.Set(ptrToValue.Elem())
+			accessor := target.Addr().Interface().(hasAccessor)
+
+			ok := innerExtractor.putValue(entity, scratch.Elem())
+			accessor.setValue(ok)
+
+			return true
 		},
 	}
 }
