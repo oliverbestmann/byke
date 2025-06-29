@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/pkg/profile"
 	ecs "gobevy"
@@ -20,7 +22,14 @@ func main() {
 	app.AddSystems(Update, movementSystem, blinkSystem)
 	app.AddSystems(Update, followMouseSystem)
 
-	app.Run()
+	app.InsertState(ecs.RegisterState[PauseState]{})
+
+	app.AddSystems(Update, togglePauseState)
+
+	app.AddSystems(ecs.OnEnter(PauseStatePaused), pausedSystem)
+	app.AddSystems(ecs.OnExit(PauseStatePaused), unpausedSystem)
+
+	fmt.Println(app.Run())
 }
 
 type BlinkFrequency struct {
@@ -120,4 +129,37 @@ func blinkSystem(query ecs.Query[BlinkValues], time VirtualTime) {
 		item.ColorTint.B = float32(green)*0.75 + 0.25
 		item.ColorTint.A = float32(alpha)*0.75 + 0.25
 	}
+}
+
+type PauseState int
+
+const PauseStateRunning PauseState = 0
+const PauseStatePaused PauseState = 1
+
+func togglePauseState(
+	state ecs.State[PauseState],
+	nextState *ecs.NextState[PauseState],
+	keys Keys,
+) {
+	if keys.IsJustPressed(ebiten.KeyEscape) {
+		isRunning := state.Current() == PauseStateRunning
+
+		if isRunning {
+			nextState.Set(PauseStatePaused)
+		} else {
+			nextState.Set(PauseStateRunning)
+		}
+	}
+}
+
+func pausedSystem(
+	vt *VirtualTime,
+) {
+	vt.Scale = 0.0
+}
+
+func unpausedSystem(
+	vt *VirtualTime,
+) {
+	vt.Scale = 1.0
 }

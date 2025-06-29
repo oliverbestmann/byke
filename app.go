@@ -1,5 +1,10 @@
 package ecs
 
+import (
+	"fmt"
+	"reflect"
+)
+
 type App struct {
 	world *World
 	run   RunWorld
@@ -15,15 +20,23 @@ func (a *App) World() *World {
 }
 
 func (a *App) AddPlugin(plugin Plugin) {
-	plugin(a)
+	plugin.ApplyTo(a)
 }
 
-func (a *App) AddSystems(schedule *Schedule, system System, systems ...System) {
-	a.World().AddSystems(schedule, system, systems...)
+func (a *App) AddSystems(scheduleId ScheduleId, system System, systems ...System) {
+	if !reflect.ValueOf(scheduleId).Comparable() {
+		panic(fmt.Sprintf("scheduleId must be comparable: %T", scheduleId))
+	}
+
+	a.World().AddSystems(scheduleId, system, systems...)
 }
 
 func (a *App) InsertResource(res any) {
 	a.World().InsertResource(res)
+}
+
+func (a *App) InsertState(newState NewState) {
+	newState.configureStateIn(a)
 }
 
 func (a *App) RunWorld(run RunWorld) {
@@ -34,6 +47,20 @@ func (a *App) Run() error {
 	return a.run(a.World())
 }
 
-type Plugin func(app *App)
+type Plugin interface {
+	ApplyTo(app *App)
+}
+
+type PluginFunc func(app *App)
+
+func (plugin PluginFunc) ApplyTo(app *App) {
+	plugin(app)
+}
 
 type RunWorld func(world *World) error
+
+type NewState interface {
+	configureStateIn(app *App)
+}
+
+type erasedStateMarker struct{}

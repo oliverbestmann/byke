@@ -124,6 +124,9 @@ type resourceValue struct {
 	Pointer AnyPtr
 }
 
+type ScheduleId interface {
+}
+
 type Schedule struct {
 	// make this a non zero sized type, so that creating a
 	// new Schedule will always return a different memory address
@@ -142,29 +145,29 @@ type World struct {
 	entityIdSeq EntityId
 	entities    map[EntityId]*Entity
 	resources   map[reflect.Type]resourceValue
-	schedules   map[*Schedule][]preparedSystem
+	schedules   map[ScheduleId][]preparedSystem
 }
 
 func NewWorld() World {
 	return World{
 		entities:  map[EntityId]*Entity{},
 		resources: map[reflect.Type]resourceValue{},
-		schedules: map[*Schedule][]preparedSystem{},
+		schedules: map[ScheduleId][]preparedSystem{},
 	}
 }
 
-func (w *World) AddSystems(schedule *Schedule, firstSystem System, systems ...System) {
+func (w *World) AddSystems(scheduleId ScheduleId, firstSystem System, systems ...System) {
 	preparedSystem := prepareSystem(w, firstSystem)
-	w.schedules[schedule] = append(w.schedules[schedule], preparedSystem)
+	w.schedules[scheduleId] = append(w.schedules[scheduleId], preparedSystem)
 
 	for _, system := range systems {
 		preparedSystem := prepareSystem(w, system)
-		w.schedules[schedule] = append(w.schedules[schedule], preparedSystem)
+		w.schedules[scheduleId] = append(w.schedules[scheduleId], preparedSystem)
 	}
 }
 
-func (w *World) RunSchedule(schedule *Schedule) {
-	for _, system := range w.schedules[schedule] {
+func (w *World) RunSchedule(scheduleId ScheduleId) {
+	for _, system := range w.schedules[scheduleId] {
 		system.Run()
 	}
 }

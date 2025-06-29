@@ -6,10 +6,13 @@ import (
 	"time"
 )
 
+var PreStartup = &ecs.Schedule{}
 var Startup = &ecs.Schedule{}
+var PostStartup = &ecs.Schedule{}
 
 var First = &ecs.Schedule{}
 var PreUpdate = &ecs.Schedule{}
+var StateTransition = ecs.StateTransition
 var Update = &ecs.Schedule{}
 var PostUpdate = &ecs.Schedule{}
 var PreRender = &ecs.Schedule{}
@@ -17,7 +20,7 @@ var Render = &ecs.Schedule{}
 var PostRender = &ecs.Schedule{}
 var Last = &ecs.Schedule{}
 
-func Plugin(app *ecs.App) {
+var Plugin ecs.PluginFunc = func(app *ecs.App) {
 	app.InsertResource(WindowConfig{
 		Title:  "Ebitengine",
 		Width:  800,
@@ -28,6 +31,8 @@ func Plugin(app *ecs.App) {
 	app.InsertResource(MouseCursor{})
 	app.InsertResource(RenderTarget{})
 	app.InsertResource(ScreenSize{})
+
+	app.InsertResource(Keys{})
 
 	app.AddSystems(First, updateVirtualTime, updateMouseCursor)
 	app.AddSystems(Render, renderSpritesSystem)
@@ -59,7 +64,10 @@ type Game struct {
 }
 
 func (g *Game) Init() {
+	g.World.RunSchedule(PreStartup)
+	g.World.RunSchedule(StateTransition)
 	g.World.RunSchedule(Startup)
+	g.World.RunSchedule(PostStartup)
 }
 
 func (g *Game) Update() error {
@@ -75,6 +83,7 @@ func (g *Game) Update() error {
 
 	// the update schedule
 	g.World.RunSchedule(PreUpdate)
+	g.World.RunSchedule(StateTransition)
 	g.World.RunSchedule(Update)
 	g.World.RunSchedule(PostUpdate)
 
