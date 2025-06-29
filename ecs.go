@@ -271,6 +271,13 @@ func (c *Commands) Spawn(components ...AnyComponent) EntityCommands {
 	}
 }
 
+func (c *Commands) Entity(entityId EntityId) EntityCommands {
+	return EntityCommands{
+		entityId: entityId,
+		commands: c,
+	}
+}
+
 func copyToHeap(value any) pointerValue {
 	if reflect.TypeOf(value).Kind() == reflect.Pointer {
 		panic("we do not want to have double pointers")

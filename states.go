@@ -11,15 +11,26 @@ type RegisterState[S comparable] struct {
 }
 
 func (r RegisterState[S]) configureStateIn(app *App) {
+	ValidateComponent[stateScoped[S]]()
+
 	app.InsertResource(State[S]{current: r.InitialValue})
 	app.InsertResource(NextState[S]{})
+
 	app.AddSystems(StateTransition, performStateTransition[S])
+	app.AddSystems(OnChange[S](), despawnStateScoped[S])
+}
+
+func StateScoped[S comparable](state S) IsComponent[stateScoped[S]] {
+	return stateScoped[S]{inState: state}
 }
 
 type stateChangedScheduleId[S comparable] struct {
 	stateType reflect.Type
 	value     S
-	enter     bool
+
+	enter  bool
+	exit   bool
+	change bool
 }
 
 func OnEnter[S comparable](stateValue S) ScheduleId {
@@ -34,7 +45,14 @@ func OnExit[S comparable](stateValue S) ScheduleId {
 	return stateChangedScheduleId[S]{
 		stateType: reflect.TypeFor[S](),
 		value:     stateValue,
-		enter:     false,
+		exit:      true,
+	}
+}
+
+func OnChange[S comparable]() ScheduleId {
+	return stateChangedScheduleId[S]{
+		stateType: reflect.TypeFor[S](),
+		change:    true,
 	}
 }
 
@@ -64,6 +82,11 @@ func (n *NextState[S]) Clear() {
 	n.next = zeroState
 }
 
+type stateScoped[S comparable] struct {
+	Component[stateScoped[S]]
+	inState S
+}
+
 func performStateTransition[S comparable](world *World, state *State[S], nextState *NextState[S]) {
 	if !state.initialized {
 		// we need to run the OnEnter schedule once
@@ -80,10 +103,32 @@ func performStateTransition[S comparable](world *World, state *State[S], nextSta
 		return
 	}
 
-	world.RunSchedule(OnExit(state.current))
+	// keep the previous state value so we can trigger OnExit
+	previousState := state.current
 
+	// update the state resources
 	state.current = nextState.next
 	nextState.Clear()
 
+	// run the OnExit / OnEnter schedules
+	world.RunSchedule(OnExit(previousState))
 	world.RunSchedule(OnEnter(state.current))
+	world.RunSchedule(OnChange[S]())
+}
+
+type DespawnStateScopedItem[S comparable] struct {
+	EntityId    EntityId
+	StateScoped stateScoped[S]
+}
+
+func despawnStateScoped[S comparable](
+	commands *Commands,
+	state State[S],
+	query Query[DespawnStateScopedItem[S]],
+) {
+	for item := range query.Items() {
+		if item.StateScoped.inState != state.Current() {
+			commands.Entity(item.EntityId).Despawn()
+		}
+	}
 }

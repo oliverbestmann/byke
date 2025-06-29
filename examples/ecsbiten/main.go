@@ -62,7 +62,7 @@ func setupObjectsSystem(commands *ecs.Commands, screenSize ScreenSize) {
 				Vec: randVec().Mul(50),
 			},
 			Transform{
-				Translation: randVec().MulEach(Vec(screenSize)),
+				Translation: randVec().MulEach(screenSize.Vec),
 				Scale:       VecOf(1.0, 1.0),
 			},
 			Size{
@@ -153,9 +153,27 @@ func togglePauseState(
 }
 
 func pausedSystem(
+	commands *ecs.Commands,
 	vt *VirtualTime,
+	screenSize ScreenSize,
 ) {
 	vt.Scale = 0.0
+
+	image, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(EbitenPNG))
+	commands.Spawn(
+		ecs.StateScoped(PauseStatePaused),
+
+		Transform{
+			Translation: screenSize.Mul(0.5),
+			Scale:       VecOf(1.0, 1.0),
+		},
+
+		Layer{Z: math.Inf(1)},
+
+		Sprite{
+			Image: image,
+		},
+	)
 }
 
 func unpausedSystem(

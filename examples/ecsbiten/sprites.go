@@ -98,7 +98,7 @@ func renderSpritesSystem(screen RenderTarget, sprites ecs.Query[RenderSpritesVal
 
 		// offset by anchor
 		offset := imageSize.MulEach(item.Anchor.Vec)
-		op.GeoM.Translate(offset.X, offset.Y)
+		op.GeoM.Translate(-offset.X, -offset.Y)
 
 		// get transformation
 		tr := item.Transform

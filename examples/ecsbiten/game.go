@@ -71,7 +71,7 @@ func (g *Game) Init() {
 }
 
 func (g *Game) Update() error {
-	g.World.InsertResource(ScreenSize(g.screenSize))
+	g.World.InsertResource(ScreenSize{Vec: g.screenSize})
 
 	if !g.initialized {
 		g.initialized = true
@@ -106,7 +106,9 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 	return outsideWidth, outsideHeight
 }
 
-type ScreenSize Vec
+type ScreenSize struct {
+	Vec
+}
 
 type MouseCursor Vec
 
