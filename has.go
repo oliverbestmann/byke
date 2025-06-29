@@ -1,9 +1,12 @@
 package byke
 
-import "reflect"
+import (
+	"github.com/oliverbestmann/byke/internal/inner"
+	"reflect"
+)
 
 type Has[C IsComponent[C]] struct {
-	InnerType[C]
+	inner.Type[C]
 	value bool
 }
 
@@ -11,14 +14,14 @@ func (h *Has[C]) setValue(value bool) {
 	h.value = value
 }
 
-func (h *Has[C]) isHasTypeMarker(accessor hasAccessor) {}
+func (h *Has[C]) isHasTypeMarker(hasAccessor) {}
 
 func (h *Has[C]) Exists() bool {
 	return h.value
 }
 
 type hasAccessor interface {
-	innerType() reflect.Type
+	inner.HasType
 	setValue(bool)
 	isHasTypeMarker(hasAccessor)
 }
@@ -40,7 +43,8 @@ func parseSingleValueForHas(tyHas reflect.Type) queryValueAccessor {
 	accessor := ptrToHas.Interface().(hasAccessor)
 
 	// get an extractor for the inner type
-	extractor := extractComponentByType(reflectComponentTypeOf(accessor.innerType()))
+	innerType := inner.TypeOf(accessor)
+	extractor := extractComponentByType(reflectComponentTypeOf(innerType))
 
 	return queryValueAccessor{
 		extractor: func(entity *Entity) (pointerValue, bool) {

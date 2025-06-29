@@ -2,18 +2,19 @@ package byke
 
 import (
 	"fmt"
+	"github.com/oliverbestmann/byke/internal/inner"
 	"reflect"
 )
 
 type optionAccessor interface {
+	inner.HasType
 	__isOption()
-	innerType() reflect.Type
 	setValue(value any)
 	mutable() bool
 }
 
 type Option[T IsComponent[T]] struct {
-	InnerType[T]
+	inner.Type[T]
 	value *T
 }
 
@@ -49,7 +50,7 @@ func (o *Option[T]) setValue(value any) {
 }
 
 type OptionMut[T IsComponent[T]] struct {
-	InnerType[T]
+	inner.Type[T]
 	value *T
 }
 
@@ -90,7 +91,8 @@ func parseSingleValueForOption(tyOption reflect.Type) queryValueAccessor {
 	accessor := ptrToOption.Interface().(optionAccessor)
 
 	// get an extractor for the inner type
-	extractor := extractComponentByType(reflectComponentTypeOf(accessor.innerType()))
+	innerType := inner.TypeOf(accessor)
+	extractor := extractComponentByType(reflectComponentTypeOf(innerType))
 
 	return queryValueAccessor{
 		extractor: func(entity *Entity) (pointerValue, bool) {
