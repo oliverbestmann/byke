@@ -170,6 +170,21 @@ func TestRunSystemWithQuery(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("query with struct (immutable, has)", func(t *testing.T) {
+		type MoveableItem struct {
+			Position Position
+			Velocity Velocity
+			Player   Has[Player]
+		}
+
+		requireCallback(t, func(allGood func()) {
+			w.RunSystem(func(q Query[MoveableItem]) {
+				allGood()
+				require.Len(t, slices.Collect(q.Items()), 2)
+			})
+		})
+	})
 }
 
 func BenchmarkWorld_RunSystem(b *testing.B) {

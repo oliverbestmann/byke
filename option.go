@@ -1,17 +1,19 @@
 package ecs
 
 import (
+	"fmt"
 	"reflect"
 )
 
 type optionAccessor interface {
 	__isOption()
-	reflectType() reflect.Type
+	innerType() reflect.Type
 	setValue(value any)
 	mutable() bool
 }
 
 type Option[T IsComponent[T]] struct {
+	InnerType[T]
 	value *T
 }
 
@@ -38,10 +40,6 @@ func (o *Option[T]) OrDefault() T {
 
 func (o *Option[T]) __isOption() {}
 
-func (o *Option[T]) reflectType() reflect.Type {
-	return reflect.TypeFor[T]()
-}
-
 func (o *Option[T]) setValue(value any) {
 	if value == nil {
 		o.value = nil
@@ -51,6 +49,7 @@ func (o *Option[T]) setValue(value any) {
 }
 
 type OptionMut[T IsComponent[T]] struct {
+	InnerType[T]
 	value *T
 }
 
@@ -64,10 +63,6 @@ func (o *OptionMut[T]) Get() (*T, bool) {
 
 func (o *OptionMut[T]) __isOption() {}
 
-func (o *OptionMut[T]) reflectType() reflect.Type {
-	return reflect.TypeFor[T]()
-}
-
 func (o *OptionMut[T]) setValue(value any) {
 	if value == nil {
 		o.value = nil
@@ -78,6 +73,8 @@ func (o *OptionMut[T]) setValue(value any) {
 
 func isOptionType(tyTarget reflect.Type) bool {
 	tyOptionAccessor := reflect.TypeFor[optionAccessor]()
+
+	fmt.Println(tyTarget, reflect.PointerTo(tyTarget).Implements(tyOptionAccessor))
 
 	return tyTarget.Kind() != reflect.Pointer &&
 		reflect.PointerTo(tyTarget).Implements(tyOptionAccessor)
@@ -93,7 +90,7 @@ func parseSingleValueForOption(tyOption reflect.Type) queryValueAccessor {
 	accessor := ptrToOption.Interface().(optionAccessor)
 
 	// get an extractor for the inner type
-	extractor := extractComponentByType(reflectComponentTypeOf(accessor.reflectType()))
+	extractor := extractComponentByType(reflectComponentTypeOf(accessor.innerType()))
 
 	return queryValueAccessor{
 		extractor: func(entity *Entity) (pointerValue, bool) {

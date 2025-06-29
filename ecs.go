@@ -443,6 +443,10 @@ func parseStructQueryTarget(tyTarget reflect.Type) parsedQueryTarget {
 		field := tyTarget.Field(idx)
 		fieldTy := field.Type
 
+		if !field.IsExported() || field.Anonymous {
+			continue
+		}
+
 		value := buildQuerySingleValue(fieldTy)
 		extractors = append(extractors, value.extractor)
 		populateSingleTargets = append(populateSingleTargets, value.populateTarget)
@@ -460,8 +464,15 @@ func parseStructQueryTarget(tyTarget reflect.Type) parsedQueryTarget {
 				panic(fmt.Sprintf("target type does not match, expected %s, got %s", tyTarget, target.Type()))
 			}
 
+			targetType := target.Type()
 			for idx := range target.NumField() {
 				field := target.Field(idx)
+
+				// TODO cache this
+				if !targetType.Field(idx).IsExported() || targetType.Field(idx).Anonymous {
+					continue
+				}
+
 				populateSingleTargets[idx](field, ptrToValues[idx])
 			}
 		},
@@ -510,6 +521,9 @@ func buildQuerySingleValue(tyTarget reflect.Type) queryValueAccessor {
 
 	case isOptionType(tyTarget):
 		return parseSingleValueForOption(tyTarget)
+
+	case isHasType(tyTarget):
+		return parseSingleValueForHas(tyTarget)
 
 	default:
 		panic(fmt.Sprintf("not a type we can extract: %s", tyTarget))
