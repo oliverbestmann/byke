@@ -49,6 +49,10 @@ type componentValue struct {
 	PtrToValue ptrValue
 }
 
+func (v componentValue) AnyComponent() AnyComponent {
+	return v.PtrToValue.Interface().(AnyComponent)
+}
+
 // ptrValue is a wrapper around a reflect.Value that holds
 // some value of type reflect.Pointer
 type ptrValue struct {
@@ -104,8 +108,8 @@ type World struct {
 	schedules   map[ScheduleId][]preparedSystem
 }
 
-func NewWorld() World {
-	return World{
+func NewWorld() *World {
+	return &World{
 		entities:  map[EntityId]*Entity{},
 		resources: map[reflect.Type]resourceValue{},
 		schedules: map[ScheduleId][]preparedSystem{},
@@ -174,21 +178,33 @@ func (w *World) insertComponents(entity *Entity, components []AnyComponent) {
 			))
 		}
 
-		// update relations if needed
-		if parentComponent, ok := w.parentComponentOf(component); ok {
-			parentComponent.addChild(entity.Id)
-		}
-
 		// and add it to the entity
 		entity.Components[tyComponent] = componentValue{
 			Type:       tyComponent,
 			PtrToValue: copyToHeap(component),
 		}
 
+		// trigger hooks for this component
+		w.onComponentInsert(entity, component)
+
 		// enqueue all required components
 		if component, ok := component.(RequireComponents); ok {
 			queue = append(queue, component.RequireComponents()...)
 		}
+	}
+}
+
+func (w *World) onComponentInsert(entity *Entity, component AnyComponent) {
+	// update relations if needed
+	if parentComponent, ok := w.parentComponentOf(component); ok {
+		parentComponent.addChild(entity.Id)
+	}
+}
+
+func (w *World) onComponentRemoved(entity *Entity, component AnyComponent) {
+	// update relations if needed
+	if parentComponent, ok := w.parentComponentOf(component); ok {
+		parentComponent.removeChild(entity.Id)
 	}
 }
 
@@ -371,6 +387,19 @@ func (w *World) Despawn(entityId EntityId) {
 	for _, entityId := range queue {
 		delete(w.entities, entityId)
 	}
+}
+
+func (w *World) removeComponent(entity *Entity, componentType ComponentType) {
+	component, ok := entity.Components[componentType]
+	if !ok {
+		// component is already gone
+		return
+	}
+
+	w.onComponentRemoved(entity, component.AnyComponent())
+
+	// remove component
+	delete(entity.Components, componentType)
 }
 
 type systemParameter struct {

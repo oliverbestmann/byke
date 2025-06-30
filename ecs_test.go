@@ -29,7 +29,7 @@ var _ = ValidateComponent[Velocity]()
 var _ = ValidateComponent[Player]()
 var _ = ValidateComponent[Enemy]()
 
-func buildSimpleWorld() World {
+func buildSimpleWorld() *World {
 	w := NewWorld()
 
 	w.Spawn(w.ReserveEntityId(), []AnyComponent{
@@ -188,10 +188,9 @@ func TestRunSystemWithQuery(t *testing.T) {
 }
 
 func TestRelationships(t *testing.T) {
-	t.Run("insert with ChildOf", func(t *testing.T) {
-		w := NewWorld()
+	makeWorld := func() (w *World, parentId, childId EntityId) {
+		w = NewWorld()
 
-		var parentId, childId EntityId
 		w.RunSystem(func(commands *Commands) {
 			parentId = commands.Spawn().Id()
 			childId = commands.Spawn(ChildOf{
@@ -200,6 +199,12 @@ func TestRelationships(t *testing.T) {
 				},
 			}).Id()
 		})
+
+		return
+	}
+
+	t.Run("insert with ChildOf", func(t *testing.T) {
+		w, parentId, childId := makeWorld()
 
 		type ParentItems struct {
 			EntityId EntityId
@@ -232,21 +237,35 @@ func TestRelationships(t *testing.T) {
 		})
 	})
 
-	t.Run("despawn hierarchy", func(t *testing.T) {
-		w := NewWorld()
-
-		var parentId EntityId
+	t.Run("remove ChildOf", func(t *testing.T) {
+		w, _, childId := makeWorld()
 
 		w.RunSystem(func(commands *Commands) {
-			parentId = commands.Spawn().Id()
-			require.NotZero(t, parentId)
-
-			commands.Spawn(ChildOf{
-				ChildComponent: ChildComponent[Children, ChildOf]{
-					Parent: parentId,
-				},
-			}).Id()
+			commands.Entity(childId).
+				Update(RemoveComponent[ChildOf]())
 		})
+
+		w.RunSystem(func(q Query[Children]) {
+			require.Equal(t, 1, q.Count())
+			require.Empty(t, q.MustGet().Children)
+		})
+	})
+
+	t.Run("despawn child component", func(t *testing.T) {
+		w, _, childId := makeWorld()
+
+		w.RunSystem(func(commands *Commands) {
+			commands.Entity(childId).Despawn()
+		})
+
+		w.RunSystem(func(q Query[Children]) {
+			require.Equal(t, 1, q.Count())
+			require.Empty(t, q.MustGet().Children)
+		})
+	})
+
+	t.Run("despawn hierarchy", func(t *testing.T) {
+		w, parentId, _ := makeWorld()
 
 		w.RunSystem(func(commands *Commands) {
 			commands.Entity(parentId).Despawn()

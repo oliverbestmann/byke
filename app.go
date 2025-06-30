@@ -12,8 +12,7 @@ type App struct {
 
 func (a *App) World() *World {
 	if a.world == nil {
-		world := NewWorld()
-		a.world = &world
+		a.world = NewWorld()
 	}
 
 	return a.world

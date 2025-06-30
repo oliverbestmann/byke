@@ -76,7 +76,7 @@ func RemoveComponent[C IsComponent[C]]() EntityCommand {
 	componentType := componentTypeOf[C]()
 
 	return func(world *World, entity *Entity) {
-		delete(entity.Components, componentType)
+		world.removeComponent(entity, componentType)
 	}
 }
 

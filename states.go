@@ -126,6 +126,7 @@ func despawnOnExitStateSystem[S comparable](
 	state State[S],
 	query Query[DespawnStateScopedItem[S]],
 ) {
+	// TODO have a StateTransitionEvent event and offer OnExit and OnEnter
 	for item := range query.Items() {
 		if item.StateScoped.state != state.Current() {
 			commands.Entity(item.EntityId).Despawn()
