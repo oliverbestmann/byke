@@ -211,13 +211,13 @@ func TestRelationships(t *testing.T) {
 			Children Children
 		}
 
-		// check that we can select the children component
+		// check that we can select the Children component
 		w.RunSystem(func(q Query[ParentItems]) {
 			require.EqualValues(t, 1, q.Count(), "expect to select one time")
 			item := q.MustGet()
 
-			require.Len(t, item.Children.Children, 1)
-			require.Equal(t, item.Children.Children[0], childId)
+			require.Len(t, item.Children._children, 1)
+			require.Equal(t, item.Children.Children()[0], childId)
 
 			require.Equal(t, parentId, item.EntityId)
 		})
@@ -247,7 +247,7 @@ func TestRelationships(t *testing.T) {
 
 		w.RunSystem(func(q Query[Children]) {
 			require.Equal(t, 1, q.Count())
-			require.Empty(t, q.MustGet().Children)
+			require.Empty(t, q.MustGet()._children)
 		})
 	})
 
@@ -260,7 +260,7 @@ func TestRelationships(t *testing.T) {
 
 		w.RunSystem(func(q Query[Children]) {
 			require.Equal(t, 1, q.Count())
-			require.Empty(t, q.MustGet().Children)
+			require.Empty(t, q.MustGet()._children)
 		})
 	})
 

@@ -20,7 +20,7 @@ func (r RegisterState[S]) configureStateIn(app *App) {
 	app.AddSystems(OnChange[S](), despawnOnExitStateSystem[S])
 }
 
-func DespawnOnExitState[S comparable](state S) IsComponent[despawnOnExitState[S]] {
+func DespawnOnExitState[S comparable](state S) despawnOnExitState[S] {
 	return despawnOnExitState[S]{state: state}
 }
 

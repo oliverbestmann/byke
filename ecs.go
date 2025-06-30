@@ -2,9 +2,12 @@ package byke
 
 import (
 	"fmt"
+	"hash/maphash"
 	"reflect"
 	"strconv"
 )
+
+var seed = maphash.MakeSeed()
 
 type AnyPtr any
 
@@ -19,17 +22,48 @@ type isAnyComponentMarker struct{}
 
 type AnyComponent interface {
 	isAnyComponent(isAnyComponentMarker)
+	ComponentType() ComponentType
 }
 
 type RequireComponents interface {
 	RequireComponents() []AnyComponent
 }
 
-type Component[T IsComponent[T]] struct{}
+type Component[C IsComponent[C]] struct{}
 
-func (Component[T]) isAnyComponent(isAnyComponentMarker) {}
+func (Component[C]) isAnyComponent(isAnyComponentMarker) {}
 
-func (Component[T]) IsComponent(T) {}
+func (Component[C]) IsComponent(C) {}
+
+func (c Component[C]) ComponentType() ComponentType {
+	return componentTypeOf[C]()
+}
+
+type IsComparableComponent[T comparable] interface {
+	IsComponent[T]
+	comparable
+}
+
+type ComparableComponent[T IsComparableComponent[T]] struct {
+	Component[T]
+}
+
+func (c ComparableComponent[T]) hashOf(value AnyComponent) HashValue {
+	ptrToValue := any(value).(*T)
+	hash := maphash.Comparable(seed, *ptrToValue)
+	return HashValue(hash)
+}
+
+type erasedComparableComponent interface {
+	hashOf(value AnyComponent) HashValue
+}
+
+type Changed[T IsComparableComponent[T]] struct {
+}
+
+type Tick uint64
+
+type HashValue uint64
 
 type EntityId uint32
 
@@ -45,12 +79,20 @@ type Entity struct {
 }
 
 type componentValue struct {
-	Type       ComponentType
-	PtrToValue ptrValue
+	PtrToValue  AnyComponent
+	LastChanged Tick
+	Hash        HashValue
 }
 
-func (v componentValue) AnyComponent() AnyComponent {
-	return v.PtrToValue.Interface().(AnyComponent)
+func (cv *componentValue) Type() ComponentType {
+	return cv.PtrToValue.ComponentType()
+}
+
+func (cv *componentValue) CheckUpdate() {
+	if !cv.Type().Comparable() {
+		return
+	}
+
 }
 
 // ptrValue is a wrapper around a reflect.Value that holds
@@ -65,7 +107,7 @@ func ptrValueOf(val reflect.Value) ptrValue {
 }
 
 type ComponentType struct {
-	GoType reflect.Type
+	reflect.Type
 }
 
 func componentTypeOf[C IsComponent[C]]() ComponentType {
@@ -75,7 +117,7 @@ func componentTypeOf[C IsComponent[C]]() ComponentType {
 
 func anyComponentTypeOf(component AnyComponent) ComponentType {
 	return ComponentType{
-		GoType: reflect.TypeOf(component),
+		Type: reflect.TypeOf(component),
 	}
 }
 
@@ -174,14 +216,13 @@ func (w *World) insertComponents(entity *Entity, components []AnyComponent) {
 		// must not be inserted if it is a parentComponent
 		if _, ok := component.(parentComponent); ok {
 			panic(fmt.Sprintf(
-				"you may not insert a byke.ParentComponent yourself: %T", component,
+				"you may not insert a byke.ParentComponent yourself: %C", component,
 			))
 		}
 
 		// and add it to the entity
 		entity.Components[tyComponent] = componentValue{
-			Type:       tyComponent,
-			PtrToValue: copyToHeap(component),
+			PtrToValue: copyToHeap(component).Interface().(AnyComponent),
 		}
 
 		// trigger hooks for this component
@@ -224,14 +265,13 @@ func (w *World) parentComponentOf(component AnyComponent) (parentComponent, bool
 	parentComponentValue, ok := parent.Components[parentType]
 	if !ok {
 		parentComponentValue = componentValue{
-			Type:       parentType,
-			PtrToValue: ptrValueOf(reflect.New(parentType.GoType)),
+			PtrToValue: ptrValueOf(reflect.New(parentType.Type)).Interface().(AnyComponent),
 		}
 
 		parent.Components[parentType] = parentComponentValue
 	}
 
-	parentComponent := parentComponentValue.PtrToValue.Interface().(parentComponent)
+	parentComponent := parentComponentValue.PtrToValue.(parentComponent)
 	return parentComponent, true
 }
 
@@ -278,7 +318,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 	if parent, ok := any(zero).(parentComponent); ok {
 		// check if the child type points to us
 		childType := parent.RelationChildType()
-		instance := reflect.New(childType.GoType).Elem().Interface()
+		instance := reflect.New(childType.Type).Elem().Interface()
 
 		child, ok := instance.(childComponent)
 		if !ok {
@@ -299,7 +339,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 	if child, ok := any(zero).(childComponent); ok {
 		// check if the child type points to us
 		parentType := child.RelationParentType()
-		instance := reflect.New(parentType.GoType).Interface()
+		instance := reflect.New(parentType.Type).Interface()
 
 		parent, ok := instance.(parentComponent)
 		if !ok {
@@ -324,7 +364,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 
 func reflectComponentTypeOf(tyComponent reflect.Type) ComponentType {
 	return ComponentType{
-		GoType: tyComponent,
+		Type: tyComponent,
 	}
 }
 
@@ -370,14 +410,14 @@ func (w *World) Despawn(entityId EntityId) {
 
 		// update relationships
 		for _, component := range entity.Components {
-			value := component.PtrToValue.Interface().(AnyComponent)
+			value := component.PtrToValue
 			if parentComponent, ok := w.parentComponentOf(value); ok {
 				parentComponent.removeChild(entityId)
 			}
 
 			// despawn child entities too
 			if parentComponent, ok := value.(parentComponent); ok {
-				for _, entityId := range parentComponent.children() {
+				for _, entityId := range parentComponent.Children() {
 					queue = append(queue, entityId)
 				}
 			}
@@ -396,7 +436,7 @@ func (w *World) removeComponent(entity *Entity, componentType ComponentType) {
 		return
 	}
 
-	w.onComponentRemoved(entity, component.AnyComponent())
+	w.onComponentRemoved(entity, component.PtrToValue)
 
 	// remove component
 	delete(entity.Components, componentType)
@@ -505,3 +545,7 @@ type Name string
 func (n Name) isAnyComponent(isAnyComponentMarker) {}
 
 func (n Name) IsComponent(Name) {}
+
+func (n Name) ComponentType() ComponentType {
+	return Component[Name]{}.ComponentType()
+}

@@ -24,7 +24,7 @@ func (a *App) AddPlugin(plugin Plugin) {
 
 func (a *App) AddSystems(scheduleId ScheduleId, system System, systems ...System) {
 	if !reflect.ValueOf(scheduleId).Comparable() {
-		panic(fmt.Sprintf("scheduleId must be comparable: %T", scheduleId))
+		panic(fmt.Sprintf("scheduleId must be comparable: %C", scheduleId))
 	}
 
 	a.World().AddSystems(scheduleId, system, systems...)

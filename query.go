@@ -12,7 +12,7 @@ type Query[T any] struct {
 	inner.Type[T]
 	*erasedQuery
 
-	// scratch space holding one item T in the query
+	// scratch space holding one item C in the query
 	item T
 }
 

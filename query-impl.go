@@ -24,8 +24,8 @@ type queryAccessor interface {
 // ensure Query implements the queryAccessor type
 var _ queryAccessor = &Query[any]{}
 
-// buildQuery parses the Query[T] type into a reflect.Value
-// holding an actual Query[T] instance.
+// buildQuery parses the Query[C] type into a reflect.Value
+// holding an actual Query[C] instance.
 func buildQuery(w *World, queryType reflect.Type) reflect.Value {
 	// allocate a new Query object in memory
 	var ptrToQuery = reflect.New(queryType)
@@ -39,7 +39,7 @@ func buildQuery(w *World, queryType reflect.Type) reflect.Value {
 	// generic query work
 	queryAcc.set(&erasedQuery{world: w, extractor: extractor})
 
-	// return the Query[T] instance
+	// return the Query[C] instance
 	return ptrToQuery.Elem()
 }
 
@@ -50,7 +50,7 @@ type extractor struct {
 	hasValue func(entity *Entity) bool
 }
 
-func getComponentByType(entity *Entity, ty ComponentType) (ptrValue, bool) {
+func ptrToComponentValue(entity *Entity, ty ComponentType) (AnyComponent, bool) {
 	value, ok := entity.Components[ty]
 	return value.PtrToValue, ok
 }
@@ -151,19 +151,19 @@ func buildQuerySingleValue(tyTarget reflect.Type) extractor {
 		componentType := reflectComponentTypeOf(tyTarget)
 		return extractor{
 			hasValue: func(entity *Entity) bool {
-				_, ok := getComponentByType(entity, componentType)
+				_, ok := ptrToComponentValue(entity, componentType)
 				return ok
 			},
 
 			putValue: func(entity *Entity, target reflect.Value) bool {
 				assertIsNonPointerType(target.Type())
 
-				value, ok := getComponentByType(entity, componentType)
+				value, ok := ptrToComponentValue(entity, componentType)
 				if !ok {
 					return false
 				}
 
-				target.Set(value.Elem())
+				target.Set(reflect.ValueOf(value).Elem())
 				return true
 			},
 		}
@@ -173,20 +173,20 @@ func buildQuerySingleValue(tyTarget reflect.Type) extractor {
 
 		return extractor{
 			hasValue: func(entity *Entity) bool {
-				_, ok := getComponentByType(entity, componentType)
+				_, ok := ptrToComponentValue(entity, componentType)
 				return ok
 			},
 
 			putValue: func(entity *Entity, target reflect.Value) bool {
 				assertIsPointerType(target.Type())
 
-				value, ok := getComponentByType(entity, componentType)
+				value, ok := ptrToComponentValue(entity, componentType)
 				if !ok {
 					return false
 				}
 
 				// let target point to the value
-				target.Set(value.Value)
+				target.Set(reflect.ValueOf(value))
 				return true
 			},
 		}

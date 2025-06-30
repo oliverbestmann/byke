@@ -1,14 +1,15 @@
 package byke
 
-import "slices"
+import (
+	"slices"
+)
 
 // ParentComponent must be embedded on the parent side of a relationship
 type ParentComponent[Parent IsComponent[Parent], Child IsComponent[Child]] struct {
 	Component[Parent]
 
-	// Children holds the EntityIds of the children of this relation.
-	// You **must not** update the Children slice manually.
-	Children []EntityId
+	// _children holds the EntityIds of the children of this relation.
+	_children []EntityId
 }
 
 func (*ParentComponent[Parent, Child]) RelationChildType() ComponentType {
@@ -21,21 +22,24 @@ func (*ParentComponent[Parent, Child]) makeChildComponent() childComponent {
 }
 
 func (p *ParentComponent[Parent, Child]) addChild(childId EntityId) {
-	if slices.Contains(p.Children, childId) {
+	if slices.Contains(p._children, childId) {
 		return
 	}
 
-	p.Children = append(p.Children, childId)
+	p._children = append(p._children, childId)
 }
 
 func (p *ParentComponent[Parent, Child]) removeChild(childId EntityId) {
-	p.Children = slices.DeleteFunc(p.Children, func(id EntityId) bool {
-		return childId == id
-	})
+	idx := slices.Index(p._children, childId)
+	if idx >= 0 {
+		p._children = slices.Delete(p._children, idx, idx+1)
+	}
 }
 
-func (p *ParentComponent[Parent, Child]) children() []EntityId {
-	return p.Children
+// Children returns the children in this component.
+// You **must not** modify the returned slice.
+func (p *ParentComponent[Parent, Child]) Children() []EntityId {
+	return p._children
 }
 
 // ChildComponent must be embedded on the client side of a relationship
@@ -57,7 +61,7 @@ type parentComponent interface {
 	RelationChildType() ComponentType
 	addChild(id EntityId)
 	removeChild(id EntityId)
-	children() []EntityId
+	Children() []EntityId
 }
 
 type childComponent interface {
