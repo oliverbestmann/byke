@@ -187,6 +187,75 @@ func TestRunSystemWithQuery(t *testing.T) {
 	})
 }
 
+func TestRelationships(t *testing.T) {
+	t.Run("insert with ChildOf", func(t *testing.T) {
+		w := NewWorld()
+
+		var parentId, childId EntityId
+		w.RunSystem(func(commands *Commands) {
+			parentId = commands.Spawn().Id()
+			childId = commands.Spawn(ChildOf{
+				ChildComponent: ChildComponent[Children, ChildOf]{
+					Parent: parentId,
+				},
+			}).Id()
+		})
+
+		type ParentItems struct {
+			EntityId EntityId
+			Children Children
+		}
+
+		// check that we can select the children component
+		w.RunSystem(func(q Query[ParentItems]) {
+			require.EqualValues(t, 1, q.Count(), "expect to select one time")
+			item := q.MustGet()
+
+			require.Len(t, item.Children.Children, 1)
+			require.Equal(t, item.Children.Children[0], childId)
+
+			require.Equal(t, parentId, item.EntityId)
+		})
+
+		type ChildItems struct {
+			EntityId EntityId
+			ChildOf  ChildOf
+		}
+
+		// check that we can select the parent component
+		w.RunSystem(func(q Query[ChildItems]) {
+			require.EqualValues(t, 1, q.Count())
+			item := q.MustGet()
+
+			require.Equal(t, childId, item.EntityId)
+			require.Equal(t, parentId, item.ChildOf.Parent)
+		})
+	})
+
+	t.Run("despawn hierarchy", func(t *testing.T) {
+		w := NewWorld()
+
+		var parentId EntityId
+
+		w.RunSystem(func(commands *Commands) {
+			parentId = commands.Spawn().Id()
+			require.NotZero(t, parentId)
+
+			commands.Spawn(ChildOf{
+				ChildComponent: ChildComponent[Children, ChildOf]{
+					Parent: parentId,
+				},
+			}).Id()
+		})
+
+		w.RunSystem(func(commands *Commands) {
+			commands.Entity(parentId).Despawn()
+		})
+
+		require.Empty(t, w.entities)
+	})
+}
+
 func BenchmarkWorld_RunSystem(b *testing.B) {
 	type X struct {
 		Component[X]

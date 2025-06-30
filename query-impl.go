@@ -33,7 +33,7 @@ func buildQuery(w *World, queryType reflect.Type) reflect.Value {
 
 	// build the query from the target type
 	targetType := inner.TypeOf(queryAcc)
-	extractor := parseQueryTarget(targetType)
+	extractor := buildQueryTarget(targetType)
 
 	// set the backend of the query that performs the actual
 	// generic query work
@@ -55,7 +55,7 @@ func getComponentByType(entity *Entity, ty ComponentType) (ptrValue, bool) {
 	return value.PtrToValue, ok
 }
 
-func parseQueryTarget(tyTarget reflect.Type) extractor {
+func buildQueryTarget(tyTarget reflect.Type) extractor {
 	isSingleTarget := isComponentType(tyTarget) ||
 		tyTarget.Kind() == reflect.Pointer && isComponentType(tyTarget.Elem()) ||
 		isOptionType(tyTarget)
@@ -144,6 +144,9 @@ func buildQuerySingleValue(tyTarget reflect.Type) extractor {
 	case tyTarget == reflect.TypeFor[EntityId]():
 		return entityIdExtractor
 
+	case isPointerToParentComponentType(tyTarget):
+		panic(fmt.Sprintf("parent side of relation must not be queried via pointer: %s", tyTarget))
+
 	case isComponentType(tyTarget):
 		componentType := reflectComponentTypeOf(tyTarget)
 		return extractor{
@@ -197,6 +200,14 @@ func buildQuerySingleValue(tyTarget reflect.Type) extractor {
 	default:
 		panic(fmt.Sprintf("not a type we can extract: %s", tyTarget))
 	}
+}
+
+func isPointerToParentComponentType(target reflect.Type) bool {
+	if target.Kind() != reflect.Pointer {
+		return false
+	}
+
+	return target.Implements(reflect.TypeFor[parentComponent]())
 }
 
 func isComponentType(t reflect.Type) bool {

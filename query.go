@@ -1,6 +1,7 @@
 package byke
 
 import (
+	"fmt"
 	"github.com/oliverbestmann/byke/internal/inner"
 	"iter"
 	"reflect"
@@ -21,6 +22,15 @@ func (q *Query[T]) Get() (value *T, ok bool) {
 	}
 
 	return nil, false
+}
+
+func (q *Query[T]) MustGet() T {
+	value, ok := q.Get()
+	if !ok {
+		panic(fmt.Sprintf("no value in query for %T", value))
+	}
+
+	return *value
 }
 
 func (q *Query[T]) Count() int {

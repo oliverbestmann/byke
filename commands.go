@@ -11,6 +11,12 @@ type Commands struct {
 	queue []Command
 }
 
+func (c *Commands) applyToWorld() {
+	for _, command := range c.queue {
+		command(c.world)
+	}
+}
+
 func (c *Commands) Queue(command Command) *Commands {
 	c.queue = append(c.queue, command)
 	return c
@@ -41,6 +47,10 @@ type EntityCommands struct {
 	commands *Commands
 }
 
+func (e EntityCommands) Id() EntityId {
+	return e.entityId
+}
+
 func (e EntityCommands) Update(commands ...EntityCommand) EntityCommands {
 	e.commands.queue = append(e.commands.queue, func(world *World) {
 		entity, ok := world.entities[e.entityId]
@@ -58,12 +68,7 @@ func (e EntityCommands) Update(commands ...EntityCommand) EntityCommands {
 
 func (e EntityCommands) Despawn() {
 	e.commands.queue = append(e.commands.queue, func(world *World) {
-		if world.entities[e.entityId] == nil {
-			fmt.Printf("[warn] cannot despawn entity %d: does not exist\n", e.entityId)
-			return
-		}
-
-		delete(world.entities, e.entityId)
+		world.Despawn(e.entityId)
 	})
 }
 

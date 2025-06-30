@@ -3,6 +3,7 @@ package byke
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 )
 
 type AnyPtr any
@@ -31,6 +32,10 @@ func (Component[T]) isAnyComponent(isAnyComponentMarker) {}
 func (Component[T]) IsComponent(T) {}
 
 type EntityId uint32
+
+func (e EntityId) String() string {
+	return strconv.Itoa(int(e))
+}
 
 type Entity struct {
 	Id EntityId
@@ -124,8 +129,8 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 }
 
 func (w *World) ReserveEntityId() EntityId {
-	entityId := w.entityIdSeq
 	w.entityIdSeq += 1
+	entityId := w.entityIdSeq
 
 	return entityId
 
@@ -154,34 +159,68 @@ func (w *World) insertComponents(entity *Entity, components []AnyComponent) {
 		// where specified directly
 		overwrite := idx < len(components)
 
-		tyComponent := anyComponentTypeOf(queue[idx])
+		component := queue[idx]
+		tyComponent := anyComponentTypeOf(component)
 
 		// maybe skip this one if it already exists on the entity
 		if _, exists := entity.Components[tyComponent]; exists && !overwrite {
 			continue
 		}
 
+		// must not be inserted if it is a parentComponent
+		if _, ok := component.(parentComponent); ok {
+			panic(fmt.Sprintf(
+				"you may not insert a byke.ParentComponent yourself: %T", component,
+			))
+		}
+
+		// update relations if needed
+		if parentComponent, ok := w.parentComponentOf(component); ok {
+			parentComponent.addChild(entity.Id)
+		}
+
 		// and add it to the entity
 		entity.Components[tyComponent] = componentValue{
 			Type:       tyComponent,
-			PtrToValue: copyToHeap(queue[idx]),
+			PtrToValue: copyToHeap(component),
 		}
 
 		// enqueue all required components
-		if component, ok := queue[idx].(RequireComponents); ok {
+		if component, ok := component.(RequireComponents); ok {
 			queue = append(queue, component.RequireComponents()...)
 		}
 	}
 }
 
-func (w *World) NewCommands() *Commands {
-	return &Commands{world: w}
+func (w *World) parentComponentOf(component AnyComponent) (parentComponent, bool) {
+	child, ok := component.(childComponent)
+	if !ok {
+		return nil, false
+	}
+
+	parentId := child.parentId()
+	parent, ok := w.entities[parentId]
+	if !ok {
+		panic(fmt.Sprintf("parent entity %s does not exist", parentId))
+	}
+
+	parentType := child.RelationParentType()
+	parentComponentValue, ok := parent.Components[parentType]
+	if !ok {
+		parentComponentValue = componentValue{
+			Type:       parentType,
+			PtrToValue: ptrValueOf(reflect.New(parentType.GoType)),
+		}
+
+		parent.Components[parentType] = parentComponentValue
+	}
+
+	parentComponent := parentComponentValue.PtrToValue.Interface().(parentComponent)
+	return parentComponent, true
 }
 
-func (w *World) Exec(commands *Commands) {
-	for _, command := range commands.queue {
-		command(w)
-	}
+func (w *World) NewCommands() *Commands {
+	return &Commands{world: w}
 }
 
 // Resource returns a pointer to the resource of the given reflect type.
@@ -215,7 +254,53 @@ func copyToHeap(value any) ptrValue {
 	return ptrValueOf(ptrToValue)
 }
 
-func ValidateComponent[T IsComponent[T]]() struct{} {
+func ValidateComponent[C IsComponent[C]]() struct{} {
+	componentType := componentTypeOf[C]()
+
+	var zero C
+
+	if parent, ok := any(zero).(parentComponent); ok {
+		// check if the child type points to us
+		childType := parent.RelationChildType()
+		instance := reflect.New(childType.GoType).Elem().Interface()
+
+		child, ok := instance.(childComponent)
+		if !ok {
+			panic(fmt.Sprintf(
+				"relationship target of %s must point to a component embedding byke.ChildComponent",
+				componentType,
+			))
+		}
+
+		if child.RelationParentType() != componentType {
+			panic(fmt.Sprintf(
+				"relationship target of %s must point to %s",
+				childType, componentType,
+			))
+		}
+	}
+
+	if child, ok := any(zero).(childComponent); ok {
+		// check if the child type points to us
+		parentType := child.RelationParentType()
+		instance := reflect.New(parentType.GoType).Interface()
+
+		parent, ok := instance.(parentComponent)
+		if !ok {
+			panic(fmt.Sprintf(
+				"relationship target of %s must point to a component embedding byke.ParentComponent",
+				componentType,
+			))
+		}
+
+		if parent.RelationChildType() != componentType {
+			panic(fmt.Sprintf(
+				"relationship target of %s must point to %s",
+				parentType, componentType,
+			))
+		}
+	}
+
 	// TODO mark component as valid somewhere, maybe calculate some
 	//  kind of component type id too
 	return struct{}{}
@@ -255,6 +340,39 @@ func (w *World) RunSystem(system System) {
 	prepareSystem(w, system).Run()
 }
 
+func (w *World) Despawn(entityId EntityId) {
+	queue := []EntityId{entityId}
+
+	for idx := 0; idx < len(queue); idx++ {
+		entityId = queue[idx]
+
+		entity, ok := w.entities[entityId]
+		if !ok {
+			fmt.Printf("[warn] cannot despawn entity %d: does not exist\n", entityId)
+			return
+		}
+
+		// update relationships
+		for _, component := range entity.Components {
+			value := component.PtrToValue.Interface().(AnyComponent)
+			if parentComponent, ok := w.parentComponentOf(value); ok {
+				parentComponent.removeChild(entityId)
+			}
+
+			// despawn child entities too
+			if parentComponent, ok := value.(parentComponent); ok {
+				for _, entityId := range parentComponent.children() {
+					queue = append(queue, entityId)
+				}
+			}
+		}
+	}
+
+	for _, entityId := range queue {
+		delete(w.entities, entityId)
+	}
+}
+
 type systemParameter struct {
 	// If constant is set, it will be used directly. GetValue will not be called
 	Constant reflect.Value
@@ -279,7 +397,7 @@ func commandsSystemParameter(world *World) systemParameter {
 
 		Cleanup: func(value reflect.Value) {
 			commands := value.Interface().(*Commands)
-			world.Exec(commands)
+			commands.applyToWorld()
 		},
 	}
 }
