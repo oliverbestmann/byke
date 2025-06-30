@@ -58,9 +58,6 @@ type erasedComparableComponent interface {
 	hashOf(value AnyComponent) HashValue
 }
 
-type Changed[T IsComparableComponent[T]] struct {
-}
-
 type Tick uint64
 
 type HashValue uint64
@@ -173,7 +170,7 @@ func (w *World) AddSystems(scheduleId ScheduleId, firstSystem System, systems ..
 
 func (w *World) RunSchedule(scheduleId ScheduleId) {
 	for _, system := range w.schedules[scheduleId] {
-		system.Run()
+		w.runSystem(system)
 	}
 }
 
@@ -224,16 +221,18 @@ func (w *World) insertComponents(entity *Entity, components []AnyComponent) {
 		}
 
 		// and add it to the entity
+		heapComponent := copyToHeap(component).Interface().(AnyComponent)
 		entity.Components[tyComponent] = componentValue{
-			PtrToValue: copyToHeap(component).Interface().(AnyComponent),
+			PtrToValue: heapComponent,
+			Hash:       hashOf(heapComponent),
 		}
 
 		// trigger hooks for this component
-		w.onComponentInsert(entity, component)
+		w.onComponentInsert(entity, heapComponent)
 
 		// enqueue all required components
-		if component, ok := component.(RequireComponents); ok {
-			queue = append(queue, component.RequireComponents()...)
+		if req, ok := heapComponent.(RequireComponents); ok {
+			queue = append(queue, req.RequireComponents()...)
 		}
 	}
 }
@@ -366,7 +365,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 }
 
 func reflectComponentTypeOf(tyComponent reflect.Type) ComponentType {
-	assertIsNonPointerType(tyComponent)
+	assertIsComponentType(tyComponent)
 
 	return ComponentType{
 		Type: tyComponent,
@@ -470,8 +469,7 @@ func (w *World) recheckComponents(ty ComponentType) {
 			continue
 		}
 
-		erasedComparable := component.PtrToValue.(erasedComparableComponent)
-		hashValue := erasedComparable.hashOf(component.PtrToValue)
+		hashValue := hashOf(component.PtrToValue)
 
 		if hashValue != component.Hash {
 			component.Hash = hashValue
@@ -479,6 +477,15 @@ func (w *World) recheckComponents(ty ComponentType) {
 			entity.Components[ty] = component
 		}
 	}
+}
+
+func hashOf(component AnyComponent) HashValue {
+	erasedComparable, ok := component.(erasedComparableComponent)
+	if !ok {
+		return 1
+	}
+
+	return erasedComparable.hashOf(component)
 }
 
 type systemParameter struct {
@@ -510,9 +517,10 @@ func commandsSystemParameter(world *World) systemParameter {
 	}
 }
 
-func querySystemParameter(world *World, value reflect.Value) systemParameter {
+func querySystemParameter(world *World, query reflect.Value) systemParameter {
 	return systemParameter{
-		Constant: value,
+		Constant: query,
+
 		Cleanup: func(value reflect.Value) {
 			q := value.Addr().Interface().(queryAccessor)
 			for _, ty := range q.get().parsed.mutableComponentTypes {
@@ -534,6 +542,8 @@ func prepareSystem(w *World, system System) *preparedSystem {
 	// collect a number of functions that when called will prepare the systems parameters
 	var params []systemParameter
 
+	preparedSystem := &preparedSystem{}
+
 	for idx := range tySystem.NumIn() {
 		tyIn := tySystem.In(idx)
 
@@ -542,7 +552,7 @@ func prepareSystem(w *World, system System) *preparedSystem {
 
 		switch {
 		case reflect.PointerTo(tyIn).Implements(reflect.TypeFor[queryAccessor]()):
-			params = append(params, querySystemParameter(w, buildQuery(w, tyIn)))
+			params = append(params, querySystemParameter(w, buildQuery(w, preparedSystem, tyIn)))
 
 		case tyIn == reflect.TypeFor[*World]():
 			params = append(params, valueSystemParameter(reflect.ValueOf(w)))
@@ -563,32 +573,32 @@ func prepareSystem(w *World, system System) *preparedSystem {
 
 	var paramValues []reflect.Value
 
-	return &preparedSystem{
-		Run: func() {
-			paramValues = paramValues[:0]
+	preparedSystem.Run = func() {
+		paramValues = paramValues[:0]
 
-			for _, param := range params {
-				switch {
-				case param.Constant.IsValid():
-					paramValues = append(paramValues, param.Constant)
+		for _, param := range params {
+			switch {
+			case param.Constant.IsValid():
+				paramValues = append(paramValues, param.Constant)
 
-				case param.GetValue != nil:
-					paramValues = append(paramValues, param.GetValue())
+			case param.GetValue != nil:
+				paramValues = append(paramValues, param.GetValue())
 
-				default:
-					panic("systemParameter not valid")
-				}
+			default:
+				panic("systemParameter not valid")
 			}
+		}
 
-			rSystem.Call(paramValues)
+		rSystem.Call(paramValues)
 
-			for idx, param := range params {
-				if cleanup := param.Cleanup; cleanup != nil {
-					cleanup(paramValues[idx])
-				}
+		for idx, param := range params {
+			if cleanup := param.Cleanup; cleanup != nil {
+				cleanup(paramValues[idx])
 			}
-		},
+		}
 	}
+
+	return preparedSystem
 }
 
 type Name string

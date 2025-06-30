@@ -14,6 +14,7 @@ type PopulateSingleTarget func(target reflect.Value, ptrToValues ptrValue)
 
 type erasedQuery struct {
 	world  *World
+	system *preparedSystem
 	parsed parsedQuery
 }
 
@@ -29,7 +30,7 @@ var _ queryAccessor = &Query[any]{}
 
 // buildQuery parses the Query[C] type into a reflect.Value
 // holding an actual Query[C] instance.
-func buildQuery(w *World, queryType reflect.Type) reflect.Value {
+func buildQuery(w *World, system *preparedSystem, queryType reflect.Type) reflect.Value {
 	// allocate a new Query object in memory
 	var ptrToQuery = reflect.New(queryType)
 	queryAcc := ptrToQuery.Interface().(queryAccessor)
@@ -40,7 +41,7 @@ func buildQuery(w *World, queryType reflect.Type) reflect.Value {
 
 	// set the backend of the query that performs the actual
 	// generic query work
-	queryAcc.set(&erasedQuery{world: w, parsed: parsed})
+	queryAcc.set(&erasedQuery{world: w, parsed: parsed, system: system})
 
 	// return the Query[C] instance
 	return ptrToQuery.Elem()
@@ -50,7 +51,7 @@ func buildQuery(w *World, queryType reflect.Type) reflect.Value {
 // puts them into a target value
 type parsedQuery struct {
 	putValue func(entity *Entity, target reflect.Value) bool
-	hasValue func(entity *Entity) bool
+	hasValue func(world *World, system *preparedSystem, entity *Entity) bool
 
 	// slice that identifies the mutable component types
 	// that this parsedQuery will extract.
@@ -63,19 +64,7 @@ func ptrToComponentValue(entity *Entity, ty ComponentType) (AnyComponent, bool) 
 }
 
 func buildQueryTarget(tyTarget reflect.Type) parsedQuery {
-	isSingleTarget := isComponentType(tyTarget) ||
-		tyTarget.Kind() == reflect.Pointer && isComponentType(tyTarget.Elem()) ||
-		isOptionType(tyTarget)
-
-	if isSingleTarget {
-		return buildQuerySingleValue(tyTarget)
-	}
-
-	if tyTarget.Kind() == reflect.Struct {
-		return parseStructQueryTarget(tyTarget)
-	}
-
-	panic(fmt.Sprintf("unknown query target type: %s", tyTarget))
+	return buildQuerySingleValue(tyTarget)
 }
 
 func assertIsPointerType(t reflect.Type) {
@@ -122,9 +111,9 @@ func parseStructQueryTarget(tyTarget reflect.Type) parsedQuery {
 	return parsedQuery{
 		mutableComponentTypes: slices.Collect(mutableComponentTypes.Values()),
 
-		hasValue: func(entity *Entity) bool {
+		hasValue: func(world *World, system *preparedSystem, entity *Entity) bool {
 			for _, ex := range parsedQueries {
-				if ex.hasValue != nil && !ex.hasValue(entity) {
+				if ex.hasValue != nil && !ex.hasValue(world, system, entity) {
 					return false
 				}
 			}
@@ -165,7 +154,7 @@ func buildQuerySingleValue(tyTarget reflect.Type) parsedQuery {
 	case isComponentType(tyTarget):
 		componentType := reflectComponentTypeOf(tyTarget)
 		return parsedQuery{
-			hasValue: func(entity *Entity) bool {
+			hasValue: func(_ *World, _ *preparedSystem, entity *Entity) bool {
 				_, ok := ptrToComponentValue(entity, componentType)
 				return ok
 			},
@@ -187,7 +176,7 @@ func buildQuerySingleValue(tyTarget reflect.Type) parsedQuery {
 		componentType := reflectComponentTypeOf(tyTarget.Elem())
 
 		return parsedQuery{
-			hasValue: func(entity *Entity) bool {
+			hasValue: func(_ *World, _ *preparedSystem, entity *Entity) bool {
 				_, ok := ptrToComponentValue(entity, componentType)
 				return ok
 			},
@@ -213,6 +202,12 @@ func buildQuerySingleValue(tyTarget reflect.Type) parsedQuery {
 
 	case isHasType(tyTarget):
 		return parseSingleValueForHas(tyTarget)
+
+	case isChangedType(tyTarget):
+		return parseSingleValueForChanged(tyTarget)
+
+	case tyTarget.Kind() == reflect.Struct:
+		return parseStructQueryTarget(tyTarget)
 
 	default:
 		panic(fmt.Sprintf("not a type we can extract: %s", tyTarget))

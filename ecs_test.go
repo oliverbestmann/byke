@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+var Update ScheduleId = &Schedule{}
+
 type Position struct {
 	ComparableComponent[Position]
 	X, Y int
@@ -184,6 +186,40 @@ func TestRunSystemWithQuery(t *testing.T) {
 				require.Len(t, slices.Collect(q.Items()), 2)
 			})
 		})
+	})
+}
+
+func TestChangeDetection(t *testing.T) {
+	t.Run("query with component", func(t *testing.T) {
+		w := buildSimpleWorld()
+
+		var runCount int
+		var expectedCount int
+
+		w.AddSystems(Update, func(q Query[Changed[Position]]) {
+			require.Equal(t, expectedCount, q.Count())
+			runCount += 1
+		})
+
+		// should trigger for all newly added components
+		expectedCount = 3
+		w.RunSchedule(Update)
+		require.Equal(t, 1, runCount)
+
+		// should not trigger again if no selection was made
+		expectedCount = 0
+		w.RunSchedule(Update)
+		require.Equal(t, 2, runCount)
+
+		// update one of the positions
+		w.RunSystem(func(q Query[*Position]) {
+			q.MustGet().X += 1
+		})
+
+		// we should now see a change to exactly one of the fields
+		expectedCount = 1
+		w.RunSchedule(Update)
+		require.Equal(t, 3, runCount)
 	})
 }
 

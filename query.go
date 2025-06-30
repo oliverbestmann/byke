@@ -10,7 +10,7 @@ import (
 // Query is a strongly typed query instance.
 type Query[T any] struct {
 	inner.Type[T]
-	*erasedQuery
+	delegate *erasedQuery
 
 	// scratch space holding one item C in the query
 	item T
@@ -47,12 +47,13 @@ func (q *Query[T]) Items() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		target := reflect.ValueOf(&q.item).Elem()
 
-		hasValue := q.parsed.hasValue
-		putValue := q.parsed.putValue
+		delegate := q.delegate
+		hasValue := delegate.parsed.hasValue
+		putValue := delegate.parsed.putValue
 
-		for _, entity := range q.world.entities {
+		for _, entity := range delegate.world.entities {
 			// quick check if the entity has matches the Query predicate
-			if hasValue != nil && !hasValue(entity) {
+			if hasValue != nil && !hasValue(delegate.world, delegate.system, entity) {
 				continue
 			}
 
@@ -69,9 +70,9 @@ func (q *Query[T]) Items() iter.Seq[T] {
 func (*Query[T]) isQuery(queryAccessor) {}
 
 func (q *Query[T]) set(inner *erasedQuery) {
-	q.erasedQuery = inner
+	q.delegate = inner
 }
 
 func (q *Query[T]) get() *erasedQuery {
-	return q.erasedQuery
+	return q.delegate
 }
