@@ -3,7 +3,9 @@ package byke
 import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/inner"
+	"github.com/oliverbestmann/byke/internal/set"
 	"reflect"
+	"slices"
 )
 
 type PopulateTarget func(target reflect.Value, ptrToValues []ptrValue)
@@ -11,14 +13,15 @@ type PopulateTarget func(target reflect.Value, ptrToValues []ptrValue)
 type PopulateSingleTarget func(target reflect.Value, ptrToValues ptrValue)
 
 type erasedQuery struct {
-	world     *World
-	extractor extractor
+	world  *World
+	parsed parsedQuery
 }
 
 type queryAccessor interface {
 	inner.HasType
 	isQuery(queryAccessor)
 	set(query *erasedQuery)
+	get() *erasedQuery
 }
 
 // ensure Query implements the queryAccessor type
@@ -33,21 +36,25 @@ func buildQuery(w *World, queryType reflect.Type) reflect.Value {
 
 	// build the query from the target type
 	targetType := inner.TypeOf(queryAcc)
-	extractor := buildQueryTarget(targetType)
+	parsed := buildQueryTarget(targetType)
 
 	// set the backend of the query that performs the actual
 	// generic query work
-	queryAcc.set(&erasedQuery{world: w, extractor: extractor})
+	queryAcc.set(&erasedQuery{world: w, parsed: parsed})
 
 	// return the Query[C] instance
 	return ptrToQuery.Elem()
 }
 
-// extractor extracts a value from an entity and
+// parsedQuery extracts a value from an entity and
 // puts them into a target value
-type extractor struct {
+type parsedQuery struct {
 	putValue func(entity *Entity, target reflect.Value) bool
 	hasValue func(entity *Entity) bool
+
+	// slice that identifies the mutable component types
+	// that this parsedQuery will extract.
+	mutableComponentTypes []ComponentType
 }
 
 func ptrToComponentValue(entity *Entity, ty ComponentType) (AnyComponent, bool) {
@@ -55,7 +62,7 @@ func ptrToComponentValue(entity *Entity, ty ComponentType) (AnyComponent, bool) 
 	return value.PtrToValue, ok
 }
 
-func buildQueryTarget(tyTarget reflect.Type) extractor {
+func buildQueryTarget(tyTarget reflect.Type) parsedQuery {
 	isSingleTarget := isComponentType(tyTarget) ||
 		tyTarget.Kind() == reflect.Pointer && isComponentType(tyTarget.Elem()) ||
 		isOptionType(tyTarget)
@@ -83,8 +90,10 @@ func assertIsNonPointerType(t reflect.Type) {
 	}
 }
 
-func parseStructQueryTarget(tyTarget reflect.Type) extractor {
-	var extractors []extractor
+func parseStructQueryTarget(tyTarget reflect.Type) parsedQuery {
+	var parsedQueries []parsedQuery
+
+	var mutableComponentTypes set.Set[ComponentType]
 
 	for idx := range tyTarget.NumField() {
 		field := tyTarget.Field(idx)
@@ -96,7 +105,7 @@ func parseStructQueryTarget(tyTarget reflect.Type) extractor {
 
 		delegate := buildQuerySingleValue(fieldTy)
 
-		extractors = append(extractors, extractor{
+		parsedQueries = append(parsedQueries, parsedQuery{
 			hasValue: delegate.hasValue,
 
 			putValue: func(entity *Entity, target reflect.Value) bool {
@@ -104,11 +113,17 @@ func parseStructQueryTarget(tyTarget reflect.Type) extractor {
 				return delegate.putValue(entity, fieldTarget)
 			},
 		})
+
+		for _, ty := range delegate.mutableComponentTypes {
+			mutableComponentTypes.Insert(ty)
+		}
 	}
 
-	return extractor{
+	return parsedQuery{
+		mutableComponentTypes: slices.Collect(mutableComponentTypes.Values()),
+
 		hasValue: func(entity *Entity) bool {
-			for _, ex := range extractors {
+			for _, ex := range parsedQueries {
 				if ex.hasValue != nil && !ex.hasValue(entity) {
 					return false
 				}
@@ -118,7 +133,7 @@ func parseStructQueryTarget(tyTarget reflect.Type) extractor {
 		},
 
 		putValue: func(entity *Entity, target reflect.Value) bool {
-			for _, ex := range extractors {
+			for _, ex := range parsedQueries {
 				if !ex.putValue(entity, target) {
 					return false
 				}
@@ -129,8 +144,8 @@ func parseStructQueryTarget(tyTarget reflect.Type) extractor {
 	}
 }
 
-// entityIdExtractor is an extractor that extracts the entity id of an Entity
-var entityIdExtractor = extractor{
+// entityIdQuery is an parsedQuery that extracts the entity id of an Entity
+var entityIdQuery = parsedQuery{
 	putValue: func(entity *Entity, target reflect.Value) bool {
 		assertIsNonPointerType(target.Type())
 		target.Set(reflect.ValueOf(&entity.Id).Elem())
@@ -138,18 +153,18 @@ var entityIdExtractor = extractor{
 	},
 }
 
-func buildQuerySingleValue(tyTarget reflect.Type) extractor {
+func buildQuerySingleValue(tyTarget reflect.Type) parsedQuery {
 	switch {
 	// the entity id is directly injectable
 	case tyTarget == reflect.TypeFor[EntityId]():
-		return entityIdExtractor
+		return entityIdQuery
 
 	case isPointerToParentComponentType(tyTarget):
 		panic(fmt.Sprintf("parent side of relation must not be queried via pointer: %s", tyTarget))
 
 	case isComponentType(tyTarget):
 		componentType := reflectComponentTypeOf(tyTarget)
-		return extractor{
+		return parsedQuery{
 			hasValue: func(entity *Entity) bool {
 				_, ok := ptrToComponentValue(entity, componentType)
 				return ok
@@ -171,7 +186,7 @@ func buildQuerySingleValue(tyTarget reflect.Type) extractor {
 	case tyTarget.Kind() == reflect.Pointer && isComponentType(tyTarget.Elem()):
 		componentType := reflectComponentTypeOf(tyTarget.Elem())
 
-		return extractor{
+		return parsedQuery{
 			hasValue: func(entity *Entity) bool {
 				_, ok := ptrToComponentValue(entity, componentType)
 				return ok
@@ -189,6 +204,8 @@ func buildQuerySingleValue(tyTarget reflect.Type) extractor {
 				target.Set(reflect.ValueOf(value))
 				return true
 			},
+
+			mutableComponentTypes: []ComponentType{componentType},
 		}
 
 	case isOptionType(tyTarget):

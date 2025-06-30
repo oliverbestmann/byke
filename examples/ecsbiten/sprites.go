@@ -15,7 +15,7 @@ var _ = byke.ValidateComponent[ColorTint]()
 var _ = byke.ValidateComponent[Anchor]()
 
 type Transform struct {
-	byke.Component[Transform]
+	byke.ComparableComponent[Transform]
 	Translation Vec
 	Scale       Vec
 	Rotation    Rad
@@ -24,7 +24,7 @@ type Transform struct {
 type Rad float64
 
 type Sprite struct {
-	byke.Component[Sprite]
+	byke.ComparableComponent[Sprite]
 	Image *ebiten.Image
 }
 
@@ -40,24 +40,24 @@ func (Sprite) RequireComponents() []byke.AnyComponent {
 }
 
 type Size struct {
-	byke.Component[Size]
+	byke.ComparableComponent[Size]
 	Vec
 }
 
 type Layer struct {
-	byke.Component[Layer]
+	byke.ComparableComponent[Layer]
 	Z float64
 }
 
 type Anchor struct {
-	byke.Component[Anchor]
+	byke.ComparableComponent[Anchor]
 	Vec
 }
 
 var AnchorCenter = Anchor{Vec: Vec{X: 0.5, Y: 0.5}}
 
 type ColorTint struct {
-	byke.Component[ColorTint]
+	byke.ComparableComponent[ColorTint]
 	color.Color
 }
 

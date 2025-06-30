@@ -33,7 +33,7 @@ func isHasType(tyTarget reflect.Type) bool {
 		reflect.PointerTo(tyTarget).Implements(tyOptionAccessor)
 }
 
-func parseSingleValueForHas(tyHas reflect.Type) extractor {
+func parseSingleValueForHas(tyHas reflect.Type) parsedQuery {
 	assertIsNonPointerType(tyHas)
 
 	// instantiate a new option in memory. we do that to get access
@@ -43,16 +43,16 @@ func parseSingleValueForHas(tyHas reflect.Type) extractor {
 	innerType := inner.TypeOf(accessor)
 
 	scratch := ptrValueOf(reflect.New(innerType))
-	innerExtractor := buildQuerySingleValue(innerType)
+	innerQuery := buildQuerySingleValue(innerType)
 
-	return extractor{
+	return parsedQuery{
 		putValue: func(entity *Entity, target reflect.Value) bool {
 			// target should point to an Has[X]
 			assertIsNonPointerType(target.Type())
 
 			accessor := target.Addr().Interface().(hasAccessor)
 
-			ok := innerExtractor.putValue(entity, scratch.Elem())
+			ok := innerQuery.putValue(entity, scratch.Elem())
 			accessor.setValue(ok)
 
 			return true

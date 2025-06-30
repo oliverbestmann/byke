@@ -70,7 +70,7 @@ func isOptionType(tyTarget reflect.Type) bool {
 		reflect.PointerTo(tyTarget).Implements(tyOptionAccessor)
 }
 
-func parseSingleValueForOption(tyOption reflect.Type) extractor {
+func parseSingleValueForOption(tyOption reflect.Type) parsedQuery {
 	assertIsNonPointerType(tyOption)
 
 	// instantiate a new option in memory. we do that to get access
@@ -79,9 +79,16 @@ func parseSingleValueForOption(tyOption reflect.Type) extractor {
 	accessor := ptrToOption.Interface().(optionAccessor)
 	innerType := inner.TypeOf(accessor)
 
-	innerExtractor := buildQuerySingleValue(reflect.PointerTo(innerType))
+	innerQuery := buildQuerySingleValue(reflect.PointerTo(innerType))
 
-	return extractor{
+	var mutableComponentTypes []ComponentType
+	if accessor.mutable() {
+		mutableComponentTypes = append(mutableComponentTypes, reflectComponentTypeOf(innerType))
+	}
+
+	return parsedQuery{
+		mutableComponentTypes: mutableComponentTypes,
+
 		putValue: func(entity *Entity, target reflect.Value) bool {
 			// target should point to an Option[X]
 			assertIsNonPointerType(target.Type())
@@ -89,7 +96,7 @@ func parseSingleValueForOption(tyOption reflect.Type) extractor {
 			accessor := target.Addr().Interface().(optionAccessor)
 
 			ptrInner := accessor.ptrInner()
-			ok := innerExtractor.putValue(entity, ptrInner.Value)
+			ok := innerQuery.putValue(entity, ptrInner.Value)
 			if !ok {
 				// set pointer nil
 				ptrInner.Set(reflect.Zero(reflect.PointerTo(innerType)))

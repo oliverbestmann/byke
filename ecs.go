@@ -138,6 +138,8 @@ type Schedule struct {
 type System any
 
 type preparedSystem struct {
+	LastRun Tick
+
 	// A function that executes the system against
 	// the given world
 	Run func()
@@ -147,14 +149,15 @@ type World struct {
 	entityIdSeq EntityId
 	entities    map[EntityId]*Entity
 	resources   map[reflect.Type]resourceValue
-	schedules   map[ScheduleId][]preparedSystem
+	schedules   map[ScheduleId][]*preparedSystem
+	currentTick Tick
 }
 
 func NewWorld() *World {
 	return &World{
 		entities:  map[EntityId]*Entity{},
 		resources: map[reflect.Type]resourceValue{},
-		schedules: map[ScheduleId][]preparedSystem{},
+		schedules: map[ScheduleId][]*preparedSystem{},
 	}
 }
 
@@ -363,6 +366,8 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 }
 
 func reflectComponentTypeOf(tyComponent reflect.Type) ComponentType {
+	assertIsNonPointerType(tyComponent)
+
 	return ComponentType{
 		Type: tyComponent,
 	}
@@ -387,13 +392,23 @@ func (w *World) InsertResource(resource any) {
 }
 
 func (w *World) RunSystem(system System) {
-	if ps, ok := system.(preparedSystem); ok {
-		ps.Run()
+	if ps, ok := system.(*preparedSystem); ok {
+		w.runSystem(ps)
 		return
 	}
 
 	// prepare and execute directly
-	prepareSystem(w, system).Run()
+	w.runSystem(prepareSystem(w, system))
+}
+
+func (w *World) runSystem(system *preparedSystem) {
+	w.currentTick += 1
+
+	system.Run()
+
+	// update last run so we can calculate changed components
+	// at the next run
+	system.LastRun = w.currentTick
 }
 
 func (w *World) Despawn(entityId EntityId) {
@@ -442,6 +457,30 @@ func (w *World) removeComponent(entity *Entity, componentType ComponentType) {
 	delete(entity.Components, componentType)
 }
 
+func (w *World) recheckComponents(ty ComponentType) {
+	isComparable := ty.Implements(reflect.TypeFor[erasedComparableComponent]())
+	if !isComparable {
+		return
+	}
+
+	// TODO optimize, do not walk through all entities
+	for _, entity := range w.entities {
+		component, ok := entity.Components[ty]
+		if !ok {
+			continue
+		}
+
+		erasedComparable := component.PtrToValue.(erasedComparableComponent)
+		hashValue := erasedComparable.hashOf(component.PtrToValue)
+
+		if hashValue != component.Hash {
+			component.Hash = hashValue
+			component.LastChanged = w.currentTick
+			entity.Components[ty] = component
+		}
+	}
+}
+
 type systemParameter struct {
 	// If constant is set, it will be used directly. GetValue will not be called
 	Constant reflect.Value
@@ -471,7 +510,19 @@ func commandsSystemParameter(world *World) systemParameter {
 	}
 }
 
-func prepareSystem(w *World, system System) preparedSystem {
+func querySystemParameter(world *World, value reflect.Value) systemParameter {
+	return systemParameter{
+		Constant: value,
+		Cleanup: func(value reflect.Value) {
+			q := value.Addr().Interface().(queryAccessor)
+			for _, ty := range q.get().parsed.mutableComponentTypes {
+				world.recheckComponents(ty)
+			}
+		},
+	}
+}
+
+func prepareSystem(w *World, system System) *preparedSystem {
 	rSystem := reflect.ValueOf(system)
 
 	if rSystem.Kind() != reflect.Func {
@@ -491,7 +542,7 @@ func prepareSystem(w *World, system System) preparedSystem {
 
 		switch {
 		case reflect.PointerTo(tyIn).Implements(reflect.TypeFor[queryAccessor]()):
-			params = append(params, valueSystemParameter(buildQuery(w, tyIn)))
+			params = append(params, querySystemParameter(w, buildQuery(w, tyIn)))
 
 		case tyIn == reflect.TypeFor[*World]():
 			params = append(params, valueSystemParameter(reflect.ValueOf(w)))
@@ -512,7 +563,7 @@ func prepareSystem(w *World, system System) preparedSystem {
 
 	var paramValues []reflect.Value
 
-	return preparedSystem{
+	return &preparedSystem{
 		Run: func() {
 			paramValues = paramValues[:0]
 

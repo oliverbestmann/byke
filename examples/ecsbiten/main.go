@@ -33,7 +33,7 @@ func main() {
 }
 
 type BlinkFrequency struct {
-	byke.Component[BlinkFrequency]
+	byke.ComparableComponent[BlinkFrequency]
 	Value float64
 }
 
@@ -81,7 +81,7 @@ func setupObjectsSystem(commands *byke.Commands, screenSize ScreenSize) {
 }
 
 type Velocity struct {
-	byke.Component[Velocity]
+	byke.ComparableComponent[Velocity]
 	Vec
 }
 

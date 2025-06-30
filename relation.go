@@ -1,15 +1,35 @@
 package byke
 
 import (
+	"hash/maphash"
 	"slices"
 )
 
 // ParentComponent must be embedded on the parent side of a relationship
-type ParentComponent[Parent IsComponent[Parent], Child IsComponent[Child]] struct {
+type ParentComponent[Parent IsComponent[Parent], Child IsComparableComponent[Child]] struct {
 	Component[Parent]
 
 	// _children holds the EntityIds of the children of this relation.
 	_children []EntityId
+}
+
+func (ParentComponent[Parent, Child]) hashOf(value AnyComponent) HashValue {
+	parentComponent := any(value).(parentComponent)
+
+	var hash maphash.Hash
+	hash.SetSeed(seed)
+
+	for _, entity := range parentComponent.Children() {
+		maphash.WriteComparable(&hash, entity)
+	}
+
+	return HashValue(hash.Sum64())
+}
+
+func (ParentComponent[Parent, Child]) isParentComponent(component markerIsParentComponent) {}
+
+type markerIsParentComponent interface {
+	isParentComponent(markerIsParentComponent)
 }
 
 func (*ParentComponent[Parent, Child]) RelationChildType() ComponentType {
@@ -43,8 +63,8 @@ func (p *ParentComponent[Parent, Child]) Children() []EntityId {
 }
 
 // ChildComponent must be embedded on the client side of a relationship
-type ChildComponent[Parent IsComponent[Parent], Child IsComponent[Child]] struct {
-	Component[Child]
+type ChildComponent[Parent IsComponent[Parent], Child IsComparableComponent[Child]] struct {
+	ComparableComponent[Child]
 	Parent EntityId
 }
 

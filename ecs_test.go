@@ -7,21 +7,21 @@ import (
 )
 
 type Position struct {
-	Component[Position]
+	ComparableComponent[Position]
 	X, Y int
 }
 
 type Velocity struct {
-	Component[Velocity]
+	ComparableComponent[Velocity]
 	X, Y float64
 }
 
 type Player struct {
-	Component[Player]
+	ComparableComponent[Player]
 }
 
 type Enemy struct {
-	Component[Enemy]
+	ComparableComponent[Enemy]
 }
 
 var _ = ValidateComponent[Position]()
@@ -277,12 +277,12 @@ func TestRelationships(t *testing.T) {
 
 func BenchmarkWorld_RunSystem(b *testing.B) {
 	type X struct {
-		Component[X]
+		ComparableComponent[X]
 		Value int
 	}
 
 	type Y struct {
-		Component[Y]
+		ComparableComponent[Y]
 		Value int
 	}
 

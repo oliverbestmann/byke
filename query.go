@@ -47,8 +47,8 @@ func (q *Query[T]) Items() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		target := reflect.ValueOf(&q.item).Elem()
 
-		hasValue := q.extractor.hasValue
-		putValue := q.extractor.putValue
+		hasValue := q.parsed.hasValue
+		putValue := q.parsed.putValue
 
 		for _, entity := range q.world.entities {
 			// quick check if the entity has matches the Query predicate
@@ -70,4 +70,8 @@ func (*Query[T]) isQuery(queryAccessor) {}
 
 func (q *Query[T]) set(inner *erasedQuery) {
 	q.erasedQuery = inner
+}
+
+func (q *Query[T]) get() *erasedQuery {
+	return q.erasedQuery
 }
