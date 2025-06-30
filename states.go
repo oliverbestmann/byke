@@ -11,17 +11,17 @@ type RegisterState[S comparable] struct {
 }
 
 func (r RegisterState[S]) configureStateIn(app *App) {
-	ValidateComponent[stateScoped[S]]()
+	ValidateComponent[despawnOnExitState[S]]()
 
 	app.InsertResource(State[S]{current: r.InitialValue})
 	app.InsertResource(NextState[S]{})
 
 	app.AddSystems(StateTransition, performStateTransition[S])
-	app.AddSystems(OnChange[S](), despawnStateScoped[S])
+	app.AddSystems(OnChange[S](), despawnOnExitStateSystem[S])
 }
 
-func StateScoped[S comparable](state S) IsComponent[stateScoped[S]] {
-	return stateScoped[S]{inState: state}
+func DespawnOnExitState[S comparable](state S) IsComponent[despawnOnExitState[S]] {
+	return despawnOnExitState[S]{state: state}
 }
 
 type stateChangedScheduleId[S comparable] struct {
@@ -82,9 +82,9 @@ func (n *NextState[S]) Clear() {
 	n.next = zeroState
 }
 
-type stateScoped[S comparable] struct {
-	Component[stateScoped[S]]
-	inState S
+type despawnOnExitState[S comparable] struct {
+	Component[despawnOnExitState[S]]
+	state S
 }
 
 func performStateTransition[S comparable](world *World, state *State[S], nextState *NextState[S]) {
@@ -111,23 +111,23 @@ func performStateTransition[S comparable](world *World, state *State[S], nextSta
 	nextState.Clear()
 
 	// run the OnExit / OnEnter schedules
+	world.RunSchedule(OnChange[S]())
 	world.RunSchedule(OnExit(previousState))
 	world.RunSchedule(OnEnter(state.current))
-	world.RunSchedule(OnChange[S]())
 }
 
 type DespawnStateScopedItem[S comparable] struct {
 	EntityId    EntityId
-	StateScoped stateScoped[S]
+	StateScoped despawnOnExitState[S]
 }
 
-func despawnStateScoped[S comparable](
+func despawnOnExitStateSystem[S comparable](
 	commands *Commands,
 	state State[S],
 	query Query[DespawnStateScopedItem[S]],
 ) {
 	for item := range query.Items() {
-		if item.StateScoped.inState != state.Current() {
+		if item.StateScoped.state != state.Current() {
 			commands.Entity(item.EntityId).Despawn()
 		}
 	}

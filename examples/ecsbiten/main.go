@@ -161,7 +161,7 @@ func pausedSystem(
 
 	image, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(EbitenPNG))
 	commands.Spawn(
-		byke.StateScoped(PauseStatePaused),
+		byke.DespawnOnExitState(PauseStatePaused),
 
 		Transform{
 			Translation: screenSize.Mul(0.5),
