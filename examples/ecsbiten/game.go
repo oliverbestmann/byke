@@ -53,25 +53,30 @@ func runWorld(world *byke.World) error {
 		ebiten.SetWindowSize(win.Width, win.Height)
 	})
 
-	return ebiten.RunGame(&Game{World: world})
+	return ebiten.RunGame(&game{World: world})
 }
 
-type Game struct {
+type game struct {
 	World *byke.World
 
 	initialized bool
 	screenSize  Vec
 }
 
-func (g *Game) Init() {
+func (g *game) Init() {
 	g.World.RunSchedule(PreStartup)
 	g.World.RunSchedule(StateTransition)
 	g.World.RunSchedule(Startup)
 	g.World.RunSchedule(PostStartup)
 }
 
-func (g *Game) Update() error {
-	g.World.InsertResource(ScreenSize{Vec: g.screenSize})
+func (g *game) Update() error {
+	return nil
+}
+
+func (g *game) Draw(screen *ebiten.Image) {
+	g.World.InsertResource(RenderTarget{Image: screen})
+	g.World.InsertResource(ScreenSize{Vec: ImageSizeOf(screen)})
 
 	if !g.initialized {
 		g.initialized = true
@@ -87,12 +92,6 @@ func (g *Game) Update() error {
 	g.World.RunSchedule(Update)
 	g.World.RunSchedule(PostUpdate)
 
-	return nil
-}
-
-func (g *Game) Draw(screen *ebiten.Image) {
-	g.World.InsertResource(RenderTarget{Image: screen})
-
 	g.World.RunSchedule(PreRender)
 	g.World.RunSchedule(Render)
 	g.World.RunSchedule(PostRender)
@@ -101,7 +100,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.World.RunSchedule(Last)
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+func (g *game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	g.screenSize = Vec{X: float64(outsideWidth), Y: float64(outsideHeight)}
 	return outsideWidth, outsideHeight
 }
