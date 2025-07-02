@@ -73,16 +73,13 @@ func (a *Archetype) String() string {
 }
 
 func (a *Archetype) ContainsType(componentType *ComponentType) bool {
-	for _, ty := range a.Types {
-		if ty == componentType {
-			return true
-		}
-	}
-
-	return false
+	_, exists := a.columnsByType[componentType]
+	return exists
 }
 
-func (a *Archetype) Insert(entityId EntityId, components []ComponentValue) {
+func (a *Archetype) Insert(tick Tick, entityId EntityId, components []ErasedComponent) {
+	defer a.assertInvariants()
+
 	if _, exists := a.index[entityId]; exists {
 		panic(fmt.Sprintf("archetype %s already contains entity %s", a, entityId))
 	}
@@ -91,13 +88,6 @@ func (a *Archetype) Insert(entityId EntityId, components []ComponentValue) {
 	if len(components) != len(a.Types) {
 		panic(fmt.Sprintf("archetype component types do not match"))
 	}
-
-	// put entity into index
-	idx := len(a.entities)
-	a.index[entityId] = Row(idx)
-
-	// add entity
-	a.entities = append(a.entities, entityId)
 
 	// add value of each component to the columns
 	for _, component := range components {
@@ -110,11 +100,25 @@ func (a *Archetype) Insert(entityId EntityId, components []ComponentValue) {
 		}
 
 		// and add it to the correct column
-		column.Append(component)
+		column.Append(tick, component)
 	}
+
+	// add the entity
+	a.addEntity(entityId)
 }
 
-func (a *Archetype) ReplaceComponentValue(entityId EntityId, component ComponentValue) {
+func (a *Archetype) addEntity(entityId EntityId) {
+	// put entity into index
+	idx := len(a.entities)
+	a.index[entityId] = Row(idx)
+
+	// add entity
+	a.entities = append(a.entities, entityId)
+}
+
+func (a *Archetype) ReplaceComponentValue(tick Tick, entityId EntityId, component ErasedComponent) {
+	defer a.assertInvariants()
+
 	row, exists := a.index[entityId]
 	if !exists {
 		panic(fmt.Sprintf("entity %s does not exist", entityId))
@@ -128,10 +132,12 @@ func (a *Archetype) ReplaceComponentValue(entityId EntityId, component Component
 	}
 
 	// update the existing value
-	column.Update(row, component)
+	column.Update(tick, row, component)
 }
 
 func (a *Archetype) Remove(entityId EntityId) {
+	defer a.assertInvariants()
+
 	row, exists := a.index[entityId]
 	if !exists {
 		panic(fmt.Sprintf("entity %s does not exist", entityId))
@@ -191,25 +197,69 @@ func (a *Archetype) Iter(scratch *[]ComponentValue) ArchetypeIter {
 	}
 }
 
-func (a *Archetype) TransferTo(target *Archetype, entityId EntityId, newComponents ...ComponentValue) {
-	entity, ok := a.Get(entityId)
-	if !ok {
+func (a *Archetype) Import(tick Tick, source *Archetype, entityId EntityId, newComponents ...ErasedComponent) {
+	target := a
+
+	defer target.assertInvariants()
+
+	rowInSource, exists := source.index[entityId]
+	if !exists {
 		panic("entity does not exist")
 	}
 
-	// add the new components if any
-	components := append(entity.Components, newComponents...)
+	// go through the columns we have and import them into the target
+	for idx, sourceColumn := range source.columns {
+		ty := source.Types[idx]
 
-	// remove all components we don't care about anymore
-	components = slices.DeleteFunc(components, func(value ComponentValue) bool {
-		return !target.ContainsType(value.ComponentType())
-	})
+		targetColumn, ok := target.columnsByType[ty]
+		if !ok {
+			// looks like this component type is removed during the transfer
+			continue
+		}
 
-	// remove it from the previous archetype
-	a.Remove(entityId)
+		// import source
+		targetColumn.Import(sourceColumn, rowInSource)
+	}
 
-	// and insert into target
-	target.Insert(entityId, components)
+	// now add the new components
+	for _, component := range newComponents {
+		componentType := component.ComponentType()
+		targetColumn, ok := target.columnsByType[componentType]
+		if !ok {
+			panic(fmt.Sprintf("target column does not exist: %s", componentType))
+		}
+
+		// add it to the column
+		targetColumn.Append(tick, component)
+	}
+
+	// add the entity to the index
+	target.addEntity(entityId)
+}
+
+func (a *Archetype) CheckChanged(tick Tick, componentType *ComponentType) {
+	column, ok := a.columnsByType[componentType]
+	if !ok {
+		panic(fmt.Sprintf("type not in archetype: %s", componentType))
+	}
+
+	column.CheckChanged(tick)
+}
+
+func (a *Archetype) assertInvariants() {
+	entityCount := len(a.entities)
+
+	for idx, column := range a.columns {
+		if column.Len() != entityCount {
+			panic(fmt.Sprintf("%s: expected %d values in column %s, got %d", a, entityCount, a.Types[idx], column.Len()))
+		}
+	}
+
+	for row, entityId := range a.entities {
+		if a.index[entityId] != Row(row) {
+			panic("entity index out of sync")
+		}
+	}
 }
 
 type ArchetypeIter struct {

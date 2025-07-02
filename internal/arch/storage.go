@@ -19,7 +19,7 @@ func NewStorage() *Storage {
 	}
 }
 
-func (s *Storage) Spawn(entityId EntityId) {
+func (s *Storage) Spawn(tick Tick, entityId EntityId) {
 	if _, exists := s.entityToArchetype[entityId]; exists {
 		panic(fmt.Sprintf("entity %s already exists", entityId))
 	}
@@ -33,7 +33,7 @@ func (s *Storage) Spawn(entityId EntityId) {
 	}
 
 	// add entity to the archetype
-	archetype.Insert(entityId, nil)
+	archetype.Insert(tick, entityId, nil)
 
 	// remember where we put the entity
 	s.entityToArchetype[entityId] = archetype
@@ -49,7 +49,7 @@ func (s *Storage) Despawn(entityId EntityId) bool {
 	return true
 }
 
-func (s *Storage) InsertComponent(entityId EntityId, component ErasedComponent, tick uint64) {
+func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component ErasedComponent) {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
 		panic(fmt.Sprintf("entity %s does not exist", entityId))
@@ -57,11 +57,7 @@ func (s *Storage) InsertComponent(entityId EntityId, component ErasedComponent, 
 
 	componentType := component.ComponentType()
 	if archetype.ContainsType(componentType) {
-		archetype.ReplaceComponentValue(entityId, ComponentValue{
-			Changed: tick,
-			Hash:    componentType.MaybeHashOf(component),
-			Value:   component,
-		})
+		archetype.ReplaceComponentValue(tick, entityId, component)
 
 		return
 	}
@@ -73,18 +69,16 @@ func (s *Storage) InsertComponent(entityId EntityId, component ErasedComponent, 
 	}
 
 	// transfer our entity
-	archetype.TransferTo(newArchetype, entityId, ComponentValue{
-		Added:   tick,
-		Changed: tick,
-		Hash:    componentType.MaybeHashOf(component),
-		Value:   component,
-	})
+	newArchetype.Import(tick, archetype, entityId, component)
 
-	// and update the entityToArchetype
+	// remove from the previous archetype
+	archetype.Remove(entityId)
+
+	// and update the index
 	s.entityToArchetype[entityId] = newArchetype
 }
 
-func (s *Storage) RemoveComponent(entityId EntityId, componentType *ComponentType) bool {
+func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *ComponentType) bool {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
 		panic(fmt.Sprintf("entity %s does not exist", entityId))
@@ -101,24 +95,13 @@ func (s *Storage) RemoveComponent(entityId EntityId, componentType *ComponentTyp
 		s.archetypes = append(s.archetypes, newArchetype)
 	}
 
-	// and transfer our entity
-	archetype.TransferTo(newArchetype, entityId)
+	// import the entity
+	newArchetype.Import(tick, archetype, entityId)
+
+	// remove it from the previous archetype
+	archetype.Remove(entityId)
 
 	return true
-}
-
-func (s *Storage) archetypeIterForQuery(q *Query) iter.Seq[*Archetype] {
-	return func(yield func(*Archetype) bool) {
-		for _, archetype := range s.archetypes {
-			if !q.MatchesArchetype(archetype) {
-				continue
-			}
-
-			if !yield(archetype) {
-				return
-			}
-		}
-	}
 }
 
 func (s *Storage) Get(entityId EntityId) (EntityRef, bool) {
@@ -150,6 +133,36 @@ func (s *Storage) GetWithQuery(q *Query, entityId EntityId) (EntityRef, bool) {
 	}
 
 	return entity, true
+}
+
+func (s *Storage) CheckChanged(tick Tick, types []*ComponentType) {
+	for _, ty := range types {
+		if !ty.IsComparable() {
+			continue
+		}
+
+		for _, archetype := range s.archetypes {
+			if !archetype.ContainsType(ty) {
+				continue
+			}
+
+			archetype.CheckChanged(tick, ty)
+		}
+	}
+}
+
+func (s *Storage) archetypeIterForQuery(q *Query) iter.Seq[*Archetype] {
+	return func(yield func(*Archetype) bool) {
+		for _, archetype := range s.archetypes {
+			if !q.MatchesArchetype(archetype) {
+				continue
+			}
+
+			if !yield(archetype) {
+				return
+			}
+		}
+	}
 }
 
 var componentValueSlices = sync.Pool{

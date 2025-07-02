@@ -18,7 +18,6 @@ type ComponentType struct {
 	Type       reflect.Type
 	MakeColumn MakeColumn
 	hashOf     HashOf
-	copyTo     CopyTo
 }
 
 func (c *ComponentType) String() string {
@@ -35,10 +34,6 @@ func (c *ComponentType) PtrType() reflect.Type {
 
 func (c *ComponentType) New() ErasedComponent {
 	return reflect.New(c.Type).Interface().(ErasedComponent)
-}
-
-func (c *ComponentType) CopyValue(from, to ErasedComponent) {
-	c.copyTo(from, to)
 }
 
 func (c *ComponentType) MaybeHashOf(component ErasedComponent) HashValue {
@@ -58,15 +53,9 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 		ty = &ComponentType{
 			Id:   int64(len(componentTypes) + 1),
 			Type: reflect.TypeFor[C](),
-
-			MakeColumn: columnConstructorOf[C](ty),
-
-			copyTo: func(from, to ErasedComponent) {
-				ptrToFromValue := any(from).(*C)
-				ptrToToValue := any(to).(*C)
-				*ptrToFromValue = *ptrToToValue
-			},
 		}
+
+		ty.MakeColumn = MakeColumnOf[C](ty)
 
 		componentTypes[ty.Type] = ty
 	}
@@ -84,6 +73,8 @@ func ComparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 			ptrToValue := any(value).(*C)
 			return HashValue(maphash.Comparable[C](seed, *ptrToValue))
 		}
+
+		ty.MakeColumn = MakeComparableColumnOf[C](ty)
 	}
 
 	return ty

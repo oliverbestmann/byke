@@ -3,7 +3,7 @@ package arch
 type Query struct {
 	// tick that the system was last run.
 	// This is used to filter for changed or added components.
-	LastRun uint64
+	LastRun Tick
 
 	// components we want to actually read
 	Fetch []*ComponentType

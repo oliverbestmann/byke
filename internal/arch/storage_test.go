@@ -16,17 +16,22 @@ type Velocity struct {
 }
 
 func TestStorage_All(t *testing.T) {
+	var tick Tick = 1
+
 	s := NewStorage()
 
-	s.Spawn(1)
-	s.InsertComponent(1, &Position{X: 10}, 5)
-	s.InsertComponent(1, &Velocity{X: 0}, 5)
+	s.Spawn(tick, 1)
+	s.InsertComponent(tick, 1, &Position{X: 10})
+	s.InsertComponent(tick, 1, &Velocity{X: 0})
 
-	s.Spawn(2)
-	s.InsertComponent(2, &Velocity{X: 0}, 6)
+	tick += 1
+	s.Spawn(tick, 2)
+	s.InsertComponent(tick, 2, &Velocity{X: 0})
+
+	tick += 1
 
 	query := &Query{
-		LastRun: 6,
+		LastRun: tick,
 		Fetch: []*ComponentType{
 			ComponentTypeOf[Velocity](),
 		},
@@ -34,27 +39,41 @@ func TestStorage_All(t *testing.T) {
 			// ComponentTypeOf[Position](),
 		},
 		WithChanged: []*ComponentType{
-			ComponentTypeOf[Velocity](),
+			// ComponentTypeOf[Velocity](),
+		},
+		Without: []*ComponentType{
+			ComponentTypeOf[Position](),
 		},
 	}
 
 	for entity := range s.IterQuery(query) {
 		spew.Dump(entity)
+		entity.Components[0].Value.(*Velocity).X = 2
 	}
+
+	s.CheckChanged(7, []*ComponentType{ComponentTypeOf[Velocity]()})
+
+	spew.Dump(s.Get(1))
 }
 
 func BenchmarkStorageIterQuery(b *testing.B) {
+	var tick Tick = 5
+
 	s := NewStorage()
 
-	s.Spawn(1)
-	s.InsertComponent(1, &Position{X: 10}, 5)
-	s.InsertComponent(1, &Velocity{X: 0}, 5)
+	s.Spawn(tick, 1)
+	s.InsertComponent(tick, 1, &Position{X: 10})
+	s.InsertComponent(tick, 1, &Velocity{X: 0})
 
-	s.Spawn(2)
-	s.InsertComponent(2, &Velocity{X: 0}, 6)
+	tick += 1
+
+	s.Spawn(tick, 2)
+	s.InsertComponent(tick, 2, &Velocity{X: 0})
+
+	tick += 1
 
 	query := &Query{
-		LastRun: 6,
+		LastRun: tick,
 		Fetch: []*ComponentType{
 			ComponentTypeOf[Velocity](),
 		},

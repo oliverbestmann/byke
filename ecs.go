@@ -13,51 +13,6 @@ type AnyPtr any
 
 type Resource[T any] *T
 
-type IsComponent[T any] interface {
-	AnyComponent
-	IsComponent(T)
-}
-
-type isAnyComponentMarker struct{}
-
-type AnyComponent interface {
-	isAnyComponent(isAnyComponentMarker)
-	ComponentType() ComponentType
-}
-
-type RequireComponents interface {
-	RequireComponents() []AnyComponent
-}
-
-type Component[C IsComponent[C]] struct{}
-
-func (Component[C]) isAnyComponent(isAnyComponentMarker) {}
-
-func (Component[C]) IsComponent(C) {}
-
-func (c Component[C]) ComponentType() ComponentType {
-	return componentTypeOf[C]()
-}
-
-type IsComparableComponent[T comparable] interface {
-	IsComponent[T]
-	comparable
-}
-
-type ComparableComponent[T IsComparableComponent[T]] struct {
-	Component[T]
-}
-
-func (c ComparableComponent[T]) hashOf(value AnyComponent) HashValue {
-	ptrToValue := any(value).(*T)
-	hash := maphash.Comparable(seed, *ptrToValue)
-	return HashValue(hash)
-}
-
-type erasedComparableComponent interface {
-	hashOf(value AnyComponent) HashValue
-}
-
 type Tick uint64
 
 type HashValue uint64
