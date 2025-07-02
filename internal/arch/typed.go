@@ -7,6 +7,7 @@ type IsComponent[T any] interface {
 
 type IsComparableComponent[T comparable] interface {
 	IsComponent[T]
+	isComparableComponent(isComparableComponentMarker)
 	comparable
 }
 
@@ -29,3 +30,7 @@ func (ComparableComponent[T]) ComponentType() *ComponentType {
 }
 
 func (ComparableComponent[T]) isComponent(isComponentMarker) {}
+
+func (ComparableComponent[T]) isComparableComponent(isComparableComponentMarker) {}
+
+type isComparableComponentMarker struct{}

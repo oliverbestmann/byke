@@ -25,6 +25,10 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery) error {
 	query := &result.Query
 
 	switch {
+	case isEntityId(queryType):
+		// always allowed
+		return nil
+
 	case isComponent(queryType):
 		query.Fetch = append(query.Fetch, componentTypeOf(queryType))
 		return nil
@@ -50,6 +54,13 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery) error {
 
 func buildStructQuery(queryType reflect.Type, result *ParsedQuery) error {
 	for field := range fieldsOf(queryType) {
+		if field.Anonymous {
+			allowed := isEmbeddableFilter(field.Type) || isEntityId(field.Type)
+			if !allowed {
+				return fmt.Errorf("must not be embedded in query target %s: %s", queryType, field.Type)
+			}
+		}
+
 		if err := buildQuery(field.Type, result); err != nil {
 			return err
 		}
@@ -89,4 +100,12 @@ func isMutableComponent(ty reflect.Type) bool {
 
 func isFilter(ty reflect.Type) bool {
 	return ty.Kind() != reflect.Pointer && implementsInterfaceDirectly[Filter](ty)
+}
+
+func isEmbeddableFilter(ty reflect.Type) bool {
+	return ty.Kind() != reflect.Pointer && implementsInterfaceDirectly[EmbeddableFilter](ty)
+}
+
+func isEntityId(ty reflect.Type) bool {
+	return ty == reflect.TypeFor[arch.EntityId]()
 }

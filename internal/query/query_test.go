@@ -9,12 +9,17 @@ import (
 )
 
 type Position struct {
-	arch.Component[Position]
+	arch.ComparableComponent[Position]
 	X, Y int
 }
 
 type Velocity struct {
-	arch.Component[Velocity]
+	arch.ComparableComponent[Velocity]
+	X, Y int
+}
+
+type Acceleration struct {
+	arch.ComparableComponent[Acceleration]
 	X, Y int
 }
 
@@ -145,11 +150,17 @@ func TestParseQueryStruct(t *testing.T) {
 
 	{
 		type Item struct {
+			// can be embedded
+			arch.EntityId
+
+			// embeddable filters can also be embedded
 			Without[Velocity]
 			Changed[Position]
 
+			// normal fetches can be recursive
 			Nested struct {
-				Position *Position
+				Position     *Position
+				Acceleration Has[Acceleration]
 			}
 		}
 
@@ -165,6 +176,10 @@ func TestParseQueryStruct(t *testing.T) {
 
 				Without: []*arch.ComponentType{
 					arch.ComponentTypeOf[Velocity](),
+				},
+
+				FetchHas: []*arch.ComponentType{
+					arch.ComponentTypeOf[Acceleration](),
 				},
 			},
 
