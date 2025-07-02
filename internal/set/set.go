@@ -10,6 +10,18 @@ type Set[T comparable] struct {
 	values map[T]struct{}
 }
 
+func FromValues[T comparable](values iter.Seq[T]) Set[T] {
+	var result Set[T]
+
+	result.values = make(map[T]struct{})
+
+	for value := range values {
+		result.values[value] = struct{}{}
+	}
+
+	return result
+}
+
 func (s *Set[T]) Insert(value T) bool {
 	if s.values == nil {
 		s.values = make(map[T]struct{})
