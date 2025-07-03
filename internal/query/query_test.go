@@ -317,3 +317,44 @@ func runTestFromEntity[Q any](t *testing.T, entity arch.EntityRef, expected Q) {
 		require.Equal(t, expected, queryTarget)
 	})
 }
+
+func BenchmarkFromEntity(b *testing.B) {
+	type QueryItem struct {
+		arch.EntityId
+
+		With[Acceleration]
+		Changed[Velocity]
+
+		Position        *Position
+		Velocity        Velocity
+		Acceleration    Option[Acceleration]
+		HasAcceleration Has[Acceleration]
+	}
+
+	query, err := ParseQuery(reflect.TypeFor[QueryItem]())
+	require.NoError(b, err)
+
+	entity := arch.EntityRef{
+		EntityId: 10,
+		Components: []arch.ComponentValue{
+			{
+				Value: &Position{X: 1},
+			},
+			{
+				Value: &Velocity{X: 2},
+			},
+			{
+				Value: &Acceleration{X: 3},
+			},
+		},
+	}
+
+	var value QueryItem
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		FromEntity(&value, query.Setters, entity)
+	}
+}
