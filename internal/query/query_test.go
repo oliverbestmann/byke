@@ -10,17 +10,17 @@ import (
 
 type Position struct {
 	arch.ComparableComponent[Position]
-	X, Y int
+	X int
 }
 
 type Velocity struct {
 	arch.ComparableComponent[Velocity]
-	X, Y int
+	X int
 }
 
 type Acceleration struct {
 	arch.ComparableComponent[Acceleration]
-	X, Y int
+	X int
 }
 
 func parseQueryTest(t *testing.T, queryType reflect.Type, expected ParsedQuery) {
@@ -29,6 +29,10 @@ func parseQueryTest(t *testing.T, queryType reflect.Type, expected ParsedQuery) 
 	t.Run(fmt.Sprintf("parse %s", queryType), func(t *testing.T) {
 		parsed, err := ParseQuery(queryType)
 		require.NoError(t, err)
+
+		// do not include Setters in the comparison
+		parsed.Setters = nil
+
 		require.EqualValues(t, expected, parsed)
 	})
 }
@@ -189,4 +193,127 @@ func TestParseQueryStruct(t *testing.T) {
 		})
 	}
 
+}
+
+func TestFromEntity(t *testing.T) {
+	var entity = arch.EntityRef{
+		EntityId: 10,
+		Components: []arch.ComponentValue{
+			{
+				Value: &Position{X: 1},
+			},
+			{
+				Value: &Velocity{X: 2},
+			},
+		},
+	}
+
+	runTestFromEntity(t, entity, Position{X: 1})
+	runTestFromEntity(t, entity, &Position{X: 1})
+
+	{
+		type QueryItemWithMutable struct {
+			Position *Position
+			Velocity Velocity
+		}
+
+		runTestFromEntity(t, entity, QueryItemWithMutable{
+			Position: &Position{X: 1},
+			Velocity: Velocity{X: 2},
+		})
+	}
+
+	{
+		type QueryItemWithHas struct {
+			Position    Position
+			HasVelocity Has[Velocity]
+		}
+
+		runTestFromEntity(t, entity, QueryItemWithHas{
+			Position:    Position{X: 1},
+			HasVelocity: Has[Velocity]{Exists: true},
+		})
+	}
+
+	{
+		type QueryItemWithOption struct {
+			Position    Option[Position]
+			HasVelocity OptionMut[Velocity]
+		}
+
+		runTestFromEntity(t, entity, QueryItemWithOption{
+			Position:    Option[Position]{value: &Position{X: 1}},
+			HasVelocity: OptionMut[Velocity]{value: &Velocity{X: 2}},
+		})
+	}
+
+	{
+		type QueryItemWithWith struct {
+			With[Velocity]
+			Position Position
+		}
+
+		runTestFromEntity(t, entity, QueryItemWithWith{
+			Position: Position{X: 1},
+		})
+	}
+
+	{
+		type QueryItemWithEntity struct {
+			EntityId arch.EntityId
+			With[Velocity]
+		}
+
+		runTestFromEntity(t, entity, QueryItemWithEntity{
+			EntityId: arch.EntityId(10),
+		})
+	}
+
+	{
+		type QueryItemWithEmbeddedEntity struct {
+			arch.EntityId
+			With[Velocity]
+		}
+
+		runTestFromEntity(t, entity, QueryItemWithEmbeddedEntity{
+			EntityId: arch.EntityId(10),
+		})
+	}
+
+	type QueryItemWithNestedStruct struct {
+		arch.EntityId
+
+		Motion struct {
+			Position *Position
+			Velocity Velocity
+		}
+	}
+
+	runTestFromEntity(t, entity, QueryItemWithNestedStruct{
+		EntityId: arch.EntityId(10),
+		Motion: struct {
+			Position *Position
+			Velocity Velocity
+		}{
+			Position: &Position{X: 1},
+			Velocity: Velocity{X: 2},
+		},
+	})
+
+	{
+		runTestFromEntity(t, entity, arch.EntityId(10))
+	}
+}
+
+func runTestFromEntity[Q any](t *testing.T, entity arch.EntityRef, expected Q) {
+	t.Helper()
+
+	t.Run(reflect.TypeFor[Q]().String(), func(t *testing.T) {
+		parsed, err := ParseQuery(reflect.TypeFor[Q]())
+		require.NoError(t, err)
+
+		var queryTarget Q
+		FromEntity(&queryTarget, parsed.Setters, entity)
+		require.Equal(t, expected, queryTarget)
+	})
 }

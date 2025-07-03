@@ -9,7 +9,7 @@ var seed = maphash.MakeSeed()
 
 type HashOf func(value ErasedComponent) HashValue
 
-type CopyTo func(from, to ErasedComponent)
+type SetValue func(target any, source ErasedComponent)
 
 type MakeColumn func() Column
 
@@ -17,6 +17,7 @@ type ComponentType struct {
 	Id         int64
 	Type       reflect.Type
 	MakeColumn MakeColumn
+	SetValue   SetValue
 	hashOf     HashOf
 }
 
@@ -56,6 +57,18 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 		}
 
 		ty.MakeColumn = MakeColumnOf[C](ty)
+
+		ty.SetValue = func(target any, source ErasedComponent) {
+			value := any(source).(*C)
+
+			// target value must be either a pointer or a pointer to a pointer
+			switch ptrToTarget := any(target).(type) {
+			case *C:
+				*ptrToTarget = *value
+			case **C:
+				*ptrToTarget = value
+			}
+		}
 
 		componentTypes[ty.Type] = ty
 	}

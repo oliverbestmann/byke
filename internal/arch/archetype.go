@@ -284,6 +284,16 @@ type EntityRef struct {
 	Components []ComponentValue
 }
 
+func (e EntityRef) Get(ty *ComponentType) (*ComponentValue, bool) {
+	for idx := range e.Components {
+		if e.Components[idx].ComponentType() == ty {
+			return &e.Components[idx], true
+		}
+	}
+
+	return nil, false
+}
+
 func LookupArchetype(types []*ComponentType) *Archetype {
 	id, sortedTypes := ArchetypeIdOf(types)
 

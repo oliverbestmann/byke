@@ -1,6 +1,8 @@
 package arch
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type EntityId uint32
 

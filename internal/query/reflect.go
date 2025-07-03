@@ -33,12 +33,20 @@ func implementsInterfaceDirectly[If any](ty reflect.Type) bool {
 		return false
 	}
 
+	for ty.Kind() == reflect.Pointer {
+		ty = ty.Elem()
+	}
+
 	for field := range fieldsOf(ty) {
 		if !field.Anonymous {
 			continue
 		}
 
 		if field.Type.Implements(iface) {
+			return false
+		}
+
+		if reflect.PointerTo(field.Type).Implements(iface) {
 			return false
 		}
 	}
