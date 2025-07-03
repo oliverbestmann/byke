@@ -286,7 +286,7 @@ type EntityRef struct {
 
 func (e EntityRef) Get(ty *ComponentType) (*ComponentValue, bool) {
 	for idx := range e.Components {
-		if e.Components[idx].ComponentType() == ty {
+		if e.Components[idx].Type == ty {
 			return &e.Components[idx], true
 		}
 	}

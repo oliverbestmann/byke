@@ -1,14 +1,11 @@
 package arch
 
 type ComponentValue struct {
+	Type    *ComponentType
 	Added   Tick
 	Changed Tick
 	Hash    HashValue
 	Value   ErasedComponent
-}
-
-func (c ComponentValue) ComponentType() *ComponentType {
-	return c.Value.ComponentType()
 }
 
 type TypedComponentValue[C IsComponent[C]] struct {
@@ -18,8 +15,9 @@ type TypedComponentValue[C IsComponent[C]] struct {
 	Value   C
 }
 
-func (t *TypedComponentValue[C]) ToComponentValue() ComponentValue {
+func (t *TypedComponentValue[C]) ToComponentValue(componentType *ComponentType) ComponentValue {
 	return ComponentValue{
+		Type:    componentType,
 		Added:   t.Added,
 		Changed: t.Changed,
 		Hash:    t.Hash,
@@ -31,7 +29,7 @@ type ComponentValues []ComponentValue
 
 func (values ComponentValues) ByType(ty *ComponentType) (value *ComponentValue, ok bool) {
 	for idx := range values {
-		if values[idx].ComponentType() == ty {
+		if values[idx].Type == ty {
 			return &values[idx], true
 		}
 	}

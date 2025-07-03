@@ -338,12 +338,15 @@ func BenchmarkFromEntity(b *testing.B) {
 		EntityId: 10,
 		Components: []arch.ComponentValue{
 			{
+				Type:  arch.ComparableComponentTypeOf[Position](),
 				Value: &Position{X: 1},
 			},
 			{
+				Type:  arch.ComparableComponentTypeOf[Velocity](),
 				Value: &Velocity{X: 2},
 			},
 			{
+				Type:  arch.ComparableComponentTypeOf[Acceleration](),
 				Value: &Acceleration{X: 3},
 			},
 		},

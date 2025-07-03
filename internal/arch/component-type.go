@@ -3,6 +3,7 @@ package arch
 import (
 	"hash/maphash"
 	"reflect"
+	"unsafe"
 )
 
 var seed = maphash.MakeSeed()
@@ -45,10 +46,19 @@ func (c *ComponentType) MaybeHashOf(component ErasedComponent) HashValue {
 	return 0
 }
 
-var componentTypes = map[reflect.Type]*ComponentType{}
+var componentTypes = map[uintptr]*ComponentType{}
+
+func abiTypePointerTo(t reflect.Type) uintptr {
+	type eface struct {
+		typ, val unsafe.Pointer
+	}
+
+	return uintptr((*eface)(unsafe.Pointer(&t)).val)
+}
 
 func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
-	ty, ok := componentTypes[reflect.TypeFor[C]()]
+	ptrToType := abiTypePointerTo(reflect.TypeFor[C]())
+	ty, ok := componentTypes[ptrToType]
 
 	if !ok {
 		ty = &ComponentType{
@@ -70,14 +80,15 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 			}
 		}
 
-		componentTypes[ty.Type] = ty
+		componentTypes[ptrToType] = ty
 	}
 
 	return ty
 }
 
 func ComparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
-	ty, ok := componentTypes[reflect.TypeFor[C]()]
+	ptrToType := abiTypePointerTo(reflect.TypeFor[C]())
+	ty, ok := componentTypes[ptrToType]
 
 	if !ok {
 		ty = ComponentTypeOf[C]()
