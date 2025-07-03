@@ -87,7 +87,15 @@ func (c *TypedColumn[C]) Truncate(n Row) {
 }
 
 func (c *TypedColumn[C]) Get(row Row) ComponentValue {
-	return c.Values[row].ToComponentValue(c.ComponentType)
+	t := c.Values[row]
+
+	return ComponentValue{
+		Type:    c.ComponentType,
+		Added:   t.Added,
+		Changed: t.Changed,
+		Hash:    t.Hash,
+		Value:   any(&t.Value).(ErasedComponent),
+	}
 }
 
 func (c *TypedColumn[C]) Update(tick Tick, row Row, erasedValue ErasedComponent) {

@@ -15,16 +15,6 @@ type TypedComponentValue[C IsComponent[C]] struct {
 	Value   C
 }
 
-func (t *TypedComponentValue[C]) ToComponentValue(componentType *ComponentType) ComponentValue {
-	return ComponentValue{
-		Type:    componentType,
-		Added:   t.Added,
-		Changed: t.Changed,
-		Hash:    t.Hash,
-		Value:   any(&t.Value).(ErasedComponent),
-	}
-}
-
 type ComponentValues []ComponentValue
 
 func (values ComponentValues) ByType(ty *ComponentType) (value *ComponentValue, ok bool) {
