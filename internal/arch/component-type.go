@@ -16,18 +16,15 @@ type MakeColumn func() Column
 
 type ComponentType struct {
 	Id         int64
+	Name       string
 	Type       reflect.Type
 	MakeColumn MakeColumn
 	SetValue   SetValue
-	hashOf     HashOf
+	Comparable bool
 }
 
 func (c *ComponentType) String() string {
 	return c.Type.String()
-}
-
-func (c *ComponentType) IsComparable() bool {
-	return c.hashOf != nil
 }
 
 func (c *ComponentType) PtrType() reflect.Type {
@@ -36,14 +33,6 @@ func (c *ComponentType) PtrType() reflect.Type {
 
 func (c *ComponentType) New() ErasedComponent {
 	return reflect.New(c.Type).Interface().(ErasedComponent)
-}
-
-func (c *ComponentType) MaybeHashOf(component ErasedComponent) HashValue {
-	if c.hashOf != nil {
-		c.hashOf(component)
-	}
-
-	return 0
 }
 
 var componentTypes = map[uintptr]*ComponentType{}
@@ -57,6 +46,13 @@ func abiTypePointerTo(t reflect.Type) uintptr {
 }
 
 func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
+	var zeroComponent C
+
+	//goland:noinspection GoDfaNilDereference
+	return zeroComponent.ComponentType()
+}
+
+func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
 	ptrToType := abiTypePointerTo(reflect.TypeFor[C]())
 	ty, ok := componentTypes[ptrToType]
 
@@ -64,6 +60,7 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 		ty = &ComponentType{
 			Id:   int64(len(componentTypes) + 1),
 			Type: reflect.TypeFor[C](),
+			Name: reflect.TypeFor[C]().String(),
 		}
 
 		ty.MakeColumn = MakeColumnOf[C](ty)
@@ -72,7 +69,7 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 			value := any(source).(*C)
 
 			// target value must be either a pointer or a pointer to a pointer
-			switch ptrToTarget := any(target).(type) {
+			switch ptrToTarget := target.(type) {
 			case *C:
 				*ptrToTarget = *value
 			case **C:
@@ -86,19 +83,14 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 	return ty
 }
 
-func ComparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
+func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 	ptrToType := abiTypePointerTo(reflect.TypeFor[C]())
 	ty, ok := componentTypes[ptrToType]
 
 	if !ok {
-		ty = ComponentTypeOf[C]()
-
-		ty.hashOf = func(value ErasedComponent) HashValue {
-			ptrToValue := any(value).(*C)
-			return HashValue(maphash.Comparable[C](seed, *ptrToValue))
-		}
-
+		ty = nonComparableComponentTypeOf[C]()
 		ty.MakeColumn = MakeComparableColumnOf[C](ty)
+		ty.Comparable = true
 	}
 
 	return ty

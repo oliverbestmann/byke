@@ -2,84 +2,44 @@ package byke
 
 import (
 	"fmt"
-	"hash/maphash"
+	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/internal/assert"
+	"github.com/oliverbestmann/byke/internal/query"
 	"reflect"
-	"strconv"
 )
 
-var seed = maphash.MakeSeed()
+type Tick = arch.Tick
+type EntityId = arch.EntityId
 
-type AnyPtr any
+type IsComponent[T any] = arch.IsComponent[T]
+type IsComparableComponent[T comparable] = arch.IsComparableComponent[T]
 
-type Resource[T any] *T
+type Component[T IsComponent[T]] = arch.Component[T]
+type ComparableComponent[T IsComparableComponent[T]] = arch.ComparableComponent[T]
 
-type Tick uint64
+type ErasedComponent = arch.ErasedComponent
 
-type HashValue uint64
+type Option[C IsComponent[C]] = query.Option[C]
+type OptionMut[C IsComponent[C]] = query.OptionMut[C]
 
-type EntityId uint32
+type Has[C IsComponent[C]] = query.Has[C]
+type With[C IsComponent[C]] = query.With[C]
+type Without[C IsComponent[C]] = query.Without[C]
+type Added[C IsComparableComponent[C]] = query.Added[C]
+type Changed[C IsComparableComponent[C]] = query.Changed[C]
 
-func (e EntityId) String() string {
-	return strconv.Itoa(int(e))
-}
-
-type Entity struct {
-	Id EntityId
-
-	// pointer to components
-	Components map[ComponentType]componentValue
-}
-
-type componentValue struct {
-	PtrToValue  AnyComponent
-	LastChanged Tick
-	Hash        HashValue
-}
-
-func (cv *componentValue) Type() ComponentType {
-	return cv.PtrToValue.ComponentType()
-}
-
-func (cv *componentValue) CheckUpdate() {
-	if !cv.Type().Comparable() {
-		return
-	}
-
-}
-
-// ptrValue is a wrapper around a reflect.Value that holds
-// some value of type reflect.Pointer
-type ptrValue struct {
-	reflect.Value
-}
-
-func ptrValueOf(val reflect.Value) ptrValue {
-	assertIsPointerType(val.Type())
-	return ptrValue{Value: val}
-}
-
-type ComponentType struct {
-	reflect.Type
-}
-
-func componentTypeOf[C IsComponent[C]]() ComponentType {
-	var componentInstance C
-	return anyComponentTypeOf(componentInstance)
-}
-
-func anyComponentTypeOf(component AnyComponent) ComponentType {
-	return ComponentType{
-		Type: reflect.TypeOf(component),
-	}
-}
+type ScheduleId any
 
 type resourceValue struct {
 	Reflect ptrValue
 	Pointer AnyPtr
 }
 
-type ScheduleId interface {
+type ptrValue struct {
+	reflect.Value
 }
+
+type AnyPtr = any
 
 type Schedule struct {
 	// make this a non zero sized type, so that creating a
@@ -98,8 +58,8 @@ type preparedSystem struct {
 }
 
 type World struct {
+	storage     *arch.Storage
 	entityIdSeq EntityId
-	entities    map[EntityId]*Entity
 	resources   map[reflect.Type]resourceValue
 	schedules   map[ScheduleId][]*preparedSystem
 	currentTick Tick
@@ -107,7 +67,7 @@ type World struct {
 
 func NewWorld() *World {
 	return &World{
-		entities:  map[EntityId]*Entity{},
+		storage:   arch.NewStorage(),
 		resources: map[reflect.Type]resourceValue{},
 		schedules: map[ScheduleId][]*preparedSystem{},
 	}
@@ -137,23 +97,15 @@ func (w *World) ReserveEntityId() EntityId {
 
 }
 
-func (w *World) Spawn(entityId EntityId, components []AnyComponent) {
-	entity := &Entity{
-		Id:         entityId,
-		Components: map[ComponentType]componentValue{},
-	}
-
-	if w.entities[entity.Id] != nil {
-		panic(fmt.Sprintf("entity with id %d already exists", entity.Id))
-	}
-
-	w.entities[entity.Id] = entity
-
-	w.insertComponents(entity, components)
+func (w *World) Spawn(entityId EntityId, components []ErasedComponent) {
+	w.storage.Spawn(w.currentTick, entityId)
+	w.insertComponents(entityId, components)
 }
 
-func (w *World) insertComponents(entity *Entity, components []AnyComponent) {
-	queue := append([]AnyComponent(nil), components...)
+func (w *World) insertComponents(entityId EntityId, components []ErasedComponent) {
+	queue := append([]ErasedComponent{}, components...)
+
+	tick := w.currentTick
 
 	for idx := 0; idx < len(queue); idx++ {
 		// if in question we'll overwrite the components if they
@@ -161,75 +113,76 @@ func (w *World) insertComponents(entity *Entity, components []AnyComponent) {
 		overwrite := idx < len(components)
 
 		component := queue[idx]
-		tyComponent := anyComponentTypeOf(component)
+		componentType := component.ComponentType()
 
 		// maybe skip this one if it already exists on the entity
-		if _, exists := entity.Components[tyComponent]; exists && !overwrite {
+		exists := w.storage.HasComponent(entityId, componentType)
+		if exists && !overwrite {
 			continue
 		}
 
-		// must not be inserted if it is a parentComponent
-		if _, ok := component.(parentComponent); ok {
-			panic(fmt.Sprintf(
-				"you may not insert a byke.ParentComponent yourself: %C", component,
-			))
-		}
+		// TODO must not be inserted if it is a parentComponent
+		// if _, ok := component.(parentComponent); ok {
+		// 	panic(fmt.Sprintf(
+		// 		"you may not insert a byke.ParentComponent yourself: %C", component,
+		// 	))
+		// }
 
 		// and add it to the entity
-		heapComponent := copyToHeap(component).Interface().(AnyComponent)
-		entity.Components[tyComponent] = componentValue{
-			PtrToValue: heapComponent,
-			Hash:       hashOf(heapComponent),
-		}
+		component = copyComponent(component)
+		w.storage.InsertComponent(tick, entityId, component)
 
 		// trigger hooks for this component
-		w.onComponentInsert(entity, heapComponent)
+		w.onComponentInsert(entityId, component)
 
 		// enqueue all required components
-		if req, ok := heapComponent.(RequireComponents); ok {
+		if req, ok := component.(arch.RequireComponents); ok {
 			queue = append(queue, req.RequireComponents()...)
 		}
 	}
 }
 
-func (w *World) onComponentInsert(entity *Entity, component AnyComponent) {
-	// update relations if needed
-	if parentComponent, ok := w.parentComponentOf(component); ok {
-		parentComponent.addChild(entity.Id)
-	}
+func (w *World) onComponentInsert(entityId EntityId, component ErasedComponent) {
+	// TODO update relations if needed
+	// if parentComponent, ok := w.parentComponentOf(component); ok {
+	// 	parentComponent.addChild(entity.Id)
+	// }
 }
 
-func (w *World) onComponentRemoved(entity *Entity, component AnyComponent) {
-	// update relations if needed
-	if parentComponent, ok := w.parentComponentOf(component); ok {
-		parentComponent.removeChild(entity.Id)
-	}
+func (w *World) onComponentRemoved(entity EntityId, component arch.ComponentValue) {
+	// TODO update relations if needed
+	// if parentComponent, ok := w.parentComponentOf(component); ok {
+	// 	parentComponent.removeChild(entity.Id)
+	// }
 }
 
-func (w *World) parentComponentOf(component AnyComponent) (parentComponent, bool) {
-	child, ok := component.(childComponent)
-	if !ok {
-		return nil, false
-	}
+func (w *World) parentComponentOf(component ErasedComponent) (parentComponent, bool) {
+	return nil, false
 
-	parentId := child.parentId()
-	parent, ok := w.entities[parentId]
-	if !ok {
-		panic(fmt.Sprintf("parent entity %s does not exist", parentId))
-	}
-
-	parentType := child.RelationParentType()
-	parentComponentValue, ok := parent.Components[parentType]
-	if !ok {
-		parentComponentValue = componentValue{
-			PtrToValue: ptrValueOf(reflect.New(parentType.Type)).Interface().(AnyComponent),
-		}
-
-		parent.Components[parentType] = parentComponentValue
-	}
-
-	parentComponent := parentComponentValue.PtrToValue.(parentComponent)
-	return parentComponent, true
+	// TODO
+	//child, ok := component.(childComponent)
+	//if !ok {
+	//	return nil, false
+	//}
+	//
+	//parentId := child.parentId()
+	//parent, ok := w.entities[parentId]
+	//if !ok {
+	//	panic(fmt.Sprintf("parent entity %s does not exist", parentId))
+	//}
+	//
+	//parentType := child.RelationParentType()
+	//parentComponentValue, ok := parent.Components[parentType]
+	//if !ok {
+	//	parentComponentValue = componentValue{
+	//		PtrToValue: ptrValueOf(reflect.New(parentType.Type)).Interface().(ErasedComponent),
+	//	}
+	//
+	//	parent.Components[parentType] = parentComponentValue
+	//}
+	//
+	//parentComponent := parentComponentValue.PtrToValue.(parentComponent)
+	//return parentComponent, true
 }
 
 func (w *World) NewCommands() *Commands {
@@ -256,19 +209,15 @@ func ResourceOf[T any](w *World) (*T, bool) {
 	return value.(*T), true
 }
 
-func copyToHeap(value any) ptrValue {
-	if reflect.TypeOf(value).Kind() == reflect.Pointer {
-		panic("we do not want to have double pointers")
-	}
-
-	// move the component onto the heap
-	ptrToValue := reflect.New(reflect.TypeOf(value))
-	ptrToValue.Elem().Set(reflect.ValueOf(value))
-	return ptrValueOf(ptrToValue)
+func copyComponent(value ErasedComponent) ErasedComponent {
+	componentType := value.ComponentType()
+	ptrToValue := componentType.New()
+	reflect.ValueOf(ptrToValue).Elem().Set(reflect.ValueOf(value))
+	return ptrToValue
 }
 
 func ValidateComponent[C IsComponent[C]]() struct{} {
-	componentType := componentTypeOf[C]()
+	componentType := arch.ComponentTypeOf[C]()
 
 	var zero C
 
@@ -319,14 +268,6 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 	return struct{}{}
 }
 
-func reflectComponentTypeOf(tyComponent reflect.Type) ComponentType {
-	assertIsComponentType(tyComponent)
-
-	return ComponentType{
-		Type: tyComponent,
-	}
-}
-
 func (w *World) InsertResource(resource any) {
 	resType := reflect.PointerTo(reflect.TypeOf(resource))
 
@@ -336,13 +277,19 @@ func (w *World) InsertResource(resource any) {
 		return
 	}
 
-	// create a new pointer to the resource type
-	ptr := copyToHeap(resource)
+	// allocate the resource on the heap and set it
+	ptr := reflect.New(resType)
+	ptr.Elem().Set(reflect.ValueOf(resource))
 
 	w.resources[ptr.Type()] = resourceValue{
-		Reflect: ptr,
+		Reflect: pointerValueOf(ptr),
 		Pointer: ptr.Interface(),
 	}
+}
+
+func pointerValueOf(ptr reflect.Value) ptrValue {
+	assert.IsPointerType(ptr.Type())
+	return ptrValue{Value: ptr}
 }
 
 func (w *World) RunSystem(system System) {
@@ -371,76 +318,48 @@ func (w *World) Despawn(entityId EntityId) {
 	for idx := 0; idx < len(queue); idx++ {
 		entityId = queue[idx]
 
-		entity, ok := w.entities[entityId]
+		entity, ok := w.storage.Get(entityId)
 		if !ok {
 			fmt.Printf("[warn] cannot despawn entity %d: does not exist\n", entityId)
-			return
-		}
-
-		// update relationships
-		for _, component := range entity.Components {
-			value := component.PtrToValue
-			if parentComponent, ok := w.parentComponentOf(value); ok {
-				parentComponent.removeChild(entityId)
-			}
-
-			// despawn child entities too
-			if parentComponent, ok := value.(parentComponent); ok {
-				for _, entityId := range parentComponent.Children() {
-					queue = append(queue, entityId)
-				}
-			}
-		}
-	}
-
-	for _, entityId := range queue {
-		delete(w.entities, entityId)
-	}
-}
-
-func (w *World) removeComponent(entity *Entity, componentType ComponentType) {
-	component, ok := entity.Components[componentType]
-	if !ok {
-		// component is already gone
-		return
-	}
-
-	w.onComponentRemoved(entity, component.PtrToValue)
-
-	// remove component
-	delete(entity.Components, componentType)
-}
-
-func (w *World) recheckComponents(ty ComponentType) {
-	isComparable := ty.Implements(reflect.TypeFor[erasedComparableComponent]())
-	if !isComparable {
-		return
-	}
-
-	// TODO optimize, do not walk through all entities
-	for _, entity := range w.entities {
-		component, ok := entity.Components[ty]
-		if !ok {
 			continue
 		}
 
-		hashValue := hashOf(component.PtrToValue)
+		_ = entity
 
-		if hashValue != component.Hash {
-			component.Hash = hashValue
-			component.LastChanged = w.currentTick
-			entity.Components[ty] = component
-		}
+		// TODO
+		// update relationships
+		//for _, component := range entity.Components {
+		//	value := component.PtrToValue
+		//	if parentComponent, ok := w.parentComponentOf(value); ok {
+		//		parentComponent.removeChild(entityId)
+		//	}
+		//
+		//	// despawn child entities too
+		//	if parentComponent, ok := value.(parentComponent); ok {
+		//		for _, entityId := range parentComponent.Children() {
+		//			queue = append(queue, entityId)
+		//		}
+		//	}
+		//}
+	}
+
+	for _, entityId := range queue {
+		w.storage.Despawn(entityId)
 	}
 }
 
-func hashOf(component AnyComponent) HashValue {
-	erasedComparable, ok := component.(erasedComparableComponent)
+func (w *World) removeComponent(entityId EntityId, componentType *arch.ComponentType) {
+	component, ok := w.storage.GetComponent(entityId, componentType)
 	if !ok {
-		return 1
+		return
 	}
 
-	return erasedComparable.hashOf(component)
+	w.storage.RemoveComponent(w.currentTick, entityId, componentType)
+	w.onComponentRemoved(entityId, component)
+}
+
+func (w *World) recheckComponents(componentTypes []*arch.ComponentType) {
+	w.storage.CheckChanged(w.currentTick, componentTypes)
 }
 
 type systemParameter struct {
@@ -472,15 +391,34 @@ func commandsSystemParameter(world *World) systemParameter {
 	}
 }
 
-func querySystemParameter(world *World, query reflect.Value) systemParameter {
+func querySystemParameter(world *World, queryType reflect.Type, system *preparedSystem) systemParameter {
+	ptrToQueryInstance := reflect.New(queryType)
+
+	queryAccessor := ptrToQueryInstance.Interface().(queryAccessor)
+
+	parsed, err := queryAccessor.parse()
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse query of type %s: %s", queryType, err))
+	}
+
+	theQuery := &parsed.Query
+
+	inner := &innerQuery{
+		ParsedQuery: parsed,
+		Storage:     world.storage,
+		Iter:        world.storage.IterQuery(theQuery),
+	}
+
+	queryAccessor.set(inner)
+
 	return systemParameter{
-		Constant: query,
+		GetValue: func() reflect.Value {
+			theQuery.LastRun = system.LastRun
+			return ptrToQueryInstance.Elem()
+		},
 
 		Cleanup: func(value reflect.Value) {
-			q := value.Addr().Interface().(queryAccessor)
-			for _, ty := range q.get().parsed.mutableComponentTypes {
-				world.recheckComponents(ty)
-			}
+			world.recheckComponents(parsed.Mutable)
 		},
 	}
 }
@@ -507,7 +445,7 @@ func prepareSystem(w *World, system System) *preparedSystem {
 
 		switch {
 		case reflect.PointerTo(tyIn).Implements(reflect.TypeFor[queryAccessor]()):
-			params = append(params, querySystemParameter(w, buildQuery(w, preparedSystem, tyIn)))
+			params = append(params, querySystemParameter(w, tyIn, preparedSystem))
 
 		case tyIn == reflect.TypeFor[*World]():
 			params = append(params, valueSystemParameter(reflect.ValueOf(w)))
@@ -554,14 +492,4 @@ func prepareSystem(w *World, system System) *preparedSystem {
 	}
 
 	return preparedSystem
-}
-
-type Name string
-
-func (n Name) isAnyComponent(isAnyComponentMarker) {}
-
-func (n Name) IsComponent(Name) {}
-
-func (n Name) ComponentType() ComponentType {
-	return Component[Name]{}.ComponentType()
 }

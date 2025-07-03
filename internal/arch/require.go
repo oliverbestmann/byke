@@ -1,5 +1,5 @@
 package arch
 
 type RequireComponents interface {
-	RequireComponents() []ErasedComponentValue
+	RequireComponents() []ErasedComponent
 }

@@ -1,6 +1,8 @@
 package arch
 
-import "hash/maphash"
+import (
+	"hash/maphash"
+)
 
 type Row uint32
 
@@ -87,7 +89,7 @@ func (c *TypedColumn[C]) Truncate(n Row) {
 }
 
 func (c *TypedColumn[C]) Get(row Row) ComponentValue {
-	t := c.Values[row]
+	t := &c.Values[row]
 
 	return ComponentValue{
 		Type:    c.ComponentType,

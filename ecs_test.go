@@ -15,11 +15,12 @@ type Position struct {
 
 type Velocity struct {
 	ComparableComponent[Velocity]
-	X, Y float64
+	X, Y int
 }
 
 type Player struct {
 	ComparableComponent[Player]
+	Value int
 }
 
 type Enemy struct {
@@ -34,23 +35,23 @@ var _ = ValidateComponent[Enemy]()
 func buildSimpleWorld() *World {
 	w := NewWorld()
 
-	w.Spawn(w.ReserveEntityId(), []AnyComponent{
-		Name("Player"),
+	w.Spawn(w.ReserveEntityId(), []ErasedComponent{
+		Named("Player"),
 		Player{},
-		Position{},
-		Velocity{},
+		Position{X: 1},
+		Velocity{X: 10},
 	})
 
-	w.Spawn(w.ReserveEntityId(), []AnyComponent{
-		Name("Tree"),
-		Position{},
+	w.Spawn(w.ReserveEntityId(), []ErasedComponent{
+		Named("Tree"),
+		Position{X: 2},
 	})
 
-	w.Spawn(w.ReserveEntityId(), []AnyComponent{
-		Name("Enemy"),
+	w.Spawn(w.ReserveEntityId(), []ErasedComponent{
+		Named("Enemy"),
 		Enemy{},
-		Position{},
-		Velocity{},
+		Position{X: 3},
+		Velocity{Y: 20},
 	})
 
 	return w
@@ -65,18 +66,26 @@ func requireCallback(t *testing.T, fn func(allGood func())) {
 }
 
 func TestRunSystemWithQuery(t *testing.T) {
-	w := buildSimpleWorld()
-
 	t.Run("query with immutable component", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[Position]) {
 				allGood()
 				require.Len(t, slices.Collect(q.Items()), 3)
+
+				// can collect again)
+				require.Len(t, slices.Collect(q.Items()), 3)
+
+				// count is also valid
+				require.Equal(t, 3, q.Count())
 			})
 		})
 	})
 
 	t.Run("query with mutable component", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[*Position]) {
 				allGood()
@@ -86,6 +95,8 @@ func TestRunSystemWithQuery(t *testing.T) {
 	})
 
 	t.Run("query with optional immutable component", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[Option[Player]]) {
 				allGood()
@@ -95,6 +106,8 @@ func TestRunSystemWithQuery(t *testing.T) {
 	})
 
 	t.Run("query with optional mutable component", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[OptionMut[Player]]) {
 				allGood()
@@ -104,6 +117,8 @@ func TestRunSystemWithQuery(t *testing.T) {
 	})
 
 	t.Run("query with struct (immutable)", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		type MoveableItem struct {
 			Position Position
 			Velocity Velocity
@@ -113,11 +128,17 @@ func TestRunSystemWithQuery(t *testing.T) {
 			w.RunSystem(func(q Query[MoveableItem]) {
 				allGood()
 				require.Len(t, slices.Collect(q.Items()), 2)
+
+				for item := range q.Items() {
+					require.NotZero(t, item.Position.X)
+				}
 			})
 		})
 	})
 
 	t.Run("query with struct (mutable)", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		type MoveableItem struct {
 			Velocity Velocity
 			Position *Position
@@ -126,12 +147,24 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[MoveableItem]) {
 				allGood()
-				require.Len(t, slices.Collect(q.Items()), 2)
+
+				for item := range q.Items() {
+					require.NotZero(t, item.Position.X)
+					item.Position.X = item.Velocity.X * 2
+				}
 			})
+		})
+
+		w.RunSystem(func(q Query[MoveableItem]) {
+			for item := range q.Items() {
+				require.Equal(t, item.Velocity.X*2, item.Position.X)
+			}
 		})
 	})
 
 	t.Run("query with struct (immutable, option)", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		type MoveableItem struct {
 			Position Position
 			Velocity Velocity
@@ -147,6 +180,8 @@ func TestRunSystemWithQuery(t *testing.T) {
 	})
 
 	t.Run("query with struct (immutable, OptionMut)", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		type MoveableItem struct {
 			Position Position
 			Velocity OptionMut[Velocity]
@@ -168,12 +203,14 @@ func TestRunSystemWithQuery(t *testing.T) {
 
 		w.RunSystem(func(q Query[Velocity]) {
 			for item := range q.Items() {
-				require.Equal(t, 1.0, item.X, "velocity must have been updated")
+				require.Equal(t, 1, item.X, "velocity must have been updated")
 			}
 		})
 	})
 
 	t.Run("query with struct (immutable, has)", func(t *testing.T) {
+		w := buildSimpleWorld()
+
 		type MoveableItem struct {
 			Position Position
 			Velocity Velocity
@@ -307,7 +344,7 @@ func TestRelationships(t *testing.T) {
 			commands.Entity(parentId).Despawn()
 		})
 
-		require.Empty(t, w.entities)
+		require.Empty(t, w.storage.EntityCount())
 	})
 }
 
@@ -328,7 +365,7 @@ func BenchmarkWorld_RunSystem(b *testing.B) {
 		for idx := range 2000 {
 			ec := c.Spawn(X{Value: 1}, Y{Value: 2})
 			if idx%2 == 0 {
-				ec.Update(InsertComponent(Name("Component")))
+				ec.Update(InsertComponent(Named("Component")))
 			}
 		}
 	})

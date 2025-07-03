@@ -1,10 +1,12 @@
 package byke
 
-import "fmt"
+import (
+	"github.com/oliverbestmann/byke/internal/arch"
+)
 
 type Command func(world *World)
 
-type EntityCommand func(world *World, entity *Entity)
+type EntityCommand func(world *World, entityId EntityId)
 
 type Commands struct {
 	world *World
@@ -22,7 +24,7 @@ func (c *Commands) Queue(command Command) *Commands {
 	return c
 }
 
-func (c *Commands) Spawn(components ...AnyComponent) EntityCommands {
+func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
 	entityId := c.world.ReserveEntityId()
 
 	c.Queue(func(world *World) {
@@ -53,13 +55,8 @@ func (e EntityCommands) Id() EntityId {
 
 func (e EntityCommands) Update(commands ...EntityCommand) EntityCommands {
 	e.commands.queue = append(e.commands.queue, func(world *World) {
-		entity, ok := world.entities[e.entityId]
-		if !ok {
-			panic(fmt.Sprintf("entity %d does not exist", e.entityId))
-		}
-
 		for _, command := range commands {
-			command(world, entity)
+			command(world, e.entityId)
 		}
 	})
 
@@ -73,10 +70,10 @@ func (e EntityCommands) Despawn() {
 }
 
 func RemoveComponent[C IsComponent[C]]() EntityCommand {
-	componentType := componentTypeOf[C]()
+	componentType := arch.ComponentTypeOf[C]()
 
-	return func(world *World, entity *Entity) {
-		world.removeComponent(entity, componentType)
+	return func(world *World, entityId EntityId) {
+		world.removeComponent(entityId, componentType)
 	}
 }
 
@@ -90,7 +87,7 @@ func InsertComponent[C IsComponent[C]](maybeValue ...C) EntityCommand {
 		component = maybeValue[0]
 	}
 
-	return func(world *World, entity *Entity) {
-		world.insertComponents(entity, []AnyComponent{component})
+	return func(world *World, entityId EntityId) {
+		world.insertComponents(entityId, []ErasedComponent{component})
 	}
 }

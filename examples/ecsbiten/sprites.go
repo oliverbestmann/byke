@@ -28,8 +28,8 @@ type Sprite struct {
 	Image *ebiten.Image
 }
 
-func (Sprite) RequireComponents() []byke.AnyComponent {
-	return []byke.AnyComponent{
+func (Sprite) RequireComponents() []byke.ErasedComponent {
+	return []byke.ErasedComponent{
 		Layer{},
 		Transform{
 			Scale: VecOf(1.0, 1.0),

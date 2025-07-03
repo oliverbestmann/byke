@@ -106,7 +106,7 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 		result.Setters = append(result.Setters, Setter{
 			Field: slices.Clone(path),
 			SetValue: func(target any, ref arch.EntityRef) {
-				target.(FromEntityRef).FromEntityRef(ref)
+				target.(FromEntityRef).fromEntityRef(ref)
 			},
 		})
 

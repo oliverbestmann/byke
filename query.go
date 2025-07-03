@@ -2,41 +2,54 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/inner"
+	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/internal/query"
 	"iter"
 	"reflect"
 )
 
-// Query is a strongly typed query instance.
 type Query[T any] struct {
-	inner.Type[T]
-	delegate *erasedQuery
-
-	// scratch space holding one item C in the query
-	item T
+	inner *innerQuery
+	items iter.Seq[T]
 }
 
-func (q *Query[T]) Get() (value *T, ok bool) {
-	for value := range q.Items() {
-		return &value, true
+func (q *Query[T]) set(inner *innerQuery) {
+	q.inner = inner
+
+	var target T
+	var targetIf any = &target
+
+	q.items = func(yield func(T) bool) {
+		for ref := range q.inner.Iter {
+			query.FromEntity(targetIf, q.inner.Setters, ref)
+
+			if !yield(target) {
+				return
+			}
+		}
 	}
-
-	return nil, false
 }
 
-func (q *Query[T]) MustGet() T {
-	value, ok := q.Get()
+func (q *Query[T]) parse() (query.ParsedQuery, error) {
+	return query.ParseQuery(reflect.TypeFor[T]())
+}
+
+func (q *Query[T]) Get(entityId EntityId) (T, bool) {
+	var target T
+
+	ref, ok := q.inner.Storage.GetWithQuery(&q.inner.Query, entityId)
 	if !ok {
-		panic(fmt.Sprintf("no value in query for %T", value))
+		return target, false
 	}
 
-	return *value
+	query.FromEntity(&target, q.inner.Setters, ref)
+
+	return target, true
 }
 
 func (q *Query[T]) Count() int {
 	var count int
-
-	for range q.Items() {
+	for range q.inner.Iter {
 		count += 1
 	}
 
@@ -44,35 +57,25 @@ func (q *Query[T]) Count() int {
 }
 
 func (q *Query[T]) Items() iter.Seq[T] {
-	return func(yield func(T) bool) {
-		target := reflect.ValueOf(&q.item).Elem()
+	return q.items
+}
 
-		delegate := q.delegate
-		hasValue := delegate.parsed.hasValue
-		putValue := delegate.parsed.putValue
-
-		for _, entity := range delegate.world.entities {
-			// quick check if the entity has matches the Query predicate
-			if hasValue != nil && !hasValue(delegate.world, delegate.system, entity) {
-				continue
-			}
-
-			if putValue(entity, target) {
-				// success, the entity matches and we've filled the target
-				if !yield(q.item) {
-					return
-				}
-			}
-		}
+func (q *Query[T]) MustGet() T {
+	for value := range q.items {
+		return value
 	}
+
+	var target T
+	panic(fmt.Sprintf("no values in query for type %T", target))
 }
 
-func (*Query[T]) isQuery(queryAccessor) {}
-
-func (q *Query[T]) set(inner *erasedQuery) {
-	q.delegate = inner
+type innerQuery struct {
+	query.ParsedQuery
+	Storage *arch.Storage
+	Iter    iter.Seq[arch.EntityRef]
 }
 
-func (q *Query[T]) get() *erasedQuery {
-	return q.delegate
+type queryAccessor interface {
+	parse() (query.ParsedQuery, error)
+	set(inner *innerQuery)
 }

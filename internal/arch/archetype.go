@@ -9,9 +9,6 @@ import (
 	"strings"
 )
 
-// all Archetype
-var archetypes = map[ArchetypeId]*Archetype{}
-
 type ArchetypeId uint64
 
 type Archetype struct {
@@ -262,6 +259,20 @@ func (a *Archetype) assertInvariants() {
 	}
 }
 
+func (a *Archetype) GetComponent(entityId EntityId, componentType *ComponentType) (ComponentValue, bool) {
+	row, ok := a.index[entityId]
+	if !ok {
+		return ComponentValue{}, false
+	}
+
+	column, ok := a.columnsByType[componentType]
+	if !ok {
+		return ComponentValue{}, false
+	}
+
+	return column.Get(row), true
+}
+
 type ArchetypeIter struct {
 	archetype *Archetype
 	scratch   *[]ComponentValue
@@ -294,16 +305,30 @@ func (e EntityRef) Get(ty *ComponentType) (*ComponentValue, bool) {
 	return nil, false
 }
 
-func LookupArchetype(types []*ComponentType) *Archetype {
+type Archetypes struct {
+	archetypes []*Archetype
+	lookup     map[ArchetypeId]*Archetype
+}
+
+func (a *Archetypes) Lookup(types []*ComponentType) *Archetype {
 	id, sortedTypes := ArchetypeIdOf(types)
 
-	at, ok := archetypes[id]
+	at, ok := a.lookup[id]
 	if !ok {
+		if a.lookup == nil {
+			a.lookup = map[ArchetypeId]*Archetype{}
+		}
+
 		at = makeArchetype(id, slices.Clone(sortedTypes))
-		archetypes[id] = at
+		a.lookup[id] = at
+		a.archetypes = append(a.archetypes, at)
 	}
 
 	return at
+}
+
+func (a *Archetypes) All() []*Archetype {
+	return a.archetypes
 }
 
 var typesScratch []*ComponentType

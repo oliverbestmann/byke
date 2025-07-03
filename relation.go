@@ -1,7 +1,7 @@
 package byke
 
 import (
-	"hash/maphash"
+	"github.com/oliverbestmann/byke/internal/arch"
 	"slices"
 )
 
@@ -13,27 +13,14 @@ type ParentComponent[Parent IsComponent[Parent], Child IsComparableComponent[Chi
 	_children []EntityId
 }
 
-func (ParentComponent[Parent, Child]) hashOf(value AnyComponent) HashValue {
-	parentComponent := any(value).(parentComponent)
-
-	var hash maphash.Hash
-	hash.SetSeed(seed)
-
-	for _, entity := range parentComponent.Children() {
-		maphash.WriteComparable(&hash, entity)
-	}
-
-	return HashValue(hash.Sum64())
-}
-
 func (ParentComponent[Parent, Child]) isParentComponent(component markerIsParentComponent) {}
 
 type markerIsParentComponent interface {
 	isParentComponent(markerIsParentComponent)
 }
 
-func (*ParentComponent[Parent, Child]) RelationChildType() ComponentType {
-	return componentTypeOf[Child]()
+func (*ParentComponent[Parent, Child]) RelationChildType() *arch.ComponentType {
+	return arch.ComponentTypeOf[Child]()
 }
 
 func (*ParentComponent[Parent, Child]) makeChildComponent() childComponent {
@@ -68,8 +55,8 @@ type ChildComponent[Parent IsComponent[Parent], Child IsComparableComponent[Chil
 	Parent EntityId
 }
 
-func (ChildComponent[Parent, Child]) RelationParentType() ComponentType {
-	return componentTypeOf[Parent]()
+func (ChildComponent[Parent, Child]) RelationParentType() *arch.ComponentType {
+	return arch.ComponentTypeOf[Parent]()
 }
 
 func (c ChildComponent[Parent, Child]) parentId() EntityId {
@@ -77,16 +64,16 @@ func (c ChildComponent[Parent, Child]) parentId() EntityId {
 }
 
 type parentComponent interface {
-	AnyComponent
-	RelationChildType() ComponentType
+	ErasedComponent
+	RelationChildType() *arch.ComponentType
 	addChild(id EntityId)
 	removeChild(id EntityId)
 	Children() []EntityId
 }
 
 type childComponent interface {
-	AnyComponent
-	RelationParentType() ComponentType
+	ErasedComponent
+	RelationParentType() *arch.ComponentType
 	parentId() EntityId
 }
 

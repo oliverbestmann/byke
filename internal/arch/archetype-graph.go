@@ -3,6 +3,7 @@ package arch
 import "slices"
 
 type ArchetypeGraph struct {
+	Archetypes
 	transitions map[ArchetypeTransition]*Archetype
 }
 
@@ -57,7 +58,7 @@ func (a *ArchetypeGraph) insertTransition(tr ArchetypeTransition, types []*Compo
 		a.transitions = map[ArchetypeTransition]*Archetype{}
 	}
 
-	archetype := LookupArchetype(types)
+	archetype := a.Archetypes.Lookup(types)
 	a.transitions[tr] = archetype
 
 	return archetype

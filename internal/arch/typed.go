@@ -1,13 +1,13 @@
 package arch
 
 type IsComponent[T any] interface {
-	ErasedComponentValue
+	ErasedComponent
 	IsComponent(T)
 }
 
 type IsComparableComponent[T comparable] interface {
 	IsComponent[T]
-	isComparableComponent(isComparableComponentMarker)
+	isComparableComponent
 	comparable
 }
 
@@ -18,7 +18,7 @@ func (Component[C]) IsComponent(C) {}
 func (Component[C]) isComponent(isComponentMarker) {}
 
 func (Component[C]) ComponentType() *ComponentType {
-	return ComponentTypeOf[C]()
+	return nonComparableComponentTypeOf[C]()
 }
 
 type ComparableComponent[T IsComparableComponent[T]] struct{}
@@ -26,7 +26,7 @@ type ComparableComponent[T IsComparableComponent[T]] struct{}
 func (ComparableComponent[T]) IsComponent(t T) {}
 
 func (ComparableComponent[T]) ComponentType() *ComponentType {
-	return ComparableComponentTypeOf[T]()
+	return comparableComponentTypeOf[T]()
 }
 
 func (ComparableComponent[T]) isComponent(isComponentMarker) {}
@@ -34,3 +34,7 @@ func (ComparableComponent[T]) isComponent(isComponentMarker) {}
 func (ComparableComponent[T]) isComparableComponent(isComparableComponentMarker) {}
 
 type isComparableComponentMarker struct{}
+
+type isComparableComponent interface {
+	isComparableComponent(isComparableComponentMarker)
+}

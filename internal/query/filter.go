@@ -1,6 +1,9 @@
 package query
 
-import "github.com/oliverbestmann/byke/internal/arch"
+import (
+	"fmt"
+	"github.com/oliverbestmann/byke/internal/arch"
+)
 
 type Filter interface {
 	FromEntityRef
@@ -14,7 +17,7 @@ type EmbeddableFilter interface {
 }
 
 type FromEntityRef interface {
-	FromEntityRef(ref arch.EntityRef)
+	fromEntityRef(ref arch.EntityRef)
 }
 
 type Option[C arch.IsComponent[C]] struct {
@@ -26,13 +29,30 @@ func (*Option[C]) applyTo(result *ParsedQuery) {
 	result.Query.FetchOptional = append(result.Query.FetchOptional, componentType)
 }
 
-func (c *Option[C]) FromEntityRef(ref arch.EntityRef) {
+func (c *Option[C]) fromEntityRef(ref arch.EntityRef) {
 	value, ok := ref.Get(arch.ComponentTypeOf[C]())
 	if ok {
 		c.value = any(value.Value).(*C)
 	} else {
 		c.value = nil
 	}
+}
+
+func (c *Option[C]) Get() (C, bool) {
+	return c.OrZero(), c.value != nil
+}
+
+func (c *Option[C]) MustGet() C {
+	return *c.value
+}
+
+func (c *Option[C]) OrZero() C {
+	if c.value != nil {
+		return *c.value
+	}
+
+	var zeroValue C
+	return zeroValue
 }
 
 type OptionMut[C arch.IsComponent[C]] struct {
@@ -45,13 +65,25 @@ func (*OptionMut[C]) applyTo(result *ParsedQuery) {
 	result.Mutable = append(result.Mutable, componentType)
 }
 
-func (c *OptionMut[C]) FromEntityRef(ref arch.EntityRef) {
+func (c *OptionMut[C]) fromEntityRef(ref arch.EntityRef) {
 	value, ok := ref.Get(arch.ComponentTypeOf[C]())
 	if ok {
 		c.value = any(value.Value).(*C)
 	} else {
 		c.value = nil
 	}
+}
+
+func (c *OptionMut[C]) Get() (*C, bool) {
+	return c.value, c.value != nil
+}
+
+func (c *OptionMut[C]) MustGet() *C {
+	if c.value == nil {
+		panic(fmt.Sprintf("%T is empty", *c))
+	}
+
+	return c.value
 }
 
 type Has[C arch.IsComponent[C]] struct {
@@ -63,7 +95,7 @@ func (*Has[C]) applyTo(result *ParsedQuery) {
 	result.Query.FetchHas = append(result.Query.FetchHas, componentType)
 }
 
-func (c *Has[C]) FromEntityRef(ref arch.EntityRef) {
+func (c *Has[C]) fromEntityRef(ref arch.EntityRef) {
 	_, ok := ref.Get(arch.ComponentTypeOf[C]())
 	c.Exists = ok
 }
@@ -77,7 +109,7 @@ func (*With[C]) applyTo(result *ParsedQuery) {
 	result.Query.With = append(result.Query.With, componentType)
 }
 
-func (*With[C]) FromEntityRef(ref arch.EntityRef) {
+func (*With[C]) fromEntityRef(ref arch.EntityRef) {
 	// TODO maybe get rid of this
 	// does not need to do anything
 }
@@ -91,7 +123,7 @@ func (*Without[C]) applyTo(result *ParsedQuery) {
 	result.Query.Without = append(result.Query.Without, componentType)
 }
 
-func (*Without[C]) FromEntityRef(ref arch.EntityRef) {
+func (*Without[C]) fromEntityRef(ref arch.EntityRef) {
 	// TODO maybe get rid of this
 	// does not need to do anything
 }
@@ -105,7 +137,7 @@ func (*Changed[C]) applyTo(result *ParsedQuery) {
 	result.Query.WithChanged = append(result.Query.WithChanged, componentType)
 }
 
-func (*Changed[C]) FromEntityRef(ref arch.EntityRef) {
+func (*Changed[C]) fromEntityRef(ref arch.EntityRef) {
 	// TODO maybe get rid of this
 	// does not need to do anything
 }
@@ -119,7 +151,7 @@ func (*Added[C]) applyTo(result *ParsedQuery) {
 	result.Query.WithAdded = append(result.Query.WithAdded, componentType)
 }
 
-func (*Added[C]) FromEntityRef(ref arch.EntityRef) {
+func (*Added[C]) fromEntityRef(ref arch.EntityRef) {
 	// TODO maybe get rid of this
 	// does not need to do anything
 }

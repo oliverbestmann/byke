@@ -8,14 +8,12 @@ import (
 
 type Storage struct {
 	entityToArchetype map[EntityId]*Archetype
-	archetypes        []*Archetype
-	graph             ArchetypeGraph
+	archetypes        ArchetypeGraph
 }
 
 func NewStorage() *Storage {
 	return &Storage{
 		entityToArchetype: map[EntityId]*Archetype{},
-		archetypes:        nil,
 	}
 }
 
@@ -25,12 +23,7 @@ func (s *Storage) Spawn(tick Tick, entityId EntityId) {
 	}
 
 	// put entity into empty archetype
-	archetype := LookupArchetype(nil)
-
-	if len(s.archetypes) == 0 {
-		// store the empty archetype
-		s.archetypes = append(s.archetypes, archetype)
-	}
+	archetype := s.archetypes.Lookup(nil)
 
 	// add entity to the archetype
 	archetype.Insert(tick, entityId, nil)
@@ -63,10 +56,7 @@ func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component Erased
 	}
 
 	// we need to move to a new archetype
-	newArchetype, created := s.graph.NextWith(archetype, componentType)
-	if created {
-		s.archetypes = append(s.archetypes, newArchetype)
-	}
+	newArchetype, _ := s.archetypes.NextWith(archetype, componentType)
 
 	// transfer our entity
 	newArchetype.Import(tick, archetype, entityId, component)
@@ -90,10 +80,7 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 	}
 
 	// we need to move to a new archetype
-	newArchetype, created := s.graph.NextWithout(archetype, componentType)
-	if created {
-		s.archetypes = append(s.archetypes, newArchetype)
-	}
+	newArchetype, _ := s.archetypes.NextWithout(archetype, componentType)
 
 	// import the entity
 	newArchetype.Import(tick, archetype, entityId)
@@ -137,11 +124,11 @@ func (s *Storage) GetWithQuery(q *Query, entityId EntityId) (EntityRef, bool) {
 
 func (s *Storage) CheckChanged(tick Tick, types []*ComponentType) {
 	for _, ty := range types {
-		if !ty.IsComparable() {
+		if !ty.Comparable {
 			continue
 		}
 
-		for _, archetype := range s.archetypes {
+		for _, archetype := range s.archetypes.All() {
 			if !archetype.ContainsType(ty) {
 				continue
 			}
@@ -153,7 +140,7 @@ func (s *Storage) CheckChanged(tick Tick, types []*ComponentType) {
 
 func (s *Storage) archetypeIterForQuery(q *Query) iter.Seq[*Archetype] {
 	return func(yield func(*Archetype) bool) {
-		for _, archetype := range s.archetypes {
+		for _, archetype := range s.archetypes.All() {
 			if !q.MatchesArchetype(archetype) {
 				continue
 			}
@@ -201,4 +188,26 @@ func (s *Storage) IterQuery(q *Query) iter.Seq[EntityRef] {
 			}
 		}
 	}
+}
+
+func (s *Storage) HasComponent(entityId EntityId, componentType *ComponentType) bool {
+	archetype, ok := s.entityToArchetype[entityId]
+	if !ok {
+		panic("entity does not exist")
+	}
+
+	return archetype.ContainsType(componentType)
+}
+
+func (s *Storage) GetComponent(entityId EntityId, componentType *ComponentType) (ComponentValue, bool) {
+	archetype, ok := s.entityToArchetype[entityId]
+	if !ok {
+		panic("entity does not exist")
+	}
+
+	return archetype.GetComponent(entityId, componentType)
+}
+
+func (s *Storage) EntityCount() int {
+	return len(s.entityToArchetype)
 }
