@@ -121,16 +121,16 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 			continue
 		}
 
-		// TODO must not be inserted if it is a parentComponent
-		// if _, ok := component.(parentComponent); ok {
-		// 	panic(fmt.Sprintf(
-		// 		"you may not insert a byke.ParentComponent yourself: %C", component,
-		// 	))
-		// }
+		// must not be inserted if it is a parentComponent
+		if _, ok := component.(isParentComponent); ok {
+			panic(fmt.Sprintf(
+				"you may not insert a byke.ParentComponent yourself: %C", component,
+			))
+		}
 
-		// and add it to the entity
+		// move it to the heap and add it to the entity
 		component = copyComponent(component)
-		w.storage.InsertComponent(tick, entityId, component)
+		component = w.storage.InsertComponent(tick, entityId, component)
 
 		// trigger hooks for this component
 		w.onComponentInsert(entityId, component)
@@ -143,46 +143,41 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 }
 
 func (w *World) onComponentInsert(entityId EntityId, component ErasedComponent) {
-	// TODO update relations if needed
-	// if parentComponent, ok := w.parentComponentOf(component); ok {
-	// 	parentComponent.addChild(entity.Id)
-	// }
+	if parentComponent, ok := w.parentComponentOf(component); ok {
+		parentComponent.addChild(entityId)
+	}
 }
 
-func (w *World) onComponentRemoved(entity EntityId, component arch.ComponentValue) {
-	// TODO update relations if needed
-	// if parentComponent, ok := w.parentComponentOf(component); ok {
-	// 	parentComponent.removeChild(entity.Id)
-	// }
+func (w *World) onComponentRemoved(entityId EntityId, component ErasedComponent) {
+	if parentComponent, ok := w.parentComponentOf(component); ok {
+		parentComponent.removeChild(entityId)
+	}
 }
 
-func (w *World) parentComponentOf(component ErasedComponent) (parentComponent, bool) {
-	return nil, false
+func (w *World) parentComponentOf(component ErasedComponent) (isParentComponent, bool) {
+	child, ok := component.(isChildComponent)
+	if !ok {
+		return nil, false
+	}
 
-	// TODO
-	//child, ok := component.(childComponent)
-	//if !ok {
-	//	return nil, false
-	//}
-	//
-	//parentId := child.parentId()
-	//parent, ok := w.entities[parentId]
-	//if !ok {
-	//	panic(fmt.Sprintf("parent entity %s does not exist", parentId))
-	//}
-	//
-	//parentType := child.RelationParentType()
-	//parentComponentValue, ok := parent.Components[parentType]
-	//if !ok {
-	//	parentComponentValue = componentValue{
-	//		PtrToValue: ptrValueOf(reflect.New(parentType.Type)).Interface().(ErasedComponent),
-	//	}
-	//
-	//	parent.Components[parentType] = parentComponentValue
-	//}
-	//
-	//parentComponent := parentComponentValue.PtrToValue.(parentComponent)
-	//return parentComponent, true
+	parentId := child.ParentEntityId()
+
+	parent, ok := w.storage.Get(parentId)
+	if !ok {
+		panic(fmt.Sprintf("parent entity %s does not exist", parentId))
+	}
+
+	parentType := child.RelationParentType()
+	parentComponentValue, ok := parent.Get(parentType)
+	if ok {
+		return parentComponentValue.Value.(isParentComponent), true
+	}
+
+	// create a new parent component value
+	parentComponent := w.storage.InsertComponent(w.currentTick, parentId, parentType.New())
+	w.onComponentInsert(parentId, parentComponent)
+
+	return parentComponent.(isParentComponent), true
 }
 
 func (w *World) NewCommands() *Commands {
@@ -221,12 +216,12 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 
 	var zero C
 
-	if parent, ok := any(zero).(parentComponent); ok {
+	if parent, ok := any(zero).(isParentComponent); ok {
 		// check if the child type points to us
 		childType := parent.RelationChildType()
 		instance := reflect.New(childType.Type).Elem().Interface()
 
-		child, ok := instance.(childComponent)
+		child, ok := instance.(isChildComponent)
 		if !ok {
 			panic(fmt.Sprintf(
 				"relationship target of %s must point to a component embedding byke.ChildComponent",
@@ -242,12 +237,12 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 		}
 	}
 
-	if child, ok := any(zero).(childComponent); ok {
+	if child, ok := any(zero).(isChildComponent); ok {
 		// check if the child type points to us
 		parentType := child.RelationParentType()
-		instance := reflect.New(parentType.Type).Interface()
 
-		parent, ok := instance.(parentComponent)
+		parentComponent := parentType.New()
+		parent, ok := parentComponent.(isParentComponent)
 		if !ok {
 			panic(fmt.Sprintf(
 				"relationship target of %s must point to a component embedding byke.ParentComponent",
@@ -324,23 +319,19 @@ func (w *World) Despawn(entityId EntityId) {
 			continue
 		}
 
-		_ = entity
-
-		// TODO
 		// update relationships
-		//for _, component := range entity.Components {
-		//	value := component.PtrToValue
-		//	if parentComponent, ok := w.parentComponentOf(value); ok {
-		//		parentComponent.removeChild(entityId)
-		//	}
-		//
-		//	// despawn child entities too
-		//	if parentComponent, ok := value.(parentComponent); ok {
-		//		for _, entityId := range parentComponent.Children() {
-		//			queue = append(queue, entityId)
-		//		}
-		//	}
-		//}
+		for _, component := range entity.Components {
+			if parentComponent, ok := w.parentComponentOf(component.Value); ok {
+				parentComponent.removeChild(entityId)
+			}
+
+			// despawn child entities too
+			if parentComponent, ok := component.Value.(isParentComponent); ok {
+				for _, entityId := range parentComponent.Children() {
+					queue = append(queue, entityId)
+				}
+			}
+		}
 	}
 
 	for _, entityId := range queue {
@@ -349,12 +340,11 @@ func (w *World) Despawn(entityId EntityId) {
 }
 
 func (w *World) removeComponent(entityId EntityId, componentType *arch.ComponentType) {
-	component, ok := w.storage.GetComponent(entityId, componentType)
+	component, ok := w.storage.RemoveComponent(w.currentTick, entityId, componentType)
 	if !ok {
 		return
 	}
 
-	w.storage.RemoveComponent(w.currentTick, entityId, componentType)
 	w.onComponentRemoved(entityId, component)
 }
 

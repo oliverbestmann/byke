@@ -266,10 +266,9 @@ func TestRelationships(t *testing.T) {
 
 		w.RunSystem(func(commands *Commands) {
 			parentId = commands.Spawn().Id()
+
 			childId = commands.Spawn(ChildOf{
-				ChildComponent: ChildComponent[Children, ChildOf]{
-					Parent: parentId,
-				},
+				Parent: parentId,
 			}).Id()
 		})
 
@@ -289,7 +288,7 @@ func TestRelationships(t *testing.T) {
 			require.EqualValues(t, 1, q.Count(), "expect to select one time")
 			item := q.MustGet()
 
-			require.Len(t, item.Children._children, 1)
+			require.Len(t, item.Children.Children(), 1)
 			require.Equal(t, item.Children.Children()[0], childId)
 
 			require.Equal(t, parentId, item.EntityId)
@@ -320,7 +319,7 @@ func TestRelationships(t *testing.T) {
 
 		w.RunSystem(func(q Query[Children]) {
 			require.Equal(t, 1, q.Count())
-			require.Empty(t, q.MustGet()._children)
+			require.Empty(t, q.MustGet().Children())
 		})
 	})
 
@@ -333,7 +332,7 @@ func TestRelationships(t *testing.T) {
 
 		w.RunSystem(func(q Query[Children]) {
 			require.Equal(t, 1, q.Count())
-			require.Empty(t, q.MustGet()._children)
+			require.Empty(t, q.MustGet().Children())
 		})
 	})
 
@@ -344,7 +343,7 @@ func TestRelationships(t *testing.T) {
 			commands.Entity(parentId).Despawn()
 		})
 
-		require.Empty(t, w.storage.EntityCount())
+		require.Zero(t, w.storage.EntityCount())
 	})
 }
 

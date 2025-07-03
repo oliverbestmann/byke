@@ -39,10 +39,13 @@ func (s *Storage) Despawn(entityId EntityId) bool {
 	}
 
 	archetype.Remove(entityId)
+
+	delete(s.entityToArchetype, entityId)
+
 	return true
 }
 
-func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component ErasedComponent) {
+func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component ErasedComponent) ErasedComponent {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
 		panic(fmt.Sprintf("entity %s does not exist", entityId))
@@ -50,9 +53,7 @@ func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component Erased
 
 	componentType := component.ComponentType()
 	if archetype.ContainsType(componentType) {
-		archetype.ReplaceComponentValue(tick, entityId, component)
-
-		return
+		return archetype.ReplaceComponentValue(tick, entityId, component)
 	}
 
 	// we need to move to a new archetype
@@ -66,9 +67,16 @@ func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component Erased
 
 	// and update the index
 	s.entityToArchetype[entityId] = newArchetype
+
+	componentValue, ok := newArchetype.GetComponent(entityId, componentType)
+	if !ok {
+		panic("component we've just inserted is gone")
+	}
+
+	return componentValue.Value
 }
 
-func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *ComponentType) bool {
+func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *ComponentType) (ErasedComponent, bool) {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
 		panic(fmt.Sprintf("entity %s does not exist", entityId))
@@ -76,8 +84,16 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 
 	if !archetype.ContainsType(componentType) {
 		// entity does not have the component in question
-		return false
+		return nil, false
 	}
+
+	componentValue, ok := archetype.GetComponent(entityId, componentType)
+	if !ok {
+		panic("component does not exist in archetype")
+	}
+
+	copyOfComponent := componentType.New()
+	componentType.SetValue(copyOfComponent, componentValue.Value)
 
 	// we need to move to a new archetype
 	newArchetype, _ := s.archetypes.NextWithout(archetype, componentType)
@@ -88,7 +104,7 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 	// remove it from the previous archetype
 	archetype.Remove(entityId)
 
-	return true
+	return copyOfComponent, true
 }
 
 func (s *Storage) Get(entityId EntityId) (EntityRef, bool) {

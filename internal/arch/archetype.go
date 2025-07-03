@@ -113,7 +113,7 @@ func (a *Archetype) addEntity(entityId EntityId) {
 	a.entities = append(a.entities, entityId)
 }
 
-func (a *Archetype) ReplaceComponentValue(tick Tick, entityId EntityId, component ErasedComponent) {
+func (a *Archetype) ReplaceComponentValue(tick Tick, entityId EntityId, component ErasedComponent) ErasedComponent {
 	defer a.assertInvariants()
 
 	row, exists := a.index[entityId]
@@ -130,6 +130,8 @@ func (a *Archetype) ReplaceComponentValue(tick Tick, entityId EntityId, componen
 
 	// update the existing value
 	column.Update(tick, row, component)
+
+	return column.Get(row).Value
 }
 
 func (a *Archetype) Remove(entityId EntityId) {

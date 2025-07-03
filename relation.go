@@ -2,88 +2,140 @@ package byke
 
 import (
 	"github.com/oliverbestmann/byke/internal/arch"
+	"hash/maphash"
 	"slices"
+	"unsafe"
 )
 
+var _ = ValidateComponent[Children]()
+var _ = ValidateComponent[ChildOf]()
+
+type IsParentComponent[T IsComparableComponent[T]] interface {
+	IsComparableComponent[T]
+	isParentComponent
+}
+
+type isParentComponent interface {
+	ErasedComponent
+	RelationChildType() *arch.ComponentType
+	Children() []EntityId
+	addChild(id EntityId)
+	removeChild(id EntityId)
+}
+
+type IsChildComponent[T IsComparableComponent[T]] interface {
+	IsComparableComponent[T]
+	isChildComponent
+}
+
+type isChildComponent interface {
+	ErasedComponent
+	RelationParentType() *arch.ComponentType
+	ParentEntityId() EntityId
+}
+
 // ParentComponent must be embedded on the parent side of a relationship
-type ParentComponent[Parent IsComponent[Parent], Child IsComparableComponent[Child]] struct {
-	Component[Parent]
-
-	// _children holds the EntityIds of the children of this relation.
-	_children []EntityId
+type ParentComponent[Child IsComparableComponent[Child]] struct {
+	_children EntitySet
 }
 
-func (ParentComponent[Parent, Child]) isParentComponent(component markerIsParentComponent) {}
-
-type markerIsParentComponent interface {
-	isParentComponent(markerIsParentComponent)
-}
-
-func (*ParentComponent[Parent, Child]) RelationChildType() *arch.ComponentType {
+func (*ParentComponent[Child]) RelationChildType() *arch.ComponentType {
 	return arch.ComponentTypeOf[Child]()
 }
 
-func (*ParentComponent[Parent, Child]) makeChildComponent() childComponent {
-	var value Child
-	return any(value).(childComponent)
+func (p *ParentComponent[Child]) addChild(childId EntityId) {
+	p._children.Insert(childId)
 }
 
-func (p *ParentComponent[Parent, Child]) addChild(childId EntityId) {
-	if slices.Contains(p._children, childId) {
-		return
-	}
-
-	p._children = append(p._children, childId)
-}
-
-func (p *ParentComponent[Parent, Child]) removeChild(childId EntityId) {
-	idx := slices.Index(p._children, childId)
-	if idx >= 0 {
-		p._children = slices.Delete(p._children, idx, idx+1)
-	}
+func (p *ParentComponent[Child]) removeChild(childId EntityId) {
+	p._children.Remove(childId)
 }
 
 // Children returns the children in this component.
 // You **must not** modify the returned slice.
-func (p *ParentComponent[Parent, Child]) Children() []EntityId {
-	return p._children
+func (p ParentComponent[Child]) Children() []EntityId {
+	return p._children.Slice()
 }
 
 // ChildComponent must be embedded on the client side of a relationship
-type ChildComponent[Parent IsComponent[Parent], Child IsComparableComponent[Child]] struct {
-	ComparableComponent[Child]
-	Parent EntityId
-}
+type ChildComponent[Parent IsComparableComponent[Parent]] struct{}
 
-func (ChildComponent[Parent, Child]) RelationParentType() *arch.ComponentType {
+func (ChildComponent[Parent]) RelationParentType() *arch.ComponentType {
 	return arch.ComponentTypeOf[Parent]()
 }
 
-func (c ChildComponent[Parent, Child]) parentId() EntityId {
+type ChildOf struct {
+	ComparableComponent[ChildOf]
+	ChildComponent[Children]
+	Parent EntityId
+}
+
+func (c ChildOf) ParentEntityId() EntityId {
 	return c.Parent
 }
 
-type parentComponent interface {
-	ErasedComponent
-	RelationChildType() *arch.ComponentType
-	addChild(id EntityId)
-	removeChild(id EntityId)
-	Children() []EntityId
-}
-
-type childComponent interface {
-	ErasedComponent
-	RelationParentType() *arch.ComponentType
-	parentId() EntityId
-}
-
-type ChildOf struct {
-	ChildComponent[Children, ChildOf]
-}
-
 type Children struct {
-	ParentComponent[Children, ChildOf]
+	ComparableComponent[Children]
+	ParentComponent[ChildOf]
 }
 
-var _ = ValidateComponent[Children]()
-var _ = ValidateComponent[ChildOf]()
+// EntitySet is a comparable set of EntityId values
+type EntitySet struct {
+	values *[]EntityId
+	hash   arch.HashValue
+}
+
+var entitySetSeed = maphash.MakeSeed()
+
+func (e *EntitySet) Insert(entityId EntityId) bool {
+	// check if value is in the set
+	if slices.Contains(e.Slice(), entityId) {
+		return false
+	}
+
+	// add to the list
+	e.update(append(e.Slice(), entityId))
+
+	return true
+}
+
+func (e *EntitySet) Remove(entityId EntityId) bool {
+	// check if value is in the set
+	idx := slices.Index(e.Slice(), entityId)
+	if idx == -1 {
+		return false
+	}
+
+	e.update(slices.Delete(e.Slice(), idx, idx+1))
+
+	return true
+}
+
+func (e *EntitySet) Slice() []EntityId {
+	if e.values == nil {
+		return nil
+	}
+
+	return *e.values
+}
+
+func (e *EntitySet) update(newValues []EntityId) {
+	if e.values == nil {
+		e.values = &newValues
+	} else {
+		*e.values = newValues
+	}
+
+	e.rehash()
+}
+
+func (e *EntitySet) rehash() {
+	if len(*e.values) == 0 {
+		e.hash = arch.HashValue(0)
+		return
+	}
+
+	bytes := (*byte)(unsafe.Pointer(unsafe.SliceData(*e.values)))
+	byteSlice := unsafe.Slice(bytes, len(*e.values)*int(unsafe.Sizeof(EntityId(0))))
+	e.hash = arch.HashValue(maphash.Bytes(entitySetSeed, byteSlice))
+}
