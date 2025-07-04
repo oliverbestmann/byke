@@ -20,7 +20,7 @@ func main() {
 
 	app.AddSystems(Startup, setupObjectsSystem)
 	app.AddSystems(Update, movementSystem, blinkSystem)
-	app.AddSystems(Update, followMouseSystem)
+	app.AddSystems(Update, byke.System(followMouseSystem).Before(movementSystem))
 
 	app.InsertState(byke.RegisterState[PauseState]{})
 
@@ -57,7 +57,7 @@ func setupObjectsSystem(commands *byke.Commands, screenSize ScreenSize) {
 		size := rand.Float64()*32 + 16
 
 		commands.Spawn(
-			byke.Name("Gopher"),
+			byke.Named("Gopher"),
 			Velocity{
 				Vec: randVec().Mul(50),
 			},

@@ -200,9 +200,11 @@ func TestFromEntity(t *testing.T) {
 		EntityId: 10,
 		Components: []arch.ComponentValue{
 			{
+				Type:  arch.ComponentTypeOf[Position](),
 				Value: &Position{X: 1},
 			},
 			{
+				Type:  arch.ComponentTypeOf[Velocity](),
 				Value: &Velocity{X: 2},
 			},
 		},
@@ -338,15 +340,15 @@ func BenchmarkFromEntity(b *testing.B) {
 		EntityId: 10,
 		Components: []arch.ComponentValue{
 			{
-				Type:  arch.ComparableComponentTypeOf[Position](),
+				Type:  arch.ComponentTypeOf[Position](),
 				Value: &Position{X: 1},
 			},
 			{
-				Type:  arch.ComparableComponentTypeOf[Velocity](),
+				Type:  arch.ComponentTypeOf[Velocity](),
 				Value: &Velocity{X: 2},
 			},
 			{
-				Type:  arch.ComparableComponentTypeOf[Acceleration](),
+				Type:  arch.ComponentTypeOf[Acceleration](),
 				Value: &Acceleration{X: 3},
 			},
 		},

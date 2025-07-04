@@ -8,26 +8,21 @@ import (
 	"reflect"
 )
 
+type queryAccessor interface {
+	parse() (query.ParsedQuery, error)
+	set(inner *innerQuery)
+}
+
 type Query[T any] struct {
 	inner *innerQuery
 	items iter.Seq[T]
 }
 
 func (q *Query[T]) set(inner *innerQuery) {
+	inner.iter = inner.Storage.IterQuery(&inner.Query)
+
 	q.inner = inner
-
-	var target T
-	var targetIf any = &target
-
-	q.items = func(yield func(T) bool) {
-		for ref := range q.inner.Iter {
-			query.FromEntity(targetIf, q.inner.Setters, ref)
-
-			if !yield(target) {
-				return
-			}
-		}
-	}
+	q.items = makeQueryIter[T](inner)
 }
 
 func (q *Query[T]) parse() (query.ParsedQuery, error) {
@@ -49,7 +44,7 @@ func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 
 func (q *Query[T]) Count() int {
 	var count int
-	for range q.inner.Iter {
+	for range q.inner.iter {
 		count += 1
 	}
 
@@ -70,12 +65,23 @@ func (q *Query[T]) MustGet() T {
 }
 
 type innerQuery struct {
-	query.ParsedQuery
+	Setters []query.Setter
+	Query   arch.Query
 	Storage *arch.Storage
-	Iter    iter.Seq[arch.EntityRef]
+	iter    iter.Seq[arch.EntityRef]
 }
 
-type queryAccessor interface {
-	parse() (query.ParsedQuery, error)
-	set(inner *innerQuery)
+func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
+	var target T
+	var targetIf any = &target
+
+	return func(yield func(T) bool) {
+		for ref := range inner.iter {
+			query.FromEntity(targetIf, inner.Setters, ref)
+
+			if !yield(target) {
+				return
+			}
+		}
+	}
 }

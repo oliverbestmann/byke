@@ -62,3 +62,9 @@ func (s *Set[T]) PopOne() (T, bool) {
 	var tNil T
 	return tNil, false
 }
+
+func (s *Set[T]) InsertAll(values iter.Seq[T]) {
+	for value := range values {
+		s.Insert(value)
+	}
+}

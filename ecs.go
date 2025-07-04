@@ -5,6 +5,7 @@ import (
 	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/assert"
 	"github.com/oliverbestmann/byke/internal/query"
+	"github.com/oliverbestmann/byke/internal/typedpool"
 	"reflect"
 )
 
@@ -41,27 +42,11 @@ type ptrValue struct {
 
 type AnyPtr = any
 
-type Schedule struct {
-	// make this a non zero sized type, so that creating a
-	// new Schedule will always return a different memory address
-	_nonZero uint32
-}
-
-type System any
-
-type preparedSystem struct {
-	LastRun Tick
-
-	// A function that executes the system against
-	// the given world
-	Run func()
-}
-
 type World struct {
 	storage     *arch.Storage
 	entityIdSeq EntityId
 	resources   map[reflect.Type]resourceValue
-	schedules   map[ScheduleId][]*preparedSystem
+	schedules   map[ScheduleId]*Schedule
 	currentTick Tick
 }
 
@@ -69,22 +54,35 @@ func NewWorld() *World {
 	return &World{
 		storage:   arch.NewStorage(),
 		resources: map[reflect.Type]resourceValue{},
-		schedules: map[ScheduleId][]*preparedSystem{},
+		schedules: map[ScheduleId]*Schedule{},
 	}
 }
 
-func (w *World) AddSystems(scheduleId ScheduleId, firstSystem System, systems ...System) {
-	preparedSystem := prepareSystem(w, firstSystem)
-	w.schedules[scheduleId] = append(w.schedules[scheduleId], preparedSystem)
+func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems ...AnySystem) {
+	schedule, ok := w.schedules[scheduleId]
+	if !ok {
+		schedule = NewSchedule()
+		w.schedules[scheduleId] = schedule
+	}
 
-	for _, system := range systems {
+	systems = append([]AnySystem{firstSystem}, systems...)
+
+	for _, system := range asSystemConfigs(systems...) {
 		preparedSystem := prepareSystem(w, system)
-		w.schedules[scheduleId] = append(w.schedules[scheduleId], preparedSystem)
+		if err := schedule.addSystem(preparedSystem); err != nil {
+			// TODO make nicer
+			panic(err)
+		}
 	}
 }
 
 func (w *World) RunSchedule(scheduleId ScheduleId) {
-	for _, system := range w.schedules[scheduleId] {
+	schedule, ok := w.schedules[scheduleId]
+	if !ok {
+		return
+	}
+
+	for _, system := range schedule.systems {
 		w.runSystem(system)
 	}
 }
@@ -273,7 +271,7 @@ func (w *World) InsertResource(resource any) {
 	}
 
 	// allocate the resource on the heap and set it
-	ptr := reflect.New(resType)
+	ptr := reflect.New(resType.Elem())
 	ptr.Elem().Set(reflect.ValueOf(resource))
 
 	w.resources[ptr.Type()] = resourceValue{
@@ -287,20 +285,20 @@ func pointerValueOf(ptr reflect.Value) ptrValue {
 	return ptrValue{Value: ptr}
 }
 
-func (w *World) RunSystem(system System) {
+func (w *World) RunSystem(system AnySystem) {
 	if ps, ok := system.(*preparedSystem); ok {
 		w.runSystem(ps)
 		return
 	}
 
 	// prepare and execute directly
-	w.runSystem(prepareSystem(w, system))
+	w.runSystem(prepareSystem(w, asSystemConfig(system)))
 }
 
 func (w *World) runSystem(system *preparedSystem) {
 	w.currentTick += 1
 
-	system.Run()
+	system.RawSystem()
 
 	// update last run so we can calculate changed components
 	// at the next run
@@ -391,19 +389,17 @@ func querySystemParameter(world *World, queryType reflect.Type, system *prepared
 		panic(fmt.Sprintf("failed to parse query of type %s: %s", queryType, err))
 	}
 
-	theQuery := &parsed.Query
-
 	inner := &innerQuery{
-		ParsedQuery: parsed,
-		Storage:     world.storage,
-		Iter:        world.storage.IterQuery(theQuery),
+		Query:   parsed.Query,
+		Setters: parsed.Setters,
+		Storage: world.storage,
 	}
 
 	queryAccessor.set(inner)
 
 	return systemParameter{
 		GetValue: func() reflect.Value {
-			theQuery.LastRun = system.LastRun
+			inner.Query.LastRun = system.LastRun
 			return ptrToQueryInstance.Elem()
 		},
 
@@ -413,19 +409,21 @@ func querySystemParameter(world *World, queryType reflect.Type, system *prepared
 	}
 }
 
-func prepareSystem(w *World, system System) *preparedSystem {
-	rSystem := reflect.ValueOf(system)
+var valueSlices = typedpool.New[[]reflect.Value]()
+
+func prepareSystem(w *World, config SystemConfig) *preparedSystem {
+	rSystem := config.fn
 
 	if rSystem.Kind() != reflect.Func {
 		panic(fmt.Sprintf("not a function: %s", rSystem.Type()))
 	}
 
+	preparedSystem := &preparedSystem{SystemConfig: config}
+
 	tySystem := rSystem.Type()
 
 	// collect a number of functions that when called will prepare the systems parameters
 	var params []systemParameter
-
-	preparedSystem := &preparedSystem{}
 
 	for idx := range tySystem.NumIn() {
 		tyIn := tySystem.In(idx)
@@ -454,31 +452,35 @@ func prepareSystem(w *World, system System) *preparedSystem {
 		}
 	}
 
-	var paramValues []reflect.Value
+	preparedSystem.RawSystem = func() {
+		paramValues := valueSlices.Get()
+		defer valueSlices.Put(paramValues)
 
-	preparedSystem.Run = func() {
-		paramValues = paramValues[:0]
+		*paramValues = (*paramValues)[:0]
 
 		for _, param := range params {
 			switch {
 			case param.Constant.IsValid():
-				paramValues = append(paramValues, param.Constant)
+				*paramValues = append(*paramValues, param.Constant)
 
 			case param.GetValue != nil:
-				paramValues = append(paramValues, param.GetValue())
+				*paramValues = append(*paramValues, param.GetValue())
 
 			default:
-				panic("systemParameter not valid")
+				panic("system parameter not valid")
 			}
 		}
 
-		rSystem.Call(paramValues)
+		rSystem.Call(*paramValues)
 
 		for idx, param := range params {
 			if cleanup := param.Cleanup; cleanup != nil {
-				cleanup(paramValues[idx])
+				cleanup((*paramValues)[idx])
 			}
 		}
+
+		// clear any pointers that are still int he param slice
+		clear(*paramValues)
 	}
 
 	return preparedSystem

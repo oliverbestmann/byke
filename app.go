@@ -22,7 +22,7 @@ func (a *App) AddPlugin(plugin Plugin) {
 	plugin.ApplyTo(a)
 }
 
-func (a *App) AddSystems(scheduleId ScheduleId, system System, systems ...System) {
+func (a *App) AddSystems(scheduleId ScheduleId, system AnySystem, systems ...AnySystem) {
 	if !reflect.ValueOf(scheduleId).Comparable() {
 		panic(fmt.Sprintf("scheduleId must be comparable: %C", scheduleId))
 	}
