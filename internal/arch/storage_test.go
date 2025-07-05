@@ -1,7 +1,7 @@
 package arch
 
 import (
-	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -47,13 +47,22 @@ func TestStorage_All(t *testing.T) {
 	}
 
 	for entity := range s.IterQuery(query) {
-		spew.Dump(entity)
 		entity.Components[0].Value.(*Velocity).X = 2
 	}
 
 	s.CheckChanged(7, []*ComponentType{ComponentTypeOf[Velocity]()})
 
-	spew.Dump(s.Get(1))
+	{
+		entity, _ := s.Get(1)
+		val, _ := entity.Get(ComponentTypeOf[Velocity]())
+		require.Equal(t, val.Changed, Tick(1))
+	}
+
+	{
+		entity, _ := s.Get(2)
+		val, _ := entity.Get(ComponentTypeOf[Velocity]())
+		require.Equal(t, val.Changed, Tick(7))
+	}
 }
 
 func BenchmarkStorageIterQuery(b *testing.B) {
