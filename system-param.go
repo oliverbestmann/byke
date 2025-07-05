@@ -17,12 +17,18 @@ type SystemParamState interface {
 	// Cleanup will be called once the system is executed. It is used
 	// to e.g. apply a Commands object against the world
 	cleanupValue(value reflect.Value)
+
+	valueType() reflect.Type
 }
 
 type valueSystemParamState reflect.Value
 
 func (s valueSystemParamState) getValue(*preparedSystem) reflect.Value {
 	return reflect.Value(s)
+}
+
+func (s valueSystemParamState) valueType() reflect.Type {
+	return reflect.Value(s).Type()
 }
 
 func (valueSystemParamState) cleanupValue(reflect.Value) {

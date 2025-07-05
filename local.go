@@ -19,3 +19,7 @@ func (l *Local[T]) getValue(*preparedSystem) reflect.Value {
 func (l *Local[T]) cleanupValue(reflect.Value) {
 	// no cleanup needed
 }
+
+func (*Local[T]) valueType() reflect.Type {
+	return reflect.TypeFor[*Local[T]]()
+}

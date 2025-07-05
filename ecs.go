@@ -395,7 +395,7 @@ func commandsSystemParameter(world *World) systemParameter {
 	}
 }
 
-func implSystemParameter(world *World, ty reflect.Type) SystemParamState {
+func makeSystemParamState(world *World, ty reflect.Type) SystemParamState {
 	for ty.Kind() == reflect.Pointer {
 		ty = ty.Elem()
 	}
@@ -418,25 +418,25 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 
 	preparedSystem := &preparedSystem{SystemConfig: config}
 
-	tySystem := rSystem.Type()
+	systemType := rSystem.Type()
 
 	// collect a number of functions that when called will prepare the systems parameters
 	var params []SystemParamState
 
-	for idx := range tySystem.NumIn() {
-		tyIn := tySystem.In(idx)
+	for idx := range systemType.NumIn() {
+		inType := systemType.In(idx)
 
-		resourceCopy, resourceCopyOk := w.resources[reflect.PointerTo(tyIn)]
-		resource, resourceOk := w.resources[tyIn]
+		resourceCopy, resourceCopyOk := w.resources[reflect.PointerTo(inType)]
+		resource, resourceOk := w.resources[inType]
 
 		switch {
-		case refl.ImplementsInterfaceDirectly[SystemParam](tyIn):
-			params = append(params, implSystemParameter(w, tyIn))
+		case refl.ImplementsInterfaceDirectly[SystemParam](inType):
+			params = append(params, makeSystemParamState(w, inType))
 
-		case refl.ImplementsInterfaceDirectly[SystemParam](reflect.PointerTo(tyIn)):
-			params = append(params, implSystemParameter(w, tyIn))
+		case refl.ImplementsInterfaceDirectly[SystemParam](reflect.PointerTo(inType)):
+			params = append(params, makeSystemParamState(w, inType))
 
-		case tyIn == reflect.TypeFor[*World]():
+		case inType == reflect.TypeFor[*World]():
 			params = append(params, valueSystemParamState(reflect.ValueOf(w)))
 
 		case resourceCopyOk:
@@ -446,7 +446,15 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 			params = append(params, valueSystemParamState(resource.Reflect.Value))
 
 		default:
-			panic(fmt.Sprintf("Can not handle system param of type %s", tyIn))
+			panic(fmt.Sprintf("Can not handle system param of type %s", inType))
+		}
+	}
+
+	// verify that all the param types match their actual types
+	for idx, param := range params {
+		inType := systemType.In(idx)
+		if !param.valueType().AssignableTo(inType) {
+			panic(fmt.Sprintf("Argument %d of %s is not assignable to param value of type %s", idx, systemType.Name(), inType))
 		}
 	}
 

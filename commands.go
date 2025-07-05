@@ -120,3 +120,7 @@ func (c *commandSystemParamState) getValue(*preparedSystem) reflect.Value {
 func (c *commandSystemParamState) cleanupValue(reflect.Value) {
 	(*Commands)(c).applyToWorld()
 }
+
+func (*commandSystemParamState) valueType() reflect.Type {
+	return reflect.TypeFor[*Commands]()
+}

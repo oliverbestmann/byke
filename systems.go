@@ -5,9 +5,10 @@ import (
 	"iter"
 	"maps"
 	"reflect"
+	"unsafe"
 )
 
-type SystemId uint64
+type SystemId unsafe.Pointer
 
 type AnySystem any
 
@@ -74,7 +75,11 @@ func systemIdOf(system any) SystemId {
 		panic("system is not a function")
 	}
 
-	return SystemId(uintptr(fn.UnsafePointer()))
+	// get the pointer to the funcval and take that one as the systems Id
+	type eface struct{ typ, val unsafe.Pointer }
+	funcval := (*eface)(unsafe.Pointer(&system)).val
+
+	return SystemId(funcval)
 }
 
 func SystemChain(systems ...AnySystem) AnySystem {

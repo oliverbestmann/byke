@@ -109,6 +109,10 @@ func (q *queryParamState) cleanupValue(value reflect.Value) {
 	q.world.recheckComponents(q.mutable)
 }
 
+func (q *queryParamState) valueType() reflect.Type {
+	return q.ptrToValue.Type().Elem()
+}
+
 type innerQuery struct {
 	Setters []query.Setter
 	Query   arch.Query

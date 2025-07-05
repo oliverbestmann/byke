@@ -35,14 +35,14 @@ func (c *ComponentType) New() ErasedComponent {
 	return reflect.New(c.Type).Interface().(ErasedComponent)
 }
 
-var componentTypes = map[uintptr]*ComponentType{}
+var componentTypes = map[unsafe.Pointer]*ComponentType{}
 
-func abiTypePointerTo(t reflect.Type) uintptr {
+func abiTypePointerTo(t reflect.Type) unsafe.Pointer {
 	type eface struct {
 		typ, val unsafe.Pointer
 	}
 
-	return uintptr((*eface)(unsafe.Pointer(&t)).val)
+	return (*eface)(unsafe.Pointer(&t)).val
 }
 
 func ComponentTypeOf[C IsComponent[C]]() *ComponentType {

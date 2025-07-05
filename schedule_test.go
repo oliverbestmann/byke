@@ -1,9 +1,7 @@
 package byke
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/require"
-	"math/rand/v2"
 	"testing"
 )
 
@@ -52,25 +50,33 @@ func systemIdsOf(systems ...AnySystem) []SystemId {
 }
 
 func TestSystemId(t *testing.T) {
-	a := asSystemConfig(a).Id
-	b := asSystemConfig(b).Id
-	c := asSystemConfig(c).Id
+	t.Run("different systems", func(t *testing.T) {
+		a := asSystemConfig(a).Id
+		b := asSystemConfig(b).Id
+		c := asSystemConfig(c).Id
 
-	require.NotEqual(t, a, b)
-	require.NotEqual(t, a, c)
-	require.NotEqual(t, b, c)
+		require.NotEqual(t, a, b)
+		require.NotEqual(t, a, c)
+		require.NotEqual(t, b, c)
+	})
 
-	fmt.Println(a, b, c)
+	t.Run("same system", func(t *testing.T) {
+		a0 := asSystemConfig(a).Id
+		a1 := asSystemConfig(a).Id
+		a2 := asSystemConfig(a).Id
+
+		require.Equal(t, a0, a1)
+		require.Equal(t, a0, a2)
+	})
+
 }
 
 func TestSystemIdWithClosure(t *testing.T) {
-	t.Skip("Not working yet with our current SystemId implementation")
-	a := asSystemConfig(makeSystem(rand.Int())).Id
-	b := asSystemConfig(makeSystem(rand.Int())).Id
+	a := asSystemConfig(makeSystem(1)).Id
+	b := asSystemConfig(makeSystem(2)).Id
 	require.NotEqual(t, a, b)
 }
 
-//go:noinline
 func makeSystem(param int) func() int {
 	return func() int {
 		return param
