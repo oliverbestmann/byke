@@ -395,7 +395,7 @@ func commandsSystemParameter(world *World) systemParameter {
 	}
 }
 
-func implSystemParameter(world *World, ty reflect.Type) systemParameter {
+func implSystemParameter(world *World, ty reflect.Type) SystemParamState {
 	for ty.Kind() == reflect.Pointer {
 		ty = ty.Elem()
 	}
@@ -404,12 +404,7 @@ func implSystemParameter(world *World, ty reflect.Type) systemParameter {
 	param := reflect.New(ty).Interface().(SystemParam)
 
 	// initialize using the world
-	paramState := param.init(world)
-
-	return systemParameter{
-		GetValue: paramState.getValue,
-		Cleanup:  paramState.cleanupValue,
-	}
+	return param.init(world)
 }
 
 var valueSlices = typedpool.New[[]reflect.Value]()
@@ -426,7 +421,7 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 	tySystem := rSystem.Type()
 
 	// collect a number of functions that when called will prepare the systems parameters
-	var params []systemParameter
+	var params []SystemParamState
 
 	for idx := range tySystem.NumIn() {
 		tyIn := tySystem.In(idx)
@@ -442,16 +437,13 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 			params = append(params, implSystemParameter(w, tyIn))
 
 		case tyIn == reflect.TypeFor[*World]():
-			params = append(params, valueSystemParameter(reflect.ValueOf(w)))
-
-		case tyIn == reflect.TypeFor[*Commands]():
-			params = append(params, commandsSystemParameter(w))
+			params = append(params, valueSystemParamState(reflect.ValueOf(w)))
 
 		case resourceCopyOk:
-			params = append(params, valueSystemParameter(resourceCopy.Reflect.Elem()))
+			params = append(params, valueSystemParamState(resourceCopy.Reflect.Elem()))
 
 		case resourceOk:
-			params = append(params, valueSystemParameter(resource.Reflect.Value))
+			params = append(params, valueSystemParamState(resource.Reflect.Value))
 
 		default:
 			panic(fmt.Sprintf("Can not handle system param of type %s", tyIn))
@@ -465,24 +457,13 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 		*paramValues = (*paramValues)[:0]
 
 		for _, param := range params {
-			switch {
-			case param.Constant.IsValid():
-				*paramValues = append(*paramValues, param.Constant)
-
-			case param.GetValue != nil:
-				*paramValues = append(*paramValues, param.GetValue(preparedSystem))
-
-			default:
-				panic("system parameter not valid")
-			}
+			*paramValues = append(*paramValues, param.getValue(preparedSystem))
 		}
 
 		rSystem.Call(*paramValues)
 
 		for idx, param := range params {
-			if cleanup := param.Cleanup; cleanup != nil {
-				cleanup((*paramValues)[idx])
-			}
+			param.cleanupValue((*paramValues)[idx])
 		}
 
 		// clear any pointers that are still int he param slice

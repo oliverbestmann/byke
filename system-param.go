@@ -30,3 +30,13 @@ func (p *ptrToValueSystemParamState[T]) getValue(*preparedSystem) reflect.Value 
 func (p *ptrToValueSystemParamState[T]) cleanupValue(reflect.Value) {
 	// do nothing
 }
+
+type valueSystemParamState reflect.Value
+
+func (s valueSystemParamState) getValue(*preparedSystem) reflect.Value {
+	return reflect.Value(s)
+}
+
+func (valueSystemParamState) cleanupValue(reflect.Value) {
+	// do nothing
+}

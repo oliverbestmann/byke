@@ -23,8 +23,10 @@ func (c *Commands) applyToWorld() {
 	}
 }
 
-func (c *Commands) init(world *World) {
-	c.world = world
+func (*Commands) init(world *World) SystemParamState {
+	return (*commandSystemParamState)(
+		&Commands{world: world},
+	)
 }
 
 func (c *Commands) getValue(*preparedSystem) reflect.Value {
@@ -107,4 +109,14 @@ func InsertComponent[C IsComponent[C]](maybeValue ...C) EntityCommand {
 	return func(world *World, entityId EntityId) {
 		world.insertComponents(entityId, []ErasedComponent{component})
 	}
+}
+
+type commandSystemParamState Commands
+
+func (c *commandSystemParamState) getValue(*preparedSystem) reflect.Value {
+	return reflect.ValueOf((*Commands)(c))
+}
+
+func (c *commandSystemParamState) cleanupValue(reflect.Value) {
+	(*Commands)(c).applyToWorld()
 }
