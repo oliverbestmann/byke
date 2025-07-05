@@ -5,6 +5,7 @@ import (
 	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/assert"
 	"github.com/oliverbestmann/byke/internal/query"
+	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/byke/internal/typedpool"
 	"reflect"
 )
@@ -47,6 +48,7 @@ type World struct {
 	entityIdSeq EntityId
 	resources   map[reflect.Type]resourceValue
 	schedules   map[ScheduleId]*Schedule
+	systems     map[SystemId]*preparedSystem
 	currentTick Tick
 }
 
@@ -55,6 +57,7 @@ func NewWorld() *World {
 		storage:   arch.NewStorage(),
 		resources: map[reflect.Type]resourceValue{},
 		schedules: map[ScheduleId]*Schedule{},
+		systems:   map[SystemId]*preparedSystem{},
 	}
 }
 
@@ -67,13 +70,46 @@ func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems
 
 	systems = append([]AnySystem{firstSystem}, systems...)
 
-	for _, system := range asSystemConfigs(systems...) {
-		preparedSystem := prepareSystem(w, system)
+	for system := range mergeConfigs(asSystemConfigs(systems...)) {
+		preparedSystem := w.prepareSystem(system)
+
 		if err := schedule.addSystem(preparedSystem); err != nil {
 			// TODO make nicer
 			panic(err)
 		}
 	}
+}
+
+func (w *World) RunSystem(system AnySystem) {
+	systemConfig := asSystemConfig(system)
+	preparedSystem := w.prepareSystem(systemConfig)
+	w.runSystem(preparedSystem)
+}
+
+func (w *World) runSystem(system *preparedSystem) {
+	w.currentTick += 1
+
+	system.RawSystem()
+
+	// update last run so we can calculate changed components
+	// at the next run
+	system.LastRun = w.currentTick
+}
+
+func (w *World) prepareSystem(system SystemConfig) *preparedSystem {
+	systemConfig := asSystemConfig(system)
+
+	// check cache first
+	prepared, ok := w.systems[systemConfig.Id]
+	if ok {
+		return prepared
+	}
+
+	// need to prepare the system
+	prepared = prepareSystem(w, systemConfig)
+	w.systems[systemConfig.Id] = prepared
+
+	return prepared
 }
 
 func (w *World) RunSchedule(scheduleId ScheduleId) {
@@ -122,7 +158,7 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 		// must not be inserted if it is a parentComponent
 		if _, ok := component.(isParentComponent); ok {
 			panic(fmt.Sprintf(
-				"you may not insert a byke.ParentComponent yourself: %C", component,
+				"you may not insert a byke.ParentComponent yourself: %T", component,
 			))
 		}
 
@@ -285,26 +321,6 @@ func pointerValueOf(ptr reflect.Value) ptrValue {
 	return ptrValue{Value: ptr}
 }
 
-func (w *World) RunSystem(system AnySystem) {
-	if ps, ok := system.(*preparedSystem); ok {
-		w.runSystem(ps)
-		return
-	}
-
-	// prepare and execute directly
-	w.runSystem(prepareSystem(w, asSystemConfig(system)))
-}
-
-func (w *World) runSystem(system *preparedSystem) {
-	w.currentTick += 1
-
-	system.RawSystem()
-
-	// update last run so we can calculate changed components
-	// at the next run
-	system.LastRun = w.currentTick
-}
-
 func (w *World) Despawn(entityId EntityId) {
 	queue := []EntityId{entityId}
 
@@ -355,7 +371,7 @@ type systemParameter struct {
 	Constant reflect.Value
 
 	// GetValue gets the value from somewhere
-	GetValue func() reflect.Value
+	GetValue func(*preparedSystem) reflect.Value
 
 	// Cleanup is an optional function that will be called with the value provided
 	// by GetValue or Constant after the system was finished it's work.
@@ -368,7 +384,7 @@ func valueSystemParameter(value reflect.Value) systemParameter {
 
 func commandsSystemParameter(world *World) systemParameter {
 	return systemParameter{
-		GetValue: func() reflect.Value {
+		GetValue: func(*preparedSystem) reflect.Value {
 			return reflect.ValueOf(&Commands{world: world})
 		},
 
@@ -379,33 +395,20 @@ func commandsSystemParameter(world *World) systemParameter {
 	}
 }
 
-func querySystemParameter(world *World, queryType reflect.Type, system *preparedSystem) systemParameter {
-	ptrToQueryInstance := reflect.New(queryType)
-
-	queryAccessor := ptrToQueryInstance.Interface().(queryAccessor)
-
-	parsed, err := queryAccessor.parse()
-	if err != nil {
-		panic(fmt.Sprintf("failed to parse query of type %s: %s", queryType, err))
+func implSystemParameter(world *World, ty reflect.Type) systemParameter {
+	for ty.Kind() == reflect.Pointer {
+		ty = ty.Elem()
 	}
 
-	inner := &innerQuery{
-		Query:   parsed.Query,
-		Setters: parsed.Setters,
-		Storage: world.storage,
-	}
+	// allocate a new instance on the heap and get the value as an interface
+	param := reflect.New(ty).Interface().(SystemParam)
 
-	queryAccessor.set(inner)
+	// initialize using the world
+	paramState := param.init(world)
 
 	return systemParameter{
-		GetValue: func() reflect.Value {
-			inner.Query.LastRun = system.LastRun
-			return ptrToQueryInstance.Elem()
-		},
-
-		Cleanup: func(value reflect.Value) {
-			world.recheckComponents(parsed.Mutable)
-		},
+		GetValue: paramState.getValue,
+		Cleanup:  paramState.cleanupValue,
 	}
 }
 
@@ -432,8 +435,11 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 		resource, resourceOk := w.resources[tyIn]
 
 		switch {
-		case reflect.PointerTo(tyIn).Implements(reflect.TypeFor[queryAccessor]()):
-			params = append(params, querySystemParameter(w, tyIn, preparedSystem))
+		case refl.ImplementsInterfaceDirectly[SystemParam](tyIn):
+			params = append(params, implSystemParameter(w, tyIn))
+
+		case refl.ImplementsInterfaceDirectly[SystemParam](reflect.PointerTo(tyIn)):
+			params = append(params, implSystemParameter(w, tyIn))
 
 		case tyIn == reflect.TypeFor[*World]():
 			params = append(params, valueSystemParameter(reflect.ValueOf(w)))
@@ -464,7 +470,7 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 				*paramValues = append(*paramValues, param.Constant)
 
 			case param.GetValue != nil:
-				*paramValues = append(*paramValues, param.GetValue())
+				*paramValues = append(*paramValues, param.GetValue(preparedSystem))
 
 			default:
 				panic("system parameter not valid")

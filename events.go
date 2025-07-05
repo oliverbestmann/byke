@@ -1,10 +1,12 @@
 package byke
 
-func RegisterEvent[E any]() NewEvent {
+import "fmt"
+
+func EventType[E any]() NewEventType {
 	return newEvent[E]{}
 }
 
-type NewEvent interface {
+type NewEventType interface {
 	configureEventIn(app *App)
 }
 
@@ -12,7 +14,6 @@ type newEvent[E any] struct{}
 
 func (newEvent[E]) configureEventIn(app *App) {
 	app.InsertResource(Events[E]{})
-	app.InsertResource(EventReader[E]{})
 	app.AddSystems(Last, updateEventsSystem[E])
 }
 
@@ -56,12 +57,31 @@ func (e *Events[E]) Update() {
 	e.curr = e.curr[:0]
 }
 
+func (e *Events[E]) Reader() EventReader[E] {
+	return EventReader[E]{events: e}
+}
+
+func (e *Events[E]) Writer() EventWriter[E] {
+	return EventWriter[E]{events: e}
+}
+
 type EventWriter[E any] struct {
 	events *Events[E]
 }
 
 func (w *EventWriter[E]) Write(event E) {
 	w.events.Send(event)
+}
+
+func (w *EventWriter[E]) init(world *World) SystemParamState {
+	events, ok := ResourceOf[Events[E]](world)
+	if !ok {
+		var eZero E
+		panic(fmt.Sprintf("event %T not registered", eZero))
+	}
+
+	reader := events.Writer()
+	return &ptrToValueSystemParamState[EventWriter[E]]{Value: reader}
 }
 
 type EventReader[E any] struct {
@@ -79,7 +99,7 @@ func (r *EventReader[E]) Read() []E {
 
 	// limit buffer to only the events we've already read
 	for len(buffer) > 0 {
-		if buffer[0].Id >= r.lastId {
+		if buffer[0].Id > r.lastId {
 			break
 		}
 
@@ -101,4 +121,15 @@ func (r *EventReader[E]) Read() []E {
 	r.scratch = events
 
 	return events
+}
+
+func (r *EventReader[E]) init(world *World) SystemParamState {
+	events, ok := ResourceOf[Events[E]](world)
+	if !ok {
+		var eZero E
+		panic(fmt.Sprintf("event %T not registered", eZero))
+	}
+
+	reader := events.Reader()
+	return &ptrToValueSystemParamState[EventReader[E]]{Value: reader}
 }

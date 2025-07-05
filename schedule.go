@@ -17,6 +17,10 @@ func NewSchedule() *Schedule {
 }
 
 func (s *Schedule) addSystem(system *preparedSystem) error {
+	if _, exists := s.lookup[system.Id]; exists {
+		return errors.New("system already exists")
+	}
+
 	s.lookup[system.Id] = system
 	return s.updateSystemOrdering()
 }

@@ -18,6 +18,34 @@ type Query[T any] struct {
 	items iter.Seq[T]
 }
 
+func (*Query[T]) init(world *World) SystemParamState {
+	var q Query[T]
+
+	parsed, err := q.parse()
+	if err != nil {
+		queryType := reflect.TypeOf(q).Elem()
+		panic(fmt.Sprintf("failed to parse query of type %s: %s", queryType, err))
+	}
+
+	inner := &innerQuery{
+		Query:   parsed.Query,
+		Setters: parsed.Setters,
+		Storage: world.storage,
+	}
+
+	inner.iter = world.storage.IterQuery(&inner.Query)
+
+	q.inner = inner
+	q.items = makeQueryIter[T](inner)
+
+	return &queryParamState{
+		ptrToValue: reflect.ValueOf(&q),
+		world:      world,
+		mutable:    parsed.Mutable,
+		inner:      inner,
+	}
+}
+
 func (q *Query[T]) set(inner *innerQuery) {
 	inner.iter = inner.Storage.IterQuery(&inner.Query)
 
@@ -62,6 +90,23 @@ func (q *Query[T]) MustGet() T {
 
 	var target T
 	panic(fmt.Sprintf("no values in query for type %T", target))
+}
+
+type queryParamState struct {
+	ptrToValue reflect.Value
+
+	world   *World
+	inner   *innerQuery
+	mutable []*arch.ComponentType
+}
+
+func (q *queryParamState) getValue(system *preparedSystem) reflect.Value {
+	q.inner.Query.LastRun = system.LastRun
+	return q.ptrToValue.Elem()
+}
+
+func (q *queryParamState) cleanupValue(value reflect.Value) {
+	q.world.recheckComponents(q.mutable)
 }
 
 type innerQuery struct {

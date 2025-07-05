@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/assert"
+	"github.com/oliverbestmann/byke/internal/refl"
 	"reflect"
 	"slices"
 )
@@ -60,8 +61,8 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 
 		return nil
 
-	case isComponent(queryType):
-		componentType := componentTypeOf(queryType)
+	case refl.IsComponent(queryType):
+		componentType := refl.ComponentTypeOf(queryType)
 		query.Fetch = append(query.Fetch, componentType)
 
 		result.Setters = append(result.Setters, Setter{
@@ -80,7 +81,7 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 		return nil
 
 	case isMutableComponent(queryType):
-		componentType := componentTypeOf(queryType.Elem())
+		componentType := refl.ComponentTypeOf(queryType.Elem())
 		query.Fetch = append(query.Fetch, componentType)
 		result.Mutable = append(result.Mutable, componentType)
 
@@ -121,7 +122,7 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 }
 
 func buildStructQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
-	for field := range fieldsOf(queryType) {
+	for field := range refl.IterFields(queryType) {
 		if field.Anonymous {
 			allowed := isEmbeddableFilter(field.Type) || isEntityId(field.Type)
 			if !allowed {
@@ -142,37 +143,16 @@ func isStructQuery(ty reflect.Type) bool {
 	return ty.Kind() == reflect.Struct
 }
 
-func isComponent(ty reflect.Type) bool {
-	if ty.Kind() != reflect.Struct {
-		return false
-	}
-
-	if !ty.Implements(reflect.TypeFor[arch.ErasedComponent]()) {
-		return false
-	}
-
-	// a component must embed arch.Component or arch.ComparableComponent
-	var count int
-	for field := range fieldsOf(ty) {
-		if implementsInterfaceDirectly[arch.ErasedComponent](field.Type) {
-			count += 1
-		}
-	}
-
-	// expect to have exactly one
-	return count == 1
-}
-
 func isMutableComponent(ty reflect.Type) bool {
-	return ty.Kind() == reflect.Pointer && isComponent(ty.Elem())
+	return ty.Kind() == reflect.Pointer && refl.IsComponent(ty.Elem())
 }
 
 func isFilter(ty reflect.Type) bool {
-	return ty.Kind() != reflect.Pointer && implementsInterfaceDirectly[Filter](reflect.PointerTo(ty))
+	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[Filter](reflect.PointerTo(ty))
 }
 
 func isEmbeddableFilter(ty reflect.Type) bool {
-	return ty.Kind() != reflect.Pointer && implementsInterfaceDirectly[EmbeddableFilter](ty)
+	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[EmbeddableFilter](ty)
 }
 
 func isEntityId(ty reflect.Type) bool {

@@ -2,6 +2,8 @@ package byke
 
 import (
 	"github.com/oliverbestmann/byke/internal/set"
+	"iter"
+	"maps"
 	"reflect"
 )
 
@@ -45,17 +47,19 @@ func asSystemConfigs(values ...AnySystem) []SystemConfig {
 	return configs
 }
 
-func mergeConfigs(configs []SystemConfig) {
+func mergeConfigs(configs []SystemConfig) iter.Seq[SystemConfig] {
 	merged := map[SystemId]SystemConfig{}
 
 	for _, config := range configs {
 		existing, ok := merged[config.Id]
-		if !ok {
+		if ok {
 			config = config.MergeWith(existing)
 		}
 
 		merged[config.Id] = config
 	}
+
+	return maps.Values(merged)
 }
 
 func System(systems ...AnySystem) Systems {

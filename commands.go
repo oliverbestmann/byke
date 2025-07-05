@@ -2,12 +2,16 @@ package byke
 
 import (
 	"github.com/oliverbestmann/byke/internal/arch"
+	"reflect"
 )
 
 type Command func(world *World)
 
 type EntityCommand func(world *World, entityId EntityId)
 
+// Commands is a SystemParam that allows you to send commands to a world.
+// It allows you to spawn and despawn entities and to add and remove components.
+// It must be injected as a pointer into a system.
 type Commands struct {
 	world *World
 	queue []Command
@@ -17,6 +21,19 @@ func (c *Commands) applyToWorld() {
 	for _, command := range c.queue {
 		command(c.world)
 	}
+}
+
+func (c *Commands) init(world *World) {
+	c.world = world
+}
+
+func (c *Commands) getValue(*preparedSystem) reflect.Value {
+	c.queue = nil
+	return reflect.ValueOf(c)
+}
+
+func (c *Commands) cleanupValue(reflect.Value) {
+	c.applyToWorld()
 }
 
 func (c *Commands) Queue(command Command) *Commands {

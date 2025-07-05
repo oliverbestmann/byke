@@ -22,7 +22,7 @@ func main() {
 	app.AddSystems(Update, movementSystem, blinkSystem)
 	app.AddSystems(Update, byke.System(followMouseSystem).Before(movementSystem))
 
-	app.InsertState(byke.RegisterState[PauseState]{})
+	app.InitState(byke.StateType[PauseState]{})
 
 	app.AddSystems(Update, togglePauseState)
 

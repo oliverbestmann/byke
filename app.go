@@ -34,11 +34,11 @@ func (a *App) InsertResource(res any) {
 	a.World().InsertResource(res)
 }
 
-func (a *App) InsertState(newState NewState) {
+func (a *App) InitState(newState NewState) {
 	newState.configureStateIn(a)
 }
 
-func (a *App) RegisterEvent(newEvent NewEvent) {
+func (a *App) RegisterEvent(newEvent NewEventType) {
 	newEvent.configureEventIn(a)
 }
 

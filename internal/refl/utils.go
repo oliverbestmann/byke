@@ -1,4 +1,4 @@
-package query
+package refl
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"reflect"
 )
 
-func componentTypeOf(ty reflect.Type) *arch.ComponentType {
-	if !isComponent(ty) {
+func ComponentTypeOf(ty reflect.Type) *arch.ComponentType {
+	if !IsComponent(ty) {
 		panic(fmt.Sprintf("type %s is not a component", ty))
 	}
 
@@ -16,7 +16,7 @@ func componentTypeOf(ty reflect.Type) *arch.ComponentType {
 	return component.ComponentType()
 }
 
-func fieldsOf(ty reflect.Type) iter.Seq[reflect.StructField] {
+func IterFields(ty reflect.Type) iter.Seq[reflect.StructField] {
 	return func(yield func(reflect.StructField) bool) {
 		for idx := range ty.NumField() {
 			if !yield(ty.Field(idx)) {
@@ -26,7 +26,7 @@ func fieldsOf(ty reflect.Type) iter.Seq[reflect.StructField] {
 	}
 }
 
-func implementsInterfaceDirectly[If any](ty reflect.Type) bool {
+func ImplementsInterfaceDirectly[If any](ty reflect.Type) bool {
 	iface := reflect.TypeFor[If]()
 
 	if !ty.Implements(iface) {
@@ -37,7 +37,7 @@ func implementsInterfaceDirectly[If any](ty reflect.Type) bool {
 		ty = ty.Elem()
 	}
 
-	for field := range fieldsOf(ty) {
+	for field := range IterFields(ty) {
 		if !field.Anonymous {
 			continue
 		}
@@ -52,4 +52,25 @@ func implementsInterfaceDirectly[If any](ty reflect.Type) bool {
 	}
 
 	return true
+}
+
+func IsComponent(ty reflect.Type) bool {
+	if ty.Kind() != reflect.Struct {
+		return false
+	}
+
+	if !ty.Implements(reflect.TypeFor[arch.ErasedComponent]()) {
+		return false
+	}
+
+	// a component must embed arch.Component or arch.ComparableComponent
+	var count int
+	for field := range IterFields(ty) {
+		if ImplementsInterfaceDirectly[arch.ErasedComponent](field.Type) {
+			count += 1
+		}
+	}
+
+	// expect to have exactly one
+	return count == 1
 }

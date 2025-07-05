@@ -4,12 +4,12 @@ import (
 	"reflect"
 )
 
-type RegisterState[S comparable] struct {
+type StateType[S comparable] struct {
 	InitialValue S
 }
 
-func (r RegisterState[S]) configureStateIn(app *App) {
-	ValidateComponent[despawnOnExitState[S]]()
+func (r StateType[S]) configureStateIn(app *App) {
+	ValidateComponent[DespawnOnExitStateComponent[S]]()
 
 	app.InsertResource(State[S]{current: r.InitialValue})
 	app.InsertResource(NextState[S]{})
@@ -18,8 +18,8 @@ func (r RegisterState[S]) configureStateIn(app *App) {
 	app.AddSystems(OnChange[S](), despawnOnExitStateSystem[S])
 }
 
-func DespawnOnExitState[S comparable](state S) despawnOnExitState[S] {
-	return despawnOnExitState[S]{state: state}
+func DespawnOnExitState[S comparable](state S) DespawnOnExitStateComponent[S] {
+	return DespawnOnExitStateComponent[S]{state: state}
 }
 
 type stateChangedScheduleId[S comparable] struct {
@@ -80,8 +80,8 @@ func (n *NextState[S]) Clear() {
 	n.next = zeroState
 }
 
-type despawnOnExitState[S comparable] struct {
-	Component[despawnOnExitState[S]]
+type DespawnOnExitStateComponent[S comparable] struct {
+	Component[DespawnOnExitStateComponent[S]]
 	state S
 }
 
@@ -116,7 +116,7 @@ func performStateTransition[S comparable](world *World, state *State[S], nextSta
 
 type DespawnStateScopedItem[S comparable] struct {
 	EntityId    EntityId
-	StateScoped despawnOnExitState[S]
+	StateScoped DespawnOnExitStateComponent[S]
 }
 
 func despawnOnExitStateSystem[S comparable](
