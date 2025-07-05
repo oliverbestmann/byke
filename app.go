@@ -38,6 +38,10 @@ func (a *App) InsertState(newState NewState) {
 	newState.configureStateIn(a)
 }
 
+func (a *App) RegisterEvent(newEvent NewEvent) {
+	newEvent.configureEventIn(a)
+}
+
 func (a *App) RunWorld(run RunWorld) {
 	a.run = run
 }
@@ -61,5 +65,3 @@ type RunWorld func(world *World) error
 type NewState interface {
 	configureStateIn(app *App)
 }
-
-type erasedStateMarker struct{}

@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-var Update ScheduleId = &Schedule{}
-
 type Position struct {
 	ComparableComponent[Position]
 	X, Y int

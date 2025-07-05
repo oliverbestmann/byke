@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-var PreStartup = &byke.Schedule{}
-var Startup = &byke.Schedule{}
-var PostStartup = &byke.Schedule{}
+var PreStartup = byke.PreStartup
+var Startup = byke.Startup
+var PostStartup = byke.PostStartup
 
-var First = &byke.Schedule{}
-var PreUpdate = &byke.Schedule{}
+var First = byke.First
+var PreUpdate = byke.PreUpdate
 var StateTransition = byke.StateTransition
-var Update = &byke.Schedule{}
-var PostUpdate = &byke.Schedule{}
-var PreRender = &byke.Schedule{}
-var Render = &byke.Schedule{}
-var PostRender = &byke.Schedule{}
-var Last = &byke.Schedule{}
+var Update = byke.Update
+var PostUpdate = byke.PostUpdate
+var PreRender = byke.PreRender
+var Render = byke.Render
+var PostRender = byke.PostRender
+var Last = byke.Last
 
 var Plugin byke.PluginFunc = func(app *byke.App) {
 	app.InsertResource(WindowConfig{

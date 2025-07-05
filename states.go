@@ -4,8 +4,6 @@ import (
 	"reflect"
 )
 
-var StateTransition = &Schedule{}
-
 type RegisterState[S comparable] struct {
 	InitialValue S
 }
