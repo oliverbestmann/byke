@@ -1,6 +1,9 @@
 package byke
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 func EventType[E any]() NewEventType {
 	return newEvent[E]{}
@@ -57,12 +60,12 @@ func (e *Events[E]) Update() {
 	e.curr = e.curr[:0]
 }
 
-func (e *Events[E]) Reader() EventReader[E] {
-	return EventReader[E]{events: e}
+func (e *Events[E]) Reader() *EventReader[E] {
+	return &EventReader[E]{events: e}
 }
 
-func (e *Events[E]) Writer() EventWriter[E] {
-	return EventWriter[E]{events: e}
+func (e *Events[E]) Writer() *EventWriter[E] {
+	return &EventWriter[E]{events: e}
 }
 
 type EventWriter[E any] struct {
@@ -81,7 +84,7 @@ func (w *EventWriter[E]) init(world *World) SystemParamState {
 	}
 
 	reader := events.Writer()
-	return &ptrToValueSystemParamState[EventWriter[E]]{Value: reader}
+	return valueSystemParamState(reflect.ValueOf(reader))
 }
 
 type EventReader[E any] struct {
@@ -131,5 +134,5 @@ func (r *EventReader[E]) init(world *World) SystemParamState {
 	}
 
 	reader := events.Reader()
-	return &ptrToValueSystemParamState[EventReader[E]]{Value: reader}
+	return valueSystemParamState(reflect.ValueOf(reader))
 }

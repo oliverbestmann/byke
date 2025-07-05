@@ -466,7 +466,7 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 			param.cleanupValue((*paramValues)[idx])
 		}
 
-		// clear any pointers that are still int he param slice
+		// clear any pointers that are still in the param slice
 		clear(*paramValues)
 	}
 

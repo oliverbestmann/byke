@@ -19,18 +19,6 @@ type SystemParamState interface {
 	cleanupValue(value reflect.Value)
 }
 
-type ptrToValueSystemParamState[T any] struct {
-	Value T
-}
-
-func (p *ptrToValueSystemParamState[T]) getValue(*preparedSystem) reflect.Value {
-	return reflect.ValueOf(&p.Value)
-}
-
-func (p *ptrToValueSystemParamState[T]) cleanupValue(reflect.Value) {
-	// do nothing
-}
-
 type valueSystemParamState reflect.Value
 
 func (s valueSystemParamState) getValue(*preparedSystem) reflect.Value {
