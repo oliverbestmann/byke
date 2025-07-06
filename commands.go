@@ -32,15 +32,6 @@ func (*Commands) init(world *World) SystemParamState {
 	)
 }
 
-func (c *Commands) getValue(*preparedSystem) reflect.Value {
-	c.queue = nil
-	return reflect.ValueOf(c)
-}
-
-func (c *Commands) cleanupValue(reflect.Value) {
-	c.applyToWorld()
-}
-
 func (c *Commands) Queue(command Command) *Commands {
 	c.queue = append(c.queue, command)
 	return c
