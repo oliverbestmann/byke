@@ -112,7 +112,7 @@ type FollowMouseValues struct {
 
 func followMouseSystem(query byke.Query[FollowMouseValues], cursor MouseCursor, vt byke.VirtualTime) {
 	for res := range query.Items() {
-		dir := Vec(cursor).Sub(res.Transform.Translation).Normalized()
+		dir := cursor.Vec.Sub(res.Transform.Translation).Normalized()
 		res.Velocity.Vec = res.Velocity.Add(dir.Mul(200 * vt.DeltaSecs))
 	}
 }

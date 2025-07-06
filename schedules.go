@@ -80,17 +80,17 @@ func runMainSchedule(world *World, initialized *Local[bool]) {
 	world.RunSchedule(Last)
 }
 
-func runFixedMainLoopSystem(world *World, fixed *FixedTime, virtual VirtualTime) {
-	fixed.overstep += virtual.Delta
+func runFixedMainLoopSystem(world *World, ft *FixedTime, vt VirtualTime) {
+	ft.overstep += vt.Delta
 
-	step := fixed.StepInterval
+	step := ft.StepInterval
 
-	for fixed.overstep >= step {
-		fixed.overstep -= step
+	for ft.overstep >= step {
+		ft.overstep -= step
 
-		fixed.Elapsed += step
-		fixed.Delta = step
-		fixed.DeltaSecs = step.Seconds()
+		ft.Elapsed += step
+		ft.Delta = step
+		ft.DeltaSecs = step.Seconds()
 
 		world.RunSchedule(FixedMain)
 	}
@@ -102,38 +102,4 @@ func runFixedMainScheduleSystem(world *World) {
 	world.RunSchedule(FixedUpdate)
 	world.RunSchedule(FixedPostUpdate)
 	world.RunSchedule(FixedLast)
-}
-
-type FixedTime struct {
-	Elapsed   time.Duration
-	Delta     time.Duration
-	DeltaSecs float64
-
-	StepInterval time.Duration
-
-	overstep time.Duration
-}
-
-type VirtualTime struct {
-	Elapsed   time.Duration
-	Delta     time.Duration
-	DeltaSecs float64
-
-	Scale float64
-}
-
-func updateVirtualTime(v *VirtualTime, lastTime *Local[time.Time]) {
-	now := time.Now()
-
-	if lastTime.Value.IsZero() {
-		lastTime.Value = now
-		return
-	}
-
-	delta := time.Duration(float64(now.Sub(lastTime.Value)) * v.Scale)
-	lastTime.Value = now
-
-	v.Delta = delta
-	v.DeltaSecs = v.Delta.Seconds()
-	v.Elapsed += v.Delta
 }

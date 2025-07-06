@@ -32,10 +32,9 @@ type WindowConfig struct {
 }
 
 func runWorld(world *byke.World) error {
-	world.RunSystem(func(win WindowConfig) {
-		ebiten.SetWindowTitle(win.Title)
-		ebiten.SetWindowSize(win.Width, win.Height)
-	})
+	win, _ := byke.ResourceOf[WindowConfig](world)
+	ebiten.SetWindowTitle(win.Title)
+	ebiten.SetWindowSize(win.Width, win.Height)
 
 	return ebiten.RunGame(&game{World: world})
 }
@@ -66,7 +65,9 @@ type ScreenSize struct {
 	Vec
 }
 
-type MouseCursor Vec
+type MouseCursor struct {
+	Vec
+}
 
 func updateMouseCursor(cursor *MouseCursor) {
 	x, y := ebiten.CursorPosition()
