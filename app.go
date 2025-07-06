@@ -13,6 +13,8 @@ type App struct {
 func (a *App) World() *World {
 	if a.world == nil {
 		a.world = NewWorld()
+
+		configureSchedules(a)
 	}
 
 	return a.world
@@ -47,6 +49,14 @@ func (a *App) RunWorld(run RunWorld) {
 }
 
 func (a *App) Run() error {
+	if a.run == nil {
+		a.run = func(world *World) error {
+			for {
+				world.RunSchedule(Main)
+			}
+		}
+	}
+
 	return a.run(a.World())
 }
 

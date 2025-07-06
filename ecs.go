@@ -5,8 +5,6 @@ import (
 	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/assert"
 	"github.com/oliverbestmann/byke/internal/query"
-	"github.com/oliverbestmann/byke/internal/refl"
-	"github.com/oliverbestmann/byke/internal/typedpool"
 	"reflect"
 )
 

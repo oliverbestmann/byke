@@ -1,7 +1,9 @@
 package byke
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
+	"reflect"
 	"testing"
 )
 
@@ -77,6 +79,15 @@ func TestSystemIdWithClosure(t *testing.T) {
 	require.NotEqual(t, a, b)
 }
 
+func TestSystemIdWithGeneric(t *testing.T) {
+	a0 := asSystemConfig(gen[int]).Id
+	a1 := asSystemConfig(gen[int]).Id
+	require.Equal(t, a0, a1)
+
+	b := asSystemConfig(gen[float32]).Id
+	require.NotEqual(t, a0, b)
+}
+
 func makeSystem(param int) func() int {
 	return func() int {
 		return param
@@ -97,4 +108,9 @@ func c() int {
 
 func x() int {
 	return 4
+}
+
+func gen[X any]() {
+	ty := reflect.TypeFor[X]()
+	fmt.Sprintln(ty)
 }

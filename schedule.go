@@ -54,18 +54,9 @@ func (s *Schedule) updateSystemOrdering() error {
 
 type preparedSystem struct {
 	SystemConfig
-	LastRun   Tick
-	RawSystem func()
-}
-
-type systemOrdering struct {
-	Before SystemId
-	After  SystemId
-}
-
-type systemConstraint struct {
-	// A predicate to check if the system should be run
-	Predicate func() bool
+	LastRun     Tick
+	RawSystem   func() any
+	IsPredicate bool
 }
 
 func topologicalSystemOrder(systems []SystemConfig) ([]SystemId, error) {

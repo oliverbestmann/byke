@@ -58,7 +58,21 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 		}
 	}
 
-	preparedSystem.RawSystem = func() {
+	// check the return values. we currently only allow a `bool` return value
+	if systemType.NumOut() > 0 {
+		if systemType.NumOut() > 1 {
+			panic("System must have at most one return value")
+		}
+
+		returnType := systemType.Out(0)
+		if returnType != reflect.TypeFor[bool]() {
+			panic("for now, only bool is accepted as a return type of a system")
+		}
+
+		preparedSystem.IsPredicate = true
+	}
+
+	preparedSystem.RawSystem = func() any {
 		paramValues := valueSlices.Get()
 		defer valueSlices.Put(paramValues)
 
@@ -68,7 +82,7 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 			*paramValues = append(*paramValues, param.getValue(preparedSystem))
 		}
 
-		rSystem.Call(*paramValues)
+		returnValues := rSystem.Call(*paramValues)
 
 		for idx, param := range params {
 			param.cleanupValue((*paramValues)[idx])
@@ -76,6 +90,14 @@ func prepareSystem(w *World, config SystemConfig) *preparedSystem {
 
 		// clear any pointers that are still in the param slice
 		clear(*paramValues)
+
+		// convert return value to interface
+		var returnValue any
+		if len(returnValues) == 1 {
+			returnValue = returnValues[0].Interface()
+		}
+
+		return returnValue
 	}
 
 	return preparedSystem

@@ -12,19 +12,21 @@ import (
 )
 
 func main() {
-	defer profile.Start(profile.CPUProfile).Stop()
+	defer profile.Start(profile.MemProfile).Stop()
 
 	var app byke.App
 
 	app.AddPlugin(Plugin)
 
-	app.AddSystems(Startup, setupObjectsSystem)
-	app.AddSystems(Update, movementSystem, blinkSystem)
-	app.AddSystems(Update, byke.System(followMouseSystem).Before(movementSystem))
+	app.AddSystems(byke.Startup, setupObjectsSystem)
+
+	app.AddSystems(byke.FixedUpdate, byke.SystemChain(followMouseSystem, movementSystem))
+
+	app.AddSystems(byke.Update, blinkSystem)
 
 	app.InitState(byke.StateType[PauseState]{})
 
-	app.AddSystems(Update, togglePauseState)
+	app.AddSystems(byke.Update, togglePauseState)
 
 	app.AddSystems(byke.OnEnter(PauseStatePaused), pausedSystem)
 	app.AddSystems(byke.OnExit(PauseStatePaused), unpausedSystem)
@@ -95,7 +97,7 @@ type MovementValues struct {
 	Transform *Transform
 }
 
-func movementSystem(query byke.Query[MovementValues], vt VirtualTime) {
+func movementSystem(query byke.Query[MovementValues], vt byke.VirtualTime) {
 	for item := range query.Items() {
 		item.Transform.Translation.X += item.Velocity.X * vt.DeltaSecs
 		item.Transform.Translation.Y += item.Velocity.Y * vt.DeltaSecs
@@ -108,7 +110,7 @@ type FollowMouseValues struct {
 	Transform Transform
 }
 
-func followMouseSystem(query byke.Query[FollowMouseValues], cursor MouseCursor, vt VirtualTime) {
+func followMouseSystem(query byke.Query[FollowMouseValues], cursor MouseCursor, vt byke.VirtualTime) {
 	for res := range query.Items() {
 		dir := Vec(cursor).Sub(res.Transform.Translation).Normalized()
 		res.Velocity.Vec = res.Velocity.Add(dir.Mul(200 * vt.DeltaSecs))
@@ -120,7 +122,7 @@ type BlinkValues struct {
 	Frequency BlinkFrequency
 }
 
-func blinkSystem(query byke.Query[BlinkValues], time VirtualTime) {
+func blinkSystem(query byke.Query[BlinkValues], time byke.VirtualTime) {
 	for item := range query.Items() {
 		alpha := math.Abs(math.Sin(time.Elapsed.Seconds() / item.Frequency.Value * math.Pi * 2))
 		green := math.Abs(math.Sin(time.Elapsed.Seconds() / item.Frequency.Value * math.Pi * 2.1))
@@ -154,7 +156,7 @@ func togglePauseState(
 
 func pausedSystem(
 	commands *byke.Commands,
-	vt *VirtualTime,
+	vt *byke.VirtualTime,
 	screenSize ScreenSize,
 ) {
 	vt.Scale = 0.0
@@ -177,7 +179,7 @@ func pausedSystem(
 }
 
 func unpausedSystem(
-	vt *VirtualTime,
+	vt *byke.VirtualTime,
 ) {
 	vt.Scale = 1.0
 }

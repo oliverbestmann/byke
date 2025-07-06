@@ -33,6 +33,10 @@ func (c Color) RGBA() (r, g, b, a uint32) {
 	return
 }
 
+func (c Color) Float32Values() (float32, float32, float32, float32) {
+	return c.R, c.G, c.B, c.A
+}
+
 func clamp[T float32 | float64](value, min, max T) T {
 	if value < min {
 		return min

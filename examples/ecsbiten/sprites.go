@@ -65,7 +65,7 @@ type RenderTarget struct {
 	*ebiten.Image
 }
 
-type RenderSpritesValue struct {
+type renderSpritesValue struct {
 	Sprite    Sprite
 	Transform Transform
 	Layer     Layer
@@ -74,10 +74,24 @@ type RenderSpritesValue struct {
 	Size      byke.Option[Size]
 }
 
-func renderSpritesSystem(screen RenderTarget, sprites byke.Query[RenderSpritesValue]) {
-	items := slices.Collect(sprites.Items())
+type renderSpritesCache struct {
+	sprites []renderSpritesValue
+}
 
-	slices.SortFunc(items, func(a, b RenderSpritesValue) int {
+func renderSpritesSystem(
+	screen RenderTarget,
+	sprites byke.Query[renderSpritesValue],
+	cache *byke.Local[renderSpritesCache],
+) {
+	// re-use the slice
+	items := slices.AppendSeq(cache.Value.sprites[:0], sprites.Items())
+
+	defer func() {
+		clear(items)
+		cache.Value.sprites = items[:0]
+	}()
+
+	slices.SortFunc(items, func(a, b renderSpritesValue) int {
 		switch {
 		case a.Layer.Z < b.Layer.Z:
 			return -1
@@ -119,7 +133,7 @@ func renderSpritesSystem(screen RenderTarget, sprites byke.Query[RenderSpritesVa
 		op.GeoM.Translate(tr.Translation.X, tr.Translation.Y)
 
 		// apply color
-		op.ColorScale.ScaleWithColor(item.ColorTint)
+		op.ColorScale.Scale(item.ColorTint.Float32Values())
 
 		screen.DrawImage(item.Sprite.Image, &op)
 	}
