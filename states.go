@@ -16,13 +16,13 @@ func (r StateType[S]) configureStateIn(app *App) {
 	app.InsertResource(State[S]{current: r.InitialValue})
 	app.InsertResource(NextState[S]{})
 
-	app.RegisterEvent(EventType[StateTransitionEvent[S]]())
+	app.AddEvent(EventType[StateTransitionEvent[S]]())
 
-	app.AddSystems(StateTransition, SystemChain(
+	app.AddSystems(StateTransition, System(
 		performStateTransition[S],
 		despawnOnExitStateSystem[S],
 		despawnOnEnterStateSystem[S],
-	))
+	).Chain())
 }
 
 type StateTransitionEvent[S comparable] struct {
@@ -51,6 +51,8 @@ type stateChangedScheduleId[S comparable] struct {
 	exit       bool
 	transition bool
 }
+
+func (stateChangedScheduleId[S]) isSchedule() {}
 
 func OnEnter[S comparable](stateValue S) ScheduleId {
 	return stateChangedScheduleId[S]{

@@ -4,12 +4,24 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"reflect"
+	"slices"
 	"testing"
 )
 
-func TestTopologicalSystemOrder(t *testing.T) {
-	runTest := func(systems []SystemConfig, expected []SystemId) {
-		order, err := topologicalSystemOrder(systems)
+func systemIdsOf(systems ...AnySystem) []SystemId {
+	var ids []SystemId
+
+	for _, system := range asSystemConfigs(systems...) {
+		ids = append(ids, system.Id)
+	}
+
+	return ids
+}
+
+func TestSystemOrder(t *testing.T) {
+	runTest := func(systems []*systemConfig, expected []SystemId) {
+		systems = slices.Collect(mergeConfigs(systems))
+		order, err := topologicalSystemOrder(systems, nil)
 		require.NoError(t, err)
 		require.Equal(t, expected, order)
 	}
@@ -33,65 +45,47 @@ func TestTopologicalSystemOrder(t *testing.T) {
 	)
 
 	runTest(
-		asSystemConfigs(SystemChain(a, b, c)),
+		asSystemConfigs(System(a, b, c).Chain()),
 		systemIdsOf(a, b, c))
 
 	runTest(
-		asSystemConfigs(SystemChain(a, b, c), System(x).Before(c).After(b).After(a)),
+		asSystemConfigs(System(a, b, c).Chain(), System(x).Before(c).After(b).After(a)),
 		systemIdsOf(a, b, x, c))
 }
 
-func systemIdsOf(systems ...AnySystem) []SystemId {
-	var ids []SystemId
+func TestSystemOrderWithSets(t *testing.T) {
+	var SetA, SetB *SystemSet
 
-	for _, system := range asSystemConfigs(systems...) {
-		ids = append(ids, system.Id)
+	runTest := func(systems []*systemConfig, expected []SystemId) {
+		systems = slices.Collect(mergeConfigs(systems))
+		order, err := topologicalSystemOrder(systems, []*SystemSet{SetA, SetB})
+		require.NoError(t, err)
+		require.Equal(t, expected, order)
 	}
 
-	return ids
-}
+	SetA = &SystemSet{}
+	SetB = &SystemSet{}
 
-func TestSystemId(t *testing.T) {
-	t.Run("different systems", func(t *testing.T) {
-		a := asSystemConfig(a).Id
-		b := asSystemConfig(b).Id
-		c := asSystemConfig(c).Id
+	SetA.Before(SetB)
 
-		require.NotEqual(t, a, b)
-		require.NotEqual(t, a, c)
-		require.NotEqual(t, b, c)
-	})
+	runTest(
+		asSystemConfigs(
+			System(a, b).Chain().InSet(SetB),
+			System(c).InSet(SetA),
+		),
 
-	t.Run("same system", func(t *testing.T) {
-		a0 := asSystemConfig(a).Id
-		a1 := asSystemConfig(a).Id
-		a2 := asSystemConfig(a).Id
+		systemIdsOf(c, a, b),
+	)
 
-		require.Equal(t, a0, a1)
-		require.Equal(t, a0, a2)
-	})
+	runTest(
+		asSystemConfigs(
+			System(b).InSet(SetB),
+			System(a).InSet(SetA),
+			System(c).After(b),
+		),
 
-}
-
-func TestSystemIdWithClosure(t *testing.T) {
-	a := asSystemConfig(makeSystem(1)).Id
-	b := asSystemConfig(makeSystem(2)).Id
-	require.NotEqual(t, a, b)
-}
-
-func TestSystemIdWithGeneric(t *testing.T) {
-	a0 := asSystemConfig(gen[int]).Id
-	a1 := asSystemConfig(gen[int]).Id
-	require.Equal(t, a0, a1)
-
-	b := asSystemConfig(gen[float32]).Id
-	require.NotEqual(t, a0, b)
-}
-
-func makeSystem(param int) func() int {
-	return func() int {
-		return param
-	}
+		systemIdsOf(a, b, c),
+	)
 }
 
 func a() int {

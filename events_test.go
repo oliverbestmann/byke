@@ -10,7 +10,7 @@ type MyEvent int
 func TestEvents(t *testing.T) {
 	var app App
 
-	app.RegisterEvent(EventType[MyEvent]())
+	app.AddEvent(EventType[MyEvent]())
 
 	var eventsWritten int
 	var expected []MyEvent

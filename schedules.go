@@ -9,6 +9,8 @@ type scheduleId struct {
 	_ int32
 }
 
+func (*scheduleId) isSchedule() {}
+
 var (
 	Main             ScheduleId = &scheduleId{}
 	RunFixedMainLoop ScheduleId = &scheduleId{}
@@ -44,7 +46,7 @@ func configureSchedules(app *App) {
 		StepInterval: 1 * time.Second / 64,
 	})
 
-	app.AddSystems(Main, SystemChain(updateVirtualTime, runMainSchedule))
+	app.AddSystems(Main, System(updateVirtualTime, runMainSchedule).Chain())
 	app.AddSystems(RunFixedMainLoop, runFixedMainLoopSystem)
 	app.AddSystems(FixedMain, runFixedMainScheduleSystem)
 }

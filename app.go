@@ -26,10 +26,18 @@ func (a *App) AddPlugin(plugin Plugin) {
 
 func (a *App) AddSystems(scheduleId ScheduleId, system AnySystem, systems ...AnySystem) {
 	if !reflect.ValueOf(scheduleId).Comparable() {
-		panic(fmt.Sprintf("scheduleId must be comparable: %C", scheduleId))
+		panic(fmt.Sprintf("scheduleId must be comparable: %T", scheduleId))
 	}
 
 	a.World().AddSystems(scheduleId, system, systems...)
+}
+
+func (a *App) ConfigureSystemSets(scheduleId ScheduleId, sets ...*SystemSet) {
+	if !reflect.ValueOf(scheduleId).Comparable() {
+		panic(fmt.Sprintf("scheduleId must be comparable: %T", scheduleId))
+	}
+
+	a.World().ConfigureSystemSets(scheduleId, sets...)
 }
 
 func (a *App) InsertResource(res any) {
@@ -40,7 +48,7 @@ func (a *App) InitState(newState NewState) {
 	newState.configureStateIn(a)
 }
 
-func (a *App) RegisterEvent(newEvent NewEventType) {
+func (a *App) AddEvent(newEvent NewEventType) {
 	newEvent.configureEventIn(a)
 }
 

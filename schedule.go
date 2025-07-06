@@ -3,11 +3,14 @@ package byke
 import (
 	"errors"
 	"github.com/oliverbestmann/byke/internal/set"
+	"iter"
+	"slices"
 )
 
 type Schedule struct {
-	lookup  map[SystemId]*preparedSystem
-	systems []*preparedSystem
+	lookup     map[SystemId]*preparedSystem
+	systems    []*preparedSystem
+	systemSets []*SystemSet
 }
 
 func NewSchedule() *Schedule {
@@ -25,14 +28,19 @@ func (s *Schedule) addSystem(system *preparedSystem) error {
 	return s.updateSystemOrdering()
 }
 
+func (s *Schedule) addSystemSet(systemSet *SystemSet) error {
+	s.systemSets = append(s.systemSets, systemSet)
+	return s.updateSystemOrdering()
+}
+
 func (s *Schedule) updateSystemOrdering() error {
-	var configs []SystemConfig
+	var configs []*systemConfig
 	for _, system := range s.lookup {
-		configs = append(configs, system.SystemConfig)
+		configs = append(configs, &system.systemConfig)
 	}
 
 	// calculate ordering
-	ordering, err := topologicalSystemOrder(configs)
+	ordering, err := topologicalSystemOrder(configs, s.systemSets)
 	if err != nil {
 		return err
 	}
@@ -53,31 +61,43 @@ func (s *Schedule) updateSystemOrdering() error {
 }
 
 type preparedSystem struct {
-	SystemConfig
+	systemConfig
 	LastRun     Tick
 	RawSystem   func() any
 	IsPredicate bool
 }
 
-func topologicalSystemOrder(systems []SystemConfig) ([]SystemId, error) {
+func topologicalSystemOrder(systems []*systemConfig, knownSystemSets []*SystemSet) ([]SystemId, error) {
 	// graph and in-degree count for topological sorting
 	graph := map[SystemId][]SystemId{}
 	inDegree := map[SystemId]int{}
 
-	// Ensure all nodes are in the graph
+	// make a lookup table so we can easily find all systems within a set
+	reverseSystemSets := map[*SystemSet][]SystemId{}
+	for _, system := range systems {
+		for systemSet := range system.SystemSets.Values() {
+			if !slices.Contains(knownSystemSets, systemSet) {
+				continue
+			}
+
+			reverseSystemSets[systemSet] = append(reverseSystemSets[systemSet], system.Id)
+		}
+	}
+
+	// build a set of reachable node ids
 	var nodes set.Set[SystemId]
 	for _, sys := range systems {
 		nodes.Insert(sys.Id)
-		for b := range sys.before.Values() {
+		for b := range sys.Before.Values() {
 			nodes.Insert(b)
 		}
 
-		for a := range sys.after.Values() {
+		for a := range sys.After.Values() {
 			nodes.Insert(a)
 		}
 	}
 
-	// Initialize graph and in-degree map
+	// initialize graph and in-degree map
 	for node := range nodes.Values() {
 		graph[node] = []SystemId{}
 		inDegree[node] = 0
@@ -85,14 +105,37 @@ func topologicalSystemOrder(systems []SystemConfig) ([]SystemId, error) {
 
 	// build graph
 	for _, sys := range systems {
-		for before := range sys.before.Values() {
+		for before := range sys.Before.Values() {
 			graph[sys.Id] = append(graph[sys.Id], before)
 			inDegree[before]++
 		}
 
-		for after := range sys.after.Values() {
+		for after := range sys.After.Values() {
 			graph[after] = append(graph[after], sys.Id)
 			inDegree[sys.Id]++
+		}
+	}
+
+	// add extra edges for systems in sets
+	for systemSet := range reverseSystemSets {
+		// add one edge "systemSet -> beforeSet" for each system combination in both sets
+		for _, beforeSet := range systemSet.before {
+			for from, to := range cross(reverseSystemSets[systemSet], reverseSystemSets[beforeSet]) {
+				if !slices.Contains(graph[from], to) {
+					graph[from] = append(graph[from], to)
+					inDegree[to] += 1
+				}
+			}
+		}
+
+		// add one edge "afterSet -> systemSet" for each system combination in both sets
+		for _, afterSet := range systemSet.after {
+			for from, to := range cross(reverseSystemSets[afterSet], reverseSystemSets[systemSet]) {
+				if !slices.Contains(graph[from], to) {
+					graph[from] = append(graph[from], to)
+					inDegree[to] += 1
+				}
+			}
 		}
 	}
 
@@ -124,4 +167,16 @@ func topologicalSystemOrder(systems []SystemConfig) ([]SystemId, error) {
 	}
 
 	return result, nil
+}
+
+func cross(lhs, rhs []SystemId) iter.Seq2[SystemId, SystemId] {
+	return func(yield func(l, r SystemId) bool) {
+		for _, l := range lhs {
+			for _, r := range rhs {
+				if !yield(l, r) {
+					return
+				}
+			}
+		}
+	}
 }

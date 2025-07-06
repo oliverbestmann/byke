@@ -20,7 +20,7 @@ func main() {
 
 	app.AddSystems(byke.Startup, setupObjectsSystem)
 
-	app.AddSystems(byke.FixedUpdate, byke.SystemChain(followMouseSystem, movementSystem))
+	app.AddSystems(byke.FixedUpdate, byke.System(followMouseSystem, movementSystem).Chain())
 
 	app.AddSystems(byke.Update, blinkSystem)
 

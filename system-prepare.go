@@ -9,14 +9,14 @@ import (
 
 var valueSlices = typedpool.New[[]reflect.Value]()
 
-func prepareSystem(w *World, config SystemConfig) *preparedSystem {
-	rSystem := config.fn
+func prepareSystem(w *World, config systemConfig) *preparedSystem {
+	rSystem := config.SystemFunc
 
 	if rSystem.Kind() != reflect.Func {
 		panic(fmt.Sprintf("not a function: %s", rSystem.Type()))
 	}
 
-	preparedSystem := &preparedSystem{SystemConfig: config}
+	preparedSystem := &preparedSystem{systemConfig: config}
 
 	systemType := rSystem.Type()
 

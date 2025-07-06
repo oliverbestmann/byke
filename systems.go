@@ -13,32 +13,32 @@ type SystemId unsafe.Pointer
 type AnySystem any
 
 type AsSystemConfigs interface {
-	AsSystemConfigs() []SystemConfig
+	asSystemConfigs() []*systemConfig
 }
 
-func asSystemConfig(value AnySystem) SystemConfig {
+func asSystemConfig(value AnySystem) *systemConfig {
 	switch value := value.(type) {
-	case SystemConfig:
+	case *systemConfig:
 		return value
 
 	default:
-		return SystemConfig{
-			Id: systemIdOf(value),
-			fn: reflect.ValueOf(value),
+		return &systemConfig{
+			Id:         systemIdOf(value),
+			SystemFunc: reflect.ValueOf(value),
 		}
 	}
 }
 
-func asSystemConfigs(values ...AnySystem) []SystemConfig {
-	var configs []SystemConfig
+func asSystemConfigs(values ...AnySystem) []*systemConfig {
+	var configs []*systemConfig
 
 	for _, value := range values {
 		switch value := value.(type) {
-		case []SystemConfig:
+		case []*systemConfig:
 			configs = append(configs, value...)
 
 		case AsSystemConfigs:
-			configs = append(configs, value.AsSystemConfigs()...)
+			configs = append(configs, value.asSystemConfigs()...)
 
 		default:
 			configs = append(configs, asSystemConfig(value))
@@ -48,13 +48,13 @@ func asSystemConfigs(values ...AnySystem) []SystemConfig {
 	return configs
 }
 
-func mergeConfigs(configs []SystemConfig) iter.Seq[SystemConfig] {
-	merged := map[SystemId]SystemConfig{}
+func mergeConfigs(configs []*systemConfig) iter.Seq[*systemConfig] {
+	merged := map[SystemId]*systemConfig{}
 
 	for _, config := range configs {
 		existing, ok := merged[config.Id]
-		if ok {
-			config = config.MergeWith(existing)
+		if ok && config != existing {
+			config.MergeWith(existing)
 		}
 
 		merged[config.Id] = config
@@ -82,61 +82,51 @@ func systemIdOf(system any) SystemId {
 	return SystemId(funcval)
 }
 
-func SystemChain(systems ...AnySystem) AnySystem {
-	allSystems := asSystemConfigs(systems...)
-
-	for idx := 0; idx < len(allSystems)-1; idx++ {
-		allSystems[idx].before.Insert(allSystems[idx+1].Id)
-	}
-
-	return allSystems
-}
-
-type SystemConfig struct {
+type systemConfig struct {
 	Id SystemId
 
-	// the actual fn, must be a function
-	fn         reflect.Value
-	before     set.Set[SystemId]
-	after      set.Set[SystemId]
-	predicates []func() bool
+	// the actual function
+	SystemFunc reflect.Value
+
+	Before     set.Set[SystemId]
+	After      set.Set[SystemId]
+	SystemSets set.Set[*SystemSet]
+
+	Predicates []func() bool
 }
 
-func (conf SystemConfig) MergeWith(other SystemConfig) SystemConfig {
+func (conf *systemConfig) MergeWith(other *systemConfig) *systemConfig {
 	if conf.Id != other.Id {
 		panic("can not merge systems with different ids")
 	}
 
-	//goland:noinspection GoShadowedVar
-	copy := conf
+	conf.Before.InsertAll(other.Before.Values())
+	conf.After.InsertAll(other.After.Values())
+	conf.SystemSets.InsertAll(other.SystemSets.Values())
+	conf.Predicates = append(conf.Predicates, other.Predicates...)
 
-	copy.before = set.FromValues(copy.before.Values())
-	copy.before.InsertAll(other.before.Values())
-
-	copy.after = set.FromValues(copy.after.Values())
-	copy.after.InsertAll(other.after.Values())
-
-	copy.predicates = append(append([]func() bool{}, copy.predicates...), other.predicates...)
-
-	return copy
+	return conf
 }
 
 type Systems struct {
 	systems []AnySystem
 
-	after      set.Set[SystemId]
-	before     set.Set[SystemId]
+	after  set.Set[SystemId]
+	before set.Set[SystemId]
+	sets   set.Set[*SystemSet]
+
 	predicates []func() bool
 }
 
-func (s Systems) AsSystemConfigs() []SystemConfig {
+func (s Systems) asSystemConfigs() []*systemConfig {
 	systems := asSystemConfigs(s.systems...)
 
 	for idx := range systems {
-		system := &systems[idx]
-		system.after.InsertAll(s.after.Values())
-		system.before.InsertAll(s.before.Values())
-		system.predicates = append(system.predicates, s.predicates...)
+		system := systems[idx]
+		system.After.InsertAll(s.after.Values())
+		system.Before.InsertAll(s.before.Values())
+		system.SystemSets.InsertAll(s.sets.Values())
+		system.Predicates = append(system.Predicates, s.predicates...)
 	}
 
 	return systems
@@ -158,7 +148,27 @@ func (s Systems) Before(other AnySystem) Systems {
 	return s
 }
 
+func (s Systems) InSet(systemSet *SystemSet) Systems {
+	s.sets.Insert(systemSet)
+
+	return s
+}
+
 func (s Systems) RunIf(predicate func() bool) Systems {
 	s.predicates = append(s.predicates, predicate)
 	return s
+}
+
+func (s Systems) Chain() Systems {
+	systems := s.asSystemConfigs()
+	for idx := 0; idx < len(systems)-1; idx++ {
+		systems[idx].Before.Insert(systems[idx+1].Id)
+	}
+
+	var anySystems []AnySystem
+	for _, system := range systems {
+		anySystems = append(anySystems, system)
+	}
+
+	return System(anySystems...)
 }

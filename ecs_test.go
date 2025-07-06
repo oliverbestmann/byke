@@ -372,7 +372,7 @@ func BenchmarkWorld_RunSystem(b *testing.B) {
 		X    X
 	}
 
-	var schedule ScheduleId = &Schedule{}
+	var schedule ScheduleId = &scheduleId{}
 	w.AddSystems(schedule, func(q Query[Values]) {
 		for item := range q.Items() {
 			// do nothing

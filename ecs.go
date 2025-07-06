@@ -28,7 +28,9 @@ type Without[C IsComponent[C]] = query.Without[C]
 type Added[C IsComparableComponent[C]] = query.Added[C]
 type Changed[C IsComparableComponent[C]] = query.Changed[C]
 
-type ScheduleId any
+type ScheduleId interface {
+	isSchedule()
+}
 
 type resourceValue struct {
 	Reflect ptrValue
@@ -57,6 +59,19 @@ func NewWorld() *World {
 		schedules: map[ScheduleId]*Schedule{},
 		systems:   map[SystemId]*preparedSystem{},
 	}
+}
+
+func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*SystemSet) {
+	schedule, ok := w.schedules[scheduleId]
+	if !ok {
+		schedule = NewSchedule()
+		w.schedules[scheduleId] = schedule
+	}
+
+	for _, systemSet := range systemSets {
+		schedule.addSystemSet(systemSet)
+	}
+
 }
 
 func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems ...AnySystem) {
@@ -94,7 +109,7 @@ func (w *World) runSystem(system *preparedSystem) {
 	system.LastRun = w.currentTick
 }
 
-func (w *World) prepareSystem(system SystemConfig) *preparedSystem {
+func (w *World) prepareSystem(system *systemConfig) *preparedSystem {
 	systemConfig := asSystemConfig(system)
 
 	// check cache first
@@ -104,7 +119,7 @@ func (w *World) prepareSystem(system SystemConfig) *preparedSystem {
 	}
 
 	// need to prepare the system
-	prepared = prepareSystem(w, systemConfig)
+	prepared = prepareSystem(w, *systemConfig)
 	w.systems[systemConfig.Id] = prepared
 
 	return prepared

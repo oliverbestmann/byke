@@ -68,3 +68,7 @@ func (s *Set[T]) InsertAll(values iter.Seq[T]) {
 		s.Insert(value)
 	}
 }
+
+func (s *Set[T]) Clone() Set[T] {
+	return Set[T]{values: maps.Clone(s.values)}
+}
