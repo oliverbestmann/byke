@@ -21,6 +21,9 @@ func (c *Commands) applyToWorld() {
 	for _, command := range c.queue {
 		command(c.world)
 	}
+
+	// reset the queue after applying it
+	c.queue = c.queue[:0]
 }
 
 func (*Commands) init(world *World) SystemParamState {
