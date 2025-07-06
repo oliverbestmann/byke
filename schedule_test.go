@@ -4,60 +4,69 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"reflect"
-	"slices"
 	"testing"
 )
 
 func systemIdsOf(systems ...AnySystem) []SystemId {
 	var ids []SystemId
 
-	for _, system := range asSystemConfigs(systems...) {
-		ids = append(ids, system.Id)
+	for _, system := range systems {
+		ids = append(ids, asSystemConfig(system).Id)
 	}
 
 	return ids
 }
 
 func TestSystemOrder(t *testing.T) {
-	runTest := func(systems []*systemConfig, expected []SystemId) {
-		systems = slices.Collect(mergeConfigs(systems))
+	runTest := func(t *testing.T, systems []*systemConfig, expected []SystemId) {
+		for _, system := range systems {
+			fmt.Println(system.Id, system.Before, system.After)
+		}
+
 		order, err := topologicalSystemOrder(systems, nil)
 		require.NoError(t, err)
 		require.Equal(t, expected, order)
 	}
 
-	runTest(
-		asSystemConfigs(
-			System(a).Before(b),
-			System(c).Before(a),
-		),
+	t.Run("c, a, b", func(t *testing.T) {
+		runTest(t,
+			asSystemConfigs(
+				System(a).Before(b),
+				System(c).Before(a),
+			),
 
-		systemIdsOf(c, a, b),
-	)
+			systemIdsOf(c, a, b),
+		)
+	})
 
-	runTest(
-		asSystemConfigs(
-			System(a).Before(c),
-			System(b).After(a),
-			System(b).Before(c),
-		),
-		systemIdsOf(a, b, c),
-	)
+	t.Run("a, b, c", func(t *testing.T) {
+		runTest(t,
+			asSystemConfigs(
+				System(a).Before(c),
+				System(b).After(a),
+				System(b).Before(c),
+			),
+			systemIdsOf(a, b, c),
+		)
+	})
 
-	runTest(
-		asSystemConfigs(System(a, b, c).Chain()),
-		systemIdsOf(a, b, c))
+	t.Run("a, b, c", func(t *testing.T) {
+		runTest(t,
+			asSystemConfigs(System(a, b, c).Chain()),
+			systemIdsOf(a, b, c))
+	})
 
-	runTest(
-		asSystemConfigs(System(a, b, c).Chain(), System(x).Before(c).After(b).After(a)),
-		systemIdsOf(a, b, x, c))
+	t.Run("a, b, x, c", func(t *testing.T) {
+		runTest(t,
+			asSystemConfigs(System(a, b, c).Chain(), System(x).Before(c).After(b).After(a)),
+			systemIdsOf(a, b, x, c))
+	})
 }
 
 func TestSystemOrderWithSets(t *testing.T) {
 	var SetA, SetB *SystemSet
 
 	runTest := func(systems []*systemConfig, expected []SystemId) {
-		systems = slices.Collect(mergeConfigs(systems))
 		order, err := topologicalSystemOrder(systems, []*SystemSet{SetA, SetB})
 		require.NoError(t, err)
 		require.Equal(t, expected, order)

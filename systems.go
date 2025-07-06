@@ -3,9 +3,8 @@ package byke
 import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/set"
-	"iter"
-	"maps"
 	"reflect"
+	"slices"
 	"unsafe"
 )
 
@@ -42,22 +41,36 @@ func asSystemConfigs(values ...AnySystem) []*systemConfig {
 		}
 	}
 
-	return configs
+	return mergeConfigs(configs)
 }
 
-func mergeConfigs(configs []*systemConfig) iter.Seq[*systemConfig] {
-	merged := map[SystemId]*systemConfig{}
-
-	for _, config := range configs {
-		existing, ok := merged[config.Id]
-		if ok && config != existing {
-			config.MergeWith(existing)
-		}
-
-		merged[config.Id] = config
+func mergeConfigs(configs []*systemConfig) []*systemConfig {
+	if len(configs) == 1 {
+		// no need to merge, we just have one config
+		return configs
 	}
 
-	return maps.Values(merged)
+	// we use a slice here to ensure we keep any ordering
+	var merged []*systemConfig
+
+	for _, config := range configs {
+		if slices.Contains(merged, config) {
+			// pointer already in merged
+			continue
+		}
+
+		// check the existing configs first
+		idx := slices.IndexFunc(merged, func(c *systemConfig) bool { return c.Id == config.Id })
+
+		if idx == -1 {
+			merged = append(merged, config)
+			continue
+		}
+
+		merged[idx].MergeWith(config)
+	}
+
+	return merged
 }
 
 func System(systems ...AnySystem) Systems {
@@ -158,6 +171,7 @@ func (s Systems) RunIf(predicate AnySystem) Systems {
 
 func (s Systems) Chain() Systems {
 	systems := s.asSystemConfigs()
+
 	for idx := 0; idx < len(systems)-1; idx++ {
 		systems[idx].Before.Insert(systems[idx+1].Id)
 	}

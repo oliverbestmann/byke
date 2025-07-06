@@ -83,7 +83,7 @@ func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems
 
 	systems = append([]AnySystem{firstSystem}, systems...)
 
-	for system := range mergeConfigs(asSystemConfigs(systems...)) {
+	for _, system := range asSystemConfigs(systems...) {
 		preparedSystem := w.prepareSystem(system)
 
 		if err := schedule.addSystem(preparedSystem); err != nil {
