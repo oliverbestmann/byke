@@ -1,6 +1,7 @@
 package byke
 
 import (
+	"fmt"
 	"github.com/oliverbestmann/byke/internal/set"
 	"iter"
 	"maps"
@@ -11,10 +12,6 @@ import (
 type SystemId unsafe.Pointer
 
 type AnySystem any
-
-type AsSystemConfigs interface {
-	asSystemConfigs() []*systemConfig
-}
 
 func asSystemConfig(value AnySystem) *systemConfig {
 	switch value := value.(type) {
@@ -37,7 +34,7 @@ func asSystemConfigs(values ...AnySystem) []*systemConfig {
 		case []*systemConfig:
 			configs = append(configs, value...)
 
-		case AsSystemConfigs:
+		case Systems:
 			configs = append(configs, value.asSystemConfigs()...)
 
 		default:
@@ -69,15 +66,15 @@ func System(systems ...AnySystem) Systems {
 	}
 }
 
-func systemIdOf(system any) SystemId {
-	fn := reflect.ValueOf(system)
+func systemIdOf(systemFunc any) SystemId {
+	fn := reflect.ValueOf(systemFunc)
 	if fn.Kind() != reflect.Func {
-		panic("system is not a function")
+		panic(fmt.Sprintf("system is not a function: %T", systemFunc))
 	}
 
 	// get the pointer to the funcval and take that one as the systems Id
 	type eface struct{ typ, val unsafe.Pointer }
-	funcval := (*eface)(unsafe.Pointer(&system)).val
+	funcval := (*eface)(unsafe.Pointer(&systemFunc)).val
 
 	return SystemId(funcval)
 }
@@ -92,7 +89,7 @@ type systemConfig struct {
 	After      set.Set[SystemId]
 	SystemSets set.Set[*SystemSet]
 
-	Predicates []func() bool
+	Predicates []AnySystem
 }
 
 func (conf *systemConfig) MergeWith(other *systemConfig) *systemConfig {
@@ -115,7 +112,7 @@ type Systems struct {
 	before set.Set[SystemId]
 	sets   set.Set[*SystemSet]
 
-	predicates []func() bool
+	predicates []AnySystem
 }
 
 func (s Systems) asSystemConfigs() []*systemConfig {
@@ -154,7 +151,7 @@ func (s Systems) InSet(systemSet *SystemSet) Systems {
 	return s
 }
 
-func (s Systems) RunIf(predicate func() bool) Systems {
+func (s Systems) RunIf(predicate AnySystem) Systems {
 	s.predicates = append(s.predicates, predicate)
 	return s
 }
