@@ -154,6 +154,8 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 
 	tick := w.currentTick
 
+	var spawnChildren []*spawnChildComponent
+
 	for idx := 0; idx < len(queue); idx++ {
 		// if in question we'll overwrite the components if they
 		// where specified directly
@@ -161,6 +163,14 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 
 		component := queue[idx]
 		componentType := component.ComponentType()
+
+		// special handling for spawn child components. do not add them to
+		// the entity, but put them into a list that we go through at the
+		// end to spawn children
+		if spawnChild, ok := component.(*spawnChildComponent); ok {
+			spawnChildren = append(spawnChildren, spawnChild)
+			continue
+		}
 
 		// maybe skip this one if it already exists on the entity
 		exists := w.storage.HasComponent(entityId, componentType)
@@ -186,6 +196,11 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 		if req, ok := component.(arch.RequireComponents); ok {
 			queue = append(queue, req.RequireComponents()...)
 		}
+	}
+
+	for _, spawnChild := range spawnChildren {
+		components := append(spawnChild.Components, ChildOf{Parent: entityId})
+		w.Spawn(w.ReserveEntityId(), components)
 	}
 }
 

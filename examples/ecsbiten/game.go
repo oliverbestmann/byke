@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/gm"
 )
 
 var Plugin byke.PluginFunc = func(app *byke.App) {
@@ -18,8 +19,9 @@ var Plugin byke.PluginFunc = func(app *byke.App) {
 
 	app.InsertResource(Keys{})
 
-	app.AddSystems(byke.First, updateMouseCursor)
+	app.AddSystems(byke.First, updateMouseCursorSystem)
 	app.AddSystems(byke.Render, renderSpritesSystem)
+	app.AddSystems(byke.PostUpdate, propagateTransformSystem)
 
 	// start the game
 	app.RunWorld(runWorld)
@@ -42,7 +44,7 @@ func runWorld(world *byke.World) error {
 type game struct {
 	World *byke.World
 
-	screenSize Vec
+	screenSize gm.Vec
 }
 
 func (g *game) Update() error {
@@ -57,19 +59,19 @@ func (g *game) Draw(screen *ebiten.Image) {
 }
 
 func (g *game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	g.screenSize = Vec{X: float64(outsideWidth), Y: float64(outsideHeight)}
+	g.screenSize = gm.Vec{X: float64(outsideWidth), Y: float64(outsideHeight)}
 	return outsideWidth, outsideHeight
 }
 
 type ScreenSize struct {
-	Vec
+	gm.Vec
 }
 
 type MouseCursor struct {
-	Vec
+	gm.Vec
 }
 
-func updateMouseCursor(cursor *MouseCursor) {
+func updateMouseCursorSystem(cursor *MouseCursor) {
 	x, y := ebiten.CursorPosition()
 	cursor.X = float64(x)
 	cursor.Y = float64(y)

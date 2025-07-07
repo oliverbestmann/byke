@@ -6,6 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/gm"
 	"github.com/pkg/profile"
 	"math"
 	"math/rand/v2"
@@ -26,7 +27,7 @@ func main() {
 
 	app.InitState(byke.StateType[PauseState]{})
 
-	app.AddSystems(byke.Update, togglePauseState)
+	app.AddSystems(byke.Update, togglePauseState, rotateSystem)
 
 	app.AddSystems(byke.OnEnter(PauseStatePaused), pausedSystem)
 	app.AddSystems(byke.OnExit(PauseStatePaused), unpausedSystem)
@@ -42,9 +43,9 @@ type BlinkFrequency struct {
 func setupObjectsSystem(commands *byke.Commands, screenSize ScreenSize) {
 	gopher, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(GopherPNG))
 
-	randVec := func() Vec {
+	randVec := func() gm.Vec {
 		for {
-			vec := Vec{
+			vec := gm.Vec{
 				X: rand.Float64()*2 - 1,
 				Y: rand.Float64()*2 - 1,
 			}
@@ -55,36 +56,83 @@ func setupObjectsSystem(commands *byke.Commands, screenSize ScreenSize) {
 		}
 	}
 
+	commands.Spawn(
+		byke.Named("Sun"),
+
+		Rotate{
+			AngularVelocity: 1,
+		},
+
+		Transform{
+			Translation: gm.Vec{X: 400, Y: 300},
+			Scale:       gm.Vec{X: 1, Y: 1},
+			Rotation:    0,
+		},
+		Size{
+			Vec: gm.Vec{X: 50, Y: 50},
+		},
+		Sprite{
+			Image: gopher,
+		},
+
+		byke.SpawnChild(
+			Transform{
+				Translation: gm.Vec{X: 200},
+				Scale:       gm.Vec{X: 1, Y: 2},
+				Rotation:    math.Pi / 2,
+			},
+			Size{
+				Vec: gm.Vec{X: 25, Y: 25},
+			},
+
+			Sprite{
+				Image: gopher,
+			},
+
+			Rotate{
+				//	AngularVelocity: -1,
+			},
+		),
+	)
+
+	return
+
 	for idx := range 50 {
 		size := rand.Float64()*32 + 16
 
 		commands.Spawn(
 			byke.Named("Gopher"),
-			Velocity{
-				Vec: randVec().Mul(50),
-			},
+
 			Transform{
 				Translation: randVec().MulEach(screenSize.Vec),
-				Scale:       VecOf(1.0, 1.0),
+				Scale:       gm.VecOf(1.0, 1.0),
 			},
-			Size{
-				Vec: VecOf(size, size),
-			},
-			Layer{
-				Z: float64(idx),
-			},
-			BlinkFrequency{
-				Value: rand.Float64() + 0.5,
-			},
-			Sprite{
-				Image: gopher,
-			})
+
+			byke.SpawnChild(
+				Velocity{
+					Vec: randVec().Mul(50),
+				},
+				NewTransform(),
+				Size{
+					Vec: gm.VecOf(size, size),
+				},
+				Layer{
+					Z: float64(idx),
+				},
+				BlinkFrequency{
+					Value: rand.Float64() + 0.5,
+				},
+				Sprite{
+					Image: gopher,
+				},
+			),
+		)
 	}
 }
 
 type Velocity struct {
 	byke.ComparableComponent[Velocity]
-	Vec
+	gm.Vec
 }
 
 var _ = byke.ValidateComponent[Velocity]()
@@ -101,7 +149,7 @@ func movementSystem(query byke.Query[MovementValues], vt byke.VirtualTime) {
 	for item := range query.Items() {
 		item.Transform.Translation.X += item.Velocity.X * vt.DeltaSecs
 		item.Transform.Translation.Y += item.Velocity.Y * vt.DeltaSecs
-		item.Transform.Rotation += Rad(vt.DeltaSecs)
+		item.Transform.Rotation += gm.Rad(vt.DeltaSecs)
 	}
 }
 
@@ -167,7 +215,7 @@ func pausedSystem(
 
 		Transform{
 			Translation: screenSize.Mul(0.5),
-			Scale:       VecOf(1.0, 1.0),
+			Scale:       gm.VecOf(1.0, 1.0),
 		},
 
 		Layer{Z: math.Inf(1)},
@@ -182,4 +230,24 @@ func unpausedSystem(
 	vt *byke.VirtualTime,
 ) {
 	vt.Scale = 1.0
+}
+
+func rotateSystem(
+	query byke.Query[struct {
+	Rotate    Rotate
+	Transform *Transform
+}],
+	vt byke.VirtualTime,
+) {
+	for item := range query.Items() {
+		item.Transform.Rotation += gm.Rad(vt.DeltaSecs) * item.Rotate.AngularVelocity
+		// item.Transform.Scale.X = math.Sin(vt.Elapsed.Seconds()) + 1.1
+	}
+}
+
+var _ = byke.ValidateComponent[Rotate]()
+
+type Rotate struct {
+	byke.Component[Rotate]
+	AngularVelocity gm.Rad
 }

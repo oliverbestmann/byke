@@ -1,4 +1,4 @@
-package main
+package gm
 
 import (
 	"fmt"
@@ -13,6 +13,8 @@ type Vec32 = vec[float32]
 type Vec64 = vec[float64]
 
 type Vec = Vec64
+
+var VecOne = Vec{X: 1, Y: 1}
 
 type IVec = vec[int32]
 

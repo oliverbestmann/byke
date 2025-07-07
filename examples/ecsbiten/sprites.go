@@ -4,24 +4,15 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/examples/ecsbiten/color"
+	"github.com/oliverbestmann/byke/gm"
 	"slices"
 )
 
-var _ = byke.ValidateComponent[Transform]()
 var _ = byke.ValidateComponent[Sprite]()
 var _ = byke.ValidateComponent[Layer]()
 var _ = byke.ValidateComponent[Size]()
 var _ = byke.ValidateComponent[ColorTint]()
 var _ = byke.ValidateComponent[Anchor]()
-
-type Transform struct {
-	byke.ComparableComponent[Transform]
-	Translation Vec
-	Scale       Vec
-	Rotation    Rad
-}
-
-type Rad float64
 
 type Sprite struct {
 	byke.ComparableComponent[Sprite]
@@ -32,7 +23,7 @@ func (Sprite) RequireComponents() []byke.ErasedComponent {
 	return []byke.ErasedComponent{
 		Layer{},
 		Transform{
-			Scale: VecOf(1.0, 1.0),
+			Scale: gm.VecOf(1.0, 1.0),
 		},
 		AnchorCenter,
 		ColorTint{Color: color.White},
@@ -41,7 +32,7 @@ func (Sprite) RequireComponents() []byke.ErasedComponent {
 
 type Size struct {
 	byke.ComparableComponent[Size]
-	Vec
+	gm.Vec
 }
 
 type Layer struct {
@@ -51,10 +42,10 @@ type Layer struct {
 
 type Anchor struct {
 	byke.ComparableComponent[Anchor]
-	Vec
+	gm.Vec
 }
 
-var AnchorCenter = Anchor{Vec: Vec{X: 0.5, Y: 0.5}}
+var AnchorCenter = Anchor{Vec: gm.Vec{X: 0.5, Y: 0.5}}
 
 type ColorTint struct {
 	byke.ComparableComponent[ColorTint]
@@ -66,12 +57,12 @@ type RenderTarget struct {
 }
 
 type renderSpritesValue struct {
-	Sprite    Sprite
-	Transform Transform
-	Layer     Layer
-	ColorTint ColorTint
-	Anchor    Anchor
-	Size      byke.Option[Size]
+	Sprite          Sprite
+	GlobalTransform GlobalTransform
+	Layer           Layer
+	ColorTint       ColorTint
+	Anchor          Anchor
+	Size            byke.Option[Size]
 }
 
 type renderSpritesCache struct {
@@ -115,10 +106,7 @@ func renderSpritesSystem(
 		op.GeoM.Translate(-offset.X, -offset.Y)
 
 		// get transformation
-		tr := item.Transform
-
-		// apply rotation
-		op.GeoM.Rotate(float64(tr.Rotation))
+		tr := item.GlobalTransform
 
 		if hasCustomSize {
 			// apply custom size if available
@@ -128,6 +116,9 @@ func renderSpritesSystem(
 
 		// apply custom size based on transform
 		op.GeoM.Scale(tr.Scale.X, tr.Scale.Y)
+
+		// apply rotation
+		op.GeoM.Rotate(float64(tr.Rotation))
 
 		// move to target position
 		op.GeoM.Translate(tr.Translation.X, tr.Translation.Y)
@@ -139,8 +130,8 @@ func renderSpritesSystem(
 	}
 }
 
-func ImageSizeOf(image *ebiten.Image) Vec {
-	return Vec{
+func ImageSizeOf(image *ebiten.Image) gm.Vec {
+	return gm.Vec{
 		X: float64(image.Bounds().Dx()),
 		Y: float64(image.Bounds().Dy()),
 	}
