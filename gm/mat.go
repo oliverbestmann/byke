@@ -3,22 +3,17 @@ package gm
 import "math"
 
 // Mat describes a 2d matrix of float64 values in row major order.
+// The zero value is NOT the identity matrix. Use one of the initializer
+// functions like IdentityMat, RotationMat or ScaleMat to get a new matrix.
 type Mat struct {
 	XAxis, YAxis Vec
 }
 
+// IdentityMat returns an identity matrix
 func IdentityMat() Mat {
 	return Mat{
 		XAxis: Vec{X: 1, Y: 0},
 		YAxis: Vec{X: 0, Y: 1},
-	}
-}
-
-// ScaleMat returns a matrix that scales a Vec.
-func ScaleMat(scale Vec) Mat {
-	return Mat{
-		XAxis: Vec{scale.X, 0},
-		YAxis: Vec{0, scale.Y},
 	}
 }
 
@@ -33,6 +28,16 @@ func RotationMat(angle Rad) Mat {
 	}
 }
 
+// ScaleMat returns a matrix that scales a Vec.
+func ScaleMat(scale Vec) Mat {
+	return Mat{
+		XAxis: Vec{scale.X, 0},
+		YAxis: Vec{0, scale.Y},
+	}
+}
+
+// Transform multiplies the matrix with the given vector.
+// It returns the resulting vector.
 func (m Mat) Transform(vec Vec) Vec {
 	return Vec{
 		X: m.XAxis.X*vec.X + m.XAxis.Y*vec.Y,
@@ -40,6 +45,8 @@ func (m Mat) Transform(vec Vec) Vec {
 	}
 }
 
+// Mul multiplies the matrix m with the matrix n and returns the
+// result of the multiplication.
 func (m Mat) Mul(n Mat) Mat {
 	return Mat{
 		XAxis: Vec{
@@ -53,8 +60,16 @@ func (m Mat) Mul(n Mat) Mat {
 	}
 }
 
+// Inverse calculates the inverse of the matrix. If the Determinant of the
+// matrix is zero, the matrix is not invertible. In this case, this method will
+// panic.
 func (m Mat) Inverse() Mat {
-	f := 1 / (m.XAxis.X*m.YAxis.Y - m.XAxis.Y*m.YAxis.X)
+	det := m.Determinant()
+	if det == 0 {
+		panic("matrix is not invertible")
+	}
+
+	f := 1 / det
 	return Mat{
 		XAxis: Vec{
 			X: f * m.YAxis.Y,
@@ -65,4 +80,9 @@ func (m Mat) Inverse() Mat {
 			Y: f * m.XAxis.X,
 		},
 	}
+}
+
+// Determinant returns the determinant of the matrix
+func (m Mat) Determinant() float64 {
+	return m.XAxis.X*m.YAxis.Y - m.XAxis.Y*m.YAxis.X
 }
