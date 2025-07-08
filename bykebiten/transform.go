@@ -83,14 +83,19 @@ func (t GlobalTransform) Mul(other Transform) GlobalTransform {
 }
 
 type rootItems struct {
+	// should not have a parent, so it is a root
 	byke.Without[byke.ChildOf]
+
+	//	// should have either a change in children or a changed transform,
+	//	// otherwise the immediate subtree did not change (it might have on a deeper level)
+	//	_ byke.Or[byke.Changed[byke.Children], byke.Changed[Transform]]
 
 	Children        byke.Option[byke.Children]
 	Transform       Transform
 	GlobalTransform *GlobalTransform
 }
 
-type childItemsQuery struct {
+type transformItem struct {
 	Children        byke.Option[byke.Children]
 	Transform       Transform
 	GlobalTransform *GlobalTransform
@@ -98,7 +103,7 @@ type childItemsQuery struct {
 
 func propagateTransformSystem(
 	rootItemsQuery byke.Query[rootItems],
-	childItemsQuery byke.Query[childItemsQuery],
+	childItemsQuery byke.Query[transformItem],
 ) {
 	var recurse func(entityId byke.EntityId, parentTransform *GlobalTransform)
 

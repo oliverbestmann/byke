@@ -102,14 +102,18 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 
 	case isFilter(queryType):
 		filter := reflect.New(queryType).Interface().(Filter)
-		filter.applyTo(result)
 
-		result.Setters = append(result.Setters, Setter{
-			Field: slices.Clone(path),
-			SetValue: func(target any, ref arch.EntityRef) {
-				target.(FromEntityRef).fromEntityRef(ref)
-			},
-		})
+		// calculate the filters and add them to the query
+		query.Filters = append(query.Filters, filter.applyTo(result)...)
+
+		if isFromEntityRef(queryType) {
+			result.Setters = append(result.Setters, Setter{
+				Field: slices.Clone(path),
+				SetValue: func(target any, ref arch.EntityRef) {
+					target.(FromEntityRef).fromEntityRef(ref)
+				},
+			})
+		}
 
 		return nil
 
@@ -148,11 +152,15 @@ func isMutableComponent(ty reflect.Type) bool {
 }
 
 func isFilter(ty reflect.Type) bool {
-	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[Filter](reflect.PointerTo(ty))
+	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[Filter](ty)
 }
 
 func isEmbeddableFilter(ty reflect.Type) bool {
 	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[EmbeddableFilter](ty)
+}
+
+func isFromEntityRef(ty reflect.Type) bool {
+	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[FromEntityRef](reflect.PointerTo(ty))
 }
 
 func isEntityId(ty reflect.Type) bool {

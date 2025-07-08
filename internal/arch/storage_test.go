@@ -35,14 +35,12 @@ func TestStorage_All(t *testing.T) {
 		Fetch: []*ComponentType{
 			ComponentTypeOf[Velocity](),
 		},
-		With: []*ComponentType{
-			// ComponentTypeOf[Position](),
-		},
-		WithChanged: []*ComponentType{
-			// ComponentTypeOf[Velocity](),
-		},
-		Without: []*ComponentType{
-			ComponentTypeOf[Position](),
+		Filters: []Filter{
+			{
+				Without: []*ComponentType{
+					ComponentTypeOf[Position](),
+				},
+			},
 		},
 	}
 
@@ -86,11 +84,12 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 		Fetch: []*ComponentType{
 			ComponentTypeOf[Velocity](),
 		},
-		With: []*ComponentType{
-			// ComponentTypeOf[Position](),
-		},
-		WithChanged: []*ComponentType{
-			ComponentTypeOf[Velocity](),
+		Filters: []Filter{
+			{
+				Without: []*ComponentType{
+					ComponentTypeOf[Position](),
+				},
+			},
 		},
 	}
 
