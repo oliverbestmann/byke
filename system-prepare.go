@@ -9,6 +9,20 @@ import (
 
 var valueSlices = typedpool.New[[]reflect.Value]()
 
+type systemTrigger struct {
+	TargetId   EntityId
+	EventValue any
+}
+
+type systemContext struct {
+	// a value that has triggerd the execution of the system.
+	// Should be an event.
+	Trigger systemTrigger
+
+	// last tick the system ran
+	LastRun Tick
+}
+
 func prepareSystem(w *World, config systemConfig) *preparedSystem {
 	rSystem := config.SystemFunc
 
@@ -72,14 +86,16 @@ func prepareSystem(w *World, config systemConfig) *preparedSystem {
 		preparedSystem.IsPredicate = true
 	}
 
-	preparedSystem.RawSystem = func() any {
+	preparedSystem.RawSystem = func(sc systemContext) any {
 		paramValues := valueSlices.Get()
 		defer valueSlices.Put(paramValues)
 
 		*paramValues = (*paramValues)[:0]
 
+		sc.LastRun = preparedSystem.LastRun
+
 		for _, param := range params {
-			*paramValues = append(*paramValues, param.getValue(preparedSystem))
+			*paramValues = append(*paramValues, param.getValue(sc))
 		}
 
 		returnValues := rSystem.Call(*paramValues)

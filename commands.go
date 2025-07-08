@@ -82,6 +82,18 @@ func (e EntityCommands) Despawn() {
 	})
 }
 
+func (e EntityCommands) Observe(system AnySystem) EntityCommands {
+	return e.Update(func(world *World, entityId EntityId) {
+		world.AddObserver(NewObserver(system).WatchEntity(entityId))
+	})
+}
+
+func (e EntityCommands) Trigger(eventValue any) EntityCommands {
+	return e.Update(func(world *World, entityId EntityId) {
+		world.TriggerObserver(entityId, eventValue)
+	})
+}
+
 func RemoveComponent[C IsComponent[C]]() EntityCommand {
 	componentType := arch.ComponentTypeOf[C]()
 
@@ -107,7 +119,7 @@ func InsertComponent[C IsComponent[C]](maybeValue ...C) EntityCommand {
 
 type commandSystemParamState Commands
 
-func (c *commandSystemParamState) getValue(*preparedSystem) reflect.Value {
+func (c *commandSystemParamState) getValue(systemContext) reflect.Value {
 	return reflect.ValueOf((*Commands)(c))
 }
 

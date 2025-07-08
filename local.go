@@ -12,7 +12,7 @@ func (l *Local[T]) init(*World) SystemParamState {
 	return l
 }
 
-func (l *Local[T]) getValue(*preparedSystem) reflect.Value {
+func (l *Local[T]) getValue(systemContext) reflect.Value {
 	return reflect.ValueOf(l)
 }
 

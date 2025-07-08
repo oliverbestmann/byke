@@ -100,8 +100,8 @@ type queryParamState struct {
 	mutable []*arch.ComponentType
 }
 
-func (q *queryParamState) getValue(system *preparedSystem) reflect.Value {
-	q.inner.Query.LastRun = system.LastRun
+func (q *queryParamState) getValue(sc systemContext) reflect.Value {
+	q.inner.Query.LastRun = sc.LastRun
 	return q.ptrToValue.Elem()
 }
 

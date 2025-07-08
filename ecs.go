@@ -6,11 +6,11 @@ import (
 	"github.com/oliverbestmann/byke/internal/assert"
 	"github.com/oliverbestmann/byke/internal/query"
 	"reflect"
+	"slices"
 )
 
 type Tick = arch.Tick
 type EntityId = arch.EntityId
-
 type IsComponent[T any] = arch.IsComponent[T]
 type IsComparableComponent[T comparable] = arch.IsComparableComponent[T]
 
@@ -27,6 +27,8 @@ type With[C IsComponent[C]] = query.With[C]
 type Without[C IsComponent[C]] = query.Without[C]
 type Added[C IsComparableComponent[C]] = query.Added[C]
 type Changed[C IsComparableComponent[C]] = query.Changed[C]
+
+const NoEntityId = EntityId(0)
 
 type ScheduleId interface {
 	isSchedule()
@@ -69,9 +71,9 @@ func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*System
 	}
 
 	for _, systemSet := range systemSets {
+		// TODO error handling
 		schedule.addSystemSet(systemSet)
 	}
-
 }
 
 func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems ...AnySystem) {
@@ -96,13 +98,14 @@ func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems
 func (w *World) RunSystem(system AnySystem) {
 	systemConfig := asSystemConfig(system)
 	preparedSystem := w.prepareSystem(systemConfig)
-	w.runSystem(preparedSystem)
+	w.runSystem(preparedSystem, systemContext{})
 }
 
-func (w *World) runSystem(system *preparedSystem) {
+func (w *World) runSystem(system *preparedSystem, ctx systemContext) {
 	w.currentTick += 1
 
-	system.RawSystem()
+	ctx.LastRun = system.LastRun
+	system.RawSystem(ctx)
 
 	// update last run so we can calculate changed components
 	// at the next run
@@ -132,7 +135,7 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 	}
 
 	for _, system := range schedule.systems {
-		w.runSystem(system)
+		w.runSystem(system, systemContext{})
 	}
 }
 
@@ -144,9 +147,14 @@ func (w *World) ReserveEntityId() EntityId {
 
 }
 
-func (w *World) Spawn(entityId EntityId, components []ErasedComponent) {
+func (w *World) Spawn(entityId EntityId, components []ErasedComponent) EntityId {
+	if entityId == 0 {
+		entityId = w.ReserveEntityId()
+	}
+
 	w.storage.Spawn(w.currentTick, entityId)
 	w.insertComponents(entityId, components)
+	return entityId
 }
 
 func (w *World) insertComponents(entityId EntityId, components []ErasedComponent) {
@@ -240,6 +248,41 @@ func (w *World) parentComponentOf(component ErasedComponent) (isParentComponent,
 	w.onComponentInsert(parentId, parentComponent)
 
 	return parentComponent.(isParentComponent), true
+}
+
+func (w *World) AddObserver(observer Observer) {
+	// prepare system here. this will also panic if the systems parameters
+	// are not well formed.
+	observer.system = w.prepareSystem(asSystemConfig(observer.callback))
+
+	w.Spawn(NoEntityId, []ErasedComponent{observer})
+}
+
+func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
+	// get the event type first
+	eventType := reflect.TypeOf(eventValue)
+
+	// TODO maybe check for valid event? Better introduce an Event interface
+	w.RunSystem(func(observers Query[*Observer], commands *Commands) {
+		for observer := range observers.Items() {
+			fmt.Println(observer.eventType, eventType)
+			if observer.eventType != eventType {
+				continue
+			}
+
+			if len(observer.entities) > 0 && !slices.Contains(observer.entities, targetId) {
+				continue
+			}
+
+			// we found a match, trigger observer
+			w.runSystem(observer.system, systemContext{
+				Trigger: systemTrigger{
+					TargetId:   targetId,
+					EventValue: eventValue,
+				},
+			})
+		}
+	})
 }
 
 func (w *World) NewCommands() *Commands {

@@ -9,13 +9,14 @@ Documentation and examples will improve in the near feature.
 
 * **Schedules and SystemSets**: Organize systems and define execution order.
 * **Resources**: Inject shared data into systems.
-* **Queries**: Supports filters like `With`, `Without`, `Added`, and `Changed`. Also supports `Option[T]` and `OptionMut[T]`.
+* **Queries**: Supports filters like `With`, `Without`, `Added`, and `Changed`. Also supports `Option[T]` and
+  `OptionMut[T]`.
 * **Events**: Use `EventWriter[E]` and `EventReader[E]` to send and receive events.
 * **States**: Manage application state with `State[S]` and `NextState[S]`.
 
-  * Supports `OnEnter(state)` and `OnExit(state)` schedules.
-  * Emits `StateTransitionEvent[S]` during transitions.
-  * Allows state-scoped entities via `DespawnOnExitState(TitleScreen)`.
+    * Supports `OnEnter(state)` and `OnExit(state)` schedules.
+    * Emits `StateTransitionEvent[S]` during transitions.
+    * Allows state-scoped entities via `DespawnOnExitState(TitleScreen)`.
 * **Commands**: Spawn/despawn entities and add/remove components.
 * **Type Safety**: Avoids the need for type assertions like `value.(MyType)`.
 * **Entity Hierarchies**: Support for parent-child relationships between entities.
@@ -31,9 +32,10 @@ The `bykebiten` package provides basic integration with [Ebitengine](https://ebi
 
 ### Example
 
-Check out the [examples](https://github.com/oliverbestmann/byke/blob/main/bykebiten/examples/manysprites/main.go) for a look at how everything comes together.
+Check out the [examples](https://github.com/oliverbestmann/byke/blob/main/bykebiten/examples/manysprites/main.go) for a
+look at how everything comes together.
 
 ---
 
 > Note: This README and some documentation was refined using generative AI,
-  but all code in this project is handwritten.
+> but all code in this project is handwritten.

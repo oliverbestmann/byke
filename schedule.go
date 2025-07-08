@@ -63,7 +63,7 @@ func (s *Schedule) updateSystemOrdering() error {
 type preparedSystem struct {
 	systemConfig
 	LastRun     Tick
-	RawSystem   func() any
+	RawSystem   func(systemContext) any
 	IsPredicate bool
 }
 
