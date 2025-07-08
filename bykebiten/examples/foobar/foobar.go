@@ -27,6 +27,8 @@ func main() {
 
 	app.InitState(byke.StateType[PauseState]{})
 
+	app.AddEvent(byke.EventType[ClickEvent]())
+
 	app.AddSystems(byke.Update, togglePauseState, rotateSystem)
 
 	app.AddSystems(byke.OnEnter(PauseStatePaused), pausedSystem)
