@@ -1,4 +1,4 @@
-package main
+package bykebiten
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"

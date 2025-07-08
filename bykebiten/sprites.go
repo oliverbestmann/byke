@@ -1,9 +1,9 @@
-package main
+package bykebiten
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/examples/ecsbiten/color"
+	"github.com/oliverbestmann/byke/bykebiten/color"
 	"github.com/oliverbestmann/byke/gm"
 	"slices"
 )
@@ -124,7 +124,7 @@ func renderSpritesSystem(
 		op.GeoM.Translate(tr.Translation.X, tr.Translation.Y)
 
 		// apply color
-		op.ColorScale.Scale(item.ColorTint.Float32Values())
+		op.ColorScale.Scale(item.ColorTint.PremultipliedValues())
 
 		screen.DrawImage(item.Sprite.Image, &op)
 	}

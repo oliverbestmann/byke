@@ -33,8 +33,11 @@ func (c Color) RGBA() (r, g, b, a uint32) {
 	return
 }
 
-func (c Color) Float32Values() (float32, float32, float32, float32) {
-	return c.R, c.G, c.B, c.A
+func (c Color) PremultipliedValues() (float32, float32, float32, float32) {
+	r := c.R * c.A
+	g := c.G * c.A
+	b := c.B * c.A
+	return r, g, b, c.A
 }
 
 func clamp[T float32 | float64](value, min, max T) T {

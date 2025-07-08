@@ -1,4 +1,4 @@
-package main
+package bykebiten
 
 import (
 	"github.com/oliverbestmann/byke"
@@ -20,6 +20,28 @@ func NewTransform() Transform {
 	return Transform{
 		Scale: gm.VecOne,
 	}
+}
+
+func TransformFromXY(x, y float64) Transform {
+	return Transform{
+		Scale:       gm.VecZero,
+		Translation: gm.Vec{X: x, Y: y},
+	}
+}
+
+func (t Transform) WithTranslation(translation gm.Vec) Transform {
+	t.Translation = translation
+	return t
+}
+
+func (t Transform) WithRotation(rotation gm.Rad) Transform {
+	t.Rotation = rotation
+	return t
+}
+
+func (t Transform) WithScale(scale gm.Vec) Transform {
+	t.Scale = scale
+	return t
 }
 
 func (t Transform) AsAffine() gm.Affine {

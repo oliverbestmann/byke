@@ -1,4 +1,4 @@
-package main
+package bykebiten
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
@@ -6,7 +6,7 @@ import (
 	"github.com/oliverbestmann/byke/gm"
 )
 
-var Plugin byke.PluginFunc = func(app *byke.App) {
+var GamePlugin byke.PluginFunc = func(app *byke.App) {
 	app.InsertResource(WindowConfig{
 		Title:  "Ebitengine",
 		Width:  800,

@@ -17,7 +17,7 @@ func main() {
 
 	var app byke.App
 
-	app.AddPlugin(Plugin)
+	app.AddPlugin(GamePlugin)
 
 	app.AddSystems(byke.Startup, setupObjectsSystem)
 
@@ -234,9 +234,9 @@ func unpausedSystem(
 
 func rotateSystem(
 	query byke.Query[struct {
-	Rotate    Rotate
-	Transform *Transform
-}],
+		Rotate    Rotate
+		Transform *Transform
+	}],
 	vt byke.VirtualTime,
 ) {
 	for item := range query.Items() {
