@@ -212,10 +212,49 @@ func (Or[A, B]) applyTo(result *ParsedQuery) []arch.Filter {
 	var bZero B
 	filterB := bZero.applyTo(result)
 
+	// TODO optimize by pulling out the union of With and Without
+
 	return []arch.Filter{
 		{
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
 				return matches(filterA, q, entity) || matches(filterB, q, entity)
+			},
+		},
+	}
+}
+
+type And[A, B Filter] struct{}
+
+func (And[A, B]) embeddable(isEmbeddableMarker) {}
+
+func (And[A, B]) applyTo(result *ParsedQuery) []arch.Filter {
+	var aZero A
+	filterA := aZero.applyTo(result)
+
+	var bZero B
+	filterB := bZero.applyTo(result)
+
+	// for and we can optimize. We can just move the With & Without types
+	// to the top filter
+	var with, without []*arch.ComponentType
+
+	for _, filter := range filterA {
+		with = append(with, filter.With...)
+		without = append(without, filter.With...)
+	}
+
+	for _, filter := range filterB {
+		with = append(with, filter.With...)
+		without = append(without, filter.With...)
+	}
+
+	return []arch.Filter{
+		{
+			With:    with,
+			Without: without,
+
+			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
+				return matches(filterA, q, entity) && matches(filterB, q, entity)
 			},
 		},
 	}
