@@ -2,17 +2,17 @@ package arch
 
 type ComponentValue struct {
 	Type    *ComponentType
+	Value   ErasedComponent
+	Hash    HashValue
 	Added   Tick
 	Changed Tick
-	Hash    HashValue
-	Value   ErasedComponent
 }
 
 type TypedComponentValue[C IsComponent[C]] struct {
+	Value   C
+	Hash    HashValue
 	Added   Tick
 	Changed Tick
-	Hash    HashValue
-	Value   C
 }
 
 type ComponentValues []ComponentValue

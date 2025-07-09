@@ -176,10 +176,6 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 }
 
 func (a *Archetype) GetComponentAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
-	if int(row) >= len(a.entities) {
-		return ComponentValue{}, false
-	}
-
 	column, ok := a.columnsByType[componentType]
 	if !ok {
 		return ComponentValue{}, false

@@ -1,6 +1,6 @@
 package arch
 
-type HashValue uint64
+type HashValue uint32
 
 type isComponentMarker struct{}
 

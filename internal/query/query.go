@@ -74,7 +74,7 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 				}
 
 				// target is a pointer to the component value
-				componentType.SetValue(target.(arch.ErasedComponent), value.Value)
+				componentType.SetValue(target, value.Value)
 			},
 		})
 
