@@ -45,7 +45,8 @@ func TestStorage_All(t *testing.T) {
 	}
 
 	for entity := range s.IterQuery(query) {
-		entity.Components[0].Value.(*Velocity).X = 2
+		value, _ := entity.Get(ComponentTypeOf[Velocity]())
+		value.Value.(*Velocity).X = 2
 	}
 
 	s.CheckChanged(7, []*ComponentType{ComponentTypeOf[Velocity]()})

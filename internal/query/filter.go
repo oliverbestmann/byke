@@ -3,6 +3,8 @@ package query
 import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/internal/set"
+	"slices"
 )
 
 type Filter interface {
@@ -212,10 +214,39 @@ func (Or[A, B]) applyTo(result *ParsedQuery) []arch.Filter {
 	var bZero B
 	filterB := bZero.applyTo(result)
 
-	// TODO optimize by pulling out the union of With and Without
+	// for And we can optimize: we can just move the intersection of
+	// the With & Without types to the top filter
+
+	// first collect with/without values of filter A
+	var withA, withoutA set.Set[*arch.ComponentType]
+
+	for _, filter := range filterA {
+		withA.InsertAll(slices.Values(filter.With))
+		withoutA.InsertAll(slices.Values(filter.Without))
+	}
+
+	// and then keep only the ones from B that are also in A
+	var with, without []*arch.ComponentType
+
+	for _, filter := range filterB {
+		for _, ty := range filter.With {
+			if withA.Has(ty) {
+				with = append(with, ty)
+			}
+		}
+
+		for _, ty := range filter.Without {
+			if withoutA.Has(ty) {
+				without = append(without, ty)
+			}
+		}
+	}
 
 	return []arch.Filter{
 		{
+			With:    with,
+			Without: without,
+
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
 				return matches(filterA, q, entity) || matches(filterB, q, entity)
 			},
@@ -234,24 +265,24 @@ func (And[A, B]) applyTo(result *ParsedQuery) []arch.Filter {
 	var bZero B
 	filterB := bZero.applyTo(result)
 
-	// for and we can optimize. We can just move the With & Without types
+	// for And we can optimize: we can just move the union of the With & Without types
 	// to the top filter
-	var with, without []*arch.ComponentType
+	var with, without set.Set[*arch.ComponentType]
 
 	for _, filter := range filterA {
-		with = append(with, filter.With...)
-		without = append(without, filter.With...)
+		with.InsertAll(slices.Values(filter.With))
+		without.InsertAll(slices.Values(filter.Without))
 	}
 
 	for _, filter := range filterB {
-		with = append(with, filter.With...)
-		without = append(without, filter.With...)
+		with.InsertAll(slices.Values(filter.With))
+		without.InsertAll(slices.Values(filter.Without))
 	}
 
 	return []arch.Filter{
 		{
-			With:    with,
-			Without: without,
+			With:    slices.Collect(with.Values()),
+			Without: slices.Collect(without.Values()),
 
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
 				return matches(filterA, q, entity) && matches(filterB, q, entity)

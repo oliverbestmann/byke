@@ -191,19 +191,12 @@ func TestParseQueryStruct(t *testing.T) {
 }
 
 func TestFromEntity(t *testing.T) {
-	var entity = arch.EntityRef{
-		EntityId: 10,
-		Components: []arch.ComponentValue{
-			{
-				Type:  arch.ComponentTypeOf[Position](),
-				Value: &Position{X: 1},
-			},
-			{
-				Type:  arch.ComponentTypeOf[Velocity](),
-				Value: &Velocity{X: 2},
-			},
-		},
-	}
+	s := arch.NewStorage()
+	s.Spawn(0, 10)
+	s.InsertComponent(0, 10, &Position{X: 1})
+	s.InsertComponent(0, 10, &Velocity{X: 2})
+
+	entity, _ := s.Get(10)
 
 	runTestFromEntity(t, entity, Position{X: 1})
 	runTestFromEntity(t, entity, &Position{X: 1})
@@ -331,23 +324,13 @@ func BenchmarkFromEntity(b *testing.B) {
 	query, err := ParseQuery(reflect.TypeFor[QueryItem]())
 	require.NoError(b, err)
 
-	entity := arch.EntityRef{
-		EntityId: 10,
-		Components: []arch.ComponentValue{
-			{
-				Type:  arch.ComponentTypeOf[Position](),
-				Value: &Position{X: 1},
-			},
-			{
-				Type:  arch.ComponentTypeOf[Velocity](),
-				Value: &Velocity{X: 2},
-			},
-			{
-				Type:  arch.ComponentTypeOf[Acceleration](),
-				Value: &Acceleration{X: 3},
-			},
-		},
-	}
+	s := arch.NewStorage()
+	s.Spawn(0, 10)
+	s.InsertComponent(0, 10, &Position{X: 1})
+	s.InsertComponent(0, 10, &Velocity{X: 2})
+	s.InsertComponent(0, 10, &Acceleration{X: 3})
+
+	entity, _ := s.Get(10)
 
 	var value QueryItem
 

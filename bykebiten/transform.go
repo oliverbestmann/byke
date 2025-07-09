@@ -82,9 +82,30 @@ func (t GlobalTransform) Mul(other Transform) GlobalTransform {
 	}
 }
 
+type simpleItems struct {
+	// transforms not within the hierarchy
+	_ byke.Without[byke.ChildOf]
+	_ byke.Without[byke.Children]
+	_ byke.Changed[Transform]
+
+	Transform       Transform
+	GlobalTransform *GlobalTransform
+}
+
+func syncSimpleTransformSystem(query byke.Query[simpleItems]) {
+	for item := range query.Items() {
+		item.GlobalTransform.Translation = item.Transform.Translation
+		item.GlobalTransform.Scale = item.Transform.Scale
+		item.GlobalTransform.Rotation = item.Transform.Rotation
+	}
+}
+
 type rootItems struct {
 	// should not have a parent, so it is a root
 	byke.Without[byke.ChildOf]
+
+	// but it should have children
+	byke.With[byke.Children]
 
 	//	// should have either a change in children or a changed transform,
 	//	// otherwise the immediate subtree did not change (it might have on a deeper level)

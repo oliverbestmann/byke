@@ -9,6 +9,7 @@ import (
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	. "github.com/oliverbestmann/byke/gm"
+	"github.com/pkg/profile"
 	"math"
 	"math/rand/v2"
 )
@@ -17,6 +18,8 @@ import (
 var EbitenPNG []byte
 
 func main() {
+	defer profile.Start(profile.CPUProfile).Stop()
+
 	var app App
 
 	app.AddPlugin(GamePlugin)

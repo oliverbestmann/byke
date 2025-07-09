@@ -2,6 +2,8 @@ package arch
 
 import (
 	"hash/maphash"
+	"reflect"
+	"unsafe"
 )
 
 type Row uint32
@@ -24,6 +26,7 @@ type TypedColumn[C IsComponent[C]] struct {
 
 type ComparableTypedColumn[C IsComparableComponent[C]] struct {
 	TypedColumn[C]
+	memorySlices []memorySlice
 }
 
 func MakeColumnOf[C IsComponent[C]](componentType *ComponentType) MakeColumn {
@@ -35,11 +38,15 @@ func MakeColumnOf[C IsComponent[C]](componentType *ComponentType) MakeColumn {
 }
 
 func MakeComparableColumnOf[C IsComparableComponent[C]](componentType *ComponentType) MakeColumn {
+	memorySlices := memorySlicesOf(reflect.TypeFor[C](), 0, nil)
+
 	return func() Column {
 		return &ComparableTypedColumn[C]{
 			TypedColumn: TypedColumn[C]{
 				ComponentType: componentType,
 			},
+
+			memorySlices: memorySlices,
 		}
 	}
 }
@@ -65,7 +72,7 @@ func (c *ComparableTypedColumn[C]) Append(tick Tick, component ErasedComponent) 
 		Value:   *value,
 		Added:   tick,
 		Changed: tick,
-		Hash:    hashOf(value),
+		Hash:    hashOf(c.memorySlices, unsafe.Pointer(value)),
 	})
 }
 
@@ -110,7 +117,7 @@ func (c *ComparableTypedColumn[C]) Update(tick Tick, row Row, erasedValue Erased
 	target := &c.Values[row]
 	target.Value = erasedValue.(C)
 
-	if hash := hashOf(&target.Value); hash != target.Hash {
+	if hash := hashOf(c.memorySlices, unsafe.Pointer(&target.Value)); hash != target.Hash {
 		target.Hash = hash
 		target.Changed = tick
 	}
@@ -124,13 +131,73 @@ func (c *ComparableTypedColumn[C]) CheckChanged(tick Tick) {
 	for idx := range c.Values {
 		cv := &c.Values[idx]
 
-		if hash := hashOf(&cv.Value); hash != cv.Hash {
+		if hash := hashOf(c.memorySlices, unsafe.Pointer(&cv.Value)); hash != cv.Hash {
 			cv.Hash = hash
 			cv.Changed = tick
 		}
 	}
 }
 
-func hashOf[C IsComparableComponent[C]](value *C) HashValue {
+// maphashOf is a safe hash that uses the maphash package to hash a value of type C.
+func maphashOf[C IsComparableComponent[C]](value *C) HashValue {
 	return HashValue(maphash.Comparable[C](seed, *value))
+}
+
+// hashOf calculates the hash of a value. This method is not as safe as maphashOf, but a lot faster.
+// This will hash the memorySlice values passed in.
+func hashOf(memorySlices []memorySlice, value unsafe.Pointer) HashValue {
+	var hashValue HashValue
+
+	//goland:noinspection GoRedundantConversion
+	for _, slice := range memorySlices {
+		start := unsafe.Add(value, slice.Start)
+		byteSlice := unsafe.Slice((*byte)(start), slice.Len)
+
+		hashValue = hashValue ^ HashValue(maphash.Bytes(seed, byteSlice))
+	}
+
+	return hashValue
+}
+
+type memorySlice struct {
+	Start uintptr
+	Len   uintptr
+}
+
+// memorySlicesOf returns a slice of memorySlice instances that define the bytes that
+// are actually defined and do not contain padding within the type. The type itself must
+// be a comparable struct.
+func memorySlicesOf(t reflect.Type, base uintptr, slices []memorySlice) []memorySlice {
+	if t.Kind() != reflect.Struct || !t.Comparable() {
+		panic("memorySlicesOf only works with comparable struct types")
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		fieldStart := base + field.Offset
+
+		// Recursively check embedded structs (anonymous or not)
+		if field.Type.Kind() == reflect.Struct {
+			slices = memorySlicesOf(field.Type, fieldStart, slices)
+			continue
+		}
+
+		if len(slices) > 0 {
+			prev := &slices[len(slices)-1]
+			if prev.Start+prev.Len == fieldStart {
+				// we join the previous field, extend it
+				prev.Len += field.Type.Size()
+				continue
+			}
+		}
+
+		// there was a gap, add another slice
+		slices = append(slices, memorySlice{
+			Start: fieldStart,
+			Len:   field.Type.Size(),
+		})
+	}
+
+	return slices
 }

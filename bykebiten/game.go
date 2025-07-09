@@ -21,7 +21,7 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 	app.AddSystems(byke.Render, renderSpritesSystem)
-	app.AddSystems(byke.PostUpdate, propagateTransformSystem)
+	app.AddSystems(byke.PostUpdate, byke.System(syncSimpleTransformSystem, propagateTransformSystem).Chain())
 
 	// start the game
 	app.RunWorld(runWorld)

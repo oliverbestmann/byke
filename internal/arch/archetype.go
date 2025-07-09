@@ -172,27 +172,34 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 		return EntityRef{}, false
 	}
 
-	return a.rowAt(row, nil), true
+	return a.rowAt(row), true
 }
 
-func (a *Archetype) rowAt(row Row, reuseComponents []ComponentValue) EntityRef {
-	// TODO take slice to reuse as parameter?
-	values := reuseComponents[:0]
-	for _, column := range a.columns {
-		value := column.Get(row)
-		values = append(values, value)
+func (a *Archetype) GetComponentAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
+	if int(row) >= len(a.entities) {
+		return ComponentValue{}, false
 	}
+
+	column, ok := a.columnsByType[componentType]
+	if !ok {
+		return ComponentValue{}, false
+	}
+
+	return column.Get(row), true
+}
+
+func (a *Archetype) rowAt(row Row) EntityRef {
 
 	return EntityRef{
-		EntityId:   a.entities[row],
-		Components: values,
+		EntityId:  a.entities[row],
+		archetype: a,
+		row:       row,
 	}
 }
 
-func (a *Archetype) Iter(scratch *[]ComponentValue) ArchetypeIter {
+func (a *Archetype) Iter() ArchetypeIter {
 	return ArchetypeIter{
 		archetype: a,
-		scratch:   scratch,
 	}
 }
 
@@ -277,7 +284,6 @@ func (a *Archetype) GetComponent(entityId EntityId, componentType *ComponentType
 
 type ArchetypeIter struct {
 	archetype *Archetype
-	scratch   *[]ComponentValue
 	row       Row
 }
 
@@ -286,25 +292,29 @@ func (iter *ArchetypeIter) More() bool {
 }
 
 func (iter *ArchetypeIter) Next() EntityRef {
-	entity := iter.archetype.rowAt(iter.row, (*iter.scratch)[:0])
+	entity := iter.archetype.rowAt(iter.row)
 	iter.row += 1
-	*iter.scratch = entity.Components[:0]
 	return entity
 }
 
 type EntityRef struct {
-	EntityId   EntityId
-	Components []ComponentValue
+	EntityId  EntityId
+	row       Row
+	archetype *Archetype
 }
 
-func (e EntityRef) Get(ty *ComponentType) (*ComponentValue, bool) {
-	for idx := range e.Components {
-		if e.Components[idx].Type == ty {
-			return &e.Components[idx], true
-		}
+func (e EntityRef) Get(ty *ComponentType) (ComponentValue, bool) {
+	return e.archetype.GetComponentAt(e.row, ty)
+}
+
+func (e EntityRef) Components() []ComponentValue {
+	values := make([]ComponentValue, 0, len(e.archetype.columns))
+
+	for _, column := range e.archetype.columns {
+		values = append(values, column.Get(e.row))
 	}
 
-	return nil, false
+	return values
 }
 
 type Archetypes struct {

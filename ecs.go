@@ -407,7 +407,7 @@ func (w *World) Despawn(entityId EntityId) {
 		}
 
 		// update relationships
-		for _, component := range entity.Components {
+		for _, component := range entity.Components() {
 			if parentComponent, ok := w.parentComponentOf(component.Value); ok {
 				parentComponent.removeChild(entityId)
 			}

@@ -183,13 +183,8 @@ func (s *Storage) IterQuery(q *Query) iter.Seq[EntityRef] {
 	archetypesIter := s.archetypeIterForQuery(q)
 
 	return func(yield func(EntityRef) bool) {
-		// get a ComponentValue slice from the scratch pool
-		// to minimize allocations
-		scratch := componentValueSlices.Get().(*[]ComponentValue)
-		defer func() { componentValueSlices.Put(scratch) }()
-
 		for archetype := range archetypesIter {
-			it := archetype.Iter(scratch)
+			it := archetype.Iter()
 
 			for it.More() {
 				entity := it.Next()
