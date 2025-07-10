@@ -30,7 +30,6 @@ func spawnTitleMenuSystem(commands *Commands, screenSize ScreenSize) {
 			NewTransform().WithTranslation(screenSize.Mul(0.5)),
 			Text{Text: "Start game"},
 			Clickable{},
-			Size{},
 		).
 		Observe(func(_ On[Clicked], screenState *NextState[Screen]) {
 			screenState.Set(ScreenGame)

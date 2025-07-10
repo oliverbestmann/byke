@@ -2,6 +2,7 @@ package bykebiten
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	"github.com/oliverbestmann/byke/gm"
@@ -10,13 +11,14 @@ import (
 
 var _ = byke.ValidateComponent[Sprite]()
 var _ = byke.ValidateComponent[Layer]()
-var _ = byke.ValidateComponent[Size]()
+var _ = byke.ValidateComponent[ComputedSize]()
 var _ = byke.ValidateComponent[ColorTint]()
 var _ = byke.ValidateComponent[Anchor]()
 
 type Sprite struct {
 	byke.ComparableComponent[Sprite]
-	Image *ebiten.Image
+	Image      *ebiten.Image
+	CustomSize *gm.Vec
 }
 
 func (Sprite) RequireComponents() []byke.ErasedComponent {
@@ -26,12 +28,13 @@ func (Sprite) RequireComponents() []byke.ErasedComponent {
 			Scale: gm.VecOf(1.0, 1.0),
 		},
 		AnchorCenter,
+		ComputedSize{},
 		ColorTint{Color: color.White},
 	}
 }
 
-type Size struct {
-	byke.ComparableComponent[Size]
+type ComputedSize struct {
+	byke.ComparableComponent[ComputedSize]
 	gm.Vec
 }
 
@@ -57,83 +60,167 @@ type RenderTarget struct {
 	*ebiten.Image
 }
 
-type renderSpritesValue struct {
-	Sprite          Sprite
-	GlobalTransform GlobalTransform
-	Layer           Layer
-	ColorTint       ColorTint
-	Anchor          Anchor
-	Size            byke.Option[Size]
-}
-
-type renderSpritesCache struct {
-	sprites []renderSpritesValue
-}
-
-func renderSpritesSystem(
-	screen RenderTarget,
-	sprites byke.Query[renderSpritesValue],
-	cache *byke.Local[renderSpritesCache],
-) {
-	// re-use the slice
-	items := slices.AppendSeq(cache.Value.sprites[:0], sprites.Items())
-
-	defer func() {
-		clear(items)
-		cache.Value.sprites = items[:0]
-	}()
-
-	slices.SortFunc(items, func(a, b renderSpritesValue) int {
-		switch {
-		case a.Layer.Z < b.Layer.Z:
-			return -1
-
-		case a.Layer.Z > b.Layer.Z:
-			return 1
-
-		default:
-			return 0
-		}
-	})
-
-	for _, item := range items {
-		size, hasCustomSize := item.Size.Get()
-		imageSize := ImageSizeOf(item.Sprite.Image)
-
-		var op ebiten.DrawImageOptions
-
-		// offset by anchor
-		offset := imageSize.MulEach(item.Anchor.Vec)
-		op.GeoM.Translate(-offset.X, -offset.Y)
-
-		// get transformation
-		tr := item.GlobalTransform
-
-		if hasCustomSize {
-			// apply custom size if available
-			scale := size.DivEach(imageSize)
-			op.GeoM.Scale(scale.X, scale.Y)
-		}
-
-		// apply custom size based on transform
-		op.GeoM.Scale(tr.Scale.X, tr.Scale.Y)
-
-		// apply rotation
-		op.GeoM.Rotate(float64(tr.Rotation))
-
-		// move to target position
-		op.GeoM.Translate(tr.Translation.X, tr.Translation.Y)
-
-		// apply color
-		op.ColorScale.Scale(item.ColorTint.PremultipliedValues())
-
-		screen.DrawImage(item.Sprite.Image, &op)
-	}
-}
-
 func ImageSizeOf(image *ebiten.Image) gm.Vec {
 	return gm.Vec{
 		X: float64(image.Bounds().Dx()),
 		Y: float64(image.Bounds().Dy()),
+	}
+}
+
+type renderCommonValues struct {
+	ComputedSize ComputedSize
+	Anchor       Anchor
+	ColorTint    ColorTint
+	Layer        Layer
+	Transform    GlobalTransform
+}
+
+type renderSpritesValue struct {
+	Common renderCommonValues
+	Sprite Sprite
+}
+
+func (r *renderSpritesValue) commonValues() *renderCommonValues {
+	return &r.Common
+}
+
+func computeSpriteSizeSystem(
+	query byke.Query[struct {
+		byke.Changed[Sprite]
+
+		ComputedSize *ComputedSize
+		Sprite       Sprite
+	}],
+) {
+	for item := range query.Items() {
+		item.ComputedSize.Vec = ImageSizeOf(item.Sprite.Image)
+	}
+}
+
+func computeTextSizeSystem(
+	query byke.Query[struct {
+		byke.Or[byke.Changed[Text], byke.Changed[TextFace]]
+
+		ComputedSize *ComputedSize
+		Text         Text
+		TextFace     TextFace
+	}],
+) {
+	for item := range query.Items() {
+		lineSpacing := item.TextFace.Face.Metrics().VLineGap
+		size := gm.VecOf(text.Measure(item.Text.Text, item.TextFace.Face, lineSpacing))
+		item.ComputedSize.Vec = size
+	}
+}
+
+type renderTextsValue struct {
+	Common renderCommonValues
+	Text   Text
+	Face   TextFace
+}
+
+func (r *renderTextsValue) commonValues() *renderCommonValues {
+	return &r.Common
+}
+
+type renderCache struct {
+	Sprites []renderSpritesValue
+	Texts   []renderTextsValue
+	Joined  []hasCommonValues
+}
+
+func renderSystem(
+	screen RenderTarget,
+	spritesQuery byke.Query[renderSpritesValue],
+	textsQuery byke.Query[renderTextsValue],
+	cache *byke.Local[renderCache],
+) {
+	c := &cache.Value
+
+	defer func() {
+		clear(c.Sprites)
+		clear(c.Texts)
+		clear(c.Joined)
+	}()
+
+	// re-use the slice
+	c.Sprites = slices.AppendSeq(c.Sprites[:0], spritesQuery.Items())
+	c.Texts = slices.AppendSeq(c.Texts[:0], textsQuery.Items())
+
+	c.Joined = c.Joined[:0]
+
+	for idx := range c.Sprites {
+		c.Joined = append(c.Joined, &c.Sprites[idx])
+	}
+
+	for idx := range c.Texts {
+		c.Joined = append(c.Joined, &c.Texts[idx])
+	}
+
+	// sort sprites by layer
+	slices.SortFunc(c.Joined, func(a, b hasCommonValues) int {
+		return compareZ(a.commonValues(), b.commonValues())
+	})
+
+	for _, item := range c.Joined {
+		common := item.commonValues()
+
+		itemSize := common.ComputedSize.Vec
+
+		var g ebiten.GeoM
+
+		// offset by anchor
+		offset := itemSize.MulEach(common.Anchor.Vec)
+		g.Translate(-offset.X, -offset.Y)
+
+		// get transformation
+		tr := common.Transform
+
+		// apply custom size if available
+		scale := itemSize.DivEach(itemSize)
+		g.Scale(scale.X, scale.Y)
+
+		// apply custom size based on transform
+		g.Scale(tr.Scale.X, tr.Scale.Y)
+
+		// apply rotation
+		g.Rotate(float64(tr.Rotation))
+
+		// move to target position
+		g.Translate(tr.Translation.X, tr.Translation.Y)
+
+		// apply color
+		var colorScale ebiten.ColorScale
+		colorScale.Scale(common.ColorTint.PremultipliedValues())
+
+		switch item := item.(type) {
+		case *renderSpritesValue:
+			var op ebiten.DrawImageOptions
+			op.GeoM = g
+			op.ColorScale = colorScale
+			screen.DrawImage(item.Sprite.Image, &op)
+
+		case *renderTextsValue:
+			var op text.DrawOptions
+			op.GeoM = g
+			op.ColorScale = colorScale
+			op.LineSpacing = item.Face.Metrics().VLineGap
+			text.Draw(screen.Image, item.Text.Text, item.Face, &op)
+		}
+	}
+}
+
+type hasCommonValues interface {
+	commonValues() *renderCommonValues
+}
+
+func compareZ(a, b *renderCommonValues) int {
+	switch {
+	case a.Layer.Z < b.Layer.Z:
+		return -1
+	case a.Layer.Z > b.Layer.Z:
+		return 1
+	default:
+		return 0
 	}
 }

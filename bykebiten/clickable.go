@@ -14,7 +14,7 @@ type Clicked struct{}
 func checkClickSystem(commands *Commands, mouseCursor MouseCursor, buttons MouseButtons, query Query[struct {
 	With[Clickable]
 	EntityId
-	Size            Size
+	Size            ComputedSize
 	Anchor          Option[Anchor]
 	GlobalTransform GlobalTransform
 }]) {

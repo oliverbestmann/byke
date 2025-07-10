@@ -31,7 +31,7 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 		Chain().
 		InSet(TransformSystems))
 
-	app.AddSystems(byke.Render, renderSpritesSystem, renderTextSystem)
+	app.AddSystems(byke.Render, byke.System(computeSpriteSizeSystem, computeTextSizeSystem, renderSystem).Chain())
 
 	// start the game
 	app.RunWorld(runWorld)
