@@ -55,6 +55,7 @@ func (a Affine) Mul(other Affine) Affine {
 }
 
 // Inverse returns the inverse of the Affine transformation.
+// This method will panic if an inverse can not be calculated.
 func (a Affine) Inverse() Affine {
 	mat := a.Matrix.Inverse()
 	translation := mat.Transform(a.Translation).Mul(-1)
@@ -62,4 +63,20 @@ func (a Affine) Inverse() Affine {
 		Matrix:      mat,
 		Translation: translation,
 	}
+}
+
+// TryInverse returns the inverse of the Affine transformation if possible.
+func (a Affine) TryInverse() (inverse Affine, ok bool) {
+	mat, ok := a.Matrix.TryInverse()
+	if !ok {
+		return Affine{}, false
+	}
+
+	translation := mat.Transform(a.Translation).Mul(-1)
+	inverse = Affine{
+		Matrix:      mat,
+		Translation: translation,
+	}
+
+	return inverse, true
 }

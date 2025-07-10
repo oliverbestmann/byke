@@ -64,13 +64,25 @@ func (m Mat) Mul(n Mat) Mat {
 // matrix is zero, the matrix is not invertible. In this case, this method will
 // panic.
 func (m Mat) Inverse() Mat {
-	det := m.Determinant()
-	if det == 0 {
+	inverse, ok := m.TryInverse()
+	if !ok {
 		panic("matrix is not invertible")
 	}
 
+	return inverse
+}
+
+// TryInverse calculates the inverse of the matrix if possible. If the Determinant of the
+// matrix is zero, the matrix is not invertible and the second return value will be false.
+func (m Mat) TryInverse() (inverse Mat, ok bool) {
+	det := m.Determinant()
+	if det == 0 {
+		return Mat{}, false
+	}
+
 	f := 1 / det
-	return Mat{
+
+	inverse = Mat{
 		XAxis: Vec{
 			X: f * m.YAxis.Y,
 			Y: f * -m.XAxis.Y,
@@ -80,6 +92,8 @@ func (m Mat) Inverse() Mat {
 			Y: f * m.XAxis.X,
 		},
 	}
+
+	return inverse, true
 }
 
 // Determinant returns the determinant of the matrix

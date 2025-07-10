@@ -24,14 +24,20 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 
-	app.AddSystems(byke.PreUpdate, byke.System(checkClickSystem))
+	app.AddSystems(byke.PreUpdate, byke.System(interactionSystem))
 
 	app.AddSystems(byke.PostUpdate, byke.
 		System(syncSimpleTransformSystem, propagateTransformSystem).
 		Chain().
 		InSet(TransformSystems))
 
-	app.AddSystems(byke.Render, byke.System(computeSpriteSizeSystem, computeTextSizeSystem, renderSystem).Chain())
+	app.AddSystems(byke.PreRender,
+		computeCachedVertices,
+		computeSpriteSizeSystem,
+		computeTextSizeSystem,
+	)
+
+	app.AddSystems(byke.Render, byke.System(renderSystem).Chain())
 
 	// start the game
 	app.RunWorld(runWorld)
@@ -66,7 +72,7 @@ func (g *game) Update() error {
 
 func (g *game) Draw(screen *ebiten.Image) {
 	g.World.InsertResource(RenderTarget{Image: screen})
-	g.World.InsertResource(ScreenSize{Vec: ImageSizeOf(screen)})
+	g.World.InsertResource(ScreenSize{Vec: imageSizeOf(screen)})
 
 	g.World.RunSchedule(byke.Main)
 }

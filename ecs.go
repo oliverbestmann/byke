@@ -275,7 +275,6 @@ func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
 	// TODO maybe check for valid event? Better introduce an Event interface
 	w.RunSystem(func(observers Query[*Observer], commands *Commands) {
 		for observer := range observers.Items() {
-			fmt.Println(observer.eventType, eventType)
 			if observer.eventType != eventType {
 				continue
 			}

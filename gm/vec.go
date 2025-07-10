@@ -129,5 +129,5 @@ func (v VecType[S]) VecTo(other VecType[S]) VecType[S] {
 }
 
 func (v VecType[S]) String() string {
-	return fmt.Sprintf("vec(x=%v, y=%v)", v.X, v.Y)
+	return fmt.Sprintf("[%v, %v]", v.X, v.Y)
 }

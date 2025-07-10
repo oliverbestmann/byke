@@ -104,6 +104,9 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 	// remove it from the previous archetype
 	archetype.Remove(entityId)
 
+	// update index
+	s.entityToArchetype[entityId] = newArchetype
+
 	return copyOfComponent, true
 }
 

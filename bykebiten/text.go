@@ -4,7 +4,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	. "github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/assets"
-	"github.com/oliverbestmann/byke/bykebiten/color"
+	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/internal/arch"
 	"sync"
 )
@@ -22,17 +22,33 @@ type Text struct {
 }
 
 func (t Text) RequireComponents() []arch.ErasedComponent {
-	return []ErasedComponent{
+	components := []ErasedComponent{
 		TextFace{Face: DefaultFontFace()},
-		Layer{},
-		Transform{},
-		ColorTint{Color: color.White},
-		AnchorCenter,
-		ComputedSize{},
 	}
+
+	return append(components, commonRenderComponents...)
 }
 
 type TextFace struct {
 	ComparableComponent[TextFace]
 	text.Face
+}
+
+func computeTextSizeSystem(
+	query Query[struct {
+		Or[Changed[Text], Changed[TextFace]]
+
+		BBox     *BBox
+		Text     Text
+		TextFace TextFace
+		Anchor   Anchor
+	}],
+) {
+	for item := range query.Items() {
+		lineSpacing := item.TextFace.Face.Metrics().VLineGap
+		size := gm.VecOf(text.Measure(item.Text.Text, item.TextFace.Face, lineSpacing))
+
+		origin := item.Anchor.MulEach(size)
+		item.BBox.Rect = gm.RectWithOriginAndSize(origin, size)
+	}
 }
