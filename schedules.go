@@ -11,6 +11,10 @@ type scheduleId struct {
 
 func (*scheduleId) isSchedule() {}
 
+func MakeScheduleId() ScheduleId {
+	return &scheduleId{}
+}
+
 var (
 	Main             ScheduleId = &scheduleId{}
 	RunFixedMainLoop ScheduleId = &scheduleId{}

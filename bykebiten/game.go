@@ -6,6 +6,8 @@ import (
 	"github.com/oliverbestmann/byke/gm"
 )
 
+var TransformSystems = &byke.SystemSet{}
+
 var GamePlugin byke.PluginFunc = func(app *byke.App) {
 	app.InsertResource(WindowConfig{
 		Title:  "Ebitengine",
@@ -17,11 +19,19 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 	app.InsertResource(RenderTarget{})
 	app.InsertResource(ScreenSize{})
 
+	app.InsertResource(MouseButtons{})
 	app.InsertResource(Keys{})
 
 	app.AddSystems(byke.First, updateMouseCursorSystem)
-	app.AddSystems(byke.Render, renderSpritesSystem)
-	app.AddSystems(byke.PostUpdate, byke.System(syncSimpleTransformSystem, propagateTransformSystem).Chain())
+
+	app.AddSystems(byke.PreUpdate, byke.System(checkClickSystem))
+
+	app.AddSystems(byke.PostUpdate, byke.
+		System(syncSimpleTransformSystem, propagateTransformSystem).
+		Chain().
+		InSet(TransformSystems))
+
+	app.AddSystems(byke.Render, renderSpritesSystem, renderTextSystem)
 
 	// start the game
 	app.RunWorld(runWorld)
@@ -38,7 +48,10 @@ func runWorld(world *byke.World) error {
 	ebiten.SetWindowTitle(win.Title)
 	ebiten.SetWindowSize(win.Width, win.Height)
 
-	return ebiten.RunGame(&game{World: world})
+	var options ebiten.RunGameOptions
+	options.SingleThread = true
+
+	return ebiten.RunGameWithOptions(&game{World: world}, &options)
 }
 
 type game struct {

@@ -45,6 +45,7 @@ type Anchor struct {
 	gm.Vec
 }
 
+var AnchorTopLeft = Anchor{Vec: gm.Vec{}}
 var AnchorCenter = Anchor{Vec: gm.Vec{X: 0.5, Y: 0.5}}
 
 type ColorTint struct {

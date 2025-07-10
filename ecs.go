@@ -103,20 +103,28 @@ func (w *World) RunSystem(system AnySystem) {
 	w.runSystem(preparedSystem, systemContext{})
 }
 
-func (w *World) runSystem(system *preparedSystem, ctx systemContext) {
+func (w *World) runSystem(system *preparedSystem, ctx systemContext) any {
+	for _, predicate := range system.Predicates {
+		result := w.runSystem(predicate, systemContext{})
+		if result == nil || !result.(bool) {
+			// predicate evaluated to "do not run", stop execution here
+			return nil
+		}
+	}
+
 	w.currentTick += 1
 
 	ctx.LastRun = system.LastRun
-	system.RawSystem(ctx)
+	result := system.RawSystem(ctx)
 
 	// update last run so we can calculate changed components
 	// at the next run
 	system.LastRun = w.currentTick
+
+	return result
 }
 
-func (w *World) prepareSystem(system *systemConfig) *preparedSystem {
-	systemConfig := asSystemConfig(system)
-
+func (w *World) prepareSystem(systemConfig *systemConfig) *preparedSystem {
 	// check cache first
 	prepared, ok := w.systems[systemConfig.Id]
 	if ok {
@@ -124,7 +132,7 @@ func (w *World) prepareSystem(system *systemConfig) *preparedSystem {
 	}
 
 	// need to prepare the system
-	prepared = prepareSystem(w, *systemConfig)
+	prepared = w.prepareSystemUncached(*systemConfig)
 	w.systems[systemConfig.Id] = prepared
 
 	return prepared

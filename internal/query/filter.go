@@ -52,12 +52,16 @@ func (c *Option[C]) MustGet() C {
 }
 
 func (c *Option[C]) OrZero() C {
+	var zeroValue C
+	return c.Or(zeroValue)
+}
+
+func (c *Option[C]) Or(fallbackValue C) C {
 	if c.value != nil {
 		return *c.value
 	}
 
-	var zeroValue C
-	return zeroValue
+	return fallbackValue
 }
 
 type OptionMut[C arch.IsComponent[C]] struct {

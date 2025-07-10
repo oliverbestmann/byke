@@ -23,7 +23,7 @@ type systemContext struct {
 	LastRun Tick
 }
 
-func prepareSystem(w *World, config systemConfig) *preparedSystem {
+func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 	rSystem := config.SystemFunc
 
 	if rSystem.Kind() != reflect.Func {
@@ -114,6 +114,18 @@ func prepareSystem(w *World, config systemConfig) *preparedSystem {
 		}
 
 		return returnValue
+	}
+
+	// prepare predicate systems if any
+	for _, predicate := range config.Predicates {
+		for _, system := range asSystemConfigs(predicate) {
+			predicateSystem := w.prepareSystem(system)
+			if !predicateSystem.IsPredicate {
+				panic("predicate system is not actually a predicate")
+			}
+
+			preparedSystem.Predicates = append(preparedSystem.Predicates, predicateSystem)
+		}
 	}
 
 	return preparedSystem
