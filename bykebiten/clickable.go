@@ -6,11 +6,11 @@ import (
 )
 
 type Hovered struct {
-	ComparableComponent[Hovered]
+	ImmutableComponent[Hovered]
 }
 
 type Interactable struct {
-	Component[Interactable]
+	ImmutableComponent[Interactable]
 }
 
 type Clicked struct{}

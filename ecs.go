@@ -12,9 +12,11 @@ import (
 type Tick = arch.Tick
 type EntityId = arch.EntityId
 type IsComponent[T any] = arch.IsComponent[T]
+type IsImmutableComponent[T IsComponent[T]] = arch.IsImmutableComponent[T]
 type IsComparableComponent[T IsComponent[T]] = arch.IsComparableComponent[T]
 
 type Component[T IsComponent[T]] = arch.Component[T]
+type ImmutableComponent[T arch.IsImmutableComponent[T]] = arch.ImmutableComponent[T]
 type ComparableComponent[T IsComparableComponent[T]] = arch.ComparableComponent[T]
 
 type ErasedComponent = arch.ErasedComponent

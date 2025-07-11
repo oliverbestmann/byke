@@ -8,14 +8,14 @@ type IsComponent[T any] interface {
 type IsComparableComponent[T IsComponent[T]] interface {
 	IsComponent[T]
 	IsSupportsChangeDetectionComponent[T]
-	isErasedComparableComponent
+	IsErasedComparableComponent
 	comparable
 }
 
 type IsImmutableComponent[T IsComponent[T]] interface {
 	IsComponent[T]
 	IsSupportsChangeDetectionComponent[T]
-	isErasedImmutableComponent
+	IsErasedImmutableComponent
 }
 
 type Component[C IsComponent[C]] struct{}
@@ -28,7 +28,7 @@ func (Component[C]) ComponentType() *ComponentType {
 	return nonComparableComponentTypeOf[C]()
 }
 
-type ImmutableComponent[C IsComponent[C]] struct{}
+type ImmutableComponent[C IsImmutableComponent[C]] struct{}
 
 func (ImmutableComponent[C]) IsComponent(C) {}
 
@@ -37,6 +37,8 @@ func (ImmutableComponent[C]) isComponent(isComponentMarker) {}
 func (ImmutableComponent[C]) ComponentType() *ComponentType {
 	return nonComparableComponentTypeOf[C]()
 }
+
+func (ImmutableComponent[T]) isImmutableComponent(componentMarkerType) {}
 
 func (ImmutableComponent[T]) supportsChangeDetection(componentMarkerType) {}
 
@@ -56,11 +58,11 @@ func (ComparableComponent[T]) supportsChangeDetection(componentMarkerType) {}
 
 type componentMarkerType struct{}
 
-type isErasedComparableComponent interface {
+type IsErasedComparableComponent interface {
 	isComparableComponent(componentMarkerType)
 }
 
-type isErasedImmutableComponent interface {
+type IsErasedImmutableComponent interface {
 	isImmutableComponent(componentMarkerType)
 }
 

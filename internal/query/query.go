@@ -81,6 +81,10 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 		return nil
 
 	case isMutableComponent(queryType):
+		if isImmutableComponent(queryType.Elem()) {
+			panic(fmt.Sprintf("Can not inject pointer to ImmutableComponent %s", queryType.Elem()))
+		}
+
 		componentType := refl.ComponentTypeOf(queryType.Elem())
 		query.Fetch = append(query.Fetch, componentType)
 		result.Mutable = append(result.Mutable, componentType)
@@ -149,6 +153,10 @@ func isStructQuery(ty reflect.Type) bool {
 
 func isMutableComponent(ty reflect.Type) bool {
 	return ty.Kind() == reflect.Pointer && refl.IsComponent(ty.Elem())
+}
+
+func isImmutableComponent(ty reflect.Type) bool {
+	return ty.Kind() != reflect.Pointer && ty.Implements(reflect.TypeFor[arch.IsErasedImmutableComponent]())
 }
 
 func isFilter(ty reflect.Type) bool {
