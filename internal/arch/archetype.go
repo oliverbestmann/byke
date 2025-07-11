@@ -17,9 +17,11 @@ type Archetype struct {
 
 	entities []EntityId
 	columns  []Column
+	getters  []RowGetter
 	index    map[EntityId]Row
 
 	columnsByType map[*ComponentType]Column
+	gettersByType map[*ComponentType]RowGetter
 }
 
 func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
@@ -32,14 +34,20 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 	}
 
 	columnsByType := map[*ComponentType]Column{}
+	gettersByType := map[*ComponentType]RowGetter{}
 
 	var columns []Column
+	var getters []RowGetter
 	for _, ty := range sortedTypes {
 		column := ty.MakeColumn()
 		columns = append(columns, column)
 
+		getter := column.Getter()
+		getters = append(getters, getter)
+
 		// put column into index too
 		columnsByType[ty] = column
+		gettersByType[ty] = getter
 	}
 
 	return &Archetype{
@@ -47,7 +55,9 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 		Types:         sortedTypes,
 		entities:      nil,
 		columns:       columns,
+		getters:       getters,
 		columnsByType: columnsByType,
+		gettersByType: gettersByType,
 		index:         map[EntityId]Row{},
 	}
 }
@@ -176,12 +186,27 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 }
 
 func (a *Archetype) GetComponentAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
-	column, ok := a.columnsByType[componentType]
-	if !ok {
+	var getter RowGetter
+
+	if len(a.Types) < 8 {
+		// for small archetypes, a simple linear lookup is a little faster
+		_ = a.getters[len(a.Types)-1]
+
+		for idx, ty := range a.Types {
+			if ty == componentType {
+				getter = a.getters[idx]
+				break
+			}
+		}
+	} else {
+		getter = a.gettersByType[componentType]
+	}
+
+	if getter == nil {
 		return ComponentValue{}, false
 	}
 
-	return column.Get(row), true
+	return getter(row), true
 }
 
 func (a *Archetype) rowAt(row Row) EntityRef {

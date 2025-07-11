@@ -8,6 +8,8 @@ import (
 
 type Row uint32
 
+type RowGetter = func(Row) ComponentValue
+
 type Column interface {
 	Append(tick Tick, component ErasedComponent)
 	Copy(from, to Row)
@@ -17,6 +19,8 @@ type Column interface {
 	Import(other Column, row Row)
 	CheckChanged(tick Tick)
 	Len() int
+
+	Getter() func(Row) ComponentValue
 }
 
 type TypedColumn[C IsComponent[C]] struct {
@@ -117,6 +121,10 @@ func (c *TypedColumn[C]) Get(row Row) ComponentValue {
 		Hash:    t.Hash,
 		Value:   any(&t.Value).(ErasedComponent),
 	}
+}
+
+func (c *TypedColumn[C]) Getter() func(Row) ComponentValue {
+	return c.Get
 }
 
 func (c *TypedColumn[C]) Update(tick Tick, row Row, erasedValue ErasedComponent) {

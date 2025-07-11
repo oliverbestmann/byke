@@ -44,6 +44,10 @@ func (c *ImmutableTypedColumn[C]) Get(row Row) ComponentValue {
 	}
 }
 
+func (c *ImmutableTypedColumn[C]) Getter() func(Row) ComponentValue {
+	return c.Get
+}
+
 func (c *ImmutableTypedColumn[C]) Update(tick Tick, row Row, erasedValue ErasedComponent) {
 	target := &c.Values[row]
 	target.Value = erasedValue.(C)
