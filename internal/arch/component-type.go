@@ -1,6 +1,7 @@
 package arch
 
 import (
+	"fmt"
 	"hash/maphash"
 	"reflect"
 	"unsafe"
@@ -53,14 +54,20 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 }
 
 func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
-	ptrToType := abiTypePointerTo(reflect.TypeFor[C]())
+	reflectType := reflect.TypeFor[C]()
+
+	ptrToType := abiTypePointerTo(reflectType)
 	ty, ok := componentTypes[ptrToType]
 
 	if !ok {
+		if typeHasPaddingBytes(reflectType) {
+			fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
+		}
+
 		ty = &ComponentType{
 			Id:   int64(len(componentTypes) + 1),
-			Type: reflect.TypeFor[C](),
-			Name: reflect.TypeFor[C]().String(),
+			Type: reflectType,
+			Name: reflectType.String(),
 		}
 
 		ty.MakeColumn = MakeColumnOf[C](ty)

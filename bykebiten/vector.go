@@ -79,7 +79,7 @@ type Path struct {
 	// the inner_ vector.Path is not hashable. To still make this type comparable, we
 	// use a pointer to the actual path and then update the version field each time
 	// the inner_ path is modified to change the components hash.
-	version uint32
+	version uint64
 }
 
 func (Path) RequireComponents() []arch.ErasedComponent {

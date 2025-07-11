@@ -121,7 +121,7 @@ func (c *TypedColumn[C]) Get(row Row) ComponentValue {
 
 func (c *TypedColumn[C]) Update(tick Tick, row Row, erasedValue ErasedComponent) {
 	target := &c.Values[row]
-	target.Value = erasedValue.(C)
+	target.Value = *any(erasedValue).(*C)
 	target.Changed = tick
 }
 
@@ -180,7 +180,7 @@ type memorySlice struct {
 // are actually defined and do not contain padding within the type. The type itself must
 // be a comparable struct.
 func memorySlicesOf(t reflect.Type, base uintptr, slices []memorySlice) []memorySlice {
-	if t.Kind() != reflect.Struct || !t.Comparable() {
+	if t.Kind() != reflect.Struct {
 		panic("memorySlicesOf only works with comparable struct types")
 	}
 
@@ -212,4 +212,15 @@ func memorySlicesOf(t reflect.Type, base uintptr, slices []memorySlice) []memory
 	}
 
 	return slices
+}
+
+func typeHasPaddingBytes(t reflect.Type) bool {
+	slices := memorySlicesOf(t, 0, nil)
+	if len(slices) == 0 {
+		return false
+	}
+
+	last := slices[len(slices)-1]
+	size := last.Start + last.Len
+	return size < t.Size()
 }

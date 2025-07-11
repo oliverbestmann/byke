@@ -316,8 +316,7 @@ func TestRelationships(t *testing.T) {
 		})
 
 		w.RunSystem(func(q Query[Children]) {
-			require.Equal(t, 1, q.Count())
-			require.Empty(t, q.MustGet().Children())
+			require.Equal(t, 0, q.Count())
 		})
 	})
 
@@ -329,8 +328,7 @@ func TestRelationships(t *testing.T) {
 		})
 
 		w.RunSystem(func(q Query[Children]) {
-			require.Equal(t, 1, q.Count())
-			require.Empty(t, q.MustGet().Children())
+			require.Equal(t, 0, q.Count())
 		})
 	})
 
