@@ -12,7 +12,7 @@ import (
 type Tick = arch.Tick
 type EntityId = arch.EntityId
 type IsComponent[T any] = arch.IsComponent[T]
-type IsComparableComponent[T comparable] = arch.IsComparableComponent[T]
+type IsComparableComponent[T IsComponent[T]] = arch.IsComparableComponent[T]
 
 type Component[T IsComponent[T]] = arch.Component[T]
 type ComparableComponent[T IsComparableComponent[T]] = arch.ComparableComponent[T]

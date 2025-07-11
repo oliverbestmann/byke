@@ -30,6 +30,12 @@ type ComparableTypedColumn[C IsComparableComponent[C]] struct {
 }
 
 func MakeColumnOf[C IsComponent[C]](componentType *ComponentType) MakeColumn {
+	if componentType.Type.Size() == 0 {
+		// a zero sized type can never be modified in place, we can just go
+		// with an immutable column.
+		return MakeImmutableColumnOf[C](componentType)
+	}
+
 	return func() Column {
 		return &TypedColumn[C]{
 			ComponentType: componentType,
@@ -38,6 +44,12 @@ func MakeColumnOf[C IsComponent[C]](componentType *ComponentType) MakeColumn {
 }
 
 func MakeComparableColumnOf[C IsComparableComponent[C]](componentType *ComponentType) MakeColumn {
+	if componentType.Type.Size() == 0 {
+		// a zero sized type can never be modified in place, we can just go
+		// with an immutable column.
+		return MakeImmutableColumnOf[C](componentType)
+	}
+
 	memorySlices := memorySlicesOf(reflect.TypeFor[C](), 0, nil)
 
 	return func() Column {

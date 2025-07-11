@@ -153,7 +153,7 @@ func (Without[C]) applyTo(result *ParsedQuery) []arch.Filter {
 	}
 }
 
-type Changed[C arch.IsComparableComponent[C]] struct{}
+type Changed[C arch.IsSupportsChangeDetectionComponent[C]] struct{}
 
 func (Changed[C]) embeddable(isEmbeddableMarker) {}
 
@@ -180,7 +180,7 @@ func (Changed[C]) applyTo(result *ParsedQuery) []arch.Filter {
 	}
 }
 
-type Added[C arch.IsComparableComponent[C]] struct{}
+type Added[C arch.IsComponent[C]] struct{}
 
 func (Added[C]) embeddable(isEmbeddableMarker) {}
 
