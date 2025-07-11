@@ -159,7 +159,11 @@ func (w *World) ReserveEntityId() EntityId {
 
 }
 
-func (w *World) Spawn(entityId EntityId, components []ErasedComponent) EntityId {
+func (w *World) Spawn(components []ErasedComponent) EntityId {
+	return w.SpawnWithEntityId(w.ReserveEntityId(), components)
+}
+
+func (w *World) SpawnWithEntityId(entityId EntityId, components []ErasedComponent) EntityId {
 	if entityId == 0 {
 		entityId = w.ReserveEntityId()
 	}
@@ -220,7 +224,7 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 
 	for _, spawnChild := range spawnChildren {
 		components := append(spawnChild.Components, ChildOf{Parent: entityId})
-		w.Spawn(w.ReserveEntityId(), components)
+		w.SpawnWithEntityId(w.ReserveEntityId(), components)
 	}
 }
 
@@ -237,6 +241,10 @@ func (w *World) onComponentInsert(entityId EntityId, component ErasedComponent) 
 
 func (w *World) onComponentRemoved(entityId EntityId, component ErasedComponent) {
 	w.removeEntityFromParentComponentOf(entityId, component)
+
+	if registry, ok := ResourceOf[removedComponentsRegistry](w); ok {
+		registry.ComponentRemoved(entityId, component.ComponentType())
+	}
 }
 
 func (w *World) removeEntityFromParentComponentOf(entityId EntityId, component ErasedComponent) {
@@ -296,7 +304,7 @@ func (w *World) AddObserver(observer Observer) {
 	// are not well formed.
 	observer.system = w.prepareSystem(asSystemConfig(observer.callback))
 
-	w.Spawn(NoEntityId, []ErasedComponent{observer})
+	w.Spawn([]ErasedComponent{observer})
 }
 
 func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
@@ -452,7 +460,7 @@ func (w *World) Despawn(entityId EntityId) {
 
 		// update relationships
 		for _, component := range entity.Components() {
-			w.removeEntityFromParentComponentOf(entity.EntityId, component.Value)
+			w.onComponentRemoved(entityId, component.Value)
 
 			// despawn child entities too
 			if parentComponent, ok := component.Value.(isRelationshipTargetType); ok {

@@ -22,7 +22,7 @@ type Player struct {
 }
 
 type Enemy struct {
-	ComparableComponent[Enemy]
+	ImmutableComponent[Enemy]
 }
 
 var _ = ValidateComponent[Position]()
@@ -33,19 +33,19 @@ var _ = ValidateComponent[Enemy]()
 func buildSimpleWorld() *World {
 	w := NewWorld()
 
-	w.Spawn(w.ReserveEntityId(), []ErasedComponent{
+	w.SpawnWithEntityId(w.ReserveEntityId(), []ErasedComponent{
 		Named("Player"),
 		Player{},
 		Position{X: 1},
 		Velocity{X: 10},
 	})
 
-	w.Spawn(w.ReserveEntityId(), []ErasedComponent{
+	w.SpawnWithEntityId(w.ReserveEntityId(), []ErasedComponent{
 		Named("Tree"),
 		Position{X: 2},
 	})
 
-	w.Spawn(w.ReserveEntityId(), []ErasedComponent{
+	w.SpawnWithEntityId(w.ReserveEntityId(), []ErasedComponent{
 		Named("Enemy"),
 		Enemy{},
 		Position{X: 3},
@@ -324,7 +324,7 @@ func TestRelationships(t *testing.T) {
 		w, parentId, childId := makeWorld()
 
 		secondChildId := w.ReserveEntityId()
-		w.Spawn(secondChildId, []ErasedComponent{
+		w.SpawnWithEntityId(secondChildId, []ErasedComponent{
 			ChildOf{Parent: parentId},
 		})
 

@@ -67,5 +67,5 @@ func spawnTitleMenuSystem(commands *Commands, screenSize ScreenSize) {
 }
 
 func spawnPausedMenuSystem(commands *Commands) {
-	fmt.Println("Spawn paused menu")
+	fmt.Println("SpawnWithEntityId paused menu")
 }

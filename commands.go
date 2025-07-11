@@ -41,7 +41,7 @@ func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
 	entityId := c.world.ReserveEntityId()
 
 	c.Queue(func(world *World) {
-		world.Spawn(entityId, components)
+		world.SpawnWithEntityId(entityId, components)
 	})
 
 	return EntityCommands{

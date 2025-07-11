@@ -24,7 +24,7 @@ func pluginScreen(app *App) {
 }
 
 func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
-	fmt.Println("Spawn title screen")
+	fmt.Println("SpawnWithEntityId title screen")
 
 	commands.Spawn(
 		DespawnOnExitState(ScreenTitle),
@@ -43,5 +43,5 @@ func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
 }
 
 func spawnGameScreenSystem(commands *Commands) {
-	fmt.Println("Spawn game screen")
+	fmt.Println("SpawnWithEntityId game screen")
 }
