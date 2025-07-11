@@ -248,7 +248,7 @@ func TestChangeDetection(t *testing.T) {
 
 		// update one of the positions
 		w.RunSystem(func(q Query[*Position]) {
-			q.MustGet().X += 1
+			q.MustFirst().X += 1
 		})
 
 		// we should now see a change to exactly one of the fields
@@ -284,7 +284,7 @@ func TestRelationships(t *testing.T) {
 		// check that we can select the Children component
 		w.RunSystem(func(q Query[ParentItems]) {
 			require.EqualValues(t, 1, q.Count(), "expect to select one time")
-			item := q.MustGet()
+			item := q.MustFirst()
 
 			require.Len(t, item.Children.Children(), 1)
 			require.Equal(t, item.Children.Children()[0], childId)
@@ -300,7 +300,7 @@ func TestRelationships(t *testing.T) {
 		// check that we can select the parent component
 		w.RunSystem(func(q Query[ChildItems]) {
 			require.EqualValues(t, 1, q.Count())
-			item := q.MustGet()
+			item := q.MustFirst()
 
 			require.Equal(t, childId, item.EntityId)
 			require.Equal(t, parentId, item.ChildOf.Parent)
@@ -318,6 +318,54 @@ func TestRelationships(t *testing.T) {
 		w.RunSystem(func(q Query[Children]) {
 			require.Equal(t, 0, q.Count())
 		})
+	})
+
+	t.Run("mark Children as Changed", func(t *testing.T) {
+		w, parentId, childId := makeWorld()
+
+		secondChildId := w.ReserveEntityId()
+		w.Spawn(secondChildId, []ErasedComponent{
+			ChildOf{Parent: parentId},
+		})
+
+		type DetectChangesItem struct {
+			Changed[Children]
+			EntityId
+		}
+
+		var detectChangesSystemChecks func([]DetectChangesItem)
+		detectChangesSystem := func(q Query[DetectChangesItem]) {
+			detectChangesSystemChecks(slices.Collect(q.Items()))
+		}
+
+		detectChangesSystemChecks = func(items []DetectChangesItem) {
+			require.Equal(t, 1, len(items))
+		}
+		w.RunSystem(detectChangesSystem)
+
+		detectChangesSystemChecks = func(items []DetectChangesItem) {
+			require.Equal(t, 0, len(items))
+		}
+		w.RunSystem(detectChangesSystem)
+
+		w.RunSystem(func(commands *Commands) {
+			commands.Entity(childId).
+				Update(RemoveComponent[ChildOf]())
+		})
+
+		w.RunSystem(func(q Query[struct{ Children Children }]) {
+			require.Equal(t, 1, q.Count())
+			item := q.MustFirst()
+			children := item.Children.Children()
+			require.Len(t, children, 1)
+			require.Equal(t, secondChildId, children[0])
+		})
+
+		detectChangesSystemChecks = func(items []DetectChangesItem) {
+			require.Equal(t, 1, len(items))
+			require.Equal(t, parentId, items[0].EntityId)
+		}
+		w.RunSystem(detectChangesSystem)
 	})
 
 	t.Run("despawn child component", func(t *testing.T) {

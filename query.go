@@ -83,7 +83,7 @@ func (q *Query[T]) Items() iter.Seq[T] {
 	return q.items
 }
 
-func (q *Query[T]) MustGet() T {
+func (q *Query[T]) MustFirst() T {
 	for value := range q.items {
 		return value
 	}

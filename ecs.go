@@ -28,7 +28,7 @@ type Has[C IsComponent[C]] = query.Has[C]
 type With[C IsComponent[C]] = query.With[C]
 type Without[C IsComponent[C]] = query.Without[C]
 type Added[C IsComparableComponent[C]] = query.Added[C]
-type Changed[C IsComparableComponent[C]] = query.Changed[C]
+type Changed[C arch.IsSupportsChangeDetectionComponent[C]] = query.Changed[C]
 
 type Or[A, B query.Filter] = query.Or[A, B]
 
