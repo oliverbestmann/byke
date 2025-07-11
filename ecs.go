@@ -199,7 +199,7 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 		}
 
 		// must not be inserted if it is a parentComponent
-		if _, ok := component.(isParentComponent); ok {
+		if _, ok := component.(isRelationshipTargetType); ok {
 			panic(fmt.Sprintf(
 				"you may not insert a byke.RelationshipTarget yourself: %T", component,
 			))
@@ -225,9 +225,9 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 }
 
 func (w *World) onComponentInsert(entityId EntityId, component ErasedComponent) {
-	if parentComponent, parentId, ok := w.parentComponentOf(component, true); ok {
+	if parentComponent, parentId, ok := w.relationshipTargetComponentOf(component, true); ok {
 		// create a copy of the component
-		parentComponent = copyComponent(parentComponent).(isParentComponent)
+		parentComponent = copyComponent(parentComponent).(isRelationshipTargetType)
 		parentComponent.addChild(entityId)
 
 		// and replace its value by inserting it again
@@ -240,7 +240,7 @@ func (w *World) onComponentRemoved(entityId EntityId, component ErasedComponent)
 }
 
 func (w *World) removeEntityFromParentComponentOf(entityId EntityId, component ErasedComponent) {
-	if parentComponent, parentId, ok := w.parentComponentOf(component, false); ok {
+	if parentComponent, parentId, ok := w.relationshipTargetComponentOf(component, false); ok {
 		if parentComponent != nil {
 
 			// check if would need to remove the last element.
@@ -250,7 +250,7 @@ func (w *World) removeEntityFromParentComponentOf(entityId EntityId, component E
 				w.storage.RemoveComponent(w.currentTick, parentId, parentComponent.ComponentType())
 			} else {
 				// create a copy of the component without the child
-				parentComponent = copyComponent(parentComponent).(isParentComponent)
+				parentComponent = copyComponent(parentComponent).(isRelationshipTargetType)
 				parentComponent.removeChild(entityId)
 
 				// and replace its value by inserting it again
@@ -260,23 +260,23 @@ func (w *World) removeEntityFromParentComponentOf(entityId EntityId, component E
 	}
 }
 
-func (w *World) parentComponentOf(component ErasedComponent, create bool) (isParentComponent, EntityId, bool) {
-	child, ok := component.(isChildComponent)
+func (w *World) relationshipTargetComponentOf(component ErasedComponent, create bool) (isRelationshipTargetType, EntityId, bool) {
+	child, ok := component.(isRelationshipComponent)
 	if !ok {
 		return nil, 0, false
 	}
 
-	parentId := child.ParentEntityId()
+	parentId := child.RelationshipEntityId()
 
 	parent, ok := w.storage.Get(parentId)
 	if !ok {
 		panic(fmt.Sprintf("parent entity %s does not exist", parentId))
 	}
 
-	parentType := child.RelationParentType()
+	parentType := child.RelationshipTargetType()
 	parentComponentValue, ok := parent.Get(parentType)
 	if ok {
-		return parentComponentValue.Value.(isParentComponent), parentId, true
+		return parentComponentValue.Value.(isRelationshipTargetType), parentId, true
 	}
 
 	if !create {
@@ -288,7 +288,7 @@ func (w *World) parentComponentOf(component ErasedComponent, create bool) (isPar
 	parentComponent := w.storage.InsertComponent(w.currentTick, parentId, parentType.New())
 	w.onComponentInsert(parentId, parentComponent)
 
-	return parentComponent.(isParentComponent), parentId, true
+	return parentComponent.(isRelationshipTargetType), parentId, true
 }
 
 func (w *World) AddObserver(observer Observer) {
@@ -367,12 +367,12 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 
 	var zero C
 
-	if parent, ok := any(zero).(isParentComponent); ok {
+	if parent, ok := any(zero).(isRelationshipTargetType); ok {
 		// check if the child type points to us
-		childType := parent.RelationChildType()
+		childType := parent.RelationshipType()
 		instance := reflect.New(childType.Type).Elem().Interface()
 
-		child, ok := instance.(isChildComponent)
+		child, ok := instance.(isRelationshipComponent)
 		if !ok {
 			panic(fmt.Sprintf(
 				"relationship target of %s must point to a component embedding byke.Relationship",
@@ -380,7 +380,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 			))
 		}
 
-		if child.RelationParentType() != componentType {
+		if child.RelationshipTargetType() != componentType {
 			panic(fmt.Sprintf(
 				"relationship target of %s must point to %s",
 				childType, componentType,
@@ -388,12 +388,12 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 		}
 	}
 
-	if child, ok := any(zero).(isChildComponent); ok {
+	if child, ok := any(zero).(isRelationshipComponent); ok {
 		// check if the child type points to us
-		parentType := child.RelationParentType()
+		parentType := child.RelationshipTargetType()
 
 		parentComponent := parentType.New()
-		parent, ok := parentComponent.(isParentComponent)
+		parent, ok := parentComponent.(isRelationshipTargetType)
 		if !ok {
 			panic(fmt.Sprintf(
 				"relationship target of %s must point to a component embedding byke.RelationshipTarget",
@@ -401,7 +401,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 			))
 		}
 
-		if parent.RelationChildType() != componentType {
+		if parent.RelationshipType() != componentType {
 			panic(fmt.Sprintf(
 				"relationship target of %s must point to %s",
 				parentType, componentType,
@@ -455,7 +455,7 @@ func (w *World) Despawn(entityId EntityId) {
 			w.removeEntityFromParentComponentOf(entity.EntityId, component.Value)
 
 			// despawn child entities too
-			if parentComponent, ok := component.Value.(isParentComponent); ok {
+			if parentComponent, ok := component.Value.(isRelationshipTargetType); ok {
 				for _, entityId := range parentComponent.Children() {
 					queue = append(queue, entityId)
 				}

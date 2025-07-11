@@ -8,28 +8,28 @@ import (
 var _ = ValidateComponent[Children]()
 var _ = ValidateComponent[ChildOf]()
 
-type IsParentComponent[T IsComparableComponent[T]] interface {
-	IsComparableComponent[T]
-	isParentComponent
+type IsRelationshipTargetComponent[T IsImmutableComponent[T]] interface {
+	IsImmutableComponent[T]
+	isRelationshipTargetType
 }
 
-type isParentComponent interface {
+type isRelationshipTargetType interface {
 	ErasedComponent
-	RelationChildType() *arch.ComponentType
+	RelationshipType() *arch.ComponentType
 	Children() []EntityId
 	addChild(id EntityId)
 	removeChild(id EntityId)
 }
 
-type IsChildComponent[T IsComparableComponent[T]] interface {
-	IsComparableComponent[T]
-	isChildComponent
+type IsRelationshipComponent[T IsImmutableComponent[T]] interface {
+	IsImmutableComponent[T]
+	isRelationshipComponent
 }
 
-type isChildComponent interface {
+type isRelationshipComponent interface {
 	ErasedComponent
-	RelationParentType() *arch.ComponentType
-	ParentEntityId() EntityId
+	RelationshipTargetType() *arch.ComponentType
+	RelationshipEntityId() EntityId
 }
 
 // RelationshipTarget must be embedded on the parent side of a relationship
@@ -37,7 +37,7 @@ type RelationshipTarget[Child IsImmutableComponent[Child]] struct {
 	_children []EntityId
 }
 
-func (*RelationshipTarget[Child]) RelationChildType() *arch.ComponentType {
+func (*RelationshipTarget[Child]) RelationshipType() *arch.ComponentType {
 	return arch.ComponentTypeOf[Child]()
 }
 
@@ -61,7 +61,7 @@ func (p *RelationshipTarget[Child]) Children() []EntityId {
 // Relationship must be embedded on the client side of a relationship
 type Relationship[Parent IsImmutableComponent[Parent]] struct{}
 
-func (Relationship[Parent]) RelationParentType() *arch.ComponentType {
+func (Relationship[Parent]) RelationshipTargetType() *arch.ComponentType {
 	return arch.ComponentTypeOf[Parent]()
 }
 
@@ -71,7 +71,7 @@ type ChildOf struct {
 	Parent EntityId
 }
 
-func (c ChildOf) ParentEntityId() EntityId {
+func (c ChildOf) RelationshipEntityId() EntityId {
 	return c.Parent
 }
 
