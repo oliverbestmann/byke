@@ -32,20 +32,20 @@ type isChildComponent interface {
 	ParentEntityId() EntityId
 }
 
-// ParentComponent must be embedded on the parent side of a relationship
-type ParentComponent[Child IsImmutableComponent[Child]] struct {
+// RelationshipTarget must be embedded on the parent side of a relationship
+type RelationshipTarget[Child IsImmutableComponent[Child]] struct {
 	_children []EntityId
 }
 
-func (*ParentComponent[Child]) RelationChildType() *arch.ComponentType {
+func (*RelationshipTarget[Child]) RelationChildType() *arch.ComponentType {
 	return arch.ComponentTypeOf[Child]()
 }
 
-func (p *ParentComponent[Child]) addChild(childId EntityId) {
+func (p *RelationshipTarget[Child]) addChild(childId EntityId) {
 	p._children = append(p._children, childId)
 }
 
-func (p *ParentComponent[Child]) removeChild(childId EntityId) {
+func (p *RelationshipTarget[Child]) removeChild(childId EntityId) {
 	idx := slices.Index(p._children, childId)
 	if idx >= 0 {
 		p._children = slices.Delete(p._children, idx, idx+1)
@@ -54,20 +54,20 @@ func (p *ParentComponent[Child]) removeChild(childId EntityId) {
 
 // Children returns the children in this component.
 // You **must not** modify the returned slice.
-func (p *ParentComponent[Child]) Children() []EntityId {
+func (p *RelationshipTarget[Child]) Children() []EntityId {
 	return p._children
 }
 
-// ChildComponent must be embedded on the client side of a relationship
-type ChildComponent[Parent IsImmutableComponent[Parent]] struct{}
+// Relationship must be embedded on the client side of a relationship
+type Relationship[Parent IsImmutableComponent[Parent]] struct{}
 
-func (ChildComponent[Parent]) RelationParentType() *arch.ComponentType {
+func (Relationship[Parent]) RelationParentType() *arch.ComponentType {
 	return arch.ComponentTypeOf[Parent]()
 }
 
 type ChildOf struct {
 	ImmutableComponent[ChildOf]
-	ChildComponent[Children]
+	Relationship[Children]
 	Parent EntityId
 }
 
@@ -77,5 +77,5 @@ func (c ChildOf) ParentEntityId() EntityId {
 
 type Children struct {
 	ImmutableComponent[Children]
-	ParentComponent[ChildOf]
+	RelationshipTarget[ChildOf]
 }

@@ -201,7 +201,7 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 		// must not be inserted if it is a parentComponent
 		if _, ok := component.(isParentComponent); ok {
 			panic(fmt.Sprintf(
-				"you may not insert a byke.ParentComponent yourself: %T", component,
+				"you may not insert a byke.RelationshipTarget yourself: %T", component,
 			))
 		}
 
@@ -375,7 +375,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 		child, ok := instance.(isChildComponent)
 		if !ok {
 			panic(fmt.Sprintf(
-				"relationship target of %s must point to a component embedding byke.ChildComponent",
+				"relationship target of %s must point to a component embedding byke.Relationship",
 				componentType,
 			))
 		}
@@ -396,7 +396,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 		parent, ok := parentComponent.(isParentComponent)
 		if !ok {
 			panic(fmt.Sprintf(
-				"relationship target of %s must point to a component embedding byke.ParentComponent",
+				"relationship target of %s must point to a component embedding byke.RelationshipTarget",
 				componentType,
 			))
 		}
