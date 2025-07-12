@@ -22,7 +22,6 @@ type ComponentType struct {
 	Name       string
 	Type       reflect.Type
 	MakeColumn MakeColumn
-	SetValue   SetValue
 
 	UnsafeSetValue   UnsafeSetValue
 	UnsafeSetPointer UnsafeSetValue
@@ -40,6 +39,12 @@ func (c *ComponentType) PtrType() reflect.Type {
 
 func (c *ComponentType) New() ErasedComponent {
 	return reflect.New(c.Type).Interface().(ErasedComponent)
+}
+
+func (c *ComponentType) CopyOf(value ErasedComponent) ErasedComponent {
+	target := reflect.New(c.Type)
+	target.Elem().Set(reflect.ValueOf(value).Elem())
+	return target.Interface().(ErasedComponent)
 }
 
 var componentTypes = map[unsafe.Pointer]*ComponentType{}
@@ -77,18 +82,6 @@ func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
 		}
 
 		ty.MakeColumn = MakeColumnOf[C](ty)
-
-		ty.SetValue = func(target any, source ErasedComponent) {
-			value := any(source).(*C)
-
-			// target value must be either a pointer or a pointer to a pointer
-			switch ptrToTarget := target.(type) {
-			case *C:
-				*ptrToTarget = *value
-			case **C:
-				*ptrToTarget = value
-			}
-		}
 
 		ty.UnsafeSetValue = unsafeCopyComponentValue[C]
 		ty.UnsafeSetPointer = unsafeSetComponentPointer[C]

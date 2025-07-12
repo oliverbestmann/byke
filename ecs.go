@@ -229,13 +229,20 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 }
 
 func (w *World) onComponentInsert(entityId EntityId, component ErasedComponent) {
-	if parentComponent, parentId, ok := w.relationshipTargetComponentOf(component, true); ok {
-		// create a copy of the component
-		parentComponent = copyComponent(parentComponent).(isRelationshipTargetType)
-		parentComponent.addChild(entityId)
+	if targetComponent, targetId, targetType, ok := w.relationshipTargetComponentOf(component); ok {
+		if targetComponent == nil {
+			// create a new instance of the component
+			targetComponent = targetType.New().(isRelationshipTargetType)
+		} else {
+			// create a copy of the component
+			targetComponent = copyComponent(targetComponent).(isRelationshipTargetType)
+		}
+
+		// add the child to the relationship target
+		targetComponent.addChild(entityId)
 
 		// and replace its value by inserting it again
-		w.storage.InsertComponent(w.currentTick, parentId, parentComponent)
+		w.storage.InsertComponent(w.currentTick, targetId, targetComponent)
 	}
 }
 
@@ -248,30 +255,29 @@ func (w *World) onComponentRemoved(entityId EntityId, component ErasedComponent)
 }
 
 func (w *World) removeEntityFromParentComponentOf(entityId EntityId, component ErasedComponent) {
-	if parentComponent, parentId, ok := w.relationshipTargetComponentOf(component, false); ok {
-		if parentComponent != nil {
+	if targetComponent, targetId, _, ok := w.relationshipTargetComponentOf(component); ok && targetComponent != nil {
 
-			// check if would need to remove the last element.
+		children := targetComponent.Children()
+
+		if len(children) == 1 && children[0] == entityId {
+			// would need to remove the last element.
 			// in that case, we can just remove the component itself
-			children := parentComponent.Children()
-			if len(children) == 1 && children[0] == entityId {
-				w.storage.RemoveComponent(w.currentTick, parentId, parentComponent.ComponentType())
-			} else {
-				// create a copy of the component without the child
-				parentComponent = copyComponent(parentComponent).(isRelationshipTargetType)
-				parentComponent.removeChild(entityId)
+			w.storage.RemoveComponent(w.currentTick, targetId, targetComponent.ComponentType())
+		} else {
+			// create a copy of the component without the child
+			targetComponent = copyComponent(targetComponent).(isRelationshipTargetType)
+			targetComponent.removeChild(entityId)
 
-				// and replace its value by inserting it again
-				w.storage.InsertComponent(w.currentTick, parentId, parentComponent)
-			}
+			// and replace its value by inserting it again
+			w.storage.InsertComponent(w.currentTick, targetId, targetComponent)
 		}
 	}
 }
 
-func (w *World) relationshipTargetComponentOf(component ErasedComponent, create bool) (isRelationshipTargetType, EntityId, bool) {
+func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRelationshipTargetType, EntityId, *arch.ComponentType, bool) {
 	child, ok := component.(isRelationshipComponent)
 	if !ok {
-		return nil, 0, false
+		return nil, 0, nil, false
 	}
 
 	parentId := child.RelationshipEntityId()
@@ -284,19 +290,11 @@ func (w *World) relationshipTargetComponentOf(component ErasedComponent, create 
 	parentType := child.RelationshipTargetType()
 	parentComponentValue, ok := parent.Get(parentType)
 	if ok {
-		return parentComponentValue.Value.(isRelationshipTargetType), parentId, true
+		return parentComponentValue.Value.(isRelationshipTargetType), parentId, nil, true
 	}
 
-	if !create {
-		// there is no component in the parent
-		return nil, parentId, true
-	}
-
-	// create a new parent component value
-	parentComponent := w.storage.InsertComponent(w.currentTick, parentId, parentType.New())
-	w.onComponentInsert(parentId, parentComponent)
-
-	return parentComponent.(isRelationshipTargetType), parentId, true
+	// there is no component in the parent
+	return nil, parentId, parentType, true
 }
 
 func (w *World) AddObserver(observer Observer) {

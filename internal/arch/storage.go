@@ -92,8 +92,7 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 		panic("component does not exist in archetype")
 	}
 
-	copyOfComponent := componentType.New()
-	componentType.SetValue(copyOfComponent, componentValue.Value)
+	copyOfComponent := componentType.CopyOf(componentValue.Value)
 
 	// we need to move to a new archetype
 	newArchetype, _ := s.archetypes.NextWithout(archetype, componentType)
