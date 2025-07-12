@@ -299,6 +299,17 @@ func (a *Archetype) assertInvariants() {
 			panic("entity index out of sync")
 		}
 	}
+
+	// double check in reverse
+	for entityId, row := range a.index {
+		if int(row) >= len(a.entities) {
+			panic("entity count/index mismatch")
+		}
+
+		if a.entities[row] != entityId {
+			panic("entity index of of sync")
+		}
+	}
 }
 
 func (a *Archetype) GetComponent(entityId EntityId, componentType *ComponentType) (ComponentValue, bool) {
