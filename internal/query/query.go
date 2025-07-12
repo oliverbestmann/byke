@@ -7,6 +7,7 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 	"reflect"
 	"slices"
+	"unsafe"
 )
 
 type ParsedQuery struct {
@@ -17,37 +18,55 @@ type ParsedQuery struct {
 
 type SetValue func(target any, ref arch.EntityRef)
 
+type UnsafeSetValue func(target unsafe.Pointer, ref arch.EntityRef)
+
 type Setter struct {
 	Field    []int
 	SetValue SetValue
+
+	// offset of this field to the start of the struct
+	UnsafeFieldOffset uintptr
+
+	// Type of the field
+	UnsafeSetValue UnsafeSetValue
 }
 
 func FromEntity(target any, setters []Setter, ref arch.EntityRef) {
-	rValue := reflect.ValueOf(target)
-	assert.IsPointerType(rValue.Type())
+	baseTarget := reflect.ValueOf(target)
+	assert.IsPointerType(baseTarget.Type())
+
+	ptrToTarget := baseTarget.UnsafePointer()
 
 	for _, setter := range setters {
-		target := rValue
-		if setter.Field != nil {
-			// rValue must be a pointer to a struct
-			target = rValue.Elem().FieldByIndex(setter.Field).Addr()
+		target := baseTarget
+
+		if setter.UnsafeSetValue != nil {
+			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
+			setter.UnsafeSetValue(target, ref)
 		}
 
-		setter.SetValue(target.Interface(), ref)
+		if setter.SetValue != nil {
+			if setter.Field != nil {
+				// let target point to a field within the target struct
+				target = baseTarget.Elem().FieldByIndex(setter.Field).Addr()
+			}
+
+			setter.SetValue(target.Interface(), ref)
+		}
 	}
 }
 
 func ParseQuery(queryType reflect.Type) (ParsedQuery, error) {
 	var parsed ParsedQuery
 
-	if err := buildQuery(queryType, &parsed, nil); err != nil {
+	if err := buildQuery(queryType, &parsed, nil, 0); err != nil {
 		return ParsedQuery{}, err
 	}
 
 	return parsed, nil
 }
 
-func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
+func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset uintptr) error {
 	query := &result.Query
 
 	switch {
@@ -65,16 +84,21 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 		componentType := refl.ComponentTypeOf(queryType)
 		query.Fetch = append(query.Fetch, componentType)
 
+		componentTypeSize := componentType.Type.Size()
+
 		result.Setters = append(result.Setters, Setter{
-			Field: slices.Clone(path),
-			SetValue: func(target any, ref arch.EntityRef) {
+			UnsafeFieldOffset: offset,
+			UnsafeSetValue: func(target unsafe.Pointer, ref arch.EntityRef) {
 				value, ok := ref.Get(componentType)
 				if !ok {
 					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
 				}
 
-				// target is a pointer to the component value
-				componentType.SetValue(target, value.Value)
+				// target points to the memory that we want to write the component value to.
+				// we know the component values size from the componentType
+				targetSlice := unsafe.Slice((*byte)(target), componentTypeSize)
+				sourceSlice := unsafe.Slice((*byte)(pointerToComponentValue(value.Value)), componentTypeSize)
+				copy(targetSlice, sourceSlice)
 			},
 		})
 
@@ -90,15 +114,16 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 		result.Mutable = append(result.Mutable, componentType)
 
 		result.Setters = append(result.Setters, Setter{
-			Field: slices.Clone(path),
-			SetValue: func(target any, ref arch.EntityRef) {
+			UnsafeFieldOffset: offset,
+			UnsafeSetValue: func(target unsafe.Pointer, ref arch.EntityRef) {
 				value, ok := ref.Get(componentType)
 				if !ok {
 					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
 				}
 
-				// target is a pointer to a pointer the component value
-				componentType.SetValue(target, value.Value)
+				// target points to the memory of a pointer that we want to update to point to the
+				// actual components value
+				*(*unsafe.Pointer)(target) = pointerToComponentValue(value.Value)
 			},
 		})
 
@@ -122,14 +147,14 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
 		return nil
 
 	case isStructQuery(queryType):
-		return buildStructQuery(queryType, result, path)
+		return buildStructQuery(queryType, result, path, offset)
 
 	default:
 		return fmt.Errorf("invalid query type: %s", queryType)
 	}
 }
 
-func buildStructQuery(queryType reflect.Type, result *ParsedQuery, path []int) error {
+func buildStructQuery(queryType reflect.Type, result *ParsedQuery, path []int, baseOffset uintptr) error {
 	for field := range refl.IterFields(queryType) {
 		if field.Anonymous {
 			allowed := isEmbeddableFilter(field.Type) || isEntityId(field.Type)
@@ -138,8 +163,9 @@ func buildStructQuery(queryType reflect.Type, result *ParsedQuery, path []int) e
 			}
 		}
 
+		offset := baseOffset + field.Offset
 		pathToField := append(path, field.Index...)
-		if err := buildQuery(field.Type, result, pathToField); err != nil {
+		if err := buildQuery(field.Type, result, pathToField, offset); err != nil {
 			return err
 		}
 	}
@@ -173,4 +199,9 @@ func isFromEntityRef(ty reflect.Type) bool {
 
 func isEntityId(ty reflect.Type) bool {
 	return ty == reflect.TypeFor[arch.EntityId]()
+}
+
+func pointerToComponentValue(value arch.ErasedComponent) unsafe.Pointer {
+	type iface struct{ typ, val unsafe.Pointer }
+	return (*iface)(unsafe.Pointer(&value)).val
 }
