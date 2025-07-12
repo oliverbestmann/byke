@@ -13,6 +13,8 @@ type HashOf func(value ErasedComponent) HashValue
 
 type SetValue func(target any, source ErasedComponent)
 
+type UnsafeSetValue func(target unsafe.Pointer, ref ErasedComponent)
+
 type MakeColumn func() Column
 
 type ComponentType struct {
@@ -21,6 +23,10 @@ type ComponentType struct {
 	Type       reflect.Type
 	MakeColumn MakeColumn
 	SetValue   SetValue
+
+	UnsafeSetValue   UnsafeSetValue
+	UnsafeSetPointer UnsafeSetValue
+
 	Comparable bool
 }
 
@@ -84,6 +90,9 @@ func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
 			}
 		}
 
+		ty.UnsafeSetValue = unsafeCopyComponentValue[C]
+		ty.UnsafeSetPointer = unsafeSetComponentPointer[C]
+
 		componentTypes[ptrToType] = ty
 	}
 
@@ -101,4 +110,14 @@ func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 	}
 
 	return ty
+}
+
+func unsafeCopyComponentValue[C ErasedComponent](target unsafe.Pointer, value ErasedComponent) {
+	// target pointers to a C
+	*(*C)(target) = *any(value).(*C)
+}
+
+func unsafeSetComponentPointer[C ErasedComponent](target unsafe.Pointer, value ErasedComponent) {
+	// target points to a variable of type *C
+	*(**C)(target) = any(value).(*C)
 }

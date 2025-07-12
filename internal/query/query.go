@@ -84,8 +84,6 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 		componentType := refl.ComponentTypeOf(queryType)
 		query.Fetch = append(query.Fetch, componentType)
 
-		componentTypeSize := componentType.Type.Size()
-
 		result.Setters = append(result.Setters, Setter{
 			UnsafeFieldOffset: offset,
 			UnsafeSetValue: func(target unsafe.Pointer, ref arch.EntityRef) {
@@ -94,11 +92,7 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
 				}
 
-				// target points to the memory that we want to write the component value to.
-				// we know the component values size from the componentType
-				targetSlice := unsafe.Slice((*byte)(target), componentTypeSize)
-				sourceSlice := unsafe.Slice((*byte)(pointerToComponentValue(value.Value)), componentTypeSize)
-				copy(targetSlice, sourceSlice)
+				componentType.UnsafeSetValue(target, value.Value)
 			},
 		})
 
@@ -121,9 +115,7 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
 				}
 
-				// target points to the memory of a pointer that we want to update to point to the
-				// actual components value
-				*(*unsafe.Pointer)(target) = pointerToComponentValue(value.Value)
+				componentType.UnsafeSetPointer(target, value.Value)
 			},
 		})
 
@@ -199,9 +191,4 @@ func isFromEntityRef(ty reflect.Type) bool {
 
 func isEntityId(ty reflect.Type) bool {
 	return ty == reflect.TypeFor[arch.EntityId]()
-}
-
-func pointerToComponentValue(value arch.ErasedComponent) unsafe.Pointer {
-	type iface struct{ typ, val unsafe.Pointer }
-	return (*iface)(unsafe.Pointer(&value)).val
 }
