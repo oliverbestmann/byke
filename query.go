@@ -83,6 +83,25 @@ func (q *Query[T]) Items() iter.Seq[T] {
 	return q.items
 }
 
+func (q *Query[T]) Single() (T, bool) {
+	var result T
+	var count int
+
+	for value := range q.items {
+		count += 1
+
+		switch count {
+		case 1:
+			result = value
+
+		case 2:
+			break
+		}
+	}
+
+	return result, count == 1
+}
+
 func (q *Query[T]) MustFirst() T {
 	for value := range q.items {
 		return value
