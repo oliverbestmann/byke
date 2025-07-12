@@ -188,9 +188,10 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 func (a *Archetype) GetComponentAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
 	var getter RowGetter
 
-	if len(a.Types) < 8 {
+	typeCount := len(a.Types)
+	if typeCount > 0 && typeCount < 8 {
 		// for small archetypes, a simple linear lookup is a little faster
-		_ = a.getters[len(a.Types)-1]
+		_ = a.getters[typeCount-1]
 
 		for idx, ty := range a.Types {
 			if ty == componentType {
