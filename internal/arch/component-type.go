@@ -11,10 +11,6 @@ import (
 
 var seed = maphash.MakeSeed()
 
-type HashOf func(value ErasedComponent) HashValue
-
-type SetValue func(target any, source ErasedComponent)
-
 type UnsafeSetValue func(target unsafe.Pointer, ref ErasedComponent)
 
 type MakeColumn func() Column
@@ -29,12 +25,11 @@ type ComponentType struct {
 	Comparable       bool
 }
 
-func (c *ComponentType) String() string {
-	return c.Type.String()
-}
+func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
+	var zeroValue C
 
-func (c *ComponentType) PtrType() reflect.Type {
-	return reflect.PointerTo(c.Type)
+	//goland:noinspection GoDfaNilDereference
+	return zeroValue.ComponentType()
 }
 
 func (c *ComponentType) New() ErasedComponent {
@@ -45,6 +40,10 @@ func (c *ComponentType) CopyOf(value ErasedComponent) ErasedComponent {
 	target := reflect.New(c.Type)
 	target.Elem().Set(reflect.ValueOf(value).Elem())
 	return target.Interface().(ErasedComponent)
+}
+
+func (c *ComponentType) String() string {
+	return c.Name
 }
 
 var componentTypes atomic.Pointer[map[unsafe.Pointer]*ComponentType]
@@ -80,13 +79,6 @@ func abiTypePointerTo(t reflect.Type) unsafe.Pointer {
 	}
 
 	return (*eface)(unsafe.Pointer(&t)).val
-}
-
-func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
-	var zeroComponent C
-
-	//goland:noinspection GoDfaNilDereference
-	return zeroComponent.ComponentType()
 }
 
 func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
@@ -142,7 +134,7 @@ func makeComponentType[C IsComponent[C]](id uint32) *ComponentType {
 }
 
 func unsafeCopyComponentValue[C ErasedComponent](target unsafe.Pointer, value ErasedComponent) {
-	// target pointers to a C
+	// target points to a C
 	*(*C)(target) = *any(value).(*C)
 }
 
