@@ -30,7 +30,8 @@ type TypedColumn[C IsComponent[C]] struct {
 
 type ComparableTypedColumn[C IsComparableComponent[C]] struct {
 	TypedColumn[C]
-	memorySlices []memorySlice
+	memorySlices      []memorySlice
+	triviallyHashable bool
 }
 
 func MakeColumnOf[C IsComponent[C]](componentType *ComponentType) MakeColumn {
@@ -54,7 +55,13 @@ func MakeComparableColumnOf[C IsComparableComponent[C]](componentType *Component
 		return MakeImmutableColumnOf[C](componentType)
 	}
 
-	memorySlices := memorySlicesOf(reflect.TypeFor[C](), 0, nil)
+	reflectType := reflect.TypeFor[C]()
+	triviallyHashable := isTriviallyHashable(reflectType)
+
+	var memorySlices []memorySlice
+	if triviallyHashable {
+		memorySlices = memorySlicesOf(reflectType, 0, nil)
+	}
 
 	return func() Column {
 		return &ComparableTypedColumn[C]{
@@ -62,7 +69,8 @@ func MakeComparableColumnOf[C IsComparableComponent[C]](componentType *Component
 				ComponentType: componentType,
 			},
 
-			memorySlices: memorySlices,
+			triviallyHashable: triviallyHashable,
+			memorySlices:      memorySlices,
 		}
 	}
 }
@@ -88,8 +96,17 @@ func (c *ComparableTypedColumn[C]) Append(tick Tick, component ErasedComponent) 
 		Value:   *value,
 		Added:   tick,
 		Changed: tick,
-		Hash:    hashOf(c.memorySlices, unsafe.Pointer(value)),
+		Hash:    c.hashOf(value),
 	})
+}
+
+func (c *ComparableTypedColumn[C]) hashOf(value *C) HashValue {
+	if c.triviallyHashable {
+		return hashOf(c.memorySlices, unsafe.Pointer(value))
+	}
+
+	// use normal maphash
+	return maphashOf(value)
 }
 
 func (c *TypedColumn[C]) Copy(from, to Row) {
@@ -137,7 +154,7 @@ func (c *ComparableTypedColumn[C]) Update(tick Tick, row Row, erasedValue Erased
 	target := &c.Values[row]
 	target.Value = erasedValue.(C)
 
-	if hash := hashOf(c.memorySlices, unsafe.Pointer(&target.Value)); hash != target.Hash {
+	if hash := c.hashOf(&target.Value); hash != target.Hash {
 		target.Hash = hash
 		target.Changed = tick
 	}
@@ -151,7 +168,7 @@ func (c *ComparableTypedColumn[C]) CheckChanged(tick Tick) {
 	for idx := range c.Values {
 		cv := &c.Values[idx]
 
-		if hash := hashOf(c.memorySlices, unsafe.Pointer(&cv.Value)); hash != cv.Hash {
+		if hash := c.hashOf(&cv.Value); hash != cv.Hash {
 			cv.Hash = hash
 			cv.Changed = tick
 		}
@@ -220,6 +237,44 @@ func memorySlicesOf(t reflect.Type, base uintptr, slices []memorySlice) []memory
 	}
 
 	return slices
+}
+
+func isTriviallyHashable(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Bool,
+		reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr,
+		reflect.Float32,
+		reflect.Float64,
+		reflect.Complex64,
+		reflect.Complex128,
+		reflect.Array,
+		reflect.Pointer,
+		reflect.UnsafePointer:
+
+		return true
+
+	case reflect.Struct:
+		for idx := range t.NumField() {
+			if !isTriviallyHashable(t.Field(idx).Type) {
+				return false
+			}
+		}
+
+		return true
+
+	default:
+		return false
+	}
 }
 
 func typeHasPaddingBytes(t reflect.Type) bool {
