@@ -3,14 +3,17 @@ package bykebiten
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
+	"slices"
 )
-
-type Hovered struct {
-	ImmutableComponent[Hovered]
-}
 
 type Interactable struct {
 	ImmutableComponent[Interactable]
+}
+
+func (i Interactable) RequireComponents() []ErasedComponent {
+	return []ErasedComponent{
+		InteractionState{None: true},
+	}
 }
 
 type Clicked struct{}
@@ -19,14 +22,27 @@ type PointerOver struct{}
 
 type PointerOut struct{}
 
+type InteractionState struct {
+	ImmutableComponent[InteractionState]
+	None  bool
+	Hover bool
+}
+
+var (
+	InteractionStateNone  = InteractionState{None: true}
+	InteractionStateHover = InteractionState{Hover: true}
+)
+
 type interactionQueryItem = struct {
 	With[Interactable]
 
-	BBox            BBox
-	Anchor          Anchor
-	GlobalTransform GlobalTransform
-	EntityId        EntityId
-	Hovered         Has[Hovered]
+	EntityId
+
+	BBox             BBox
+	Anchor           Anchor
+	Layer            Layer
+	GlobalTransform  GlobalTransform
+	InteractionState InteractionState
 }
 
 func interactionSystem(
@@ -34,8 +50,25 @@ func interactionSystem(
 	mouseCursor MouseCursor,
 	buttons MouseButtons,
 	query Query[interactionQueryItem],
+	queryCache *Local[[]interactionQueryItem],
 ) {
-	for item := range query.Items() {
+	queryCache.Value = slices.AppendSeq(queryCache.Value[:0], query.Items())
+
+	items := queryCache.Value
+
+	// sort by reverse layer, top most layer will be the first item
+	slices.SortFunc(items, func(a, b interactionQueryItem) int {
+		switch {
+		case a.Layer.Z < b.Layer.Z:
+			return 1
+		case a.Layer.Z > b.Layer.Z:
+			return -1
+		default:
+			return 0
+		}
+	})
+
+	for _, item := range items {
 		toLocal, ok := item.GlobalTransform.AsAffine().TryInverse()
 		if !ok {
 			// maybe GlobalTransform wasn't initialized yet
@@ -48,26 +81,32 @@ func interactionSystem(
 		// check if we hit the bounding box
 		hover := item.BBox.Contains(pos)
 
-		if hover && !item.Hovered.Exists {
+		if !hover {
+			if item.InteractionState == InteractionStateHover {
+				commands.Entity(item.EntityId).
+					Update(InsertComponent(InteractionStateNone)).
+					Trigger(PointerOut{})
+			}
+
+			continue
+		}
+
+		if item.InteractionState != InteractionStateHover {
 			commands.Entity(item.EntityId).
-				Update(InsertComponent[Hovered]()).
+				Update(InsertComponent(InteractionStateHover)).
 				Trigger(PointerOver{})
 		}
 
-		if !hover && item.Hovered.Exists {
-			commands.Entity(item.EntityId).
-				Update(RemoveComponent[Hovered]()).
-				Trigger(PointerOut{})
-		}
-
 		// check if we have just clicked
-		justClicked := hover && buttons.IsJustPressed(ebiten.MouseButtonLeft)
+		justClicked := buttons.IsJustPressed(ebiten.MouseButtonLeft)
 
 		if justClicked {
 			// trigger the Clicked event
 			commands.Entity(item.EntityId).Trigger(Clicked{})
 		}
-
-		break
 	}
+}
+
+type QueryCache[T any] struct {
+	Local[[]T]
 }

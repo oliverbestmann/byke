@@ -89,6 +89,7 @@ func (s State[S]) Current() S {
 }
 
 type NextState[S comparable] struct {
+	_     noCopy
 	isSet bool
 	next  S
 }

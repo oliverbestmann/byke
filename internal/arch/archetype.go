@@ -160,13 +160,16 @@ func (a *Archetype) Remove(entityId EntityId) {
 	rowSwap := Row(len(a.entities) - 1)
 
 	if row != rowSwap {
-		// replace entityId at rowSwap
-		a.entities[rowSwap] = a.entities[row]
+		// move entity from rowSwap to row
+		a.entities[row] = a.entities[rowSwap]
 
-		// replace column value at rowSwap
+		// replace column value at row with rowSwap
 		for _, column := range a.columns {
 			column.Copy(rowSwap, row)
 		}
+
+		// update the index, point to row instead of rowSwap
+		a.index[a.entities[row]] = row
 	}
 
 	// now truncate columns & entities
@@ -182,7 +185,7 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 		return EntityRef{}, false
 	}
 
-	return a.rowAt(row), true
+	return a.getAt(row), true
 }
 
 func (a *Archetype) GetComponentAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
@@ -210,8 +213,7 @@ func (a *Archetype) GetComponentAt(row Row, componentType *ComponentType) (Compo
 	return getter(row), true
 }
 
-func (a *Archetype) rowAt(row Row) EntityRef {
-
+func (a *Archetype) getAt(row Row) EntityRef {
 	return EntityRef{
 		EntityId:  a.entities[row],
 		archetype: a,
@@ -283,8 +285,17 @@ func (a *Archetype) assertInvariants() {
 		}
 	}
 
+	if len(a.index) != entityCount {
+		panic("entity count/index mismatch")
+	}
+
 	for row, entityId := range a.entities {
-		if a.index[entityId] != Row(row) {
+		rowIndex, ok := a.index[entityId]
+		if !ok {
+			panic("entity not in index")
+		}
+
+		if rowIndex != Row(row) {
 			panic("entity index out of sync")
 		}
 	}
@@ -314,7 +325,7 @@ func (iter *ArchetypeIter) More() bool {
 }
 
 func (iter *ArchetypeIter) Next() EntityRef {
-	entity := iter.archetype.rowAt(iter.row)
+	entity := iter.archetype.getAt(iter.row)
 	iter.row += 1
 	return entity
 }

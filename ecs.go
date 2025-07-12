@@ -174,7 +174,7 @@ func (w *World) SpawnWithEntityId(entityId EntityId, components []ErasedComponen
 }
 
 func (w *World) insertComponents(entityId EntityId, components []ErasedComponent) {
-	queue := append([]ErasedComponent{}, components...)
+	queue := flattenComponents(nil, components...)
 
 	tick := w.currentTick
 

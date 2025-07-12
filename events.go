@@ -32,6 +32,8 @@ type EventWithId[E any] struct {
 }
 
 type Events[E any] struct {
+	_ noCopy
+
 	prevId EventId
 	curr   []EventWithId[E]
 	prev   []EventWithId[E]
@@ -69,6 +71,8 @@ func (e *Events[E]) Writer() *EventWriter[E] {
 }
 
 type EventWriter[E any] struct {
+	_ noCopy
+
 	events *Events[E]
 }
 
@@ -88,6 +92,8 @@ func (w *EventWriter[E]) init(world *World) SystemParamState {
 }
 
 type EventReader[E any] struct {
+	_ noCopy
+
 	events *Events[E]
 	lastId EventId
 
