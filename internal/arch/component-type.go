@@ -3,7 +3,9 @@ package arch
 import (
 	"fmt"
 	"hash/maphash"
+	"maps"
 	"reflect"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -18,15 +20,13 @@ type UnsafeSetValue func(target unsafe.Pointer, ref ErasedComponent)
 type MakeColumn func() Column
 
 type ComponentType struct {
-	Id         int64
-	Name       string
-	Type       reflect.Type
-	MakeColumn MakeColumn
-
+	Name             string
+	Type             reflect.Type
+	MakeColumn       MakeColumn
 	UnsafeSetValue   UnsafeSetValue
 	UnsafeSetPointer UnsafeSetValue
-
-	Comparable bool
+	Id               uint32
+	Comparable       bool
 }
 
 func (c *ComponentType) String() string {
@@ -47,7 +47,32 @@ func (c *ComponentType) CopyOf(value ErasedComponent) ErasedComponent {
 	return target.Interface().(ErasedComponent)
 }
 
-var componentTypes = map[unsafe.Pointer]*ComponentType{}
+var componentTypes atomic.Pointer[map[unsafe.Pointer]*ComponentType]
+
+func init() {
+	// initialize the lookup table
+	componentTypes.Store(&map[unsafe.Pointer]*ComponentType{})
+}
+
+func ensureComponentType(ptrToType unsafe.Pointer, makeType func(id uint32) *ComponentType) *ComponentType {
+	for {
+		previousTypes := componentTypes.Load()
+		if cached, ok := (*previousTypes)[ptrToType]; ok {
+			return cached
+		}
+
+		newTypeId := uint32(len(*previousTypes) + 1)
+
+		newType := makeType(newTypeId)
+
+		newTypes := maps.Clone(*previousTypes)
+		newTypes[ptrToType] = newType
+
+		if componentTypes.CompareAndSwap(previousTypes, &newTypes) {
+			return newType
+		}
+	}
+}
 
 func abiTypePointerTo(t reflect.Type) unsafe.Pointer {
 	type eface struct {
@@ -66,41 +91,52 @@ func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
 
 func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
 	reflectType := reflect.TypeFor[C]()
-
 	ptrToType := abiTypePointerTo(reflectType)
-	ty, ok := componentTypes[ptrToType]
 
-	if !ok {
-		if typeHasPaddingBytes(reflectType) {
-			fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
-		}
-
-		ty = &ComponentType{
-			Id:   int64(len(componentTypes) + 1),
-			Type: reflectType,
-			Name: reflectType.String(),
-		}
-
-		ty.MakeColumn = MakeColumnOf[C](ty)
-
-		ty.UnsafeSetValue = unsafeCopyComponentValue[C]
-		ty.UnsafeSetPointer = unsafeSetComponentPointer[C]
-
-		componentTypes[ptrToType] = ty
+	if cached, ok := (*componentTypes.Load())[ptrToType]; ok {
+		return cached
 	}
 
-	return ty
+	if typeHasPaddingBytes(reflectType) {
+		fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
+	}
+
+	return ensureComponentType(ptrToType, makeComponentType[C])
 }
 
 func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
-	ptrToType := abiTypePointerTo(reflect.TypeFor[C]())
-	ty, ok := componentTypes[ptrToType]
+	reflectType := reflect.TypeFor[C]()
+	ptrToType := abiTypePointerTo(reflectType)
 
-	if !ok {
-		ty = nonComparableComponentTypeOf[C]()
+	if cached, ok := (*componentTypes.Load())[ptrToType]; ok {
+		return cached
+	}
+
+	if typeHasPaddingBytes(reflectType) {
+		fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
+	}
+
+	return ensureComponentType(ptrToType, func(id uint32) *ComponentType {
+		ty := makeComponentType[C](id)
 		ty.MakeColumn = MakeComparableColumnOf[C](ty)
 		ty.Comparable = true
+		return ty
+	})
+}
+
+func makeComponentType[C IsComponent[C]](id uint32) *ComponentType {
+	reflectType := reflect.TypeFor[C]()
+
+	ty := &ComponentType{
+		Id:   id,
+		Type: reflectType,
+		Name: reflectType.String(),
 	}
+
+	ty.MakeColumn = MakeColumnOf[C](ty)
+
+	ty.UnsafeSetValue = unsafeCopyComponentValue[C]
+	ty.UnsafeSetPointer = unsafeSetComponentPointer[C]
 
 	return ty
 }
