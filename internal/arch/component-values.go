@@ -5,10 +5,3 @@ type ComponentValue struct {
 	Added   Tick
 	Changed Tick
 }
-
-type TypedComponentValue[C IsComponent[C]] struct {
-	Value   C
-	Hash    HashValue
-	Added   Tick
-	Changed Tick
-}

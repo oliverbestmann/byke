@@ -9,9 +9,9 @@ import (
 	"strings"
 )
 
-type rowGetterWithType struct {
-	Type   *ComponentType
-	Getter RowGetter
+type columnWithType struct {
+	Column
+	Type *ComponentType
 }
 
 type ArchetypeId uint64
@@ -21,12 +21,10 @@ type Archetype struct {
 	Types []*ComponentType
 
 	entities []EntityId
-	columns  []Column
-	getters  []rowGetterWithType
 	index    map[EntityId]Row
 
+	columns       []columnWithType
 	columnsByType map[*ComponentType]Column
-	gettersByType map[*ComponentType]RowGetter
 }
 
 func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
@@ -39,20 +37,17 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 	}
 
 	columnsByType := map[*ComponentType]Column{}
-	gettersByType := map[*ComponentType]RowGetter{}
 
-	var columns []Column
-	var getters []rowGetterWithType
+	var columns []columnWithType
 	for _, ty := range sortedTypes {
 		column := ty.MakeColumn()
-		columns = append(columns, column)
-
-		getter := column.Getter()
-		getters = append(getters, rowGetterWithType{ty, getter})
+		columns = append(columns, columnWithType{
+			Type:   ty,
+			Column: column,
+		})
 
 		// put column into index too
 		columnsByType[ty] = column
-		gettersByType[ty] = getter
 	}
 
 	return &Archetype{
@@ -60,9 +55,7 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 		Types:         sortedTypes,
 		entities:      nil,
 		columns:       columns,
-		getters:       getters,
 		columnsByType: columnsByType,
-		gettersByType: gettersByType,
 		index:         map[EntityId]Row{},
 	}
 }
@@ -194,25 +187,23 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 }
 
 func (a *Archetype) GetComponentValueAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
-	var getter RowGetter
-
-	if len(a.getters) < 8 {
+	if len(a.columns) < 8 {
 		// linear scan performs better on small number of types
-		for idx := range a.getters {
-			if a.getters[idx].Type == componentType {
-				getter = a.getters[idx].Getter
-				break
+		for idx := range a.columns {
+			if a.columns[idx].Type == componentType {
+				return a.columns[idx].Get(row), true
 			}
 		}
-	} else {
-		getter = a.gettersByType[componentType]
-	}
 
-	if getter == nil {
 		return ComponentValue{}, false
 	}
 
-	return getter(row), true
+	column := a.columnsByType[componentType]
+	if column != nil {
+		return column.Get(row), true
+	}
+
+	return ComponentValue{}, false
 }
 
 func (a *Archetype) getAt(row Row) EntityRef {
@@ -250,7 +241,7 @@ func (a *Archetype) Import(tick Tick, source *Archetype, entityId EntityId, newC
 		}
 
 		// import source
-		targetColumn.Import(sourceColumn, rowInSource)
+		targetColumn.Import(sourceColumn.Column, rowInSource)
 	}
 
 	// now add the new components
