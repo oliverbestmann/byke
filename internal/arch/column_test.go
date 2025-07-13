@@ -21,13 +21,13 @@ func BenchmarkTypedColumn_Get(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var dummy Tick
+	var dummy bool
 
 	// get the row
 	for b.Loop() {
 		for row := range 1000 {
 			componentValue := velocities.Get(Row(row))
-			dummy += componentValue.Added
+			dummy = dummy || componentValue != nil
 		}
 	}
 }

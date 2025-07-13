@@ -45,22 +45,22 @@ func TestStorage_All(t *testing.T) {
 	}
 
 	for entity := range s.IterQuery(query) {
-		value, _ := entity.Get(ComponentTypeOf[Velocity]())
-		value.Value.(*Velocity).X = 2
+		value := entity.Get(ComponentTypeOf[Velocity]())
+		value.(*Velocity).X = 2
 	}
 
 	s.CheckChanged(7, []*ComponentType{ComponentTypeOf[Velocity]()})
 
 	{
 		entity, _ := s.Get(1)
-		val, _ := entity.Get(ComponentTypeOf[Velocity]())
-		require.Equal(t, val.Changed, Tick(1))
+		tick := entity.Changed(ComponentTypeOf[Velocity]())
+		require.Equal(t, tick, Tick(1))
 	}
 
 	{
 		entity, _ := s.Get(2)
-		val, _ := entity.Get(ComponentTypeOf[Velocity]())
-		require.Equal(t, val.Changed, Tick(7))
+		tick := entity.Changed(ComponentTypeOf[Velocity]())
+		require.Equal(t, tick, Tick(7))
 	}
 }
 

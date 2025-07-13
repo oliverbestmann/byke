@@ -164,7 +164,7 @@ func (Changed[C]) applyTo(result *ParsedQuery) []arch.Filter {
 
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
 				tick := entity.Changed(componentType)
-				return tick > 0 && tick >= q.LastRun
+				return tick != arch.NoTick && tick >= q.LastRun
 			},
 		},
 	}
@@ -183,7 +183,7 @@ func (Added[C]) applyTo(result *ParsedQuery) []arch.Filter {
 
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
 				tick := entity.Added(componentType)
-				return tick > 0 && tick >= q.LastRun
+				return tick != arch.NoTick && tick >= q.LastRun
 			},
 		},
 	}
