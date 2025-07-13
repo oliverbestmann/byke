@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+type rowGetterWithType struct {
+	Type   *ComponentType
+	Getter RowGetter
+}
+
 type ArchetypeId uint64
 
 type Archetype struct {
@@ -17,7 +22,7 @@ type Archetype struct {
 
 	entities []EntityId
 	columns  []Column
-	getters  []RowGetter
+	getters  []rowGetterWithType
 	index    map[EntityId]Row
 
 	columnsByType map[*ComponentType]Column
@@ -37,13 +42,13 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 	gettersByType := map[*ComponentType]RowGetter{}
 
 	var columns []Column
-	var getters []RowGetter
+	var getters []rowGetterWithType
 	for _, ty := range sortedTypes {
 		column := ty.MakeColumn()
 		columns = append(columns, column)
 
 		getter := column.Getter()
-		getters = append(getters, getter)
+		getters = append(getters, rowGetterWithType{ty, getter})
 
 		// put column into index too
 		columnsByType[ty] = column
@@ -188,17 +193,14 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 	return a.getAt(row), true
 }
 
-func (a *Archetype) GetComponentAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
+func (a *Archetype) GetComponentValueAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
 	var getter RowGetter
 
-	typeCount := len(a.Types)
-	if typeCount > 0 && typeCount < 8 {
-		// for small archetypes, a simple linear lookup is a little faster
-		_ = a.getters[typeCount-1]
-
-		for idx, ty := range a.Types {
-			if ty == componentType {
-				getter = a.getters[idx]
+	if len(a.getters) < 8 {
+		// linear scan performs better on small number of types
+		for idx := range a.getters {
+			if a.getters[idx].Type == componentType {
+				getter = a.getters[idx].Getter
 				break
 			}
 		}
@@ -348,7 +350,7 @@ type EntityRef struct {
 }
 
 func (e EntityRef) Get(ty *ComponentType) (ComponentValue, bool) {
-	return e.archetype.GetComponentAt(e.row, ty)
+	return e.archetype.GetComponentValueAt(e.row, ty)
 }
 
 func (e EntityRef) Components() []ComponentValue {

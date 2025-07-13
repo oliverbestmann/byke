@@ -37,7 +37,6 @@ func (c *ImmutableTypedColumn[C]) Get(row Row) ComponentValue {
 	value := &c.Values[row]
 
 	return ComponentValue{
-		Type:    c.ComponentType,
 		Value:   any(&value.Value).(ErasedComponent),
 		Added:   value.Changed,
 		Changed: value.Changed,

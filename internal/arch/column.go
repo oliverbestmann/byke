@@ -132,10 +132,8 @@ func (c *TypedColumn[C]) Get(row Row) ComponentValue {
 	t := &c.Values[row]
 
 	return ComponentValue{
-		Type:    c.ComponentType,
 		Added:   t.Added,
 		Changed: t.Changed,
-		Hash:    t.Hash,
 		Value:   any(&t.Value).(ErasedComponent),
 	}
 }
