@@ -141,11 +141,10 @@ type innerQuery struct {
 
 func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 	var target T
-	var targetIf any = &target
 
 	return func(yield func(T) bool) {
 		for ref := range inner.iter {
-			query.FromEntity(targetIf, inner.Setters, ref)
+			query.FromEntity(&target, inner.Setters, ref)
 
 			if !yield(target) {
 				return

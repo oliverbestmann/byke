@@ -3,7 +3,6 @@ package query
 import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/arch"
-	"github.com/oliverbestmann/byke/internal/assert"
 	"github.com/oliverbestmann/byke/internal/refl"
 	"reflect"
 	"slices"
@@ -31,24 +30,21 @@ type Setter struct {
 	UnsafeSetValue UnsafeSetValue
 }
 
-func FromEntity(target any, setters []Setter, ref arch.EntityRef) {
-	baseTarget := reflect.ValueOf(target)
-	assert.IsPointerType(baseTarget.Type())
-
-	ptrToTarget := baseTarget.UnsafePointer()
+func FromEntity[T any](target *T, setters []Setter, ref arch.EntityRef) {
+	ptrToTarget := unsafe.Pointer(target)
 
 	for _, setter := range setters {
-		target := baseTarget
-
 		if setter.UnsafeSetValue != nil {
 			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
 			setter.UnsafeSetValue(target, ref)
 		}
 
 		if setter.SetValue != nil {
+			target := reflect.ValueOf(target)
+
 			if setter.Field != nil {
 				// let target point to a field within the target struct
-				target = baseTarget.Elem().FieldByIndex(setter.Field).Addr()
+				target = target.Elem().FieldByIndex(setter.Field).Addr()
 			}
 
 			setter.SetValue(target.Interface(), ref)
@@ -87,12 +83,12 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 		result.Setters = append(result.Setters, Setter{
 			UnsafeFieldOffset: offset,
 			UnsafeSetValue: func(target unsafe.Pointer, ref arch.EntityRef) {
-				value, ok := ref.Get(componentType)
-				if !ok {
+				value := ref.Get(componentType)
+				if value == nil {
 					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
 				}
 
-				componentType.UnsafeSetValue(target, value.Value)
+				componentType.UnsafeSetValue(target, value)
 			},
 		})
 
@@ -110,12 +106,12 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 		result.Setters = append(result.Setters, Setter{
 			UnsafeFieldOffset: offset,
 			UnsafeSetValue: func(target unsafe.Pointer, ref arch.EntityRef) {
-				value, ok := ref.Get(componentType)
-				if !ok {
+				value := ref.Get(componentType)
+				if value == nil {
 					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
 				}
 
-				componentType.UnsafeSetPointer(target, value.Value)
+				componentType.UnsafeSetPointer(target, value)
 			},
 		})
 

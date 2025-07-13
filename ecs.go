@@ -288,9 +288,9 @@ func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRela
 	}
 
 	parentType := child.RelationshipTargetType()
-	parentComponentValue, ok := parent.Get(parentType)
-	if ok {
-		return parentComponentValue.Value.(isRelationshipTargetType), parentId, nil, true
+	parentComponentValue := parent.Get(parentType)
+	if parentComponentValue != nil {
+		return parentComponentValue.(isRelationshipTargetType), parentId, nil, true
 	}
 
 	// there is no component in the parent
@@ -458,10 +458,10 @@ func (w *World) Despawn(entityId EntityId) {
 
 		// update relationships
 		for _, component := range entity.Components() {
-			w.onComponentRemoved(entityId, component.Value)
+			w.onComponentRemoved(entityId, component)
 
 			// despawn child entities too
-			if parentComponent, ok := component.Value.(isRelationshipTargetType); ok {
+			if parentComponent, ok := component.(isRelationshipTargetType); ok {
 				for _, entityId := range parentComponent.Children() {
 					queue = append(queue, entityId)
 				}

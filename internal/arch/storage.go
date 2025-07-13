@@ -68,12 +68,12 @@ func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component Erased
 	// and update the index
 	s.entityToArchetype[entityId] = newArchetype
 
-	componentValue, ok := newArchetype.GetComponent(entityId, componentType)
-	if !ok {
+	componentValue := newArchetype.GetComponent(entityId, componentType)
+	if componentValue == nil {
 		panic("component we've just inserted is gone")
 	}
 
-	return componentValue.Value
+	return componentValue
 }
 
 func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *ComponentType) (ErasedComponent, bool) {
@@ -87,12 +87,12 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 		return nil, false
 	}
 
-	componentValue, ok := archetype.GetComponent(entityId, componentType)
-	if !ok {
+	componentValue := archetype.GetComponent(entityId, componentType)
+	if componentValue == nil {
 		panic("component does not exist in archetype")
 	}
 
-	copyOfComponent := componentType.CopyOf(componentValue.Value)
+	copyOfComponent := componentType.CopyOf(componentValue)
 
 	// we need to move to a new archetype
 	newArchetype, _ := s.archetypes.NextWithout(archetype, componentType)
@@ -210,15 +210,6 @@ func (s *Storage) HasComponent(entityId EntityId, componentType *ComponentType) 
 	}
 
 	return archetype.ContainsType(componentType)
-}
-
-func (s *Storage) GetComponent(entityId EntityId, componentType *ComponentType) (ComponentValue, bool) {
-	archetype, ok := s.entityToArchetype[entityId]
-	if !ok {
-		panic("entity does not exist")
-	}
-
-	return archetype.GetComponent(entityId, componentType)
 }
 
 func (s *Storage) EntityCount() int {

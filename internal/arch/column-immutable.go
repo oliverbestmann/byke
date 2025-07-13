@@ -33,14 +33,16 @@ func (c *ImmutableTypedColumn[C]) Truncate(n Row) {
 	c.Values = c.Values[:n]
 }
 
-func (c *ImmutableTypedColumn[C]) Get(row Row) ComponentValue {
-	value := &c.Values[row]
+func (c *ImmutableTypedColumn[C]) Get(row Row) ErasedComponent {
+	return any(&c.Values[row].Value).(ErasedComponent)
+}
 
-	return ComponentValue{
-		Value:   any(&value.Value).(ErasedComponent),
-		Added:   value.Changed,
-		Changed: value.Changed,
-	}
+func (c *ImmutableTypedColumn[C]) Added(row Row) Tick {
+	return c.Values[row].Changed
+}
+
+func (c *ImmutableTypedColumn[C]) Changed(row Row) Tick {
+	return c.Values[row].Changed
 }
 
 func (c *ImmutableTypedColumn[C]) Update(tick Tick, row Row, erasedValue ErasedComponent) {

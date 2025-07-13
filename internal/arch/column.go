@@ -19,7 +19,9 @@ type Column interface {
 	Append(tick Tick, component ErasedComponent)
 	Copy(from, to Row)
 	Truncate(n Row)
-	Get(row Row) ComponentValue
+	Get(row Row) ErasedComponent
+	Added(row Row) Tick
+	Changed(row Row) Tick
 	Update(tick Tick, row Row, cv ErasedComponent)
 	Import(other Column, row Row)
 	CheckChanged(tick Tick)
@@ -131,14 +133,16 @@ func (c *TypedColumn[C]) Truncate(n Row) {
 	c.Values = c.Values[:n]
 }
 
-func (c *TypedColumn[C]) Get(row Row) ComponentValue {
-	t := &c.Values[row]
+func (c *TypedColumn[C]) Get(row Row) ErasedComponent {
+	return any(&c.Values[row].Value).(ErasedComponent)
+}
 
-	return ComponentValue{
-		Added:   t.Added,
-		Changed: t.Changed,
-		Value:   any(&t.Value).(ErasedComponent),
-	}
+func (c *TypedColumn[C]) Added(row Row) Tick {
+	return c.Values[row].Added
+}
+
+func (c *TypedColumn[C]) Changed(row Row) Tick {
+	return c.Values[row].Changed
 }
 
 func (c *TypedColumn[C]) Update(tick Tick, row Row, erasedValue ErasedComponent) {

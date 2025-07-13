@@ -35,9 +35,9 @@ func (Option[C]) applyTo(result *ParsedQuery) []arch.Filter {
 }
 
 func (c *Option[C]) fromEntityRef(ref arch.EntityRef) {
-	value, ok := ref.Get(arch.ComponentTypeOf[C]())
-	if ok {
-		c.value = any(value.Value).(*C)
+	value := ref.Get(arch.ComponentTypeOf[C]())
+	if value != nil {
+		c.value = any(value).(*C)
 	} else {
 		c.value = nil
 	}
@@ -80,9 +80,9 @@ func (OptionMut[C]) applyTo(result *ParsedQuery) []arch.Filter {
 }
 
 func (c *OptionMut[C]) fromEntityRef(ref arch.EntityRef) {
-	value, ok := ref.Get(arch.ComponentTypeOf[C]())
-	if ok {
-		c.value = any(value.Value).(*C)
+	value := ref.Get(arch.ComponentTypeOf[C]())
+	if value != nil {
+		c.value = any(value).(*C)
 	} else {
 		c.value = nil
 	}
@@ -111,8 +111,8 @@ func (Has[C]) applyTo(result *ParsedQuery) []arch.Filter {
 }
 
 func (c *Has[C]) fromEntityRef(ref arch.EntityRef) {
-	_, ok := ref.Get(arch.ComponentTypeOf[C]())
-	c.Exists = ok
+	value := ref.Get(arch.ComponentTypeOf[C]())
+	c.Exists = value != nil
 }
 
 type With[C arch.IsComponent[C]] struct{}
@@ -127,8 +127,7 @@ func (With[C]) applyTo(result *ParsedQuery) []arch.Filter {
 			With: []*arch.ComponentType{componentType},
 
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
-				_, ok := entity.Get(componentType)
-				return ok
+				return entity.Get(componentType) != nil
 			},
 		},
 	}
@@ -146,8 +145,7 @@ func (Without[C]) applyTo(result *ParsedQuery) []arch.Filter {
 			Without: []*arch.ComponentType{componentType},
 
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
-				_, ok := entity.Get(componentType)
-				return !ok
+				return entity.Get(componentType) == nil
 			},
 		},
 	}
@@ -165,16 +163,8 @@ func (Changed[C]) applyTo(result *ParsedQuery) []arch.Filter {
 			With: []*arch.ComponentType{componentType},
 
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
-				value, ok := entity.Get(componentType)
-				if !ok {
-					return false
-				}
-
-				if value.Changed < q.LastRun {
-					return false
-				}
-
-				return true
+				tick := entity.Changed(componentType)
+				return tick > 0 && tick >= q.LastRun
 			},
 		},
 	}
@@ -192,16 +182,8 @@ func (Added[C]) applyTo(result *ParsedQuery) []arch.Filter {
 			With: []*arch.ComponentType{componentType},
 
 			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
-				value, ok := entity.Get(componentType)
-				if !ok {
-					return false
-				}
-
-				if value.Added < q.LastRun {
-					return false
-				}
-
-				return true
+				tick := entity.Added(componentType)
+				return tick > 0 && tick >= q.LastRun
 			},
 		},
 	}

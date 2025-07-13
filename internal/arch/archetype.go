@@ -139,7 +139,7 @@ func (a *Archetype) ReplaceComponentValue(tick Tick, entityId EntityId, componen
 	// update the existing value
 	column.Update(tick, row, component)
 
-	return column.Get(row).Value
+	return column.Get(row)
 }
 
 func (a *Archetype) Remove(entityId EntityId) {
@@ -186,24 +186,46 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 	return a.getAt(row), true
 }
 
-func (a *Archetype) GetComponentValueAt(row Row, componentType *ComponentType) (ComponentValue, bool) {
+func (a *Archetype) componentAt(row Row, componentType *ComponentType) ErasedComponent {
+	column := a.getColumn(componentType)
+	if column == nil {
+		return nil
+	}
+
+	return column.Get(row)
+}
+
+func (a *Archetype) changedAt(row Row, componentType *ComponentType) Tick {
+	column := a.getColumn(componentType)
+	if column == nil {
+		return NoTick
+	}
+
+	return column.Changed(row)
+}
+
+func (a *Archetype) addedAt(row Row, componentType *ComponentType) Tick {
+	column := a.getColumn(componentType)
+	if column == nil {
+		return NoTick
+	}
+
+	return column.Added(row)
+}
+
+func (a *Archetype) getColumn(componentType *ComponentType) Column {
 	if len(a.columns) < 8 {
 		// linear scan performs better on small number of types
 		for idx := range a.columns {
 			if a.columns[idx].Type == componentType {
-				return a.columns[idx].Get(row), true
+				return a.columns[idx].Column
 			}
 		}
 
-		return ComponentValue{}, false
+		return nil
 	}
 
-	column := a.columnsByType[componentType]
-	if column != nil {
-		return column.Get(row), true
-	}
-
-	return ComponentValue{}, false
+	return a.columnsByType[componentType]
 }
 
 func (a *Archetype) getAt(row Row) EntityRef {
@@ -305,18 +327,18 @@ func (a *Archetype) assertInvariants() {
 	}
 }
 
-func (a *Archetype) GetComponent(entityId EntityId, componentType *ComponentType) (ComponentValue, bool) {
+func (a *Archetype) GetComponent(entityId EntityId, componentType *ComponentType) ErasedComponent {
 	row, ok := a.index[entityId]
 	if !ok {
-		return ComponentValue{}, false
+		return nil
 	}
 
-	column, ok := a.columnsByType[componentType]
-	if !ok {
-		return ComponentValue{}, false
+	column := a.getColumn(componentType)
+	if column == nil {
+		return nil
 	}
 
-	return column.Get(row), true
+	return column.Get(row)
 }
 
 type ArchetypeIter struct {
@@ -340,12 +362,20 @@ type EntityRef struct {
 	archetype *Archetype
 }
 
-func (e EntityRef) Get(ty *ComponentType) (ComponentValue, bool) {
-	return e.archetype.GetComponentValueAt(e.row, ty)
+func (e EntityRef) Get(ty *ComponentType) ErasedComponent {
+	return e.archetype.componentAt(e.row, ty)
 }
 
-func (e EntityRef) Components() []ComponentValue {
-	values := make([]ComponentValue, 0, len(e.archetype.columns))
+func (e EntityRef) Changed(ty *ComponentType) Tick {
+	return e.archetype.changedAt(e.row, ty)
+}
+
+func (e EntityRef) Added(ty *ComponentType) Tick {
+	return e.archetype.addedAt(e.row, ty)
+}
+
+func (e EntityRef) Components() []ErasedComponent {
+	values := make([]ErasedComponent, 0, len(e.archetype.columns))
 
 	for _, column := range e.archetype.columns {
 		values = append(values, column.Get(e.row))
