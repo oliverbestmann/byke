@@ -9,22 +9,26 @@ import (
 type PauseState int
 
 const (
-	Paused   PauseState = 0
-	Unpaused PauseState = 1
+	PauseStatePaused   PauseState = 0
+	PauseStateUnpaused PauseState = 1
 )
 
 func pluginPause(app *App) {
 	app.InitState(StateType[PauseState]{
-		InitialValue: Unpaused,
+		InitialValue: PauseStateUnpaused,
 	})
 
-	app.AddSystems(PreUpdate, System(pauseGameSystem).RunIf(InState(Unpaused)).RunIf(InState(ScreenGame)))
-	app.AddSystems(OnExit(Paused), unpauseGameSystem)
+	app.AddSystems(PreUpdate, System(pauseGameSystem).
+		RunIf(InState(PauseStateUnpaused)).
+		RunIf(InState(ScreenGame)))
+
+	app.AddSystems(OnExit(PauseStatePaused), unpauseGameSystem)
 }
 
-func pauseGameSystem(vt *VirtualTime, pauseState *NextState[PauseState], keys bykebiten.Keys) {
+func pauseGameSystem(vt *VirtualTime, pauseState *NextState[PauseState], menuState *NextState[MenuState], keys bykebiten.Keys) {
 	if keys.IsJustPressed(ebiten.KeyEscape) {
-		pauseState.Set(Paused)
+		pauseState.Set(PauseStatePaused)
+		menuState.Set(MenuStatePause)
 		vt.Scale = 0.0
 	}
 }

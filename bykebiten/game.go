@@ -27,6 +27,8 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 	app.InsertResource(MouseButtons{})
 	app.InsertResource(Keys{})
 
+	app.AddEvent(byke.EventType[AppExit]())
+
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 
 	app.AddSystems(byke.PreUpdate, byke.System(interactionSystem))
@@ -55,6 +57,9 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 	app.AddSystems(byke.PostRender, byke.
 		System(renderTimingsSystem).
 		RunIf(byke.ResourceExists[byke.TimingStats]))
+
+	// read AppExit events last so the next update tick can already exit the app.
+	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
 	// start the game
 	app.RunWorld(runWorld)
@@ -160,6 +165,8 @@ type WindowConfig struct {
 }
 
 func runWorld(world *byke.World) error {
+	world.InsertResource(game{World: world})
+
 	win, _ := byke.ResourceOf[WindowConfig](world)
 	ebiten.SetWindowTitle(win.Title)
 	ebiten.SetWindowSize(win.Width, win.Height)
@@ -167,17 +174,20 @@ func runWorld(world *byke.World) error {
 	var options ebiten.RunGameOptions
 	options.SingleThread = true
 
-	return ebiten.RunGameWithOptions(&game{World: world}, &options)
+	theGame, _ := byke.ResourceOf[game](world)
+	return ebiten.RunGameWithOptions(theGame, &options)
 }
 
 type game struct {
 	World *byke.World
 
+	// set to a non nil value to exit the app
+	appExit    error
 	screenSize gm.Vec
 }
 
 func (g *game) Update() error {
-	return nil
+	return g.appExit
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
@@ -204,4 +214,10 @@ func updateMouseCursorSystem(cursor *MouseCursor) {
 	x, y := ebiten.CursorPosition()
 	cursor.X = float64(x)
 	cursor.Y = float64(y)
+}
+
+func readAppExitEventsSystem(events *byke.EventReader[AppExit], game *game) {
+	for _, ev := range events.Read() {
+		game.appExit = ev.error
+	}
 }

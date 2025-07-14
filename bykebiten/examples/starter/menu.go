@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
@@ -18,11 +17,11 @@ const (
 
 func pluginMenu(app *App) {
 	app.InitState(StateType[MenuState]{
-		InitialValue: MenuStateTitle,
+		InitialValue: MenuStateNone,
 	})
 
-	app.AddSystems(OnEnter(Paused), spawnPausedMenuSystem)
-	app.AddSystems(OnEnter(ScreenTitle), spawnTitleMenuSystem)
+	app.AddSystems(OnEnter(MenuStatePause), spawnPausedMenuSystem)
+	app.AddSystems(OnEnter(MenuStateTitle), spawnTitleMenuSystem)
 
 	app.AddSystems(Update, applyColorByInteractionState)
 }
@@ -30,7 +29,7 @@ func pluginMenu(app *App) {
 func button(pos gm.Vec, text string) ErasedComponent {
 	// create a rectangle
 	var buttonShape Path
-	buttonShape.Rectangle(gm.RectWithCenterAndSize(gm.VecZero, gm.Vec{X: 128.0, Y: 48.0}))
+	buttonShape.Rectangle(gm.RectWithCenterAndSize(gm.VecZero, gm.Vec{X: 192.0, Y: 48.0}))
 
 	return Bundle(
 		NewTransform().WithTranslation(pos),
@@ -63,14 +62,14 @@ func spawnTitleMenuSystem(commands *Commands, screenSize ScreenSize) {
 			screenState.Set(ScreenGame)
 			menuState.Set(MenuStateNone)
 		})
+
 	commands.
 		Spawn(
 			DespawnOnExitState(ScreenTitle),
-			button(screenSize.Mul(0.5).Add(gm.Vec{Y: 32}), "Settings"),
+			button(screenSize.Mul(0.5).Add(gm.Vec{Y: 32}), "Exit Game"),
 		).
-		Observe(func(_ On[Clicked], screenState *NextState[Screen], menuState *NextState[MenuState]) {
-			screenState.Set(ScreenGame)
-			menuState.Set(MenuStateNone)
+		Observe(func(_ On[Clicked], exit *EventWriter[AppExit]) {
+			exit.Write(AppExitSuccess)
 		})
 }
 
@@ -90,6 +89,25 @@ func applyColorByInteractionState(query Query[applyColorByInteractionStateQueryI
 	}
 }
 
-func spawnPausedMenuSystem(commands *Commands) {
-	fmt.Println("Spawn paused menu")
+func spawnPausedMenuSystem(commands *Commands, screenSize ScreenSize) {
+	commands.
+		Spawn(
+			DespawnOnExitState(MenuStatePause),
+			button(screenSize.Mul(0.5).Add(gm.Vec{Y: -32}), "Continue game"),
+		).
+		Observe(func(_ On[Clicked], pauseState *NextState[PauseState], menuState *NextState[MenuState]) {
+			pauseState.Set(PauseStateUnpaused)
+			menuState.Set(MenuStateNone)
+		})
+
+	commands.
+		Spawn(
+			DespawnOnExitState(MenuStatePause),
+			button(screenSize.Mul(0.5).Add(gm.Vec{Y: 32}), "Back to menu"),
+		).
+		Observe(func(_ On[Clicked], nextScreen *NextState[Screen], pauseState *NextState[PauseState]) {
+			nextScreen.Set(ScreenTitle)
+			pauseState.Set(PauseStateUnpaused)
+		})
+
 }

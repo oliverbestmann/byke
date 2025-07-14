@@ -21,7 +21,9 @@ func pluginScreen(app *App) {
 	app.AddSystems(OnEnter(ScreenTitle), spawnTitleScreenSystem)
 }
 
-func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
+func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize, menuState *NextState[MenuState]) {
+	menuState.Set(MenuStateTitle)
+
 	commands.Spawn(
 		DespawnOnExitState(ScreenTitle),
 

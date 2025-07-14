@@ -27,8 +27,9 @@ func NewTimer(duration time.Duration, mode TimerMode) Timer {
 }
 
 func NewTimerFromSeconds(seconds float64, mode TimerMode) Timer {
+	duration := time.Duration(seconds * float64(time.Second))
 	return Timer{
-		duration: time.Duration(seconds * float64(time.Second)),
+		duration: duration,
 		mode:     mode,
 	}
 }
@@ -43,7 +44,7 @@ func (t *Timer) Tick(delta time.Duration) *Timer {
 
 	t.elapsed += delta
 
-	if t.elapsed >= t.duration {
+	if t.elapsed >= t.duration && t.duration > 0 {
 		if t.mode == TimerModeOnce {
 			// normal timer will stop here
 			t.elapsed = t.duration
