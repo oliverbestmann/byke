@@ -3,6 +3,7 @@ package arch
 import (
 	"fmt"
 	"hash/maphash"
+	"log/slog"
 	"maps"
 	"reflect"
 	"sync/atomic"
@@ -68,6 +69,12 @@ func ensureComponentType(ptrToType unsafe.Pointer, makeType func(id uint32) *Com
 		newTypes[ptrToType] = newType
 
 		if componentTypes.CompareAndSwap(previousTypes, &newTypes) {
+			slog.Info(
+				"New component type registered",
+				slog.String("name", newType.Name),
+				slog.Int("id", int(newType.Id)),
+			)
+
 			return newType
 		}
 	}
@@ -78,6 +85,8 @@ func abiTypePointerTo(t reflect.Type) unsafe.Pointer {
 		typ, val unsafe.Pointer
 	}
 
+	// a reflect.Type is backed by an *rType. The rType contains a abi.Type as
+	// its first value. This means, that a *rType can be re-interpreted as *abi.Type
 	return (*eface)(unsafe.Pointer(&t)).val
 }
 

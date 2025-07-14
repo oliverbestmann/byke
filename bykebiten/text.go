@@ -48,7 +48,8 @@ func computeTextSizeSystem(
 		lineSpacing := item.TextFace.Face.Metrics().VLineGap
 		size := gm.VecOf(text.Measure(item.Text.Text, item.TextFace.Face, lineSpacing))
 
-		origin := item.Anchor.MulEach(size)
+		origin := item.Anchor.MulEach(size).Mul(-1)
 		item.BBox.Rect = gm.RectWithOriginAndSize(origin, size)
+		item.BBox.ToSourceScale = gm.VecOne
 	}
 }

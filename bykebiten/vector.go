@@ -156,16 +156,16 @@ func (p *Path) Close() {
 
 func computeCachedVertices(
 	query byke.Query[struct {
-		byke.Or[byke.Changed[Path], byke.Or[byke.Changed[Stroke], byke.Changed[Fill]]]
+	byke.Or[byke.Changed[Path], byke.Or[byke.Changed[Stroke], byke.Changed[Fill]]]
 
-		Path   Path
-		Fill   byke.Option[Fill]
-		Stroke byke.Option[Stroke]
-		Anchor Anchor
+	Path   Path
+	Fill   byke.Option[Fill]
+	Stroke byke.Option[Stroke]
+	Anchor Anchor
 
-		Cache *pathVertices
-		BBox  *BBox
-	}],
+	Cache *pathVertices
+	BBox  *BBox
+}],
 ) {
 
 	for item := range query.Items() {
@@ -238,12 +238,13 @@ func computeCachedVertices(
 		size := maxVec.Sub(minVec)
 		origin := item.Anchor.MulEach(size).Mul(-1)
 		item.BBox.Rect = gm.RectWithOriginAndSize(origin, size)
+		item.BBox.ToSourceScale = gm.VecOne
 
 		// apply origin to the vertices to move the rendering to [[0, 0]; size]
 		oX, oY := float32(origin.X), float32(origin.Y)
 		for idx := range vertices {
-			vertices[idx].DstX += oX
-			vertices[idx].DstY += oY
+			vertices[idx].DstX -= oX
+			vertices[idx].DstY -= oY
 		}
 	}
 }

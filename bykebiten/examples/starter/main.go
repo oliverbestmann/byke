@@ -14,7 +14,7 @@ func main() {
 
 	// Add a WindowConfig to set title and initial size
 	app.InsertResource(WindowConfig{
-		Title:  "Ducky",
+		Title:  "AssetDucky",
 		Width:  800,
 		Height: 600,
 	})
@@ -23,6 +23,7 @@ func main() {
 	app.AddPlugin(PluginFunc(pluginScreen))
 	app.AddPlugin(PluginFunc(pluginPause))
 	app.AddPlugin(PluginFunc(pluginMenu))
+	app.AddPlugin(PluginFunc(pluginGame))
 
 	fmt.Println(app.Run())
 }

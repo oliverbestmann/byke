@@ -32,6 +32,10 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 		InSet(TransformSystems))
 
 	app.AddSystems(byke.PreRender,
+		byke.System(updateTileCache).Before(computeSpriteSizeSystem),
+	)
+
+	app.AddSystems(byke.PreRender,
 		computeCachedVertices,
 		computeSpriteSizeSystem,
 		computeTextSizeSystem,

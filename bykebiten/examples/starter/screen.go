@@ -20,7 +20,6 @@ func pluginScreen(app *App) {
 	})
 
 	app.AddSystems(OnEnter(ScreenTitle), spawnTitleScreenSystem)
-	app.AddSystems(OnEnter(ScreenGame), spawnGameScreenSystem)
 }
 
 func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
@@ -30,7 +29,7 @@ func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
 		DespawnOnExitState(ScreenTitle),
 
 		Sprite{
-			Image: EbitenPNG(),
+			Image: AssetEbiten(),
 		},
 
 		// palce at the center of the screen
@@ -40,8 +39,4 @@ func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
 			Color: color.RGBA(1.0, 1.0, 1.0, 0.2),
 		},
 	)
-}
-
-func spawnGameScreenSystem(commands *Commands) {
-	fmt.Println("SpawnWithEntityId game screen")
 }

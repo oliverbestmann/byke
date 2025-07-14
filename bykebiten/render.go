@@ -56,6 +56,11 @@ type RenderTarget struct {
 type BBox struct {
 	byke.ComparableComponent[BBox]
 	gm.Rect
+
+	// the bounding box might not reflect the actual source, e.g. for sprites
+	// that have a custom size set. ToSourceScale describes the factor that
+	// the Rect would need to be multiplied with to get the sources size.
+	ToSourceScale gm.Vec
 }
 
 var commonRenderComponents = []byke.ErasedComponent{
@@ -70,7 +75,6 @@ var commonRenderComponents = []byke.ErasedComponent{
 
 type renderCommonValues struct {
 	BBox      BBox
-	Anchor    Anchor
 	ColorTint ColorTint
 	Layer     Layer
 	Transform GlobalTransform
@@ -83,6 +87,9 @@ type hasCommonValues interface {
 type renderSpriteValue struct {
 	Common renderCommonValues
 	Sprite Sprite
+
+	TileIndex byke.Option[TileIndex]
+	TileCache byke.Option[tileCache]
 }
 
 func (r *renderSpriteValue) commonValues() *renderCommonValues {
@@ -153,30 +160,34 @@ func renderSystem(
 	for _, item := range items {
 		common := item.commonValues()
 
-		itemSize := common.BBox.Size()
-
 		var g ebiten.GeoM
-
-		// offset by bounding box origin
-		origin := common.BBox.Min
-		g.Translate(-origin.X, -origin.Y)
-
-		// // offset by anchor
-		// offset := itemSize.MulEach(common.Anchor.Vec)
-		// g.Translate(-offset.X, -offset.Y)
 
 		// get transformation
 		tr := common.Transform
 
-		// apply custom size if available
-		scale := itemSize.DivEach(itemSize)
-		g.Scale(scale.X, scale.Y)
+		// custom scale, e.g. derived from sprites CustomSize property
+		toSourceScale := common.BBox.ToSourceScale
+		if toSourceScale != gm.VecOne {
+			g.Scale(1/toSourceScale.X, 1/toSourceScale.Y)
+		}
 
-		// apply custom size based on transform
-		g.Scale(tr.Scale.X, tr.Scale.Y)
+		// transform by offset. Need to multiply by the sign of source scale as that might
+		// flip the direction the origin translation need to be applied
+		origin := common.BBox.Min
+		g.Translate(origin.X*signOf(toSourceScale.X), origin.Y*signOf(toSourceScale.Y))
 
-		// apply rotation
-		g.Rotate(float64(tr.Rotation))
+		// apply flip values
+		// g.Scale(common.BBox.FlipScale.X, toSourceScale.Y)
+
+		if tr.Scale != gm.VecOne {
+			// apply custom size based on transform
+			g.Scale(tr.Scale.X, tr.Scale.Y)
+		}
+
+		if tr.Rotation != 0 {
+			// apply rotation
+			g.Rotate(float64(tr.Rotation))
+		}
 
 		// move to target position
 		g.Translate(tr.Translation.X, tr.Translation.Y)
@@ -187,10 +198,18 @@ func renderSystem(
 
 		switch item := item.(type) {
 		case *renderSpriteValue:
+			image := item.Sprite.Image
+			if tileCache_, ok := item.TileCache.Get(); ok {
+				var tileCache tileCache = tileCache_
+
+				idx := item.TileIndex.OrZero().Index
+				image = tileCache.Tiles[idx%len(tileCache.Tiles)]
+			}
+
 			var op ebiten.DrawImageOptions
 			op.GeoM = g
 			op.ColorScale = colorScale
-			screen.DrawImage(item.Sprite.Image, &op)
+			screen.DrawImage(image, &op)
 
 		case *renderTextValue:
 			var op text.DrawOptions
@@ -265,5 +284,13 @@ func compareZ(a, b *renderCommonValues) int {
 		return 1
 	default:
 		return 0
+	}
+}
+
+func signOf(x float64) float64 {
+	if x < 0 {
+		return -1
+	} else {
+		return 1
 	}
 }

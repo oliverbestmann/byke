@@ -24,7 +24,7 @@ func NewTransform() Transform {
 
 func TransformFromXY(x, y float64) Transform {
 	return Transform{
-		Scale:       gm.VecZero,
+		Scale:       gm.VecOne,
 		Translation: gm.Vec{X: x, Y: y},
 	}
 }

@@ -10,8 +10,8 @@ import (
 	. "github.com/oliverbestmann/byke/gm"
 )
 
-//go:embed gopher.png
-var GopherPNG []byte
+//go:embed rect.png
+var RectPNG []byte
 
 func main() {
 	var app App
@@ -39,13 +39,71 @@ type Gopher struct {
 }
 
 func createGopherSystem(commands *Commands, screenSize ScreenSize) {
-	gopher, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(GopherPNG))
+	rectImage, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(RectPNG))
 
 	commands.Spawn(
-		NewTransform().WithTranslation(screenSize.Mul(0.5)),
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 100}),
 		Gopher{},
-		Sprite{Image: gopher},
+		Sprite{Image: rectImage},
+		AnchorTopLeft,
+	)
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 200, Y: 100}),
+		Gopher{},
+		Sprite{Image: rectImage},
 		AnchorCenter,
+	)
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 100}),
+		Gopher{},
+		Sprite{Image: rectImage},
+		AnchorBottomRight,
+	)
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 200}),
+		Gopher{},
+		Sprite{Image: rectImage, FlipX: true},
+		AnchorTopLeft,
+	)
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 200, Y: 200}),
+		Gopher{},
+		Sprite{Image: rectImage, FlipX: true},
+		AnchorCenter,
+	)
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 200}),
+		Gopher{},
+		Sprite{Image: rectImage, FlipX: true},
+		AnchorBottomRight,
+	)
+
+	// with custom size
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 300}),
+		Gopher{},
+		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
+		AnchorTopLeft,
+	)
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 300}),
+		Gopher{},
+		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
+		AnchorCenter,
+	)
+
+	commands.Spawn(
+		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 500, Y: 300}),
+		Gopher{},
+		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
+		AnchorBottomRight,
 	)
 }
 

@@ -13,7 +13,15 @@ import (
 //go:embed ebiten.png
 var ebiten_png []byte
 
-var EbitenPNG = sync.OnceValue(func() *ebiten.Image {
+//go:embed ducky.png
+var ducky_png []byte
+
+var AssetEbiten = sync.OnceValue(func() *ebiten.Image {
 	image, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(ebiten_png))
+	return image
+})
+
+var AssetDucky = sync.OnceValue(func() *ebiten.Image {
+	image, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(ducky_png))
 	return image
 })
