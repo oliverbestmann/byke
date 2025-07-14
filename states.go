@@ -1,6 +1,7 @@
 package byke
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -50,6 +51,22 @@ type stateChangedScheduleId[S comparable] struct {
 	enter      bool
 	exit       bool
 	transition bool
+}
+
+func (s stateChangedScheduleId[S]) String() string {
+	switch {
+	case s.enter:
+		return fmt.Sprintf("OnEnter[%s](%v)", s.stateType, s.currValue)
+
+	case s.exit:
+		return fmt.Sprintf("OnExit[%s](%v)", s.stateType, s.prevValue)
+
+	case s.transition:
+		return fmt.Sprintf("OnTransition[%s](%v -> %v)", s.stateType, s.prevValue, s.currValue)
+
+	default:
+		panic("invalid stateChangedScheduleId")
+	}
 }
 
 func (stateChangedScheduleId[S]) isSchedule() {}

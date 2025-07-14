@@ -5,39 +5,42 @@ import (
 )
 
 type scheduleId struct {
-	// make sure this is not a zero-sized type
-	_ int32
+	name string
 }
 
 func (*scheduleId) isSchedule() {}
 
-func MakeScheduleId() ScheduleId {
-	return &scheduleId{}
+func (s *scheduleId) String() string {
+	return s.name
+}
+
+func MakeScheduleId(name string) ScheduleId {
+	return &scheduleId{name: name}
 }
 
 var (
-	Main             ScheduleId = &scheduleId{}
-	RunFixedMainLoop ScheduleId = &scheduleId{}
-	FixedMain        ScheduleId = &scheduleId{}
+	Main             ScheduleId = MakeScheduleId("Main")
+	RunFixedMainLoop ScheduleId = MakeScheduleId("RunFixedMainLoop")
+	FixedMain        ScheduleId = MakeScheduleId("FixedMain")
 
-	PreStartup      ScheduleId = &scheduleId{}
-	Startup         ScheduleId = &scheduleId{}
-	PostStartup     ScheduleId = &scheduleId{}
-	First           ScheduleId = &scheduleId{}
-	PreUpdate       ScheduleId = &scheduleId{}
-	StateTransition ScheduleId = &scheduleId{}
-	Update          ScheduleId = &scheduleId{}
-	PostUpdate      ScheduleId = &scheduleId{}
-	PreRender       ScheduleId = &scheduleId{}
-	Render          ScheduleId = &scheduleId{}
-	PostRender      ScheduleId = &scheduleId{}
-	Last            ScheduleId = &scheduleId{}
+	PreStartup      ScheduleId = MakeScheduleId("PreStartup")
+	Startup         ScheduleId = MakeScheduleId("Startup")
+	PostStartup     ScheduleId = MakeScheduleId("PostStartup")
+	First           ScheduleId = MakeScheduleId("First")
+	PreUpdate       ScheduleId = MakeScheduleId("PreUpdate")
+	StateTransition ScheduleId = MakeScheduleId("StateTransition")
+	Update          ScheduleId = MakeScheduleId("Update")
+	PostUpdate      ScheduleId = MakeScheduleId("PostUpdate")
+	PreRender       ScheduleId = MakeScheduleId("PreRender")
+	Render          ScheduleId = MakeScheduleId("Render")
+	PostRender      ScheduleId = MakeScheduleId("PostRender")
+	Last            ScheduleId = MakeScheduleId("Last")
 
-	FixedFirst      ScheduleId = &scheduleId{}
-	FixedPreUpdate  ScheduleId = &scheduleId{}
-	FixedUpdate     ScheduleId = &scheduleId{}
-	FixedPostUpdate ScheduleId = &scheduleId{}
-	FixedLast       ScheduleId = &scheduleId{}
+	FixedFirst      ScheduleId = MakeScheduleId("FixedFirst")
+	FixedPreUpdate  ScheduleId = MakeScheduleId("FixedPreUpdate")
+	FixedUpdate     ScheduleId = MakeScheduleId("FixedUpdate")
+	FixedPostUpdate ScheduleId = MakeScheduleId("FixedPostUpdate")
+	FixedLast       ScheduleId = MakeScheduleId("FixedLast")
 )
 
 func configureSchedules(app *App) {

@@ -5,3 +5,7 @@ func InState[S comparable](expectedState S) Systems {
 		return state.Current() == expectedState
 	})
 }
+
+func ResourceExists[T any](res ResOption[T]) bool {
+	return res.Value != nil
+}

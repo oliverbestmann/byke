@@ -91,5 +91,5 @@ func applyColorByInteractionState(query Query[applyColorByInteractionStateQueryI
 }
 
 func spawnPausedMenuSystem(commands *Commands) {
-	fmt.Println("SpawnWithEntityId paused menu")
+	fmt.Println("Spawn paused menu")
 }

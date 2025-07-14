@@ -60,15 +60,6 @@ func (s *Schedule) updateSystemOrdering() error {
 	return nil
 }
 
-type preparedSystem struct {
-	systemConfig
-	LastRun     Tick
-	RawSystem   func(systemContext) any
-	IsPredicate bool
-
-	Predicates []*preparedSystem
-}
-
 func topologicalSystemOrder(systems []*systemConfig, knownSystemSets []*SystemSet) ([]SystemId, error) {
 	// graph and in-degree count for topological sorting
 	graph := map[SystemId][]SystemId{}

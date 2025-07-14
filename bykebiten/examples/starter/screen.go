@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
@@ -23,8 +22,6 @@ func pluginScreen(app *App) {
 }
 
 func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
-	fmt.Println("SpawnWithEntityId title screen")
-
 	commands.Spawn(
 		DespawnOnExitState(ScreenTitle),
 
@@ -32,7 +29,7 @@ func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize) {
 			Image: AssetEbiten(),
 		},
 
-		// palce at the center of the screen
+		// place at the center of the screen
 		NewTransform().WithTranslation(screenSize.Mul(0.5)),
 
 		ColorTint{

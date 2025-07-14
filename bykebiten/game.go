@@ -1,9 +1,14 @@
 package bykebiten
 
 import (
+	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
+	"reflect"
+	"slices"
+	"time"
 )
 
 var TransformSystems = &byke.SystemSet{}
@@ -43,8 +48,109 @@ var GamePlugin byke.PluginFunc = func(app *byke.App) {
 
 	app.AddSystems(byke.Render, byke.System(renderSystem).Chain())
 
+	app.AddSystems(byke.Update, byke.
+		System(toggleRenderTimingsSystem).
+		RunIf(KeyJustPressed(ebiten.KeyD)))
+
+	app.AddSystems(byke.PostRender, byke.
+		System(renderTimingsSystem).
+		RunIf(byke.ResourceExists[byke.TimingStats]))
+
 	// start the game
 	app.RunWorld(runWorld)
+}
+
+func toggleRenderTimingsSystem(world *byke.World) {
+	_, ok := byke.ResourceOf[byke.TimingStats](world)
+	if ok {
+		world.RemoveResource(reflect.TypeFor[byke.TimingStats]())
+	} else {
+		world.InsertResource(byke.NewTimingStats())
+	}
+}
+
+func renderTimingsSystem(
+	timings byke.TimingStats,
+	renderTarget RenderTarget,
+	frameCounter *byke.Local[int],
+	image *byke.Local[*ebiten.Image],
+) {
+	frameCounter.Value += 1
+	if frameCounter.Value%30 != 0 && image.Value != nil {
+		renderTarget.Image.DrawImage(image.Value, nil)
+		return
+	}
+
+	if image.Value == nil || image.Value.Bounds() != renderTarget.Image.Bounds() {
+		b := renderTarget.Image.Bounds()
+		image.Value = ebiten.NewImage(b.Dx(), b.Dy())
+	}
+
+	image.Value.Clear()
+
+	var row int
+
+	var maxNameLength int
+
+	for _, scheduleId := range timings.ScheduleOrder {
+		maxNameLength = max(maxNameLength, len(scheduleId.String()))
+	}
+
+	for _, scheduleId := range timings.ScheduleOrder {
+		t := timings.BySchedule[scheduleId]
+
+		text := fmt.Sprintf("%-[1]*s runs=%5d, latest=%4.2fms, min=%4.2fms, max=%4.2fms, avg=%4.2fms",
+			maxNameLength,
+			scheduleId,
+			t.Count,
+			t.Latest.Seconds()*1000,
+			t.Min.Seconds()*1000,
+			t.Max.Seconds()*1000,
+			t.MovingAverage.Seconds()*1000,
+		)
+
+		ebitenutil.DebugPrintAt(image.Value, text, 16, 16+16*row)
+		row += 1
+	}
+
+	type System struct {
+		Name    string
+		Timings byke.Timings
+	}
+
+	var systems []System
+	for sys, t := range timings.BySystem {
+		if t.MovingAverage < 250*time.Microsecond {
+			continue
+		}
+
+		systems = append(systems, System{sys.Name, t})
+		maxNameLength = max(maxNameLength, len(sys.Name))
+	}
+
+	slices.SortFunc(systems, func(a, b System) int {
+		return int(b.Timings.MovingAverage - a.Timings.MovingAverage)
+	})
+
+	row += 1
+
+	for _, sys := range systems {
+		text := fmt.Sprintf("%-[1]*s runs=%5d, latest:%6.2fms, min:%6.2fms, max:%6.2fms, avg:%6.2fms",
+			maxNameLength,
+			sys.Name,
+			sys.Timings.Count,
+			sys.Timings.Latest.Seconds()*1000,
+			sys.Timings.Min.Seconds()*1000,
+			sys.Timings.Max.Seconds()*1000,
+			sys.Timings.MovingAverage.Seconds()*1000,
+		)
+
+		ebitenutil.DebugPrintAt(image.Value, text, 16, 16+16*row)
+		row += 1
+	}
+
+	// draw the now cached text
+	renderTarget.Image.DrawImage(image.Value, nil)
 }
 
 type WindowConfig struct {

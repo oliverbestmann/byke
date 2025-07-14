@@ -35,6 +35,7 @@ type Or[A, B query.Filter] = query.Or[A, B]
 const NoEntityId = EntityId(0)
 
 type ScheduleId interface {
+	fmt.Stringer
 	isSchedule()
 }
 
@@ -65,6 +66,11 @@ func NewWorld() *World {
 		schedules: map[ScheduleId]*Schedule{},
 		systems:   map[SystemId]*preparedSystem{},
 	}
+}
+
+func (w *World) timingStats() *TimingStats {
+	stats, _ := ResourceOf[TimingStats](w)
+	return stats
 }
 
 func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*SystemSet) {
@@ -114,6 +120,10 @@ func (w *World) runSystem(system *preparedSystem, ctx systemContext) any {
 		}
 	}
 
+	if timings := w.timingStats(); timings != nil {
+		defer timings.MeasureSystem(system).Stop()
+	}
+
 	w.currentTick += 1
 
 	ctx.LastRun = system.LastRun
@@ -144,6 +154,10 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 	schedule, ok := w.schedules[scheduleId]
 	if !ok {
 		return
+	}
+
+	if timings := w.timingStats(); timings != nil {
+		defer timings.MeasureSchedule(scheduleId).Stop()
 	}
 
 	for _, system := range schedule.systems {
@@ -437,6 +451,11 @@ func (w *World) InsertResource(resource any) {
 		Reflect: pointerValueOf(ptr),
 		Pointer: ptr.Interface(),
 	}
+}
+
+func (w *World) RemoveResource(resourceType reflect.Type) {
+	resType := reflect.PointerTo(resourceType)
+	delete(w.resources, resType)
 }
 
 func pointerValueOf(ptr reflect.Value) ptrValue {

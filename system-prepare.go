@@ -5,6 +5,8 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/byke/internal/typedpool"
 	"reflect"
+	"runtime"
+	"strings"
 )
 
 var valueSlices = typedpool.New[[]reflect.Value]()
@@ -23,6 +25,17 @@ type systemContext struct {
 	LastRun Tick
 }
 
+type preparedSystem struct {
+	systemConfig
+
+	Name        string
+	LastRun     Tick
+	RawSystem   func(systemContext) any
+	IsPredicate bool
+
+	Predicates []*preparedSystem
+}
+
 func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 	rSystem := config.SystemFunc
 
@@ -30,7 +43,10 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		panic(fmt.Sprintf("not a function: %s", rSystem.Type()))
 	}
 
-	preparedSystem := &preparedSystem{systemConfig: config}
+	preparedSystem := &preparedSystem{
+		systemConfig: config,
+		Name:         funcNameOf(config.SystemFunc),
+	}
 
 	systemType := rSystem.Type()
 
@@ -39,9 +55,6 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 
 	for idx := range systemType.NumIn() {
 		inType := systemType.In(idx)
-
-		resourceCopy, resourceCopyOk := w.resources[reflect.PointerTo(inType)]
-		resource, resourceOk := w.resources[inType]
 
 		switch {
 		case refl.ImplementsInterfaceDirectly[SystemParam](inType):
@@ -53,14 +66,10 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		case inType == reflect.TypeFor[*World]():
 			params = append(params, valueSystemParamState(reflect.ValueOf(w)))
 
-		case resourceCopyOk:
-			params = append(params, valueSystemParamState(resourceCopy.Reflect.Elem()))
-
-		case resourceOk:
-			params = append(params, valueSystemParamState(resource.Reflect.Value))
-
 		default:
-			panic(fmt.Sprintf("Can not handle system param of type %s", inType))
+			// in all other cases, we assume that it might be a resource that we can
+			// grab during runtime
+			params = append(params, makeResourceSystemParamState(w, inType))
 		}
 	}
 
@@ -68,7 +77,10 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 	for idx, param := range params {
 		inType := systemType.In(idx)
 		if !param.valueType().AssignableTo(inType) {
-			panic(fmt.Sprintf("Argument %d of %s is not assignable to param value of type %s", idx, systemType.Name(), inType))
+			panic(fmt.Sprintf(
+				"Argument %d (%s) of %q is not assignable to value of type %s",
+				idx, param.valueType(), preparedSystem.Name, inType,
+			))
 		}
 	}
 
@@ -129,6 +141,25 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 	}
 
 	return preparedSystem
+}
+
+func funcNameOf(fn reflect.Value) string {
+	if fn.Kind() != reflect.Func {
+		panic("not a function")
+	}
+
+	ptrToCode := uintptr(fn.UnsafePointer())
+	funcValue := runtime.FuncForPC(ptrToCode)
+	if funcValue == nil {
+		return fmt.Sprintf("unknown(%s)", fn.Type())
+	}
+
+	name := funcValue.Name()
+	if idx := strings.LastIndexByte(name, '/'); idx >= 0 {
+		name = name[idx+1:]
+	}
+
+	return name
 }
 
 func makeSystemParamState(world *World, ty reflect.Type) SystemParamState {
