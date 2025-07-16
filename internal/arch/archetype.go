@@ -7,12 +7,8 @@ import (
 	"hash/maphash"
 	"slices"
 	"strings"
+	"unsafe"
 )
-
-type columnWithType struct {
-	Column
-	Type *ComponentType
-}
 
 type ArchetypeId uint64
 
@@ -23,8 +19,9 @@ type Archetype struct {
 	entities []EntityId
 	index    map[EntityId]Row
 
-	columns       []columnWithType
-	columnsByType map[*ComponentType]Column
+	columns         []*ErasedColumn
+	columnsByType   map[*ComponentType]*ErasedColumn
+	columnsByTypeId [256]*ErasedColumn
 }
 
 func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
@@ -36,27 +33,28 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 		}
 	}
 
-	columnsByType := map[*ComponentType]Column{}
+	columnsByType := map[*ComponentType]*ErasedColumn{}
 
-	var columns []columnWithType
+	var columnsByTypeId [256]*ErasedColumn
+
+	var columns []*ErasedColumn
 	for _, ty := range sortedTypes {
 		column := ty.MakeColumn()
-		columns = append(columns, columnWithType{
-			Type:   ty,
-			Column: column,
-		})
+		columns = append(columns, column)
 
 		// put column into index too
 		columnsByType[ty] = column
+		columnsByTypeId[ty.Id&0xff] = column
 	}
 
 	return &Archetype{
-		Id:            id,
-		Types:         sortedTypes,
-		entities:      nil,
-		columns:       columns,
-		columnsByType: columnsByType,
-		index:         map[EntityId]Row{},
+		Id:              id,
+		Types:           sortedTypes,
+		entities:        nil,
+		columns:         columns,
+		columnsByType:   columnsByType,
+		columnsByTypeId: columnsByTypeId,
+		index:           map[EntityId]Row{},
 	}
 }
 
@@ -213,33 +211,47 @@ func (a *Archetype) addedAt(row Row, componentType *ComponentType) Tick {
 	return column.Added(row)
 }
 
-func (a *Archetype) getColumn(componentType *ComponentType) Column {
-	if len(a.columns) < 8 {
-		// linear scan performs better on small number of types
-		for idx := range a.columns {
-			if a.columns[idx].Type == componentType {
-				return a.columns[idx].Column
-			}
-		}
-
-		return nil
-	}
-
-	return a.columnsByType[componentType]
+func (a *Archetype) getColumn(componentType *ComponentType) *ErasedColumn {
+	return a.columnsByTypeId[uint8(componentType.Id)]
 }
 
 func (a *Archetype) getAt(row Row) EntityRef {
+	columns := make([]ColumnAccess, len(a.columns))
+
+	for idx, column := range a.columns {
+		columns[idx] = column.Access()
+	}
+
 	return EntityRef{
-		EntityId:  a.entities[row],
+		fetch:     asFastSlice(columns),
 		archetype: a,
 		row:       row,
 	}
 }
 
-func (a *Archetype) Iter() ArchetypeIter {
-	return ArchetypeIter{
+func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIter, []ColumnAccess) {
+	iters := fetches[:0]
+
+	// check what types we can fetch
+	for _, typ := range query.Fetch {
+		column := a.getColumn(typ)
+		if column == nil {
+			iters = append(iters, ColumnAccess{})
+		} else {
+			iter := column.Access()
+			iters = append(iters, iter)
+		}
+	}
+
+	// now we have column iters in the same order as the queries fetch values.
+	iter := EntityIter{
+		Fetch:     iters,
+		entities:  a.entities,
+		total:     len(a.entities),
 		archetype: a,
 	}
+
+	return iter, iters
 }
 
 func (a *Archetype) Import(tick Tick, source *Archetype, entityId EntityId, newComponents ...ErasedComponent) {
@@ -263,7 +275,7 @@ func (a *Archetype) Import(tick Tick, source *Archetype, entityId EntityId, newC
 		}
 
 		// import source
-		targetColumn.Import(sourceColumn.Column, rowInSource)
+		targetColumn.Import(sourceColumn, rowInSource)
 	}
 
 	// now add the new components
@@ -292,6 +304,10 @@ func (a *Archetype) CheckChanged(tick Tick, componentType *ComponentType) {
 }
 
 func (a *Archetype) assertInvariants() {
+	if !debug {
+		return
+	}
+
 	entityCount := len(a.entities)
 
 	for idx, column := range a.columns {
@@ -341,47 +357,68 @@ func (a *Archetype) GetComponent(entityId EntityId, componentType *ComponentType
 	return column.Get(row)
 }
 
-type ArchetypeIter struct {
-	archetype *Archetype
-	row       Row
+func (a *Archetype) componentsAt(row Row) []ErasedComponent {
+	components := make([]ErasedComponent, len(a.columns))
+	for idx, column := range a.columns {
+		components[idx] = column.Get(row)
+	}
+
+	return components
 }
 
-func (iter *ArchetypeIter) More() bool {
-	return int(iter.row) < len(iter.archetype.entities)
+type EntityIter struct {
+	Fetch      []ColumnAccess
+	archetype  *Archetype
+	entities   []EntityId
+	row, total int
 }
 
-func (iter *ArchetypeIter) Next() EntityRef {
-	entity := iter.archetype.getAt(iter.row)
+func (iter *EntityIter) More() bool {
+	if iter.row == iter.total {
+		return false
+	}
+
 	iter.row += 1
-	return entity
+
+	return true
+}
+
+func (iter *EntityIter) Current() EntityRef {
+	return EntityRef{
+		fetch:     asFastSlice(iter.Fetch),
+		archetype: iter.archetype,
+		row:       Row(iter.row - 1),
+	}
 }
 
 type EntityRef struct {
-	EntityId  EntityId
-	row       Row
+	fetch     fastSlice[ColumnAccess]
 	archetype *Archetype
+	row       Row
 }
 
-func (e EntityRef) Get(ty *ComponentType) ErasedComponent {
+func (e *EntityRef) EntityId() EntityId {
+	return e.archetype.entities[e.row]
+}
+
+func (e *EntityRef) GetAt(idx int) unsafe.Pointer {
+	return e.fetch.Get(idx).At(e.row)
+}
+
+func (e *EntityRef) Get(ty *ComponentType) ErasedComponent {
 	return e.archetype.componentAt(e.row, ty)
 }
 
-func (e EntityRef) Changed(ty *ComponentType) Tick {
+func (e *EntityRef) Changed(ty *ComponentType) Tick {
 	return e.archetype.changedAt(e.row, ty)
 }
 
-func (e EntityRef) Added(ty *ComponentType) Tick {
+func (e *EntityRef) Added(ty *ComponentType) Tick {
 	return e.archetype.addedAt(e.row, ty)
 }
 
-func (e EntityRef) Components() []ErasedComponent {
-	values := make([]ErasedComponent, 0, len(e.archetype.columns))
-
-	for _, column := range e.archetype.columns {
-		values = append(values, column.Get(e.row))
-	}
-
-	return values
+func (e *EntityRef) Components() []ErasedComponent {
+	return e.archetype.componentsAt(e.row)
 }
 
 type Archetypes struct {
@@ -442,4 +479,23 @@ func hashTypes(types []*ComponentType) HashValue {
 
 func compareComponentTypes(lhs, rhs *ComponentType) int {
 	return int(lhs.Id - rhs.Id)
+}
+
+type fastSlice[T any] struct {
+	values *T
+	Len    int
+}
+
+func asFastSlice[T any](slice []T) fastSlice[T] {
+	values := unsafe.SliceData(slice)
+	return fastSlice[T]{values: values, Len: len(slice)}
+}
+
+func (s fastSlice[T]) Get(idx int) *T {
+	if idx < s.Len {
+		var tZero T
+		return (*T)(unsafe.Add(unsafe.Pointer(s.values), uintptr(idx)*unsafe.Sizeof(tZero)))
+	}
+
+	panic("index out of bounds")
 }

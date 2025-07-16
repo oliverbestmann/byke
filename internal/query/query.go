@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/refl"
+	"math"
 	"reflect"
 	"slices"
 	"unsafe"
@@ -26,14 +27,57 @@ type Setter struct {
 	// offset of this field to the start of the struct
 	UnsafeFieldOffset uintptr
 
-	// Type of the field
 	UnsafeSetValue UnsafeSetValue
+
+	// UseEntityId implies that UnsafeFieldOffset is a pointer to an EntityId variable
+	// and we're supposed to copy the value of the current EntityId into that field.
+	UseEntityId bool
+
+	UnsafeCopyComponentValue bool
+	UnsafeCopyComponentAddr  bool
+
+	ComponentIdx      int
+	ComponentTypeSize uintptr
 }
 
 func FromEntity[T any](target *T, setters []Setter, ref arch.EntityRef) {
 	ptrToTarget := unsafe.Pointer(target)
 
-	for _, setter := range setters {
+	for idx := range setters {
+		setter := &setters[idx]
+
+		if setter.UnsafeCopyComponentValue {
+			// target points to a component value
+			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
+			source := ref.GetAt(setter.ComponentIdx)
+
+			if source != nil {
+				memmove(target, source, setter.ComponentTypeSize)
+			} else {
+				// no value, clear memory
+				clear((*buf(target))[:setter.ComponentTypeSize])
+			}
+
+			continue
+		}
+
+		if setter.UnsafeCopyComponentAddr {
+			// target points to a pointer to a component value
+			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
+			source := ref.GetAt(setter.ComponentIdx)
+
+			// set the target pointer to the address of the source
+			*(*unsafe.Pointer)(target) = source
+
+			continue
+		}
+
+		if setter.UseEntityId {
+			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
+			*(*arch.EntityId)(target) = ref.EntityId()
+			continue
+		}
+
 		if setter.UnsafeSetValue != nil {
 			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
 			setter.UnsafeSetValue(target, ref)
@@ -68,28 +112,27 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 	switch {
 	case isEntityId(queryType):
 		result.Setters = append(result.Setters, Setter{
-			Field: slices.Clone(path),
-			SetValue: func(target any, ref arch.EntityRef) {
-				*target.(*arch.EntityId) = ref.EntityId
-			},
+			Field:             slices.Clone(path),
+			UnsafeFieldOffset: offset,
+			UseEntityId:       true,
 		})
 
 		return nil
 
 	case refl.IsComponent(queryType):
+		componentIdx := len(query.Fetch)
+
 		componentType := refl.ComponentTypeOf(queryType)
 		query.Fetch = append(query.Fetch, componentType)
 
 		result.Setters = append(result.Setters, Setter{
 			UnsafeFieldOffset: offset,
-			UnsafeSetValue: func(target unsafe.Pointer, ref arch.EntityRef) {
-				value := ref.Get(componentType)
-				if value == nil {
-					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
-				}
 
-				componentType.UnsafeSetValue(target, value)
-			},
+			UnsafeCopyComponentValue: true,
+			ComponentTypeSize:        componentType.Type.Size(),
+			ComponentIdx:             componentIdx,
+
+			// TODO handle non trivial types correctly
 		})
 
 		return nil
@@ -99,31 +142,37 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 			panic(fmt.Sprintf("Can not inject pointer to ImmutableComponent %s", queryType.Elem()))
 		}
 
+		componentIdx := len(query.Fetch)
+
 		componentType := refl.ComponentTypeOf(queryType.Elem())
 		query.Fetch = append(query.Fetch, componentType)
 		result.Mutable = append(result.Mutable, componentType)
 
 		result.Setters = append(result.Setters, Setter{
 			UnsafeFieldOffset: offset,
-			UnsafeSetValue: func(target unsafe.Pointer, ref arch.EntityRef) {
-				value := ref.Get(componentType)
-				if value == nil {
-					panic(fmt.Sprintf("entity does not contain component: %s", componentType))
-				}
 
-				componentType.UnsafeSetPointer(target, value)
-			},
+			UnsafeCopyComponentAddr: true,
+			ComponentIdx:            componentIdx,
 		})
 
 		return nil
 
 	case isFilter(queryType):
 		filter := reflect.New(queryType).Interface().(Filter)
+		filters := filter.applyTo(result)
 
 		// calculate the filters and add them to the query
-		query.Filters = append(query.Filters, filter.applyTo(result)...)
+		query.Filters = append(query.Filters, filters...)
 
 		if isFromEntityRef(queryType) {
+			for _, filter := range filters {
+				for _, ty := range filter.FetchOptional {
+					if !slices.Contains(query.FetchOptional, ty) {
+						query.FetchOptional = append(query.FetchOptional, ty)
+					}
+				}
+			}
+
 			result.Setters = append(result.Setters, Setter{
 				Field: slices.Clone(path),
 				SetValue: func(target any, ref arch.EntityRef) {
@@ -187,4 +236,10 @@ func isFromEntityRef(ty reflect.Type) bool {
 
 func isEntityId(ty reflect.Type) bool {
 	return ty == reflect.TypeFor[arch.EntityId]()
+}
+
+type buf *[math.MaxInt32]byte
+
+func memmove(target, source unsafe.Pointer, count uintptr) {
+	copy((*buf(target))[:count], (*buf(source))[:count])
 }

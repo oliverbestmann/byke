@@ -12,6 +12,9 @@ func ComponentTypeOf(ty reflect.Type) *arch.ComponentType {
 		panic(fmt.Sprintf("type %s is not a component", ty))
 	}
 
+	// TODO we can do a lookup in the cached component types here
+	//  using ty. Only create a new instance if we have to.
+
 	component := reflect.New(ty).Interface().(arch.ErasedComponent)
 	return component.ComponentType()
 }

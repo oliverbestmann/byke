@@ -188,7 +188,7 @@ func TestRunSystemWithQuery(t *testing.T) {
 		requireCallback(t, func(allGood func()) {
 			w.RunSystem(func(q Query[MoveableItem]) {
 				allGood()
-				require.Len(t, slices.Collect(q.Items()), 3)
+				require.Equal(t, 3, q.Count())
 
 				for item := range q.Items() {
 					value, ok := item.Velocity.Get()

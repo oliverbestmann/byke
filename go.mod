@@ -3,13 +3,13 @@ module github.com/oliverbestmann/byke
 go 1.24
 
 require (
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/hajimehoshi/ebiten/v2 v2.8.8
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.10.0
 )
 
 require (
-	github.com/aclements/go-moremath v0.0.0-20241023150245-c8bbc672ef66 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/gomobile v0.0.0-20250329061421-6d0a8e981e4c // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
@@ -23,6 +23,5 @@ require (
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
-	gonum.org/v1/gonum v0.15.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

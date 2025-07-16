@@ -26,7 +26,7 @@ func TestStorage_All(t *testing.T) {
 
 	tick += 1
 	s.Spawn(tick, 2)
-	s.InsertComponent(tick, 2, &Velocity{X: 0})
+	s.InsertComponent(tick, 2, &Velocity{X: 1})
 
 	tick += 1
 
@@ -44,7 +44,8 @@ func TestStorage_All(t *testing.T) {
 		},
 	}
 
-	for entity := range s.IterQuery(query) {
+	iter := s.IterQuery(query, nil)
+	for entity := range iter.AsSeq() {
 		value := entity.Get(ComponentTypeOf[Velocity]())
 		value.(*Velocity).X = 2
 	}
@@ -54,13 +55,13 @@ func TestStorage_All(t *testing.T) {
 	{
 		entity, _ := s.Get(1)
 		tick := entity.Changed(ComponentTypeOf[Velocity]())
-		require.Equal(t, tick, Tick(1))
+		require.Equal(t, Tick(1), tick)
 	}
 
 	{
 		entity, _ := s.Get(2)
 		tick := entity.Changed(ComponentTypeOf[Velocity]())
-		require.Equal(t, tick, Tick(7))
+		require.Equal(t, Tick(7), tick)
 	}
 }
 
@@ -94,13 +95,13 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 		},
 	}
 
-	iter := s.IterQuery(query)
+	iter := s.IterQuery(query, nil)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		for entity := range iter {
+		for entity := range iter.AsSeq() {
 			_ = entity
 		}
 	}

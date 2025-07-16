@@ -95,6 +95,7 @@ func updateAnimation(vt VirtualTime, query Query[struct {
 	MotionIntent MotionIntent
 	Ducky        *Ducky
 	TileIndex    *TileIndex
+	Sprite       *Sprite
 }]) {
 	item, ok := query.Single()
 	if !ok {
@@ -105,12 +106,15 @@ func updateAnimation(vt VirtualTime, query Query[struct {
 	item.Ducky.AnimationIndex += item.Ducky.AnimationTimer.Tick(vt.Delta).TimesFinishedThisTick()
 
 	walking := item.MotionIntent.Direction.LengthSqr() > 0
+	if walking {
+		item.Sprite.FlipX = item.MotionIntent.Direction.X < 0
+	}
 
 	// update depending on animation state
 	//goland:noinspection GoDfaConstantCondition
 	switch {
 	case walking:
-		item.TileIndex.Index = 6 + (item.Ducky.AnimationIndex-6)%6
+		item.TileIndex.Index = 6 + (item.Ducky.AnimationIndex)%6
 
 	case !walking:
 		item.TileIndex.Index = 0 + item.Ducky.AnimationIndex%2

@@ -82,7 +82,7 @@ type Path struct {
 	version uint64
 }
 
-func (Path) RequireComponents() []arch.ErasedComponent {
+func (*Path) RequireComponents() []arch.ErasedComponent {
 	components := []arch.ErasedComponent{
 		pathVertices{},
 	}

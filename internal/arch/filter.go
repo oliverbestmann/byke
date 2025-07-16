@@ -20,11 +20,11 @@ type Query struct {
 	LastRun Tick
 
 	// components we want to actually read
-	Fetch []*ComponentType
+	Fetch         []*ComponentType
+	FetchOptional []*ComponentType
 
 	// components we just want to check if they exist
 	FetchHas []*ComponentType
-
 	// more general filters, such as nested Or or And
 	Filters []Filter
 }

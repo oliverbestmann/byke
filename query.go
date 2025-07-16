@@ -6,6 +6,7 @@ import (
 	"github.com/oliverbestmann/byke/internal/query"
 	"iter"
 	"reflect"
+	"sync"
 )
 
 type queryAccessor interface {
@@ -33,8 +34,6 @@ func (*Query[T]) init(world *World) SystemParamState {
 		Storage: world.storage,
 	}
 
-	inner.iter = world.storage.IterQuery(&inner.Query)
-
 	q.inner = inner
 	q.items = makeQueryIter[T](inner)
 
@@ -47,8 +46,6 @@ func (*Query[T]) init(world *World) SystemParamState {
 }
 
 func (q *Query[T]) set(inner *innerQuery) {
-	inner.iter = inner.Storage.IterQuery(&inner.Query)
-
 	q.inner = inner
 	q.items = makeQueryIter[T](inner)
 }
@@ -71,12 +68,17 @@ func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 }
 
 func (q *Query[T]) Count() int {
+	it := q.inner.Storage.IterQuery(&q.inner.Query, nil)
+
 	var count int
-	for range q.inner.iter {
+	for {
+		_, more := it.Next()
+		if !more {
+			return count
+		}
+
 		count += 1
 	}
-
-	return count
 }
 
 func (q *Query[T]) Items() iter.Seq[T] {
@@ -136,14 +138,27 @@ type innerQuery struct {
 	Setters []query.Setter
 	Query   arch.Query
 	Storage *arch.Storage
-	iter    iter.Seq[arch.EntityRef]
 }
 
 func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 	var target T
 
 	return func(yield func(T) bool) {
-		for ref := range inner.iter {
+		scratch := columnIters.Get().(*[]arch.ColumnAccess)
+
+		it := inner.Storage.IterQuery(&inner.Query, *scratch)
+
+		defer func() {
+			*scratch = it.Scratch
+			columnIters.Put(scratch)
+		}()
+
+		for {
+			ref, more := it.Next()
+			if !more {
+				return
+			}
+
 			query.FromEntity(&target, inner.Setters, ref)
 
 			if !yield(target) {
@@ -151,4 +166,10 @@ func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 			}
 		}
 	}
+}
+
+var columnIters = sync.Pool{
+	New: func() any {
+		return new([]arch.ColumnAccess)
+	},
 }

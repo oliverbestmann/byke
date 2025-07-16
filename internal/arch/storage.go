@@ -3,7 +3,6 @@ package arch
 import (
 	"fmt"
 	"iter"
-	"sync"
 )
 
 type Storage struct {
@@ -133,6 +132,9 @@ func (s *Storage) GetWithQuery(q *Query, entityId EntityId) (EntityRef, bool) {
 		panic("archetype does not contain entity")
 	}
 
+	_, fetches := archetype.IterForQuery(q, nil)
+	entity.fetch = asFastSlice(fetches)
+
 	if !q.Matches(entity) {
 		return EntityRef{}, false
 	}
@@ -156,50 +158,42 @@ func (s *Storage) CheckChanged(tick Tick, types []*ComponentType) {
 	}
 }
 
-func (s *Storage) archetypeIterForQuery(q *Query) iter.Seq[*Archetype] {
-	return func(yield func(*Archetype) bool) {
-		for _, archetype := range s.archetypes.All() {
-			if !q.MatchesArchetype(archetype) {
-				continue
-			}
-
-			if !yield(archetype) {
-				return
-			}
-		}
+func (s *Storage) archetypeIterForQuery(q *Query) ArchetypeIter {
+	return ArchetypeIter{
+		archetypes: s.archetypes.All(),
+		query:      q,
 	}
 }
 
-var componentValueSlices = sync.Pool{
-	New: func() any {
-		// returning the slice directly would allocate when converting to an interface.
-		// to not have this allocation, we need to return a pointer type here.
-		var slice []ComponentValue
-		return &slice
-	},
+type ArchetypeIter struct {
+	archetypes []*Archetype
+	query      *Query
+}
+
+func (it *ArchetypeIter) Next() *Archetype {
+	for len(it.archetypes) > 0 {
+		archetype := it.archetypes[0]
+		it.archetypes = it.archetypes[1:]
+
+		if len(archetype.entities) == 0 {
+			continue
+		}
+
+		if it.query.MatchesArchetype(archetype) {
+			return archetype
+		}
+	}
+
+	return nil
 }
 
 // IterQuery returns an iterator over entity refs matching the given query.
 // The EntityRef.Components field is only valid until the next EntityRef is produced.
-func (s *Storage) IterQuery(q *Query) iter.Seq[EntityRef] {
-	archetypesIter := s.archetypeIterForQuery(q)
-
-	return func(yield func(EntityRef) bool) {
-		for archetype := range archetypesIter {
-			it := archetype.Iter()
-
-			for it.More() {
-				entity := it.Next()
-
-				if !q.Matches(entity) {
-					continue
-				}
-
-				if !yield(entity) {
-					return
-				}
-			}
-		}
+func (s *Storage) IterQuery(q *Query, scratch []ColumnAccess) QueryIter {
+	return QueryIter{
+		Scratch:    scratch,
+		archetypes: s.archetypeIterForQuery(q),
+		query:      q,
 	}
 }
 
@@ -214,4 +208,46 @@ func (s *Storage) HasComponent(entityId EntityId, componentType *ComponentType) 
 
 func (s *Storage) EntityCount() int {
 	return len(s.entityToArchetype)
+}
+
+type QueryIter struct {
+	Scratch []ColumnAccess
+
+	query      *Query
+	archetypes ArchetypeIter
+	entities   EntityIter
+}
+
+func (it *QueryIter) Next() (EntityRef, bool) {
+	for {
+		for it.entities.More() {
+			entity := it.entities.Current()
+			if it.query.Matches(entity) {
+				return entity, true
+			}
+		}
+
+		// no more entities in current entity iterator, move to the next one
+		archetype := it.archetypes.Next()
+		if archetype == nil {
+			return EntityRef{}, false
+		}
+
+		it.entities, it.Scratch = archetype.IterForQuery(it.query, it.Scratch)
+	}
+}
+
+func (it *QueryIter) AsSeq() iter.Seq[EntityRef] {
+	return func(yield func(EntityRef) bool) {
+		for {
+			ref, ok := it.Next()
+			if !ok {
+				return
+			}
+
+			if !yield(ref) {
+				return
+			}
+		}
+	}
 }

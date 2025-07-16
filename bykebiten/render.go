@@ -64,9 +64,7 @@ type BBox struct {
 }
 
 var commonRenderComponents = []byke.ErasedComponent{
-	Transform{
-		Scale: gm.VecOf(1.0, 1.0),
-	},
+	NewTransform(),
 	Layer{},
 	AnchorCenter,
 	ColorTint{Color: color.White},

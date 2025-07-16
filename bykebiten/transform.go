@@ -4,6 +4,7 @@ import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/internal/arch"
+	"log/slog"
 )
 
 var _ = byke.ValidateComponent[Transform]()
@@ -129,7 +130,11 @@ func propagateTransformSystem(
 	var recurse func(entityId byke.EntityId, parentTransform *GlobalTransform)
 
 	recurse = func(entityId byke.EntityId, parentTransform *GlobalTransform) {
-		entity, _ := childItemsQuery.Get(entityId)
+		entity, ok := childItemsQuery.Get(entityId)
+		if !ok {
+			slog.Warn("Transform hierarchy broken, missing entity", slog.Int("entityId", int(entityId)))
+			return
+		}
 
 		newTransform := parentTransform.Mul(entity.Transform)
 		*entity.GlobalTransform = newTransform
