@@ -5,6 +5,7 @@ import (
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	. "github.com/oliverbestmann/byke/gm"
+	"time"
 )
 
 var _ = ValidateComponent[Ducky]()
@@ -32,7 +33,7 @@ func spawnGameScreenSystem(commands *Commands) {
 		DespawnOnExitState(ScreenGame),
 		TransformFromXY(400, 300),
 		Ducky{
-			AnimationTimer: NewTimerFromSeconds(0.25, TimerModeRepeating),
+			AnimationTimer: NewTimer(250*time.Millisecond, TimerModeRepeating),
 			Speed:          80,
 		},
 		MotionIntent{},

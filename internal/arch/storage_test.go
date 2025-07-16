@@ -50,7 +50,7 @@ func TestStorage_All(t *testing.T) {
 		value.(*Velocity).X = 2
 	}
 
-	s.CheckChanged(7, []*ComponentType{ComponentTypeOf[Velocity]()})
+	s.CheckChanged(7, nil, []*ComponentType{ComponentTypeOf[Velocity]()})
 
 	{
 		entity, _ := s.Get(1)

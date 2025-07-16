@@ -113,8 +113,8 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 
 		returnValues := rSystem.Call(*paramValues)
 
-		for idx, param := range params {
-			param.cleanupValue((*paramValues)[idx])
+		for _, param := range params {
+			param.cleanupValue()
 		}
 
 		// clear any pointers that are still in the param slice

@@ -142,7 +142,7 @@ func (s *Storage) GetWithQuery(q *Query, entityId EntityId) (EntityRef, bool) {
 	return entity, true
 }
 
-func (s *Storage) CheckChanged(tick Tick, types []*ComponentType) {
+func (s *Storage) CheckChanged(tick Tick, query *Query, types []*ComponentType) {
 	for _, ty := range types {
 		if !ty.Comparable {
 			continue
@@ -150,6 +150,12 @@ func (s *Storage) CheckChanged(tick Tick, types []*ComponentType) {
 
 		for _, archetype := range s.archetypes.All() {
 			if !archetype.ContainsType(ty) {
+				continue
+			}
+
+			if query != nil && !query.MatchesArchetype(archetype) {
+				// the query did not return any values from this archetype,
+				// so no way anything has changed
 				continue
 			}
 

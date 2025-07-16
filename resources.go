@@ -41,7 +41,7 @@ func (r resourceSystemParamState) getValue(systemContext) reflect.Value {
 	return reflect.ValueOf(ptrToValue).Elem()
 }
 
-func (r resourceSystemParamState) cleanupValue(value reflect.Value) {
+func (r resourceSystemParamState) cleanupValue() {
 }
 
 func (r resourceSystemParamState) valueType() reflect.Type {
@@ -52,6 +52,10 @@ func (r resourceSystemParamState) valueType() reflect.Type {
 	}
 }
 
+// Res provides a SystemParam to inject a resource at runtime.
+//
+// This is currently the same as just declaring the resource type directly as a parameter.
+// In the future, the Res type may offer additional information, such as resource change tracking.
 type Res[T any] struct {
 	Value T
 	world *World
@@ -78,7 +82,7 @@ func (r *Res[T]) getValue(systemContext) reflect.Value {
 	return reflect.ValueOf(r).Elem()
 }
 
-func (r *Res[T]) cleanupValue(value reflect.Value) {
+func (r *Res[T]) cleanupValue() {
 }
 
 func (r *Res[T]) valueType() reflect.Type {
@@ -99,6 +103,8 @@ func (r *Res[T]) setValue(value any) {
 	}
 }
 
+// ResOption allows to inject a resource as a system param if it exists in the world.
+// If the resource does not exist, the system will still run but a zero ResOption is injected.
 type ResOption[T any] struct {
 	Value *T
 	world *World
@@ -122,7 +128,7 @@ func (r *ResOption[T]) getValue(systemContext) reflect.Value {
 	return reflect.ValueOf(r).Elem()
 }
 
-func (r *ResOption[T]) cleanupValue(value reflect.Value) {
+func (r *ResOption[T]) cleanupValue() {
 }
 
 func (r *ResOption[T]) valueType() reflect.Type {

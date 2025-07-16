@@ -77,7 +77,7 @@ func init() {
 	componentTypes.Store(&map[unsafe.Pointer]*ComponentType{})
 }
 
-func ensureComponentType(ptrToType unsafe.Pointer, makeType func(id ComponentTypeId) *ComponentType) *ComponentType {
+func ensureComponentType[C IsComponent[C]](ptrToType unsafe.Pointer, makeType func(id ComponentTypeId) *ComponentType) *ComponentType {
 	for {
 		previousTypes := componentTypes.Load()
 		if cached, ok := (*previousTypes)[ptrToType]; ok {
@@ -97,6 +97,8 @@ func ensureComponentType(ptrToType unsafe.Pointer, makeType func(id ComponentTyp
 				slog.String("name", newType.Name),
 				slog.Int("id", int(newType.Id)),
 			)
+
+			// TODO move ValidateComponent into this package and call it here?
 
 			return newType
 		}
@@ -125,7 +127,7 @@ func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
 		fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
 	}
 
-	return ensureComponentType(ptrToType, makeComponentType[C])
+	return ensureComponentType[C](ptrToType, makeComponentType[C])
 }
 
 func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
@@ -140,7 +142,7 @@ func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 		fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
 	}
 
-	return ensureComponentType(ptrToType, func(id ComponentTypeId) *ComponentType {
+	return ensureComponentType[C](ptrToType, func(id ComponentTypeId) *ComponentType {
 		ty := makeComponentType[C](id)
 
 		ty.MakeColumn = MakeErasedColumn(ty)

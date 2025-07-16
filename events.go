@@ -5,12 +5,8 @@ import (
 	"reflect"
 )
 
-func EventType[E any]() NewEventType {
+func EventType[E any]() eventType {
 	return newEvent[E]{}
-}
-
-type NewEventType interface {
-	configureEventIn(app *App)
 }
 
 type newEvent[E any] struct{}

@@ -2,38 +2,54 @@ package byke
 
 import (
 	"errors"
+	"fmt"
 	"github.com/oliverbestmann/byke/internal/set"
 	"iter"
 	"slices"
 )
 
-type Schedule struct {
+type schedule struct {
+	id         ScheduleId
 	lookup     map[SystemId]*preparedSystem
 	systems    []*preparedSystem
 	systemSets []*SystemSet
+	dirty      bool
 }
 
-func NewSchedule() *Schedule {
-	return &Schedule{
+func newSchedule(scheduleId ScheduleId) *schedule {
+	return &schedule{
+		id:     scheduleId,
 		lookup: map[SystemId]*preparedSystem{},
 	}
 }
 
-func (s *Schedule) addSystem(system *preparedSystem) error {
+func (s *schedule) Systems() []*preparedSystem {
+	if s.dirty {
+		if err := s.UpdateSystemOrdering(); err != nil {
+			panic(err)
+		}
+
+		s.dirty = false
+	}
+
+	return s.systems
+}
+
+func (s *schedule) AddSystem(system *preparedSystem) {
 	if _, exists := s.lookup[system.Id]; exists {
-		return errors.New("system already exists")
+		panic(fmt.Errorf("system %q already exists in schedule %q", system.Name, s.id))
 	}
 
 	s.lookup[system.Id] = system
-	return s.updateSystemOrdering()
+	s.dirty = true
 }
 
-func (s *Schedule) addSystemSet(systemSet *SystemSet) error {
+func (s *schedule) AddSystemSet(systemSet *SystemSet) {
 	s.systemSets = append(s.systemSets, systemSet)
-	return s.updateSystemOrdering()
+	s.dirty = true
 }
 
-func (s *Schedule) updateSystemOrdering() error {
+func (s *schedule) UpdateSystemOrdering() error {
 	var configs []*systemConfig
 	for _, system := range s.lookup {
 		configs = append(configs, &system.systemConfig)

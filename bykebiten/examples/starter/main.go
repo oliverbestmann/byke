@@ -20,10 +20,10 @@ func main() {
 	})
 
 	// configure plugins
-	app.AddPlugin(PluginFunc(pluginScreen))
-	app.AddPlugin(PluginFunc(pluginPause))
-	app.AddPlugin(PluginFunc(pluginMenu))
-	app.AddPlugin(PluginFunc(pluginGame))
+	app.AddPlugin(pluginScreen)
+	app.AddPlugin(pluginPause)
+	app.AddPlugin(pluginMenu)
+	app.AddPlugin(pluginGame)
 
 	fmt.Println(app.Run())
 }

@@ -33,19 +33,19 @@ var _ = ValidateComponent[Enemy]()
 func buildSimpleWorld() *World {
 	w := NewWorld()
 
-	w.SpawnWithEntityId(w.ReserveEntityId(), []ErasedComponent{
+	w.spawnWithEntityId(w.reserveEntityId(), []ErasedComponent{
 		Named("Player"),
 		Player{},
 		Position{X: 1},
 		Velocity{X: 10},
 	})
 
-	w.SpawnWithEntityId(w.ReserveEntityId(), []ErasedComponent{
+	w.spawnWithEntityId(w.reserveEntityId(), []ErasedComponent{
 		Named("Tree"),
 		Position{X: 2},
 	})
 
-	w.SpawnWithEntityId(w.ReserveEntityId(), []ErasedComponent{
+	w.spawnWithEntityId(w.reserveEntityId(), []ErasedComponent{
 		Named("Enemy"),
 		Enemy{},
 		Position{X: 3},
@@ -323,8 +323,8 @@ func TestRelationships(t *testing.T) {
 	t.Run("mark Children as Changed", func(t *testing.T) {
 		w, parentId, childId := makeWorld()
 
-		secondChildId := w.ReserveEntityId()
-		w.SpawnWithEntityId(secondChildId, []ErasedComponent{
+		secondChildId := w.reserveEntityId()
+		w.spawnWithEntityId(secondChildId, []ErasedComponent{
 			ChildOf{Parent: parentId},
 		})
 

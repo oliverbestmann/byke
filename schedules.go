@@ -1,8 +1,15 @@
 package byke
 
 import (
+	"fmt"
 	"time"
 )
+
+// ScheduleId identifies a schedule. All implementing types must be comparable.
+type ScheduleId interface {
+	fmt.Stringer
+	isSchedule()
+}
 
 type scheduleId struct {
 	name string
@@ -14,33 +21,39 @@ func (s *scheduleId) String() string {
 	return s.name
 }
 
+// MakeScheduleId creates a new unique ScheduleId.
+// The name passed to the schedule is used for debugging
 func MakeScheduleId(name string) ScheduleId {
 	return &scheduleId{name: name}
 }
 
 var (
-	Main             ScheduleId = MakeScheduleId("Main")
-	RunFixedMainLoop ScheduleId = MakeScheduleId("RunFixedMainLoop")
-	FixedMain        ScheduleId = MakeScheduleId("FixedMain")
+	// Main is the main schedule that executes all other schedules in the correct order.
+	Main             = MakeScheduleId("Main")
+	RunFixedMainLoop = MakeScheduleId("RunFixedMainLoop")
 
-	PreStartup      ScheduleId = MakeScheduleId("PreStartup")
-	Startup         ScheduleId = MakeScheduleId("Startup")
-	PostStartup     ScheduleId = MakeScheduleId("PostStartup")
-	First           ScheduleId = MakeScheduleId("First")
-	PreUpdate       ScheduleId = MakeScheduleId("PreUpdate")
-	StateTransition ScheduleId = MakeScheduleId("StateTransition")
-	Update          ScheduleId = MakeScheduleId("Update")
-	PostUpdate      ScheduleId = MakeScheduleId("PostUpdate")
-	PreRender       ScheduleId = MakeScheduleId("PreRender")
-	Render          ScheduleId = MakeScheduleId("Render")
-	PostRender      ScheduleId = MakeScheduleId("PostRender")
-	Last            ScheduleId = MakeScheduleId("Last")
+	// FixedMain is the fixed time step main schedule that
+	// executes the other fixed step schedules in the correct order.
+	FixedMain = MakeScheduleId("FixedMain")
 
-	FixedFirst      ScheduleId = MakeScheduleId("FixedFirst")
-	FixedPreUpdate  ScheduleId = MakeScheduleId("FixedPreUpdate")
-	FixedUpdate     ScheduleId = MakeScheduleId("FixedUpdate")
-	FixedPostUpdate ScheduleId = MakeScheduleId("FixedPostUpdate")
-	FixedLast       ScheduleId = MakeScheduleId("FixedLast")
+	PreStartup      = MakeScheduleId("PreStartup")
+	Startup         = MakeScheduleId("Startup")
+	PostStartup     = MakeScheduleId("PostStartup")
+	First           = MakeScheduleId("First")
+	PreUpdate       = MakeScheduleId("PreUpdate")
+	StateTransition = MakeScheduleId("StateTransition")
+	Update          = MakeScheduleId("Update")
+	PostUpdate      = MakeScheduleId("PostUpdate")
+	PreRender       = MakeScheduleId("PreRender")
+	Render          = MakeScheduleId("Render")
+	PostRender      = MakeScheduleId("PostRender")
+	Last            = MakeScheduleId("Last")
+
+	FixedFirst      = MakeScheduleId("FixedFirst")
+	FixedPreUpdate  = MakeScheduleId("FixedPreUpdate")
+	FixedUpdate     = MakeScheduleId("FixedUpdate")
+	FixedPostUpdate = MakeScheduleId("FixedPostUpdate")
+	FixedLast       = MakeScheduleId("FixedLast")
 )
 
 func configureSchedules(app *App) {

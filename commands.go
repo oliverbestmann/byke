@@ -38,10 +38,10 @@ func (c *Commands) Queue(command Command) *Commands {
 }
 
 func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
-	entityId := c.world.ReserveEntityId()
+	entityId := c.world.reserveEntityId()
 
 	c.Queue(func(world *World) {
-		world.SpawnWithEntityId(entityId, components)
+		world.spawnWithEntityId(entityId, components)
 	})
 
 	return EntityCommands{
@@ -123,7 +123,7 @@ func (c *commandSystemParamState) getValue(systemContext) reflect.Value {
 	return reflect.ValueOf((*Commands)(c))
 }
 
-func (c *commandSystemParamState) cleanupValue(reflect.Value) {
+func (c *commandSystemParamState) cleanupValue() {
 	(*Commands)(c).applyToWorld()
 }
 

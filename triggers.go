@@ -41,7 +41,7 @@ func (o onSystemParamState) getValue(sc systemContext) reflect.Value {
 	return reflect.ValueOf(o.makeValue(sc.Trigger.TargetId, sc.Trigger.EventValue))
 }
 
-func (o onSystemParamState) cleanupValue(value reflect.Value) {}
+func (o onSystemParamState) cleanupValue() {}
 
 func (o onSystemParamState) valueType() reflect.Type {
 	return o.onType

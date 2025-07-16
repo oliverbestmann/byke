@@ -121,8 +121,8 @@ func (q *queryParamState) getValue(sc systemContext) reflect.Value {
 	return q.ptrToValue.Elem()
 }
 
-func (q *queryParamState) cleanupValue(value reflect.Value) {
-	q.world.recheckComponents(q.mutable)
+func (q *queryParamState) cleanupValue() {
+	q.world.recheckComponents(&q.inner.Query, q.mutable)
 }
 
 func (q *queryParamState) valueType() reflect.Type {

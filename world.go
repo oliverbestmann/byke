@@ -3,21 +3,15 @@ package byke
 import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/arch"
-	"github.com/oliverbestmann/byke/internal/assert"
 	"reflect"
 	"slices"
 )
 
 const NoEntityId = EntityId(0)
 
-type ScheduleId interface {
-	fmt.Stringer
-	isSchedule()
-}
-
 type resourceValue struct {
-	Reflect ptrValue
-	Pointer AnyPtr
+	// Value is of kind Pointer and points to the value of the resource.
+	Value reflect.Value
 }
 
 type ptrValue struct {
@@ -26,21 +20,61 @@ type ptrValue struct {
 
 type AnyPtr = any
 
+// World holds all entities and resources, schedules, systems, etc.
+// While an empty World can be created using NewWorld, it is normally created and configured
+// by using the App api.
 type World struct {
 	storage     *arch.Storage
 	entityIdSeq EntityId
 	resources   map[reflect.Type]resourceValue
-	schedules   map[ScheduleId]*Schedule
+	schedules   map[ScheduleId]*schedule
 	systems     map[SystemId]*preparedSystem
 	currentTick arch.Tick
 }
 
+// NewWorld creates a new empty world.
+// You probably want to use the App api instead.
 func NewWorld() *World {
 	return &World{
 		storage:   arch.NewStorage(),
 		resources: map[reflect.Type]resourceValue{},
-		schedules: map[ScheduleId]*Schedule{},
+		schedules: map[ScheduleId]*schedule{},
 		systems:   map[SystemId]*preparedSystem{},
+	}
+}
+
+// AddSystems adds systems to a schedule within the world.
+func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems ...AnySystem) {
+	schedule := w.scheduleOf(scheduleId)
+
+	systems = append([]AnySystem{firstSystem}, systems...)
+
+	for _, system := range asSystemConfigs(systems...) {
+		preparedSystem := w.prepareSystem(system)
+		schedule.AddSystem(preparedSystem)
+	}
+
+	if err := schedule.UpdateSystemOrdering(); err != nil {
+		panic(err)
+	}
+}
+
+// RunSystem runs a system within the world.
+func (w *World) RunSystem(system AnySystem) {
+	systemConfig := asSystemConfig(system)
+	preparedSystem := w.prepareSystem(systemConfig)
+	w.runSystem(preparedSystem, systemContext{})
+}
+
+func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*SystemSet) {
+	schedule := w.scheduleOf(scheduleId)
+
+	for _, systemSet := range systemSets {
+		schedule.AddSystemSet(systemSet)
+	}
+
+	if err := schedule.UpdateSystemOrdering(); err != nil {
+		panic(err)
 	}
 }
 
@@ -49,42 +83,14 @@ func (w *World) timingStats() *TimingStats {
 	return stats
 }
 
-func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*SystemSet) {
+func (w *World) scheduleOf(scheduleId ScheduleId) *schedule {
 	schedule, ok := w.schedules[scheduleId]
 	if !ok {
-		schedule = NewSchedule()
+		schedule = newSchedule(scheduleId)
 		w.schedules[scheduleId] = schedule
 	}
 
-	for _, systemSet := range systemSets {
-		// TODO error handling
-		schedule.addSystemSet(systemSet)
-	}
-}
-
-func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems ...AnySystem) {
-	schedule, ok := w.schedules[scheduleId]
-	if !ok {
-		schedule = NewSchedule()
-		w.schedules[scheduleId] = schedule
-	}
-
-	systems = append([]AnySystem{firstSystem}, systems...)
-
-	for _, system := range asSystemConfigs(systems...) {
-		preparedSystem := w.prepareSystem(system)
-
-		if err := schedule.addSystem(preparedSystem); err != nil {
-			// TODO make nicer
-			panic(err)
-		}
-	}
-}
-
-func (w *World) RunSystem(system AnySystem) {
-	systemConfig := asSystemConfig(system)
-	preparedSystem := w.prepareSystem(systemConfig)
-	w.runSystem(preparedSystem, systemContext{})
+	return schedule
 }
 
 func (w *World) runSystem(system *preparedSystem, ctx systemContext) any {
@@ -126,11 +132,25 @@ func (w *World) prepareSystem(systemConfig *systemConfig) *preparedSystem {
 	return prepared
 }
 
+// RunSchedule runs the schedule identified by the given ScheduleId.
+// If no schedule with this id exists, no action is performed.
 func (w *World) RunSchedule(scheduleId ScheduleId) {
 	schedule, ok := w.schedules[scheduleId]
 	if !ok {
 		return
 	}
+
+	// remove the schedule while it is executed
+	delete(w.schedules, scheduleId)
+
+	// add the schedule back once it has finished executing
+	defer func() {
+		if _, exists := w.schedules[scheduleId]; exists {
+			panic(fmt.Sprintf("The schedule %q was modified while it is being executed", scheduleId))
+		}
+
+		w.schedules[scheduleId] = schedule
+	}()
 
 	if timings := w.timingStats(); timings != nil {
 		defer timings.MeasureSchedule(scheduleId).Stop()
@@ -141,7 +161,52 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 	}
 }
 
-func (w *World) ReserveEntityId() EntityId {
+// AddObserver adds a new observer.
+// Observers are entities containing the Observer component.
+func (w *World) AddObserver(observer Observer) EntityId {
+	// prepare system here. this will also panic if the systems parameters
+	// are not well formed.
+	observer.system = w.prepareSystem(asSystemConfig(observer.callback))
+
+	return w.Spawn([]ErasedComponent{observer})
+}
+
+// TriggerObserver triggers all observers listening on the given target (or all targets) for the
+// given event value.
+//
+// TODO observer event propagation is not yet implemented.
+func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
+	// get the event type first
+	eventType := reflect.TypeOf(eventValue)
+
+	// TODO maybe check for valid event? Better introduce an Event interface
+	w.RunSystem(func(observers Query[*Observer], commands *Commands) {
+		for observer := range observers.Items() {
+			if observer.eventType != eventType {
+				continue
+			}
+
+			if len(observer.entities) > 0 && !slices.Contains(observer.entities, targetId) {
+				continue
+			}
+
+			// we found a match, trigger observer
+			w.runSystem(observer.system, systemContext{
+				Trigger: systemTrigger{
+					TargetId:   targetId,
+					EventValue: eventValue,
+				},
+			})
+		}
+	})
+}
+
+// Spawn spawns a new entity with the given components.
+func (w *World) Spawn(components []ErasedComponent) EntityId {
+	return w.spawnWithEntityId(w.reserveEntityId(), components)
+}
+
+func (w *World) reserveEntityId() EntityId {
 	w.entityIdSeq += 1
 	entityId := w.entityIdSeq
 
@@ -149,13 +214,9 @@ func (w *World) ReserveEntityId() EntityId {
 
 }
 
-func (w *World) Spawn(components []ErasedComponent) EntityId {
-	return w.SpawnWithEntityId(w.ReserveEntityId(), components)
-}
-
-func (w *World) SpawnWithEntityId(entityId EntityId, components []ErasedComponent) EntityId {
+func (w *World) spawnWithEntityId(entityId EntityId, components []ErasedComponent) EntityId {
 	if entityId == 0 {
-		entityId = w.ReserveEntityId()
+		entityId = w.reserveEntityId()
 	}
 
 	w.storage.Spawn(w.currentTick, entityId)
@@ -163,6 +224,7 @@ func (w *World) SpawnWithEntityId(entityId EntityId, components []ErasedComponen
 	return entityId
 }
 
+// TODO improve this by actually adding all components to storage at the same time.
 func (w *World) insertComponents(entityId EntityId, components []ErasedComponent) {
 	queue := flattenComponents(nil, components...)
 
@@ -214,7 +276,7 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 
 	for _, spawnChild := range spawnChildren {
 		components := append(spawnChild.Components, ChildOf{Parent: entityId})
-		w.SpawnWithEntityId(w.ReserveEntityId(), components)
+		w.spawnWithEntityId(w.reserveEntityId(), components)
 	}
 }
 
@@ -287,158 +349,43 @@ func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRela
 	return nil, parentId, parentType, true
 }
 
-func (w *World) AddObserver(observer Observer) {
-	// prepare system here. this will also panic if the systems parameters
-	// are not well formed.
-	observer.system = w.prepareSystem(asSystemConfig(observer.callback))
-
-	w.Spawn([]ErasedComponent{observer})
-}
-
-func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
-	// get the event type first
-	eventType := reflect.TypeOf(eventValue)
-
-	// TODO maybe check for valid event? Better introduce an Event interface
-	w.RunSystem(func(observers Query[*Observer], commands *Commands) {
-		for observer := range observers.Items() {
-			if observer.eventType != eventType {
-				continue
-			}
-
-			if len(observer.entities) > 0 && !slices.Contains(observer.entities, targetId) {
-				continue
-			}
-
-			// we found a match, trigger observer
-			w.runSystem(observer.system, systemContext{
-				Trigger: systemTrigger{
-					TargetId:   targetId,
-					EventValue: eventValue,
-				},
-			})
-		}
-	})
-}
-
 func (w *World) NewCommands() *Commands {
 	return &Commands{world: w}
 }
 
-// Resource returns a pointer to the resource of the given reflect type.
-// The type must be the non-pointer type of the resource
-func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
-	resValue, ok := w.resources[reflect.PointerTo(ty)]
-	if !ok {
-		return nil, false
-	}
-
-	return resValue.Pointer, true
-}
-
-func ResourceOf[T any](w *World) (*T, bool) {
-	value, ok := w.Resource(reflect.TypeFor[T]())
-	if !ok {
-		return nil, false
-	}
-
-	return value.(*T), true
-}
-
-func copyComponent(value ErasedComponent) ErasedComponent {
-	componentType := value.ComponentType()
-	ptrToValue := componentType.New()
-
-	sourceValue := reflect.ValueOf(value)
-	for sourceValue.Kind() == reflect.Pointer {
-		sourceValue = sourceValue.Elem()
-	}
-
-	reflect.ValueOf(ptrToValue).Elem().Set(sourceValue)
-	return ptrToValue
-}
-
-func ValidateComponent[C IsComponent[C]]() struct{} {
-	componentType := arch.ComponentTypeOf[C]()
-
-	var zero C
-
-	if parent, ok := any(zero).(isRelationshipTargetType); ok {
-		// check if the child type points to us
-		childType := parent.RelationshipType()
-		instance := reflect.New(childType.Type).Elem().Interface()
-
-		child, ok := instance.(isRelationshipComponent)
-		if !ok {
-			panic(fmt.Sprintf(
-				"relationship target of %s must point to a component embedding byke.Relationship",
-				componentType,
-			))
-		}
-
-		if child.RelationshipTargetType() != componentType {
-			panic(fmt.Sprintf(
-				"relationship target of %s must point to %s",
-				childType, componentType,
-			))
-		}
-	}
-
-	if child, ok := any(zero).(isRelationshipComponent); ok {
-		// check if the child type points to us
-		parentType := child.RelationshipTargetType()
-
-		parentComponent := parentType.New()
-		parent, ok := parentComponent.(isRelationshipTargetType)
-		if !ok {
-			panic(fmt.Sprintf(
-				"relationship target of %s must point to a component embedding byke.RelationshipTarget",
-				componentType,
-			))
-		}
-
-		if parent.RelationshipType() != componentType {
-			panic(fmt.Sprintf(
-				"relationship target of %s must point to %s",
-				parentType, componentType,
-			))
-		}
-	}
-
-	// TODO mark component as valid somewhere, maybe calculate some
-	//  kind of component type id too
-	return struct{}{}
-}
-
+// InsertResource inserts a new resource into the world.
+// The resource should be provided as a non-pointer type.
+//
+// If the resource does not yet exist, a new value of the resources type will
+// be allocated on the heap and the value provided will be copied into that memory location.
+//
+// If the world already contains a resource of the same type, this value will
+// just be updated with the newly provided one.
 func (w *World) InsertResource(resource any) {
 	resType := reflect.PointerTo(reflect.TypeOf(resource))
 
 	if existing, ok := w.resources[resType]; ok {
-		// update existing value
-		existing.Reflect.Elem().Set(reflect.ValueOf(resource))
+		// update existing value in place
+		existing.Value.Elem().Set(reflect.ValueOf(resource))
 		return
 	}
 
-	// allocate the resource on the heap and set it
+	// allocate the resource on the heap and copy the provided value to it
 	ptr := reflect.New(resType.Elem())
 	ptr.Elem().Set(reflect.ValueOf(resource))
 
 	w.resources[ptr.Type()] = resourceValue{
-		Reflect: pointerValueOf(ptr),
-		Pointer: ptr.Interface(),
+		Value: ptr,
 	}
 }
 
+// RemoveResource removes a resource previously added with InsertResource.
 func (w *World) RemoveResource(resourceType reflect.Type) {
 	resType := reflect.PointerTo(resourceType)
 	delete(w.resources, resType)
 }
 
-func pointerValueOf(ptr reflect.Value) ptrValue {
-	assert.IsPointerType(ptr.Type())
-	return ptrValue{Value: ptr}
-}
-
+// Despawn recursively despawns the given entity following Children relations.
 func (w *World) Despawn(entityId EntityId) {
 	queue := []EntityId{entityId}
 
@@ -469,6 +416,43 @@ func (w *World) Despawn(entityId EntityId) {
 	}
 }
 
+// Resource returns a pointer to the resource of the given reflect type.
+// The type must be the non-pointer type of the resource, i.e. the type of the resource
+// as it was passed to InsertResource.
+func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
+	resValue, ok := w.resources[reflect.PointerTo(ty)]
+	if !ok {
+		return nil, false
+	}
+
+	return resValue.Value.Interface(), true
+}
+
+// ResourceOf is a typed version of World.Resource.
+func ResourceOf[T any](w *World) (*T, bool) {
+	value, ok := w.Resource(reflect.TypeFor[T]())
+	if !ok {
+		return nil, false
+	}
+
+	return value.(*T), true
+}
+
+func copyComponent(value ErasedComponent) ErasedComponent {
+	componentType := value.ComponentType()
+	ptrToValue := componentType.New()
+
+	// get the actual value of the source
+	sourceValue := reflect.ValueOf(value)
+	for sourceValue.Kind() == reflect.Pointer {
+		sourceValue = sourceValue.Elem()
+	}
+
+	// copy the source to the newly allocated component
+	reflect.ValueOf(ptrToValue).Elem().Set(sourceValue)
+	return ptrToValue
+}
+
 func (w *World) removeComponent(entityId EntityId, componentType *arch.ComponentType) {
 	component, ok := w.storage.RemoveComponent(w.currentTick, entityId, componentType)
 	if !ok {
@@ -478,6 +462,6 @@ func (w *World) removeComponent(entityId EntityId, componentType *arch.Component
 	w.onComponentRemoved(entityId, component)
 }
 
-func (w *World) recheckComponents(componentTypes []*arch.ComponentType) {
-	w.storage.CheckChanged(w.currentTick, componentTypes)
+func (w *World) recheckComponents(query *arch.Query, componentTypes []*arch.ComponentType) {
+	w.storage.CheckChanged(w.currentTick, query, componentTypes)
 }

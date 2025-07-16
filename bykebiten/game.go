@@ -13,7 +13,7 @@ import (
 
 var TransformSystems = &byke.SystemSet{}
 
-var GamePlugin byke.PluginFunc = func(app *byke.App) {
+func GamePlugin(app *byke.App) {
 	app.InsertResource(WindowConfig{
 		Title:  "Ebitengine",
 		Width:  800,
