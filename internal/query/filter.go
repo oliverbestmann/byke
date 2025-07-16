@@ -238,43 +238,6 @@ func (Or[A, B]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter 
 	}
 }
 
-type And[A, B Filter] struct{}
-
-func (And[A, B]) embeddable(isEmbeddableMarker) {}
-
-func (And[A, B]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
-	var aZero A
-	filterA := aZero.applyTo(result, 0)
-
-	var bZero B
-	filterB := bZero.applyTo(result, 0)
-
-	// for And we can optimize: we can just move the union of the With & Without types
-	// to the top filter
-	var with, without set.Set[*arch.ComponentType]
-
-	for _, filter := range filterA {
-		with.InsertAll(slices.Values(filter.With))
-		without.InsertAll(slices.Values(filter.Without))
-	}
-
-	for _, filter := range filterB {
-		with.InsertAll(slices.Values(filter.With))
-		without.InsertAll(slices.Values(filter.Without))
-	}
-
-	return []arch.Filter{
-		{
-			With:    slices.Collect(with.Values()),
-			Without: slices.Collect(without.Values()),
-
-			Matches: func(q *arch.Query, entity arch.EntityRef) bool {
-				return matches(filterA, q, entity) && matches(filterB, q, entity)
-			},
-		},
-	}
-}
-
 func matches(filters []arch.Filter, q *arch.Query, entity arch.EntityRef) bool {
 	for _, filter := range filters {
 		if filter.Matches != nil && !filter.Matches(q, entity) {

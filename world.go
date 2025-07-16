@@ -4,33 +4,9 @@ import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/assert"
-	"github.com/oliverbestmann/byke/internal/query"
 	"reflect"
 	"slices"
 )
-
-type Tick = arch.Tick
-type EntityId = arch.EntityId
-type IsComponent[T any] = arch.IsComponent[T]
-type IsImmutableComponent[T IsComponent[T]] = arch.IsImmutableComponent[T]
-type IsComparableComponent[T IsComponent[T]] = arch.IsComparableComponent[T]
-
-type Component[T IsComponent[T]] = arch.Component[T]
-type ImmutableComponent[T arch.IsImmutableComponent[T]] = arch.ImmutableComponent[T]
-type ComparableComponent[T IsComparableComponent[T]] = arch.ComparableComponent[T]
-
-type ErasedComponent = arch.ErasedComponent
-
-type Option[C IsComponent[C]] = query.Option[C]
-type OptionMut[C IsComponent[C]] = query.OptionMut[C]
-
-type Has[C IsComponent[C]] = query.Has[C]
-type With[C IsComponent[C]] = query.With[C]
-type Without[C IsComponent[C]] = query.Without[C]
-type Added[C IsComparableComponent[C]] = query.Added[C]
-type Changed[C arch.IsSupportsChangeDetectionComponent[C]] = query.Changed[C]
-
-type Or[A, B query.Filter] = query.Or[A, B]
 
 const NoEntityId = EntityId(0)
 
@@ -56,7 +32,7 @@ type World struct {
 	resources   map[reflect.Type]resourceValue
 	schedules   map[ScheduleId]*Schedule
 	systems     map[SystemId]*preparedSystem
-	currentTick Tick
+	currentTick arch.Tick
 }
 
 func NewWorld() *World {
