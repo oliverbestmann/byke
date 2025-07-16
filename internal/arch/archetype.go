@@ -234,7 +234,7 @@ func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIt
 
 	// check what types we can fetch
 	for _, typ := range query.Fetch {
-		column := a.getColumn(typ)
+		column := a.getColumn(typ.ComponentType)
 		if column == nil {
 			iters = append(iters, ColumnAccess{})
 		} else {

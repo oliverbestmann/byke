@@ -18,16 +18,12 @@ type ParsedQuery struct {
 
 type SetValue func(target any, ref arch.EntityRef)
 
-type UnsafeSetValue func(target unsafe.Pointer, ref arch.EntityRef)
-
 type Setter struct {
 	Field    []int
 	SetValue SetValue
 
 	// offset of this field to the start of the struct
 	UnsafeFieldOffset uintptr
-
-	UnsafeSetValue UnsafeSetValue
 
 	// UseEntityId implies that UnsafeFieldOffset is a pointer to an EntityId variable
 	// and we're supposed to copy the value of the current EntityId into that field.
@@ -78,11 +74,6 @@ func FromEntity[T any](target *T, setters []Setter, ref arch.EntityRef) {
 			continue
 		}
 
-		if setter.UnsafeSetValue != nil {
-			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
-			setter.UnsafeSetValue(target, ref)
-		}
-
 		if setter.SetValue != nil {
 			target := reflect.ValueOf(target)
 
@@ -120,10 +111,8 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 		return nil
 
 	case refl.IsComponent(queryType):
-		componentIdx := len(query.Fetch)
-
 		componentType := refl.ComponentTypeOf(queryType)
-		query.Fetch = append(query.Fetch, componentType)
+		componentIdx := query.FetchComponent(componentType, false)
 
 		result.Setters = append(result.Setters, Setter{
 			UnsafeFieldOffset: offset,
@@ -131,8 +120,6 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 			UnsafeCopyComponentValue: true,
 			ComponentTypeSize:        componentType.Type.Size(),
 			ComponentIdx:             componentIdx,
-
-			// TODO handle non trivial types correctly
 		})
 
 		return nil
@@ -142,10 +129,8 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 			panic(fmt.Sprintf("Can not inject pointer to ImmutableComponent %s", queryType.Elem()))
 		}
 
-		componentIdx := len(query.Fetch)
-
 		componentType := refl.ComponentTypeOf(queryType.Elem())
-		query.Fetch = append(query.Fetch, componentType)
+		componentIdx := query.FetchComponent(componentType, false)
 		result.Mutable = append(result.Mutable, componentType)
 
 		result.Setters = append(result.Setters, Setter{
@@ -159,20 +144,12 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 
 	case isFilter(queryType):
 		filter := reflect.New(queryType).Interface().(Filter)
-		filters := filter.applyTo(result)
+		filters := filter.applyTo(result, offset)
 
 		// calculate the filters and add them to the query
 		query.Filters = append(query.Filters, filters...)
 
 		if isFromEntityRef(queryType) {
-			for _, filter := range filters {
-				for _, ty := range filter.FetchOptional {
-					if !slices.Contains(query.FetchOptional, ty) {
-						query.FetchOptional = append(query.FetchOptional, ty)
-					}
-				}
-			}
-
 			result.Setters = append(result.Setters, Setter{
 				Field: slices.Clone(path),
 				SetValue: func(target any, ref arch.EntityRef) {

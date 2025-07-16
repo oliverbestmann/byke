@@ -14,14 +14,18 @@ type Filter struct {
 	Matches func(q *Query, entity EntityRef) bool
 }
 
+type FetchComponent struct {
+	ComponentType *ComponentType
+	Optional      bool
+}
+
 type Query struct {
 	// tick that the system was last run.
 	// This is used to filter for changed or added components.
 	LastRun Tick
 
 	// components we want to actually read
-	Fetch         []*ComponentType
-	FetchOptional []*ComponentType
+	Fetch []FetchComponent
 
 	// components we just want to check if they exist
 	FetchHas []*ComponentType
@@ -30,7 +34,7 @@ type Query struct {
 }
 
 func (q *Query) MatchesArchetype(a *Archetype) bool {
-	if !containsAllTypes(a, q.Fetch) {
+	if !containsAll(a, q.Fetch) {
 		return false
 	}
 
@@ -63,9 +67,36 @@ func (q *Query) Matches(entity EntityRef) bool {
 	return true
 }
 
+func (q *Query) FetchComponent(componentType *ComponentType, optional bool) int {
+	for idx := range q.Fetch {
+		fetch := &q.Fetch[idx]
+		if fetch.ComponentType == componentType {
+			fetch.Optional = fetch.Optional && optional
+			return idx
+		}
+	}
+
+	q.Fetch = append(q.Fetch, FetchComponent{
+		ComponentType: componentType,
+		Optional:      optional,
+	})
+
+	return len(q.Fetch) - 1
+}
+
 func containsAllTypes(a *Archetype, types []*ComponentType) bool {
 	for _, ty := range types {
 		if !a.ContainsType(ty) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func containsAll(a *Archetype, types []FetchComponent) bool {
+	for _, ty := range types {
+		if !a.ContainsType(ty.ComponentType) && !ty.Optional {
 			return false
 		}
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 type Filter interface {
-	applyTo(result *ParsedQuery) []arch.Filter
+	applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter
 }
 
 type EmbeddableFilter interface {
@@ -26,20 +26,19 @@ type Option[C arch.IsComponent[C]] struct {
 	value *C
 }
 
-func (Option[C]) applyTo(result *ParsedQuery) []arch.Filter {
+func (Option[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
+	idx := result.Query.FetchComponent(arch.ComponentTypeOf[C](), true)
+
+	result.Setters = append(result.Setters, Setter{
+		UnsafeFieldOffset:       fieldOffset,
+		UnsafeCopyComponentAddr: true,
+		ComponentIdx:            idx,
+	})
+
 	return []arch.Filter{
 		{
 			FetchOptional: []*arch.ComponentType{arch.ComponentTypeOf[C]()},
 		},
-	}
-}
-
-func (c *Option[C]) fromEntityRef(ref arch.EntityRef) {
-	value := ref.Get(arch.ComponentTypeOf[C]())
-	if value != nil {
-		c.value = any(value).(*C)
-	} else {
-		c.value = nil
 	}
 }
 
@@ -68,23 +67,22 @@ type OptionMut[C arch.IsComponent[C]] struct {
 	value *C
 }
 
-func (OptionMut[C]) applyTo(result *ParsedQuery) []arch.Filter {
+func (OptionMut[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	componentType := arch.ComponentTypeOf[C]()
 	result.Mutable = append(result.Mutable, componentType)
+
+	idx := result.Query.FetchComponent(arch.ComponentTypeOf[C](), true)
+
+	result.Setters = append(result.Setters, Setter{
+		UnsafeFieldOffset:       fieldOffset,
+		UnsafeCopyComponentAddr: true,
+		ComponentIdx:            idx,
+	})
 
 	return []arch.Filter{
 		{
 			FetchOptional: []*arch.ComponentType{componentType},
 		},
-	}
-}
-
-func (c *OptionMut[C]) fromEntityRef(ref arch.EntityRef) {
-	value := ref.Get(arch.ComponentTypeOf[C]())
-	if value != nil {
-		c.value = any(value).(*C)
-	} else {
-		c.value = nil
 	}
 }
 
@@ -104,7 +102,7 @@ type Has[C arch.IsComponent[C]] struct {
 	Exists bool
 }
 
-func (Has[C]) applyTo(result *ParsedQuery) []arch.Filter {
+func (Has[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	componentType := arch.ComponentTypeOf[C]()
 	result.Query.FetchHas = append(result.Query.FetchHas, componentType)
 	return nil
@@ -119,7 +117,7 @@ type With[C arch.IsComponent[C]] struct{}
 
 func (With[C]) embeddable(isEmbeddableMarker) {}
 
-func (With[C]) applyTo(result *ParsedQuery) []arch.Filter {
+func (With[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	componentType := arch.ComponentTypeOf[C]()
 
 	return []arch.Filter{
@@ -137,7 +135,7 @@ type Without[C arch.IsComponent[C]] struct{}
 
 func (Without[C]) embeddable(isEmbeddableMarker) {}
 
-func (Without[C]) applyTo(result *ParsedQuery) []arch.Filter {
+func (Without[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	componentType := arch.ComponentTypeOf[C]()
 
 	return []arch.Filter{
@@ -155,7 +153,7 @@ type Changed[C arch.IsSupportsChangeDetectionComponent[C]] struct{}
 
 func (Changed[C]) embeddable(isEmbeddableMarker) {}
 
-func (Changed[C]) applyTo(result *ParsedQuery) []arch.Filter {
+func (Changed[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	componentType := arch.ComponentTypeOf[C]()
 
 	return []arch.Filter{
@@ -174,7 +172,7 @@ type Added[C arch.IsComponent[C]] struct{}
 
 func (Added[C]) embeddable(isEmbeddableMarker) {}
 
-func (Added[C]) applyTo(result *ParsedQuery) []arch.Filter {
+func (Added[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	componentType := arch.ComponentTypeOf[C]()
 
 	return []arch.Filter{
@@ -193,12 +191,12 @@ type Or[A, B Filter] struct{}
 
 func (Or[A, B]) embeddable(isEmbeddableMarker) {}
 
-func (Or[A, B]) applyTo(result *ParsedQuery) []arch.Filter {
+func (Or[A, B]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	var aZero A
-	filterA := aZero.applyTo(result)
+	filterA := aZero.applyTo(result, 0)
 
 	var bZero B
-	filterB := bZero.applyTo(result)
+	filterB := bZero.applyTo(result, 0)
 
 	// for And we can optimize: we can just move the intersection of
 	// the With & Without types to the top filter
@@ -244,12 +242,12 @@ type And[A, B Filter] struct{}
 
 func (And[A, B]) embeddable(isEmbeddableMarker) {}
 
-func (And[A, B]) applyTo(result *ParsedQuery) []arch.Filter {
+func (And[A, B]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	var aZero A
-	filterA := aZero.applyTo(result)
+	filterA := aZero.applyTo(result, 0)
 
 	var bZero B
-	filterB := bZero.applyTo(result)
+	filterB := bZero.applyTo(result, 0)
 
 	// for And we can optimize: we can just move the union of the With & Without types
 	// to the top filter
