@@ -2,9 +2,12 @@ package byke
 
 import "reflect"
 
-// Local provides a value local to the system.
-// It must be injected into a system as a pointer.
+// Local is a SystemParam that provides a value local to a system.
+// It must be injected as a pointer value.
+//
+// A system can have multiple intended Local parameters even with the same type T.
 type Local[T any] struct {
+	_     noCopy
 	Value T
 }
 

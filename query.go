@@ -9,11 +9,6 @@ import (
 	"sync"
 )
 
-type queryAccessor interface {
-	parse() (query.ParsedQuery, error)
-	set(inner *innerQuery)
-}
-
 type Query[T any] struct {
 	inner *innerQuery
 	items iter.Seq[T]
