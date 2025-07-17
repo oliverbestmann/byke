@@ -3,7 +3,7 @@ module github.com/oliverbestmann/byke
 go 1.24
 
 require (
-	github.com/hajimehoshi/ebiten/v2 v2.8.8
+	github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.10.0
 )
@@ -12,7 +12,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/gomobile v0.0.0-20250329061421-6d0a8e981e4c // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
-	github.com/ebitengine/purego v0.8.4 // indirect
+	github.com/ebitengine/purego v0.9.0-alpha.9 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
 	github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5 // indirect

@@ -107,6 +107,9 @@ func (r *renderTextValue) commonValues() *renderCommonValues {
 type renderVectorValue struct {
 	Common   renderCommonValues
 	Vertices pathVertices
+	Path     Path
+	Fill     byke.Option[Fill]
+	Stroke   byke.Option[Stroke]
 }
 
 func (r *renderVectorValue) commonValues() *renderCommonValues {
@@ -151,9 +154,6 @@ func renderSystem(
 	slices.SortFunc(items, func(a, b hasCommonValues) int {
 		return compareZ(a.commonValues(), b.commonValues())
 	})
-
-	// get the cached white image
-	whiteImage := whiteImage()
 
 	for _, item := range items {
 		common := item.commonValues()
@@ -217,11 +217,30 @@ func renderSystem(
 			text.Draw(screen.Image, item.Text.Text, item.Face, &op)
 
 		case *renderVectorValue:
-			vertices := cache.Value.transformVertices(item.Vertices.Vertices, g, colorScale)
+			// var path vector.Path
+			//
+			// path.AddPath(item.Path.inner(), &vector.AddPathOptions{GeoM: g})
+			//
+			// if fill, ok := item.Fill.Get(); ok {
+			// 	vector.FillPath(screen.Image, &path, fill.Color, true, vector.FillRuleNonZero)
+			// }
+			//
+			// if stroke_, ok := item.Stroke.Get(); ok {
+			// 	var stroke Stroke = stroke_
+			//
+			// 	vector.StrokePath(screen.Image, &path, stroke.Color, true, &vector.StrokeOptions{
+			// 		Width:      float32(stroke.Width),
+			// 		LineCap:    stroke.LineCap,
+			// 		LineJoin:   stroke.LineJoin,
+			// 		MiterLimit: float32(stroke.MiterLimit),
+			// 	})
+			// }
 
+			vertices := cache.Value.transformVertices(item.Vertices.Vertices, g, colorScale)
 			var top ebiten.DrawTrianglesOptions
 			top.AntiAlias = true
-			screen.Image.DrawTriangles(vertices, item.Vertices.Indices, whiteImage, &top)
+			top.FillRule = ebiten.FillRuleNonZero
+			screen.Image.DrawTriangles(vertices, item.Vertices.Indices, whiteImage(), &top)
 		}
 	}
 }
