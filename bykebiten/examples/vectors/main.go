@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/profile"
 	"math"
 	"math/rand/v2"
-	"time"
 )
 
 func main() {
@@ -30,11 +29,11 @@ func main() {
 	app.AddSystems(Startup, createVectors)
 	app.AddSystems(Update, System(avoidCursorSystem, movementSystem, wrapScreenSystem).Chain())
 
-	app.AddSystems(Update, func(vt VirtualTime, exit *EventWriter[AppExit]) {
-		if vt.Elapsed > 5*time.Second {
-			exit.Write(AppExitSuccess)
-		}
-	})
+	// app.AddSystems(Update, func(vt VirtualTime, exit *EventWriter[AppExit]) {
+	// 	if vt.Elapsed > 5*time.Second {
+	// 		exit.Write(AppExitSuccess)
+	// 	}
+	// })
 
 	fmt.Println(app.Run())
 }

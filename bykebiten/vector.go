@@ -1,7 +1,6 @@
 package bykebiten
 
 import (
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/color"
@@ -33,11 +32,11 @@ const (
 
 var _ = byke.ValidateComponent[Fill]()
 var _ = byke.ValidateComponent[Stroke]()
-var _ = byke.ValidateComponent[pathVertices]()
 
 type Fill struct {
 	byke.ComparableComponent[Fill]
-	Color color.Color
+	Color     color.Color
+	Antialias bool
 }
 
 type Stroke struct {
@@ -46,6 +45,10 @@ type Stroke struct {
 
 	// Width is the stroke width in pixels.
 	Width float64
+
+	// MiterLimit is the miter limit for LineJoinMiter.
+	// For details, see https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-miterlimit.
+	MiterLimit float64
 
 	// LineCap is the way in which how the ends of the stroke are rendered.
 	// Line caps are not rendered when the subpath is marked as closed.
@@ -58,17 +61,8 @@ type Stroke struct {
 	// The default (zero) value is LineJoinMiter.
 	LineJoin LineJoin
 
-	// MiterLimit is the miter limit for LineJoinMiter.
-	// For details, see https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/stroke-miterlimit.
-	MiterLimit float64
-}
-
-type pathVertices struct {
-	byke.Component[pathVertices]
-
-	// TODO we should probably also support cases where we have more than 64k vertices
-	Vertices []ebiten.Vertex
-	Indices  []uint16
+	// Enable antialiasing during rendering
+	Antialias bool
 }
 
 type Path struct {
@@ -83,10 +77,7 @@ type Path struct {
 }
 
 func (*Path) RequireComponents() []arch.ErasedComponent {
-	components := []arch.ErasedComponent{
-		pathVertices{},
-	}
-
+	components := []arch.ErasedComponent(nil)
 	return append(components, commonRenderComponents...)
 }
 
@@ -156,95 +147,32 @@ func (p *Path) Close() {
 
 func computeCachedVertices(
 	query byke.Query[struct {
-		byke.Or[byke.Changed[Path], byke.Or[byke.Changed[Stroke], byke.Changed[Fill]]]
+		byke.Or[byke.Changed[Path], byke.Changed[Stroke]]
 
 		Path   Path
-		Fill   byke.Option[Fill]
-		Stroke byke.Option[Stroke]
 		Anchor Anchor
 
-		Cache *pathVertices
-		BBox  *BBox
+		BBox *BBox
 	}],
 ) {
 
 	for item := range query.Items() {
-		// re-use existing structs
-		vertices := item.Cache.Vertices[:0]
-		indices := item.Cache.Indices[:0]
-
 		// get the actual path
 		path := item.Path.inner_
 		if path == nil {
 			continue
 		}
 
-		var minX, minY, maxX, maxY float32
+		bbox := path.Bounds()
 
-		if fill_, ok := item.Fill.Get(); ok {
-			// TODO goland bug, type information of generic parameters in type aliases gets lost
-			var fill Fill = fill_
-
-			// append vertices
-			vertices, indices = path.AppendVerticesAndIndicesForFilling(vertices, indices)
-
-			// iterate over vertices and apply color to the vertex attributes
-			for idx := range vertices {
-				var v = &vertices[idx]
-				v.ColorR, v.ColorG, v.ColorB, v.ColorA = fill.Color.PremultipliedValues()
-
-				// track min/max to calculate bounding box
-				minX = min(minX, v.DstX)
-				minY = min(minY, v.DstY)
-				maxX = max(maxX, v.DstX)
-				maxY = max(maxY, v.DstY)
-			}
-		}
-
-		if stroke_, ok := item.Stroke.Get(); ok {
-			// TODO goland bug, type information of generic parameters in type aliases gets lost
-			var stroke Stroke = stroke_
-
-			existingVertexCount := len(vertices)
-
-			// append vertices
-			vertices, indices = path.AppendVerticesAndIndicesForStroke(vertices, indices, &vector.StrokeOptions{
-				Width:      float32(stroke.Width),
-				LineCap:    stroke.LineCap,
-				LineJoin:   stroke.LineJoin,
-				MiterLimit: float32(stroke.MiterLimit),
-			})
-
-			// iterate over vertices and apply color to the vertex attributes
-			for idx := existingVertexCount; idx < len(vertices); idx++ {
-				var v = &vertices[idx]
-				v.ColorR, v.ColorG, v.ColorB, v.ColorA = stroke.Color.PremultipliedValues()
-
-				// track min/max to calculate bounding box
-				minX = min(minX, v.DstX)
-				minY = min(minY, v.DstY)
-				maxX = max(maxX, v.DstX)
-				maxY = max(maxY, v.DstY)
-			}
-		}
-
-		item.Cache.Vertices = vertices
-		item.Cache.Indices = indices
-
-		minVec := gm.VecOf(float64(minX), float64(minY))
-		maxVec := gm.VecOf(float64(maxX), float64(maxY))
+		minVec := gm.VecOf(float64(bbox.Min.X), float64(bbox.Min.Y))
+		maxVec := gm.VecOf(float64(bbox.Max.X), float64(bbox.Max.Y))
 
 		// calculate bounding box
 		size := maxVec.Sub(minVec)
 		origin := item.Anchor.MulEach(size).Mul(-1)
 		item.BBox.Rect = gm.RectWithOriginAndSize(origin, size)
 		item.BBox.ToSourceScale = gm.VecOne
-
-		// apply origin to the vertices to move the rendering to [[0, 0]; size]
-		oX, oY := float32(origin.X), float32(origin.Y)
-		for idx := range vertices {
-			vertices[idx].DstX -= oX
-			vertices[idx].DstY -= oY
-		}
+		item.BBox.LocalOrigin = minVec
 	}
 }

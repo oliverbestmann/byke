@@ -3,6 +3,7 @@ package bykebiten
 import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	"github.com/oliverbestmann/byke/gm"
@@ -61,6 +62,7 @@ type BBox struct {
 	// that have a custom size set. ToSourceScale describes the factor that
 	// the Rect would need to be multiplied with to get the sources size.
 	ToSourceScale gm.Vec
+	LocalOrigin   gm.Vec
 }
 
 var commonRenderComponents = []byke.ErasedComponent{
@@ -105,11 +107,10 @@ func (r *renderTextValue) commonValues() *renderCommonValues {
 }
 
 type renderVectorValue struct {
-	Common   renderCommonValues
-	Vertices pathVertices
-	Path     Path
-	Fill     byke.Option[Fill]
-	Stroke   byke.Option[Stroke]
+	Common renderCommonValues
+	Path   Path
+	Fill   byke.Option[Fill]
+	Stroke byke.Option[Stroke]
 }
 
 func (r *renderVectorValue) commonValues() *renderCommonValues {
@@ -120,6 +121,8 @@ type renderCache struct {
 	Sprites []renderSpriteValue
 	Texts   []renderTextValue
 	Vectors []renderVectorValue
+
+	TempPath vector.Path
 
 	// scratch space for vertex transformations
 	vertexCache []ebiten.Vertex
@@ -217,30 +220,31 @@ func renderSystem(
 			text.Draw(screen.Image, item.Text.Text, item.Face, &op)
 
 		case *renderVectorValue:
-			// var path vector.Path
-			//
-			// path.AddPath(item.Path.inner(), &vector.AddPathOptions{GeoM: g})
-			//
-			// if fill, ok := item.Fill.Get(); ok {
-			// 	vector.FillPath(screen.Image, &path, fill.Color, true, vector.FillRuleNonZero)
-			// }
-			//
-			// if stroke_, ok := item.Stroke.Get(); ok {
-			// 	var stroke Stroke = stroke_
-			//
-			// 	vector.StrokePath(screen.Image, &path, stroke.Color, true, &vector.StrokeOptions{
-			// 		Width:      float32(stroke.Width),
-			// 		LineCap:    stroke.LineCap,
-			// 		LineJoin:   stroke.LineJoin,
-			// 		MiterLimit: float32(stroke.MiterLimit),
-			// 	})
-			// }
+			// need to pre translate using the paths origin to make it match the
+			// actual render origin
+			var pathG ebiten.GeoM
+			pathG.Translate(-origin.X, -origin.Y)
+			pathG.Concat(g)
 
-			vertices := cache.Value.transformVertices(item.Vertices.Vertices, g, colorScale)
-			var top ebiten.DrawTrianglesOptions
-			top.AntiAlias = true
-			top.FillRule = ebiten.FillRuleNonZero
-			screen.Image.DrawTriangles(vertices, item.Vertices.Indices, whiteImage(), &top)
+			path := &cache.Value.TempPath
+			path.Reset()
+			path.AddPath(item.Path.inner(), &vector.AddPathOptions{GeoM: pathG})
+
+			if fill_, ok := item.Fill.Get(); ok {
+				var fill Fill = fill_
+				vector.FillPath(screen.Image, path, fill.Color, fill.Antialias, vector.FillRuleNonZero)
+			}
+
+			if stroke_, ok := item.Stroke.Get(); ok {
+				var stroke Stroke = stroke_
+
+				vector.StrokePath(screen.Image, path, stroke.Color, stroke.Antialias, &vector.StrokeOptions{
+					Width:      float32(stroke.Width),
+					LineCap:    stroke.LineCap,
+					LineJoin:   stroke.LineJoin,
+					MiterLimit: float32(stroke.MiterLimit),
+				})
+			}
 		}
 	}
 }
@@ -261,36 +265,6 @@ func (c *renderCache) Items() []hasCommonValues {
 	}
 
 	return c.all
-}
-
-func (c *renderCache) transformVertices(vertices []ebiten.Vertex, g ebiten.GeoM, colorScale ebiten.ColorScale) []ebiten.Vertex {
-	transformed := c.vertexCache[:0]
-
-	// only do the multiplications if we actually have a color to apply
-	hasColorTint := colorScale != ebiten.ColorScale{}
-
-	for _, vertex := range vertices {
-		// transform coordinates
-		tX, tY := g.Apply(float64(vertex.DstX), float64(vertex.DstY))
-		vertex.DstX = float32(tX)
-		vertex.DstY = float32(tY)
-
-		if hasColorTint {
-			// scale color
-			r, g, b, a := colorScale.R(), colorScale.G(), colorScale.B(), colorScale.A()
-			vertex.ColorR *= r
-			vertex.ColorG *= g
-			vertex.ColorB *= b
-			vertex.ColorA *= a
-		}
-
-		transformed = append(transformed, vertex)
-	}
-
-	// keep the slice can re-use it next time
-	c.vertexCache = transformed
-
-	return transformed
 }
 
 func compareZ(a, b *renderCommonValues) int {

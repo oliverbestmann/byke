@@ -38,6 +38,8 @@ github.com/hajimehoshi/ebiten/v2 v2.8.8 h1:xyMxOAn52T1tQ+j3vdieZ7auDBOXmvjUprSrx
 github.com/hajimehoshi/ebiten/v2 v2.8.8/go.mod h1:durJ05+OYnio9b8q0sEtOgaNeBEQG7Yr7lRviAciYbs=
 github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9 h1:q5uizKdqDSlqm/KVVXxqVZzzFuHvOyYRZ75Kgexi3K8=
 github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9/go.mod h1:7ZF526xo9vzSfEPQshV2HLwdfR4G2xCBR39ATIQ7k9U=
+github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9.0.20250717182450-f54d9ce7167a h1:G4vQPX2Hor/0xH38rLeUhsgVvq0cRdfesaxxzh2HU5g=
+github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9.0.20250717182450-f54d9ce7167a/go.mod h1:WpF50AATB7rb0bgUXso19ZOZe948doUahbhIXvUF6Cg=
 github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
 github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
 github.com/jezek/xgb v1.1.1 h1:bE/r8ZZtSv7l9gk6nU0mYx51aXrvnyb44892TwSaqS4=

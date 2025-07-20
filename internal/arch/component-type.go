@@ -92,7 +92,7 @@ func ensureComponentType[C IsComponent[C]](ptrToType unsafe.Pointer, makeType fu
 		newTypes[ptrToType] = newType
 
 		if componentTypes.CompareAndSwap(previousTypes, &newTypes) {
-			slog.Info(
+			slog.Debug(
 				"New component type registered",
 				slog.String("name", newType.Name),
 				slog.Int("id", int(newType.Id)),

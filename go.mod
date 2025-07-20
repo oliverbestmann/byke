@@ -3,7 +3,7 @@ module github.com/oliverbestmann/byke
 go 1.24
 
 require (
-	github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9
+	github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9.0.20250717182450-f54d9ce7167a
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.10.0
 )
