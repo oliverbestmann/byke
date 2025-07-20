@@ -99,18 +99,24 @@ func (c *OptionMut[C]) MustGet() *C {
 }
 
 type Has[C arch.IsComponent[C]] struct {
-	Exists bool
+	ptr uintptr
 }
 
 func (Has[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) []arch.Filter {
 	componentType := arch.ComponentTypeOf[C]()
-	result.Query.FetchHas = append(result.Query.FetchHas, componentType)
+
+	idx := result.Query.FetchComponent(componentType, true)
+	result.Setters = append(result.Setters, Setter{
+		UnsafeFieldOffset:       fieldOffset,
+		UnsafeCopyComponentAddr: true,
+		ComponentIdx:            idx,
+	})
+
 	return nil
 }
 
-func (c *Has[C]) fromEntityRef(ref arch.EntityRef) {
-	value := ref.Get(arch.ComponentTypeOf[C]())
-	c.Exists = value != nil
+func (h Has[C]) Exists() bool {
+	return h.ptr != 0
 }
 
 type With[C arch.IsComponent[C]] struct{}
