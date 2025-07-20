@@ -1,73 +1,22 @@
 package arch
 
-type Filter struct {
-	// The archetype needs to have all of those component types.
-	With []*ComponentType
-
-	// The archetype must not have those component types
-	Without []*ComponentType
-
-	// Fetch if possible
-	FetchOptional []*ComponentType
-
-	// Check if a entity matches this filter.
-	Matches func(q *Query, entity EntityRef) bool
-}
-
 type FetchComponent struct {
 	ComponentType *ComponentType
 	Optional      bool
 }
 
-type Query struct {
-	// tick that the system was last run.
-	// This is used to filter for changed or added components.
-	LastRun Tick
-
-	// components we want to actually read
-	Fetch []FetchComponent
-
-	// components we just want to check if they exist
-	FetchHas []*ComponentType
-	// more general filters, such as nested Or or And
+type QueryBuilder struct {
+	Fetch   []FetchComponent
 	Filters []Filter
 }
 
-func (q *Query) MatchesArchetype(a *Archetype) bool {
-	if !containsAll(a, q.Fetch) {
-		return false
+func (q *QueryBuilder) Filter(f Filter) {
+	if !f.IsZero() {
+		q.Filters = append(q.Filters, f)
 	}
-
-	for _, filter := range q.Filters {
-		// must contain all types from With
-		if !containsAllTypes(a, filter.With) {
-			return false
-		}
-
-		// negative check for Without
-		for _, ty := range filter.Without {
-			if a.ContainsType(ty) {
-				return false
-			}
-		}
-	}
-
-	return true
 }
 
-// Matches must only be run for entities provided by an Archetype that matched MatchesArchetype.
-func (q *Query) Matches(entity EntityRef) bool {
-	// apply filters
-	for _, filter := range q.Filters {
-		if filter.Matches != nil && !filter.Matches(q, entity) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (q *Query) FetchComponent(componentType *ComponentType, optional bool) int {
+func (q *QueryBuilder) FetchComponent(componentType *ComponentType, optional bool) int {
 	for idx := range q.Fetch {
 		fetch := &q.Fetch[idx]
 		if fetch.ComponentType == componentType {
@@ -76,17 +25,19 @@ func (q *Query) FetchComponent(componentType *ComponentType, optional bool) int 
 		}
 	}
 
+	idx := len(q.Fetch)
+
 	q.Fetch = append(q.Fetch, FetchComponent{
 		ComponentType: componentType,
 		Optional:      optional,
 	})
 
-	return len(q.Fetch) - 1
+	return idx
 }
 
-func containsAllTypes(a *Archetype, types []*ComponentType) bool {
-	for _, ty := range types {
-		if !a.ContainsType(ty) {
+func (q *QueryBuilder) IsArchetypeOnly() bool {
+	for idx := range q.Filters {
+		if !q.Filters[idx].IsArchetypeOnly() {
 			return false
 		}
 	}
@@ -94,12 +45,145 @@ func containsAllTypes(a *Archetype, types []*ComponentType) bool {
 	return true
 }
 
-func containsAll(a *Archetype, types []FetchComponent) bool {
-	for _, ty := range types {
+func (q *QueryBuilder) Build() Query {
+	return Query{
+		Fetch:           q.Fetch,
+		Filters:         q.Filters,
+		IsArchetypeOnly: q.IsArchetypeOnly(),
+	}
+}
+
+type Query struct {
+	// components we want to actually read
+	Fetch []FetchComponent
+
+	// more general Filters, such as nested Or or And
+	Filters []Filter
+
+	// true if this is an archetype only query
+	IsArchetypeOnly bool
+}
+
+func (q *Query) MatchesArchetype(a *Archetype) bool {
+	for _, ty := range q.Fetch {
 		if !a.ContainsType(ty.ComponentType) && !ty.Optional {
 			return false
 		}
 	}
 
+	for idx := range q.Filters {
+		if !q.Filters[idx].MatchesArchetype(a) {
+			return false
+		}
+	}
+
 	return true
+}
+
+// Matches must only be run for entities provided by an Archetype that matched MatchesArchetype.
+// If the query IsArchetypeOnly, this method does not need to be called.
+func (q *Query) Matches(ctx QueryContext, entity EntityRef) bool {
+	if q.IsArchetypeOnly {
+		return true
+	}
+
+	for idx := range q.Filters {
+		if !q.Filters[idx].Matches(ctx, entity) {
+			return false
+		}
+	}
+
+	return true
+}
+
+type Filter struct {
+	// The archetype needs to have this component type
+	With *ComponentType
+
+	// The archetype must not have this component type
+	Without *ComponentType
+
+	// The archetype must have this component newly added
+	Added *ComponentType
+
+	// The archetype must have this component changed
+	Changed *ComponentType
+
+	// More Filters, each combined with an or.
+	Or []Filter
+}
+
+func (f *Filter) IsZero() bool {
+	for _, or := range f.Or {
+		if !or.IsZero() {
+			return false
+		}
+	}
+
+	return f.With == nil && f.Without == nil && f.Added == nil && f.Changed == nil
+}
+
+func (f *Filter) IsArchetypeOnly() bool {
+	if f.Added != nil || f.Changed != nil {
+		return false
+	}
+
+	for idx := range f.Or {
+		if !f.Or[idx].IsArchetypeOnly() {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (f *Filter) MatchesArchetype(a *Archetype) bool {
+	if ty := f.With; ty != nil && !a.ContainsType(ty) {
+		return false
+	}
+
+	if ty := f.Without; ty != nil && a.ContainsType(ty) {
+		return false
+	}
+
+	if ty := f.Added; ty != nil && !a.ContainsType(ty) {
+		return false
+	}
+
+	if ty := f.Changed; ty != nil && !a.ContainsType(ty) {
+		return false
+	}
+
+	for idx := range f.Or {
+		if f.Or[idx].MatchesArchetype(a) {
+			return true
+		}
+	}
+
+	return len(f.Or) == 0
+}
+
+// Matches checks the non-archetype specific checks. This must only be called for
+// an entity from an Archetype accepted by MatchesArchetype.
+func (f *Filter) Matches(ctx QueryContext, entity EntityRef) bool {
+	if f.Added != nil {
+		tick := entity.Added(f.Added)
+		if tick < ctx.LastRun {
+			return false
+		}
+	}
+
+	if f.Changed != nil {
+		tick := entity.Changed(f.Changed)
+		if tick < ctx.LastRun {
+			return false
+		}
+	}
+
+	return true
+}
+
+type QueryContext struct {
+	// Last time that the system running this query was executed
+	LastRun Tick
 }

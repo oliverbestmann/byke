@@ -31,20 +31,19 @@ func TestStorage_All(t *testing.T) {
 	tick += 1
 
 	query := &Query{
-		LastRun: tick,
-		Fetch: []*ComponentType{
-			ComponentTypeOf[Velocity](),
+		Fetch: []FetchComponent{
+			{
+				ComponentType: ComponentTypeOf[Velocity](),
+			},
 		},
 		Filters: []Filter{
 			{
-				Without: []*ComponentType{
-					ComponentTypeOf[Position](),
-				},
+				Without: ComponentTypeOf[Position](),
 			},
 		},
 	}
 
-	iter := s.IterQuery(query, nil)
+	iter := s.IterQuery(query, QueryContext{LastRun: tick}, nil)
 	for entity := range iter.AsSeq() {
 		value := entity.Get(ComponentTypeOf[Velocity]())
 		value.(*Velocity).X = 2
@@ -82,26 +81,30 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 	tick += 1
 
 	query := &Query{
-		LastRun: tick,
-		Fetch: []*ComponentType{
-			ComponentTypeOf[Velocity](),
+		Fetch: []FetchComponent{
+			{
+				ComponentType: ComponentTypeOf[Velocity](),
+			},
 		},
 		Filters: []Filter{
 			{
-				Without: []*ComponentType{
-					ComponentTypeOf[Position](),
-				},
+				Without: ComponentTypeOf[Position](),
 			},
 		},
 	}
 
-	iter := s.IterQuery(query, nil)
+	iter := s.IterQuery(query, QueryContext{LastRun: tick}, nil)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		for entity := range iter.AsSeq() {
+		for {
+			entity, ok := iter.Next()
+			if !ok {
+				break
+			}
+
 			_ = entity
 		}
 	}

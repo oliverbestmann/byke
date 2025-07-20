@@ -6,12 +6,11 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 	"math"
 	"reflect"
-	"slices"
 	"unsafe"
 )
 
 type ParsedQuery struct {
-	Query   arch.Query
+	Builder arch.QueryBuilder
 	Mutable []*arch.ComponentType
 	Setters []Setter
 }
@@ -19,9 +18,6 @@ type ParsedQuery struct {
 type SetValue func(target any, ref arch.EntityRef)
 
 type Setter struct {
-	Field    []int
-	SetValue SetValue
-
 	// offset of this field to the start of the struct
 	UnsafeFieldOffset uintptr
 
@@ -73,17 +69,6 @@ func FromEntity[T any](target *T, setters []Setter, ref arch.EntityRef) {
 			*(*arch.EntityId)(target) = ref.EntityId()
 			continue
 		}
-
-		if setter.SetValue != nil {
-			target := reflect.ValueOf(target)
-
-			if setter.Field != nil {
-				// let target point to a field within the target struct
-				target = target.Elem().FieldByIndex(setter.Field).Addr()
-			}
-
-			setter.SetValue(target.Interface(), ref)
-		}
 	}
 }
 
@@ -98,12 +83,11 @@ func ParseQuery(queryType reflect.Type) (ParsedQuery, error) {
 }
 
 func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset uintptr) error {
-	query := &result.Query
+	query := &result.Builder
 
 	switch {
 	case isEntityId(queryType):
 		result.Setters = append(result.Setters, Setter{
-			Field:             slices.Clone(path),
 			UnsafeFieldOffset: offset,
 			UseEntityId:       true,
 		})
@@ -144,19 +128,7 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 
 	case isFilter(queryType):
 		filter := reflect.New(queryType).Interface().(Filter)
-		filters := filter.applyTo(result, offset)
-
-		// calculate the filters and add them to the query
-		query.Filters = append(query.Filters, filters...)
-
-		if isFromEntityRef(queryType) {
-			result.Setters = append(result.Setters, Setter{
-				Field: slices.Clone(path),
-				SetValue: func(target any, ref arch.EntityRef) {
-					target.(FromEntityRef).fromEntityRef(ref)
-				},
-			})
-		}
+		query.Filter(filter.applyTo(result, offset))
 
 		return nil
 
@@ -205,10 +177,6 @@ func isFilter(ty reflect.Type) bool {
 
 func isEmbeddableFilter(ty reflect.Type) bool {
 	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[EmbeddableFilter](ty)
-}
-
-func isFromEntityRef(ty reflect.Type) bool {
-	return ty.Kind() != reflect.Pointer && refl.ImplementsInterfaceDirectly[FromEntityRef](reflect.PointerTo(ty))
 }
 
 func isEntityId(ty reflect.Type) bool {

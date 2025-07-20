@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
+	"unsafe"
 )
 
 type Position struct {
@@ -23,6 +24,11 @@ type Acceleration struct {
 	X int
 }
 
+type SomeConfig struct {
+	arch.ComparableComponent[SomeConfig]
+	MaxX, MaxSpeed int
+}
+
 func parseQueryTest(t *testing.T, queryType reflect.Type, expected ParsedQuery) {
 	t.Helper()
 
@@ -30,29 +36,43 @@ func parseQueryTest(t *testing.T, queryType reflect.Type, expected ParsedQuery) 
 		parsed, err := ParseQuery(queryType)
 		require.NoError(t, err)
 
-		// do not include Setters in the comparison
-		parsed.Setters = nil
-
-		// TODO need to make this testable somehow?
-		parsed.Query.Filters = nil
-
 		require.EqualValues(t, expected, parsed)
 	})
 }
 
 func TestBuildQuerySimple(t *testing.T) {
 	parseQueryTest(t, reflect.TypeFor[Position](), ParsedQuery{
-		Query: arch.Query{
-			Fetch: []*arch.ComponentType{
-				arch.ComponentTypeOf[Position](),
+		Builder: arch.QueryBuilder{
+			Fetch: []arch.FetchComponent{
+				{
+					ComponentType: arch.ComponentTypeOf[Position](),
+				},
+			},
+		},
+		Setters: []Setter{
+			{
+				UnsafeCopyComponentValue: true,
+				UnsafeFieldOffset:        0,
+				ComponentIdx:             0,
+				ComponentTypeSize:        unsafe.Sizeof(Position{}),
 			},
 		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[*Position](), ParsedQuery{
-		Query: arch.Query{
-			Fetch: []*arch.ComponentType{
-				arch.ComponentTypeOf[Position](),
+		Builder: arch.QueryBuilder{
+			Fetch: []arch.FetchComponent{
+				{
+					ComponentType: arch.ComponentTypeOf[Position](),
+				},
+			},
+		},
+
+		Setters: []Setter{
+			{
+				UnsafeCopyComponentAddr: true,
+				UnsafeFieldOffset:       0,
+				ComponentIdx:            0,
 			},
 		},
 
@@ -62,11 +82,41 @@ func TestBuildQuerySimple(t *testing.T) {
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Option[Position]](), ParsedQuery{
-		Query: arch.Query{},
+		Builder: arch.QueryBuilder{
+			Fetch: []arch.FetchComponent{
+				{
+					ComponentType: arch.ComponentTypeOf[Position](),
+					Optional:      true,
+				},
+			},
+		},
+
+		Setters: []Setter{
+			{
+				UnsafeCopyComponentAddr: true,
+				UnsafeFieldOffset:       0,
+				ComponentIdx:            0,
+			},
+		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[OptionMut[Position]](), ParsedQuery{
-		Query: arch.Query{},
+		Builder: arch.QueryBuilder{
+			Fetch: []arch.FetchComponent{
+				{
+					ComponentType: arch.ComponentTypeOf[Position](),
+					Optional:      true,
+				},
+			},
+		},
+
+		Setters: []Setter{
+			{
+				UnsafeCopyComponentAddr: true,
+				UnsafeFieldOffset:       0,
+				ComponentIdx:            0,
+			},
+		},
 
 		Mutable: []*arch.ComponentType{
 			arch.ComponentTypeOf[Position](),
@@ -74,9 +124,20 @@ func TestBuildQuerySimple(t *testing.T) {
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Has[Position]](), ParsedQuery{
-		Query: arch.Query{
-			FetchHas: []*arch.ComponentType{
-				arch.ComponentTypeOf[Position](),
+		Builder: arch.QueryBuilder{
+			Fetch: []arch.FetchComponent{
+				{
+					ComponentType: arch.ComponentTypeOf[Position](),
+					Optional:      true,
+				},
+			},
+		},
+
+		Setters: []Setter{
+			{
+				UnsafeCopyComponentAddr: true,
+				UnsafeFieldOffset:       0,
+				ComponentIdx:            0,
 			},
 		},
 	})
@@ -121,9 +182,20 @@ func TestParseQueryStruct(t *testing.T) {
 		}
 
 		parseQueryTest(t, reflect.TypeFor[Item](), ParsedQuery{
-			Query: arch.Query{
-				Fetch: []*arch.ComponentType{
-					arch.ComponentTypeOf[Position](),
+			Builder: arch.QueryBuilder{
+				Fetch: []arch.FetchComponent{
+					{
+						ComponentType: arch.ComponentTypeOf[Position](),
+					},
+				},
+			},
+
+			Setters: []Setter{
+				{
+					UnsafeCopyComponentValue: true,
+					UnsafeFieldOffset:        0,
+					ComponentIdx:             0,
+					ComponentTypeSize:        unsafe.Sizeof(Position{}),
 				},
 			},
 		})
@@ -135,9 +207,19 @@ func TestParseQueryStruct(t *testing.T) {
 		}
 
 		parseQueryTest(t, reflect.TypeFor[Item](), ParsedQuery{
-			Query: arch.Query{
-				Fetch: []*arch.ComponentType{
-					arch.ComponentTypeOf[Position](),
+			Builder: arch.QueryBuilder{
+				Fetch: []arch.FetchComponent{
+					{
+						ComponentType: arch.ComponentTypeOf[Position](),
+					},
+				},
+			},
+
+			Setters: []Setter{
+				{
+					UnsafeCopyComponentAddr: true,
+					UnsafeFieldOffset:       0,
+					ComponentIdx:            0,
 				},
 			},
 
@@ -159,33 +241,63 @@ func TestParseQueryStruct(t *testing.T) {
 			// normal fetches can be recursive
 			Nested struct {
 				Position     *Position
+				Config       SomeConfig
 				Acceleration Has[Acceleration]
 			}
 		}
 
-		//parseQueryTest(t, reflect.TypeFor[Item](), ParsedQuery{
-		//	Query: arch.Query{
-		//		Fetch: []*arch.ComponentType{
-		//			arch.ComponentTypeOf[Position](),
-		//		},
-		//
-		//		WithChanged: []*arch.ComponentType{
-		//			arch.ComponentTypeOf[Position](),
-		//		},
-		//
-		//		Without: []*arch.ComponentType{
-		//			arch.ComponentTypeOf[Velocity](),
-		//		},
-		//
-		//		FetchHas: []*arch.ComponentType{
-		//			arch.ComponentTypeOf[Acceleration](),
-		//		},
-		//	},
-		//
-		//	Mutable: []*arch.ComponentType{
-		//		arch.ComponentTypeOf[Position](),
-		//	},
-		//})
+		parseQueryTest(t, reflect.TypeFor[Item](), ParsedQuery{
+			Builder: arch.QueryBuilder{
+				Fetch: []arch.FetchComponent{
+					{
+						ComponentType: arch.ComponentTypeOf[Position](),
+					},
+					{
+						ComponentType: arch.ComponentTypeOf[SomeConfig](),
+					},
+					{
+						ComponentType: arch.ComponentTypeOf[Acceleration](),
+						Optional:      true,
+					},
+				},
+
+				Filters: []arch.Filter{
+					{
+						Without: arch.ComponentTypeOf[Velocity](),
+					},
+					{
+						Changed: arch.ComponentTypeOf[Position](),
+					},
+				},
+			},
+
+			Setters: []Setter{
+				{
+					UseEntityId:       true,
+					UnsafeFieldOffset: 0,
+				},
+				{
+					UnsafeCopyComponentAddr: true,
+					UnsafeFieldOffset:       8,
+					ComponentIdx:            0,
+				},
+				{
+					UnsafeCopyComponentValue: true,
+					UnsafeFieldOffset:        16,
+					ComponentIdx:             1,
+					ComponentTypeSize:        16, // SizeOf(SomeConfig{})
+				},
+				{
+					UnsafeCopyComponentAddr: true,
+					UnsafeFieldOffset:       32,
+					ComponentIdx:            2,
+				},
+			},
+
+			Mutable: []*arch.ComponentType{
+				arch.ComponentTypeOf[Position](),
+			},
+		})
 	}
 
 }
@@ -219,9 +331,10 @@ func TestFromEntity(t *testing.T) {
 			HasVelocity Has[Velocity]
 		}
 
+		velocity := entity.Get(arch.ComponentTypeOf[Velocity]())
 		runTestFromEntity(t, entity, QueryItemWithHas{
 			Position:    Position{X: 1},
-			HasVelocity: Has[Velocity]{Exists: true},
+			HasVelocity: Has[Velocity]{ptr: uintptr(reflect.ValueOf(velocity).UnsafePointer())},
 		})
 	}
 
@@ -296,8 +409,6 @@ func TestFromEntity(t *testing.T) {
 }
 
 func runTestFromEntity[Q any](t *testing.T, entity arch.EntityRef, expected Q) {
-	t.Helper()
-
 	t.Run(reflect.TypeFor[Q]().String(), func(t *testing.T) {
 		parsed, err := ParseQuery(reflect.TypeFor[Q]())
 		require.NoError(t, err)

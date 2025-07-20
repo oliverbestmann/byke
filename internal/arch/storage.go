@@ -117,7 +117,7 @@ func (s *Storage) Get(entityId EntityId) (EntityRef, bool) {
 	return archetype.Get(entityId)
 }
 
-func (s *Storage) GetWithQuery(q *Query, entityId EntityId) (EntityRef, bool) {
+func (s *Storage) GetWithQuery(q *Query, ctx QueryContext, entityId EntityId) (EntityRef, bool) {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
 		return EntityRef{}, false
@@ -135,8 +135,10 @@ func (s *Storage) GetWithQuery(q *Query, entityId EntityId) (EntityRef, bool) {
 	_, fetches := archetype.IterForQuery(q, nil)
 	entity.fetch = asFastSlice(fetches)
 
-	if !q.Matches(entity) {
-		return EntityRef{}, false
+	if !q.IsArchetypeOnly {
+		if !q.Matches(ctx, entity) {
+			return EntityRef{}, false
+		}
 	}
 
 	return entity, true
@@ -195,11 +197,12 @@ func (it *ArchetypeIter) Next() *Archetype {
 
 // IterQuery returns an iterator over entity refs matching the given query.
 // The EntityRef.Components field is only valid until the next EntityRef is produced.
-func (s *Storage) IterQuery(q *Query, scratch []ColumnAccess) QueryIter {
+func (s *Storage) IterQuery(q *Query, ctx QueryContext, scratch []ColumnAccess) QueryIter {
 	return QueryIter{
 		Scratch:    scratch,
 		archetypes: s.archetypeIterForQuery(q),
 		query:      q,
+		ctx:        ctx,
 	}
 }
 
@@ -219,6 +222,7 @@ func (s *Storage) EntityCount() int {
 type QueryIter struct {
 	Scratch []ColumnAccess
 
+	ctx        QueryContext
 	query      *Query
 	archetypes ArchetypeIter
 	entities   EntityIter
@@ -228,7 +232,7 @@ func (it *QueryIter) Next() (EntityRef, bool) {
 	for {
 		for it.entities.More() {
 			entity := it.entities.Current()
-			if it.query.Matches(entity) {
+			if it.query.IsArchetypeOnly || it.query.Matches(it.ctx, entity) {
 				return entity, true
 			}
 		}

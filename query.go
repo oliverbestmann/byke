@@ -24,7 +24,7 @@ func (*Query[T]) init(world *World) SystemParamState {
 	}
 
 	inner := &innerQuery{
-		Query:   parsed.Query,
+		Query:   parsed.Builder.Build(),
 		Setters: parsed.Setters,
 		Storage: world.storage,
 	}
@@ -52,7 +52,7 @@ func (q *Query[T]) parse() (query.ParsedQuery, error) {
 func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 	var target T
 
-	ref, ok := q.inner.Storage.GetWithQuery(&q.inner.Query, entityId)
+	ref, ok := q.inner.Storage.GetWithQuery(&q.inner.Query, q.inner.QueryContext, entityId)
 	if !ok {
 		return target, false
 	}
@@ -63,7 +63,7 @@ func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 }
 
 func (q *Query[T]) Count() int {
-	it := q.inner.Storage.IterQuery(&q.inner.Query, nil)
+	it := q.inner.Storage.IterQuery(&q.inner.Query, q.inner.QueryContext, nil)
 
 	var count int
 	for {
@@ -117,7 +117,7 @@ type queryParamState struct {
 }
 
 func (q *queryParamState) getValue(sc systemContext) reflect.Value {
-	q.inner.Query.LastRun = sc.LastRun
+	q.inner.QueryContext.LastRun = sc.LastRun
 	return q.ptrToValue.Elem()
 }
 
@@ -130,9 +130,10 @@ func (q *queryParamState) valueType() reflect.Type {
 }
 
 type innerQuery struct {
-	Setters []query.Setter
-	Query   arch.Query
-	Storage *arch.Storage
+	Setters      []query.Setter
+	Query        arch.Query
+	Storage      *arch.Storage
+	QueryContext arch.QueryContext
 }
 
 func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
@@ -141,7 +142,7 @@ func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 	return func(yield func(T) bool) {
 		scratch := columnIters.Get().(*[]arch.ColumnAccess)
 
-		it := inner.Storage.IterQuery(&inner.Query, *scratch)
+		it := inner.Storage.IterQuery(&inner.Query, inner.QueryContext, *scratch)
 
 		defer func() {
 			*scratch = it.Scratch
