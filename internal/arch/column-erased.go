@@ -8,7 +8,16 @@ import (
 
 type ErasedColumn struct {
 	ComponentType *ComponentType
-	Type          reflect.Type
+
+	// callback that will be invoked whenever the columns data buffer
+	// size was increased.
+	OnGrow func()
+
+	// capacity and length of the slice
+	len, cap int
+
+	// memory points to the data of an unsafe slice of component instances
+	memory unsafe.Pointer
 
 	itemSize uintptr
 
@@ -23,12 +32,6 @@ type ErasedColumn struct {
 	// slice of values
 	slice reflect.Value
 
-	// capacity and length of the slice
-	len, cap int
-
-	// memory points to the data of an unsafe slice of component instances
-	memory unsafe.Pointer
-
 	dummyValue ErasedComponent
 
 	trivialCopy bool
@@ -41,7 +44,6 @@ func MakeErasedColumn(ty *ComponentType) MakeColumn {
 
 		return &ErasedColumn{
 			ComponentType: ty,
-			Type:          ty.Type,
 			itemSize:      ty.Type.Size(),
 			slice:         slice,
 			len:           slice.Len(),
@@ -165,6 +167,10 @@ func (e *ErasedColumn) ensureSpace() {
 		e.slice.Grow(max(16, e.len*2/3))
 		e.memory = e.slice.UnsafePointer()
 		e.cap = e.slice.Cap()
+
+		if grow := e.OnGrow; grow != nil {
+			grow()
+		}
 	}
 }
 
@@ -209,7 +215,14 @@ func (e *ErasedColumn) Len() int {
 	return e.len
 }
 
+// Access creates a ColumnAccess that can be used to query Len columns.
+// This method can also be called on a nil instance. The resulting ColumnAccess
+// instance will return only nil pointers.
 func (e *ErasedColumn) Access() ColumnAccess {
+	if e == nil {
+		return ColumnAccess{}
+	}
+
 	return ColumnAccess{
 		base:   e.memory,
 		stride: e.itemSize,

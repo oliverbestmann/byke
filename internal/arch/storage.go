@@ -8,12 +8,17 @@ import (
 type Storage struct {
 	entityToArchetype map[EntityId]*Archetype
 	archetypes        ArchetypeGraph
+	queryCache        queryCache
 }
 
 func NewStorage() *Storage {
-	return &Storage{
+	storage := &Storage{
 		entityToArchetype: map[EntityId]*Archetype{},
 	}
+
+	storage.queryCache.archetypes = &storage.archetypes
+
+	return storage
 }
 
 func (s *Storage) Spawn(tick Tick, entityId EntityId) {
@@ -44,6 +49,56 @@ func (s *Storage) Despawn(entityId EntityId) bool {
 	return true
 }
 
+func (s *Storage) InsertComponents(tick Tick, entityId EntityId, components []ErasedComponent) {
+	prevArchetype, ok := s.entityToArchetype[entityId]
+	if !ok {
+		panic(fmt.Sprintf("entity %s does not exist", entityId))
+	}
+
+	newArchetype := prevArchetype
+
+	var created, anyCreated bool
+	for _, component := range components {
+		componentType := component.ComponentType()
+		if newArchetype.ContainsType(componentType) {
+			continue
+		}
+
+		// we need to move to a new archetype
+		newArchetype, created = s.archetypes.NextWith(newArchetype, componentType)
+		anyCreated = anyCreated || created
+	}
+
+	if anyCreated {
+		s.handleNewArchetype(newArchetype)
+	}
+
+	if newArchetype == prevArchetype {
+		// no change in archetypes, update in existing archetype
+		for idx, component := range components {
+			components[idx] = prevArchetype.ReplaceComponentValue(tick, entityId, component)
+		}
+	}
+
+	// transfer our entity
+	newArchetype.Import(tick, prevArchetype, entityId, components...)
+
+	// remove from the previous archetype
+	prevArchetype.Remove(entityId)
+
+	// and update the index
+	s.entityToArchetype[entityId] = newArchetype
+
+	for idx, component := range components {
+		componentValue := newArchetype.GetComponent(entityId, component.ComponentType())
+		if componentValue == nil {
+			panic("component we've just inserted is gone")
+		}
+
+		components[idx] = componentValue
+	}
+}
+
 func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component ErasedComponent) ErasedComponent {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
@@ -56,7 +111,10 @@ func (s *Storage) InsertComponent(tick Tick, entityId EntityId, component Erased
 	}
 
 	// we need to move to a new archetype
-	newArchetype, _ := s.archetypes.NextWith(archetype, componentType)
+	newArchetype, created := s.archetypes.NextWith(archetype, componentType)
+	if created {
+		s.handleNewArchetype(newArchetype)
+	}
 
 	// transfer our entity
 	newArchetype.Import(tick, archetype, entityId, component)
@@ -94,7 +152,10 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 	copyOfComponent := componentType.CopyOf(componentValue)
 
 	// we need to move to a new archetype
-	newArchetype, _ := s.archetypes.NextWithout(archetype, componentType)
+	newArchetype, created := s.archetypes.NextWithout(archetype, componentType)
+	if created {
+		s.handleNewArchetype(newArchetype)
+	}
 
 	// import the entity
 	newArchetype.Import(tick, archetype, entityId)
@@ -106,6 +167,20 @@ func (s *Storage) RemoveComponent(tick Tick, entityId EntityId, componentType *C
 	s.entityToArchetype[entityId] = newArchetype
 
 	return copyOfComponent, true
+}
+
+func (s *Storage) handleNewArchetype(newArchetype *Archetype) {
+	doOptimize := func() { s.queryCache.Optimize(newArchetype) }
+
+	// a new archetype was created,
+	// we might need to re-optimize some queries
+	doOptimize()
+
+	// we register a callback to re-optimize all queries that are looking at data
+	// of one of the columns to update any changed pointers
+	for _, column := range newArchetype.columns {
+		column.OnGrow = doOptimize
+	}
 }
 
 func (s *Storage) Get(entityId EntityId) (EntityRef, bool) {
@@ -166,6 +241,10 @@ func (s *Storage) CheckChanged(tick Tick, query *Query, types []*ComponentType) 
 	}
 }
 
+func (s *Storage) OptimizeQuery(query Query) *CachedQuery {
+	return s.queryCache.Add(query)
+}
+
 func (s *Storage) archetypeIterForQuery(q *Query) ArchetypeIter {
 	return ArchetypeIter{
 		archetypes: s.archetypes.All(),
@@ -195,14 +274,12 @@ func (it *ArchetypeIter) Next() *Archetype {
 	return nil
 }
 
-// IterQuery returns an iterator over entity refs matching the given query.
-// The EntityRef.Components field is only valid until the next EntityRef is produced.
-func (s *Storage) IterQuery(q *Query, ctx QueryContext, scratch []ColumnAccess) QueryIter {
+// IterCachedQuery returns an iterator over entity refs matching the given query.
+func (s *Storage) IterCachedQuery(q *CachedQuery, ctx QueryContext) QueryIter {
 	return QueryIter{
-		Scratch:    scratch,
-		archetypes: s.archetypeIterForQuery(q),
-		query:      q,
-		ctx:        ctx,
+		ctx:         ctx,
+		query:       *q,
+		accessorIdx: -1,
 	}
 }
 
@@ -220,31 +297,45 @@ func (s *Storage) EntityCount() int {
 }
 
 type QueryIter struct {
-	Scratch []ColumnAccess
+	ctx   QueryContext
+	query CachedQuery
 
-	ctx        QueryContext
-	query      *Query
-	archetypes ArchetypeIter
-	entities   EntityIter
+	row Row
+
+	accessorIdx int
+	entities    []EntityId
 }
 
 func (it *QueryIter) Next() (EntityRef, bool) {
 	for {
-		for it.entities.More() {
-			entity := it.entities.Current()
+		for int(it.row) < len(it.entities) {
+			acc := &it.query.Accessors[it.accessorIdx]
+
+			entity := EntityRef{
+				fetch:     asFastSlice(acc.Columns),
+				archetype: acc.Archetype,
+				row:       it.row,
+			}
+
+			it.row += 1
+
 			if it.query.IsArchetypeOnly || it.query.Matches(it.ctx, entity) {
 				return entity, true
 			}
 		}
 
-		// no more entities in current entity iterator, move to the next one
-		archetype := it.archetypes.Next()
-		if archetype == nil {
-			return EntityRef{}, false
+		// go to the next accessor
+		it.accessorIdx += 1
+		if it.accessorIdx >= len(it.query.Accessors) {
+			break
 		}
 
-		it.entities, it.Scratch = archetype.IterForQuery(it.query, it.Scratch)
+		// reset iterator
+		it.row = 0
+		it.entities = it.query.Accessors[it.accessorIdx].Archetype.entities
 	}
+
+	return EntityRef{}, false
 }
 
 func (it *QueryIter) AsSeq() iter.Seq[EntityRef] {

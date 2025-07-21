@@ -30,7 +30,7 @@ func TestStorage_All(t *testing.T) {
 
 	tick += 1
 
-	query := &Query{
+	query := Query{
 		Fetch: []FetchComponent{
 			{
 				ComponentType: ComponentTypeOf[Velocity](),
@@ -43,7 +43,7 @@ func TestStorage_All(t *testing.T) {
 		},
 	}
 
-	iter := s.IterQuery(query, QueryContext{LastRun: tick}, nil)
+	iter := s.IterCachedQuery(s.OptimizeQuery(query), QueryContext{LastRun: tick})
 	for entity := range iter.AsSeq() {
 		value := entity.Get(ComponentTypeOf[Velocity]())
 		value.(*Velocity).X = 2
@@ -80,7 +80,7 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 
 	tick += 1
 
-	query := &Query{
+	query := Query{
 		Fetch: []FetchComponent{
 			{
 				ComponentType: ComponentTypeOf[Velocity](),
@@ -93,7 +93,7 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 		},
 	}
 
-	iter := s.IterQuery(query, QueryContext{LastRun: tick}, nil)
+	iter := s.IterCachedQuery(s.OptimizeQuery(query), QueryContext{LastRun: tick})
 
 	b.ReportAllocs()
 	b.ResetTimer()

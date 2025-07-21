@@ -9,18 +9,20 @@ type ArchetypeGraph struct {
 
 func (a *ArchetypeGraph) NextWith(current *Archetype, componentType *ComponentType) (*Archetype, bool) {
 	tr := ArchetypeTransition{
-		Archetype:     current,
-		ComponentType: componentType,
-		IsInsert:      true,
+		Archetype:      current,
+		ComponentTypes: [8]*ComponentType{componentType},
+		IsInsert:       true,
 	}
 
 	if next, ok := a.transitions[tr]; ok {
 		return next, false
 	}
 
+	typeCount := 1
+
 	// get the target archetype by adding the componentType
 	types := slices.Clone(current.Types)
-	types = append(types, componentType)
+	types = append(types, tr.ComponentTypes[:typeCount]...)
 
 	// build the new archetype if needed
 	return a.insertTransition(tr, types), true
@@ -28,19 +30,21 @@ func (a *ArchetypeGraph) NextWith(current *Archetype, componentType *ComponentTy
 
 func (a *ArchetypeGraph) NextWithout(current *Archetype, componentType *ComponentType) (*Archetype, bool) {
 	tr := ArchetypeTransition{
-		Archetype:     current,
-		ComponentType: componentType,
-		IsInsert:      false,
+		Archetype:      current,
+		ComponentTypes: [8]*ComponentType{componentType},
+		IsInsert:       false,
 	}
 
 	if next, ok := a.transitions[tr]; ok {
 		return next, false
 	}
 
-	// get the target archetype by removing the componentType
+	typeCount := 1
+
+	// get the target archetype by removing the componentTypes
 	var types []*ComponentType
 	for _, ty := range current.Types {
-		if ty != componentType {
+		if !slices.Contains(tr.ComponentTypes[:typeCount], ty) {
 			types = append(types, ty)
 		}
 	}
@@ -65,7 +69,7 @@ func (a *ArchetypeGraph) insertTransition(tr ArchetypeTransition, types []*Compo
 }
 
 type ArchetypeTransition struct {
-	Archetype     *Archetype
-	ComponentType *ComponentType
-	IsInsert      bool
+	Archetype      *Archetype
+	ComponentTypes [8]*ComponentType
+	IsInsert       bool
 }

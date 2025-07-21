@@ -230,28 +230,23 @@ func (a *Archetype) getAt(row Row) EntityRef {
 }
 
 func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIter, []ColumnAccess) {
-	iters := fetches[:0]
+	fetch := fetches[:0]
 
 	// check what types we can fetch
 	for _, typ := range query.Fetch {
 		column := a.getColumn(typ.ComponentType)
-		if column == nil {
-			iters = append(iters, ColumnAccess{})
-		} else {
-			iter := column.Access()
-			iters = append(iters, iter)
-		}
+		fetch = append(fetch, column.Access())
 	}
 
-	// now we have column iters in the same order as the queries fetch values.
+	// now we have columns in the same order as the queries fetch values.
 	iter := EntityIter{
-		Fetch:     iters,
+		Fetch:     fetch,
 		entities:  a.entities,
 		total:     len(a.entities),
 		archetype: a,
 	}
 
-	return iter, iters
+	return iter, fetch
 }
 
 func (a *Archetype) Import(tick Tick, source *Archetype, entityId EntityId, newComponents ...ErasedComponent) {
@@ -364,6 +359,10 @@ func (a *Archetype) componentsAt(row Row) []ErasedComponent {
 	}
 
 	return components
+}
+
+func (a *Archetype) Len() int {
+	return len(a.entities)
 }
 
 type EntityIter struct {
@@ -483,19 +482,14 @@ func compareComponentTypes(lhs, rhs *ComponentType) int {
 
 type fastSlice[T any] struct {
 	values *T
-	Len    int
 }
 
 func asFastSlice[T any](slice []T) fastSlice[T] {
 	values := unsafe.SliceData(slice)
-	return fastSlice[T]{values: values, Len: len(slice)}
+	return fastSlice[T]{values: values}
 }
 
 func (s fastSlice[T]) Get(idx int) *T {
-	if idx < s.Len {
-		var tZero T
-		return (*T)(unsafe.Add(unsafe.Pointer(s.values), uintptr(idx)*unsafe.Sizeof(tZero)))
-	}
-
-	panic("index out of bounds")
+	var tZero T
+	return (*T)(unsafe.Add(unsafe.Pointer(s.values), uintptr(idx)*unsafe.Sizeof(tZero)))
 }

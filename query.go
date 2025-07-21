@@ -6,7 +6,6 @@ import (
 	"github.com/oliverbestmann/byke/internal/query"
 	"iter"
 	"reflect"
-	"sync"
 )
 
 type Query[T any] struct {
@@ -24,7 +23,7 @@ func (*Query[T]) init(world *World) SystemParamState {
 	}
 
 	inner := &innerQuery{
-		Query:   parsed.Builder.Build(),
+		Query:   world.storage.OptimizeQuery(parsed.Builder.Build()),
 		Setters: parsed.Setters,
 		Storage: world.storage,
 	}
@@ -52,7 +51,7 @@ func (q *Query[T]) parse() (query.ParsedQuery, error) {
 func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 	var target T
 
-	ref, ok := q.inner.Storage.GetWithQuery(&q.inner.Query, q.inner.QueryContext, entityId)
+	ref, ok := q.inner.Storage.GetWithQuery(&q.inner.Query.Query, q.inner.QueryContext, entityId)
 	if !ok {
 		return target, false
 	}
@@ -63,7 +62,7 @@ func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 }
 
 func (q *Query[T]) Count() int {
-	it := q.inner.Storage.IterQuery(&q.inner.Query, q.inner.QueryContext, nil)
+	it := q.inner.Storage.IterCachedQuery(q.inner.Query, q.inner.QueryContext)
 
 	var count int
 	for {
@@ -122,7 +121,7 @@ func (q *queryParamState) getValue(sc systemContext) reflect.Value {
 }
 
 func (q *queryParamState) cleanupValue() {
-	q.world.recheckComponents(&q.inner.Query, q.mutable)
+	q.world.recheckComponents(&q.inner.Query.Query, q.mutable)
 }
 
 func (q *queryParamState) valueType() reflect.Type {
@@ -131,7 +130,7 @@ func (q *queryParamState) valueType() reflect.Type {
 
 type innerQuery struct {
 	Setters      []query.Setter
-	Query        arch.Query
+	Query        *arch.CachedQuery
 	Storage      *arch.Storage
 	QueryContext arch.QueryContext
 }
@@ -140,14 +139,7 @@ func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 	var target T
 
 	return func(yield func(T) bool) {
-		scratch := columnIters.Get().(*[]arch.ColumnAccess)
-
-		it := inner.Storage.IterQuery(&inner.Query, inner.QueryContext, *scratch)
-
-		defer func() {
-			*scratch = it.Scratch
-			columnIters.Put(scratch)
-		}()
+		it := inner.Storage.IterCachedQuery(inner.Query, inner.QueryContext)
 
 		for {
 			ref, more := it.Next()
@@ -162,10 +154,4 @@ func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 			}
 		}
 	}
-}
-
-var columnIters = sync.Pool{
-	New: func() any {
-		return new([]arch.ColumnAccess)
-	},
 }
