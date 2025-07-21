@@ -142,37 +142,62 @@ func TestBuildQuerySimple(t *testing.T) {
 		},
 	})
 
-	// parseQueryTest(t, reflect.TypeFor[Added[Position]](), ParsedQuery{
-	// 	Query: arch.Query{
-	// 		WithAdded: []*arch.ComponentType{
-	// 			arch.ComponentTypeOf[Position](),
-	// 		},
-	// 	},
-	// })
+	parseQueryTest(t, reflect.TypeFor[Added[Position]](), ParsedQuery{
+		Builder: arch.QueryBuilder{
+			Filters: []arch.Filter{
+				{
+					Added: arch.ComponentTypeOf[Position](),
+				},
+			},
+		},
+	})
 
-	// parseQueryTest(t, reflect.TypeFor[Changed[Position]](), ParsedQuery{
-	// 	Query: arch.Query{
-	// 		WithChanged: []*arch.ComponentType{
-	// 			arch.ComponentTypeOf[Position](),
-	// 		},
-	// 	},
-	// })
+	parseQueryTest(t, reflect.TypeFor[Changed[Position]](), ParsedQuery{
+		Builder: arch.QueryBuilder{
+			Filters: []arch.Filter{
+				{
+					Changed: arch.ComponentTypeOf[Position](),
+				},
+			},
+		},
+	})
 
-	// parseQueryTest(t, reflect.TypeFor[With[Position]](), ParsedQuery{
-	// 	Query: arch.Query{
-	// 		With: []*arch.ComponentType{
-	// 			arch.ComponentTypeOf[Position](),
-	// 		},
-	// 	},
-	// })
+	parseQueryTest(t, reflect.TypeFor[With[Position]](), ParsedQuery{
+		Builder: arch.QueryBuilder{
+			Filters: []arch.Filter{
+				{
+					With: arch.ComponentTypeOf[Position](),
+				},
+			},
+		},
+	})
 
-	// parseQueryTest(t, reflect.TypeFor[Without[Position]](), ParsedQuery{
-	// 	Query: arch.Query{
-	// 		Without: []*arch.ComponentType{
-	// 			arch.ComponentTypeOf[Position](),
-	// 		},
-	// 	},
-	// })
+	parseQueryTest(t, reflect.TypeFor[Without[Position]](), ParsedQuery{
+		Builder: arch.QueryBuilder{
+			Filters: []arch.Filter{
+				{
+					Without: arch.ComponentTypeOf[Position](),
+				},
+			},
+		},
+	})
+
+	parseQueryTest(t, reflect.TypeFor[Or[With[Velocity], Without[Position]]](), ParsedQuery{
+		Builder: arch.QueryBuilder{
+			Filters: []arch.Filter{
+				{
+					Or: []arch.Filter{
+						{
+							With: arch.ComponentTypeOf[Velocity](),
+						},
+						{
+							Without: arch.ComponentTypeOf[Position](),
+						},
+					},
+				},
+			},
+		},
+	})
 }
 
 func TestParseQueryStruct(t *testing.T) {
