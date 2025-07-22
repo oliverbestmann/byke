@@ -1,10 +1,13 @@
 package spoke
 
-import "weak"
+import (
+	"weak"
+)
 
 type CachedQuery struct {
 	Query
-	Accessors []archetypeWithColumns
+	Accessors  []archetypeWithColumns
+	Archetypes map[ArchetypeId]int
 }
 
 type archetypeWithColumns struct {
@@ -51,12 +54,20 @@ func (qc *queryCache) Optimize(newArchetype *Archetype) {
 func (qc *queryCache) optimizeQuery(query *CachedQuery) {
 	query.Accessors = query.Accessors[:0]
 
+	clear(query.Archetypes)
+
+	if query.Archetypes == nil {
+		query.Archetypes = map[ArchetypeId]int{}
+	}
+
 	for _, archetype := range qc.archetypes.All() {
 		if !query.MatchesArchetype(archetype) {
 			continue
 		}
 
 		_, columns := archetype.IterForQuery(&query.Query, nil)
+
+		query.Archetypes[archetype.Id] = len(query.Accessors)
 
 		query.Accessors = append(query.Accessors, archetypeWithColumns{
 			Archetype: archetype,

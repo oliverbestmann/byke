@@ -223,7 +223,7 @@ func (a *Archetype) getAt(row Row) EntityRef {
 	}
 
 	return EntityRef{
-		fetch:     asFastSlice(columns),
+		fetch:     unsafeSlice(columns),
 		archetype: a,
 		row:       row,
 	}
@@ -384,7 +384,7 @@ func (iter *EntityIter) More() bool {
 
 func (iter *EntityIter) Current() EntityRef {
 	return EntityRef{
-		fetch:     asFastSlice(iter.Fetch),
+		fetch:     unsafeSlice(iter.Fetch),
 		archetype: iter.archetype,
 		row:       Row(iter.row - 1),
 	}
@@ -484,7 +484,7 @@ type fastSlice[T any] struct {
 	values *T
 }
 
-func asFastSlice[T any](slice []T) fastSlice[T] {
+func unsafeSlice[T any](slice []T) fastSlice[T] {
 	values := unsafe.SliceData(slice)
 	return fastSlice[T]{values: values}
 }

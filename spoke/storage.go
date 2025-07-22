@@ -192,13 +192,14 @@ func (s *Storage) Get(entityId EntityId) (EntityRef, bool) {
 	return archetype.Get(entityId)
 }
 
-func (s *Storage) GetWithQuery(q *Query, ctx QueryContext, entityId EntityId) (EntityRef, bool) {
+func (s *Storage) GetWithQuery(q *CachedQuery, ctx QueryContext, entityId EntityId) (EntityRef, bool) {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
 		return EntityRef{}, false
 	}
 
-	if !q.MatchesArchetype(archetype) {
+	accessorIdx, ok := q.Archetypes[archetype.Id]
+	if !ok {
 		return EntityRef{}, false
 	}
 
@@ -207,14 +208,13 @@ func (s *Storage) GetWithQuery(q *Query, ctx QueryContext, entityId EntityId) (E
 		panic("archetype does not contain entity")
 	}
 
-	_, fetches := archetype.IterForQuery(q, nil)
-	entity.fetch = asFastSlice(fetches)
-
 	if !q.IsArchetypeOnly {
 		if !q.Matches(ctx, entity) {
 			return EntityRef{}, false
 		}
 	}
+
+	entity.fetch = unsafeSlice(q.Accessors[accessorIdx].Columns)
 
 	return entity, true
 }
@@ -274,8 +274,8 @@ func (it *ArchetypeIter) Next() *Archetype {
 	return nil
 }
 
-// IterCachedQuery returns an iterator over entity refs matching the given query.
-func (s *Storage) IterCachedQuery(q *CachedQuery, ctx QueryContext) QueryIter {
+// IterQuery returns an iterator over entity refs matching the given query.
+func (s *Storage) IterQuery(q *CachedQuery, ctx QueryContext) QueryIter {
 	return QueryIter{
 		ctx:         ctx,
 		query:       *q,
@@ -312,7 +312,7 @@ func (it *QueryIter) Next() (EntityRef, bool) {
 			acc := &it.query.Accessors[it.accessorIdx]
 
 			entity := EntityRef{
-				fetch:     asFastSlice(acc.Columns),
+				fetch:     unsafeSlice(acc.Columns),
 				archetype: acc.Archetype,
 				row:       it.row,
 			}

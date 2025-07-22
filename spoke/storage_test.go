@@ -43,7 +43,7 @@ func TestStorage_All(t *testing.T) {
 		},
 	}
 
-	iter := s.IterCachedQuery(s.OptimizeQuery(query), QueryContext{LastRun: tick})
+	iter := s.IterQuery(s.OptimizeQuery(query), QueryContext{LastRun: tick})
 	for entity := range iter.AsSeq() {
 		value := entity.Get(ComponentTypeOf[Velocity]())
 		value.(*Velocity).X = 2
@@ -93,7 +93,7 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 		},
 	}
 
-	iter := s.IterCachedQuery(s.OptimizeQuery(query), QueryContext{LastRun: tick})
+	iter := s.IterQuery(s.OptimizeQuery(query), QueryContext{LastRun: tick})
 
 	b.ReportAllocs()
 	b.ResetTimer()

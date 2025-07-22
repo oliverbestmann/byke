@@ -49,7 +49,7 @@ func BenchmarkQueryMovement(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		iter := storage.IterCachedQuery(query, QueryContext{})
+		iter := storage.IterQuery(query, QueryContext{})
 		for {
 			entity, ok := iter.Next()
 			if !ok {

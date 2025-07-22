@@ -51,7 +51,7 @@ func (q *Query[T]) parse() (query.ParsedQuery, error) {
 func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 	var target T
 
-	ref, ok := q.inner.Storage.GetWithQuery(&q.inner.Query.Query, q.inner.QueryContext, entityId)
+	ref, ok := q.inner.Storage.GetWithQuery(q.inner.Query, q.inner.QueryContext, entityId)
 	if !ok {
 		return target, false
 	}
@@ -62,7 +62,7 @@ func (q *Query[T]) Get(entityId EntityId) (T, bool) {
 }
 
 func (q *Query[T]) Count() int {
-	it := q.inner.Storage.IterCachedQuery(q.inner.Query, q.inner.QueryContext)
+	it := q.inner.Storage.IterQuery(q.inner.Query, q.inner.QueryContext)
 
 	var count int
 	for {
@@ -139,7 +139,7 @@ func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 	var target T
 
 	return func(yield func(T) bool) {
-		it := inner.Storage.IterCachedQuery(inner.Query, inner.QueryContext)
+		it := inner.Storage.IterQuery(inner.Query, inner.QueryContext)
 
 		for {
 			ref, more := it.Next()
