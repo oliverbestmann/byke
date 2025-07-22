@@ -2,7 +2,7 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/arch"
+	spoke2 "github.com/oliverbestmann/byke/spoke"
 	"reflect"
 	"slices"
 )
@@ -24,19 +24,19 @@ type AnyPtr = any
 // While an empty World can be created using NewWorld, it is normally created and configured
 // by using the App api.
 type World struct {
-	storage     *arch.Storage
+	storage     *spoke2.Storage
 	entityIdSeq EntityId
 	resources   map[reflect.Type]resourceValue
 	schedules   map[ScheduleId]*schedule
 	systems     map[SystemId]*preparedSystem
-	currentTick arch.Tick
+	currentTick spoke2.Tick
 }
 
 // NewWorld creates a new empty world.
 // You probably want to use the App api instead.
 func NewWorld() *World {
 	return &World{
-		storage:   arch.NewStorage(),
+		storage:   spoke2.NewStorage(),
 		resources: map[reflect.Type]resourceValue{},
 		schedules: map[ScheduleId]*schedule{},
 		systems:   map[SystemId]*preparedSystem{},
@@ -269,7 +269,7 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 		w.onComponentInsert(entityId, component)
 
 		// enqueue all required components
-		if req, ok := component.(arch.RequireComponents); ok {
+		if req, ok := component.(spoke2.RequireComponents); ok {
 			queue = append(queue, req.RequireComponents()...)
 		}
 	}
@@ -326,7 +326,7 @@ func (w *World) removeEntityFromParentComponentOf(entityId EntityId, component E
 	}
 }
 
-func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRelationshipTargetType, EntityId, *arch.ComponentType, bool) {
+func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRelationshipTargetType, EntityId, *spoke2.ComponentType, bool) {
 	child, ok := component.(isRelationshipComponent)
 	if !ok {
 		return nil, 0, nil, false
@@ -453,7 +453,7 @@ func copyComponent(value ErasedComponent) ErasedComponent {
 	return ptrToValue
 }
 
-func (w *World) removeComponent(entityId EntityId, componentType *arch.ComponentType) {
+func (w *World) removeComponent(entityId EntityId, componentType *spoke2.ComponentType) {
 	component, ok := w.storage.RemoveComponent(w.currentTick, entityId, componentType)
 	if !ok {
 		return
@@ -462,6 +462,6 @@ func (w *World) removeComponent(entityId EntityId, componentType *arch.Component
 	w.onComponentRemoved(entityId, component)
 }
 
-func (w *World) recheckComponents(query *arch.Query, componentTypes []*arch.ComponentType) {
+func (w *World) recheckComponents(query *spoke2.Query, componentTypes []*spoke2.ComponentType) {
 	w.storage.CheckChanged(w.currentTick, query, componentTypes)
 }

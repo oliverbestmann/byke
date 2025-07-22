@@ -1,7 +1,7 @@
 package byke
 
 import (
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"reflect"
 )
 
@@ -95,7 +95,7 @@ func (e EntityCommands) Trigger(eventValue any) EntityCommands {
 }
 
 func RemoveComponent[C IsComponent[C]]() EntityCommand {
-	componentType := arch.ComponentTypeOf[C]()
+	componentType := spoke.ComponentTypeOf[C]()
 
 	return func(world *World, entityId EntityId) {
 		world.removeComponent(entityId, componentType)

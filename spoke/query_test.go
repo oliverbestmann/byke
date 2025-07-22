@@ -1,4 +1,4 @@
-package arch
+package spoke
 
 import (
 	"math/rand/v2"

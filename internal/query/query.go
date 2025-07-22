@@ -2,20 +2,20 @@ package query
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/refl"
+	spoke2 "github.com/oliverbestmann/byke/spoke"
 	"math"
 	"reflect"
 	"unsafe"
 )
 
 type ParsedQuery struct {
-	Builder arch.QueryBuilder
-	Mutable []*arch.ComponentType
+	Builder spoke2.QueryBuilder
+	Mutable []*spoke2.ComponentType
 	Setters []Setter
 }
 
-type SetValue func(target any, ref arch.EntityRef)
+type SetValue func(target any, ref spoke2.EntityRef)
 
 type Setter struct {
 	// offset of this field to the start of the struct
@@ -32,7 +32,7 @@ type Setter struct {
 	ComponentTypeSize uintptr
 }
 
-func FromEntity[T any](target *T, setters []Setter, ref arch.EntityRef) {
+func FromEntity[T any](target *T, setters []Setter, ref spoke2.EntityRef) {
 	ptrToTarget := unsafe.Pointer(target)
 
 	for idx := range setters {
@@ -66,7 +66,7 @@ func FromEntity[T any](target *T, setters []Setter, ref arch.EntityRef) {
 
 		if setter.UseEntityId {
 			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
-			*(*arch.EntityId)(target) = ref.EntityId()
+			*(*spoke2.EntityId)(target) = ref.EntityId()
 			continue
 		}
 	}
@@ -168,7 +168,7 @@ func isMutableComponent(ty reflect.Type) bool {
 }
 
 func isImmutableComponent(ty reflect.Type) bool {
-	return ty.Kind() != reflect.Pointer && ty.Implements(reflect.TypeFor[arch.IsErasedImmutableComponent]())
+	return ty.Kind() != reflect.Pointer && ty.Implements(reflect.TypeFor[spoke2.IsErasedImmutableComponent]())
 }
 
 func isFilter(ty reflect.Type) bool {
@@ -180,7 +180,7 @@ func isEmbeddableFilter(ty reflect.Type) bool {
 }
 
 func isEntityId(ty reflect.Type) bool {
-	return ty == reflect.TypeFor[arch.EntityId]()
+	return ty == reflect.TypeFor[spoke2.EntityId]()
 }
 
 type buf *[math.MaxInt32]byte

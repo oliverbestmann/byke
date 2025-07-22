@@ -4,7 +4,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"image"
 )
 
@@ -44,8 +44,8 @@ type Tiles struct {
 	GapY    uint16
 }
 
-func (t *Tiles) RequireComponents() []arch.ErasedComponent {
-	return []arch.ErasedComponent{
+func (t *Tiles) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{
 		TileIndex{},
 		tileCache{},
 	}

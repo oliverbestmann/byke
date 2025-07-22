@@ -1,4 +1,4 @@
-package arch
+package spoke
 
 type IsComponent[T any] interface {
 	ErasedComponent

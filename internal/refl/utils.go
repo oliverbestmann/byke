@@ -2,12 +2,12 @@ package refl
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/arch"
+	spoke2 "github.com/oliverbestmann/byke/spoke"
 	"iter"
 	"reflect"
 )
 
-func ComponentTypeOf(ty reflect.Type) *arch.ComponentType {
+func ComponentTypeOf(ty reflect.Type) *spoke2.ComponentType {
 	if !IsComponent(ty) {
 		panic(fmt.Sprintf("type %s is not a component", ty))
 	}
@@ -15,7 +15,7 @@ func ComponentTypeOf(ty reflect.Type) *arch.ComponentType {
 	// TODO we can do a lookup in the cached component types here
 	//  using ty. Only create a new instance if we have to.
 
-	component := reflect.New(ty).Interface().(arch.ErasedComponent)
+	component := reflect.New(ty).Interface().(spoke2.ErasedComponent)
 	return component.ComponentType()
 }
 
@@ -62,14 +62,14 @@ func IsComponent(ty reflect.Type) bool {
 		return false
 	}
 
-	if !ty.Implements(reflect.TypeFor[arch.ErasedComponent]()) {
+	if !ty.Implements(reflect.TypeFor[spoke2.ErasedComponent]()) {
 		return false
 	}
 
 	// a component must embed arch.Component or arch.ComparableComponent
 	var count int
 	for field := range IterFields(ty) {
-		if ImplementsInterfaceDirectly[arch.ErasedComponent](field.Type) {
+		if ImplementsInterfaceDirectly[spoke2.ErasedComponent](field.Type) {
 			count += 1
 		}
 	}

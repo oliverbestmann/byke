@@ -2,9 +2,9 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/byke/internal/typedpool"
+	"github.com/oliverbestmann/byke/spoke"
 	"reflect"
 	"runtime"
 	"strings"
@@ -23,14 +23,14 @@ type systemContext struct {
 	Trigger systemTrigger
 
 	// last tick the system ran
-	LastRun arch.Tick
+	LastRun spoke.Tick
 }
 
 type preparedSystem struct {
 	systemConfig
 
 	Name        string
-	LastRun     arch.Tick
+	LastRun     spoke.Tick
 	RawSystem   func(systemContext) any
 	IsPredicate bool
 

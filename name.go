@@ -1,13 +1,15 @@
 package byke
 
-import "github.com/oliverbestmann/byke/internal/arch"
+import (
+	"github.com/oliverbestmann/byke/spoke"
+)
 
 var _ = ValidateComponent[Name]()
 
 // Name assigns a non unique name to an entity.
 // Adding a name can be helpful for debugging.
 type Name struct {
-	arch.Component[Name]
+	spoke.Component[Name]
 	Name string
 }
 

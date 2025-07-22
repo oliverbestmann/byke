@@ -3,7 +3,7 @@ package bykebiten
 import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"log/slog"
 )
 
@@ -52,8 +52,8 @@ func (t Transform) AsAffine() gm.Affine {
 	}
 }
 
-func (Transform) RequireComponents() []arch.ErasedComponent {
-	return []arch.ErasedComponent{
+func (Transform) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{
 		GlobalTransform{},
 	}
 }

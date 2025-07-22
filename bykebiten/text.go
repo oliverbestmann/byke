@@ -5,7 +5,7 @@ import (
 	. "github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/assets"
 	"github.com/oliverbestmann/byke/gm"
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"sync"
 )
 
@@ -21,7 +21,7 @@ type Text struct {
 	Text string
 }
 
-func (t Text) RequireComponents() []arch.ErasedComponent {
+func (t Text) RequireComponents() []spoke.ErasedComponent {
 	components := []ErasedComponent{
 		TextFace{Face: DefaultFontFace()},
 	}

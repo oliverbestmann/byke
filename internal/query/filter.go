@@ -2,11 +2,11 @@ package query
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/arch"
+	spoke2 "github.com/oliverbestmann/byke/spoke"
 )
 
 type Filter interface {
-	applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter
+	applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter
 }
 
 type EmbeddableFilter interface {
@@ -16,12 +16,12 @@ type EmbeddableFilter interface {
 
 type isEmbeddableMarker struct{}
 
-type Option[C arch.IsComponent[C]] struct {
+type Option[C spoke2.IsComponent[C]] struct {
 	value *C
 }
 
-func (Option[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
-	idx := result.Builder.FetchComponent(arch.ComponentTypeOf[C](), true)
+func (Option[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
+	idx := result.Builder.FetchComponent(spoke2.ComponentTypeOf[C](), true)
 
 	result.Setters = append(result.Setters, Setter{
 		UnsafeFieldOffset:       fieldOffset,
@@ -29,7 +29,7 @@ func (Option[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
 		ComponentIdx:            idx,
 	})
 
-	return arch.Filter{}
+	return spoke2.Filter{}
 }
 
 func (c *Option[C]) Get() (C, bool) {
@@ -53,15 +53,15 @@ func (c *Option[C]) Or(fallbackValue C) C {
 	return fallbackValue
 }
 
-type OptionMut[C arch.IsComponent[C]] struct {
+type OptionMut[C spoke2.IsComponent[C]] struct {
 	value *C
 }
 
-func (OptionMut[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
-	componentType := arch.ComponentTypeOf[C]()
+func (OptionMut[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
+	componentType := spoke2.ComponentTypeOf[C]()
 	result.Mutable = append(result.Mutable, componentType)
 
-	idx := result.Builder.FetchComponent(arch.ComponentTypeOf[C](), true)
+	idx := result.Builder.FetchComponent(spoke2.ComponentTypeOf[C](), true)
 
 	result.Setters = append(result.Setters, Setter{
 		UnsafeFieldOffset:       fieldOffset,
@@ -69,7 +69,7 @@ func (OptionMut[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filte
 		ComponentIdx:            idx,
 	})
 
-	return arch.Filter{}
+	return spoke2.Filter{}
 }
 
 func (c *OptionMut[C]) Get() (*C, bool) {
@@ -84,7 +84,7 @@ func (c *OptionMut[C]) MustGet() *C {
 	return c.value
 }
 
-type Has[C arch.IsComponent[C]] struct {
+type Has[C spoke2.IsComponent[C]] struct {
 	ptr uintptr
 }
 
@@ -92,8 +92,8 @@ func (h Has[C]) Exists() bool {
 	return h.ptr != 0
 }
 
-func (Has[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
-	componentType := arch.ComponentTypeOf[C]()
+func (Has[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
+	componentType := spoke2.ComponentTypeOf[C]()
 
 	idx := result.Builder.FetchComponent(componentType, true)
 	result.Setters = append(result.Setters, Setter{
@@ -102,46 +102,46 @@ func (Has[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
 		ComponentIdx:            idx,
 	})
 
-	return arch.Filter{}
+	return spoke2.Filter{}
 }
 
-type With[C arch.IsComponent[C]] struct{}
+type With[C spoke2.IsComponent[C]] struct{}
 
 func (With[C]) embeddable(isEmbeddableMarker) {}
 
-func (With[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
-	return arch.Filter{
-		With: arch.ComponentTypeOf[C](),
+func (With[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
+	return spoke2.Filter{
+		With: spoke2.ComponentTypeOf[C](),
 	}
 }
 
-type Without[C arch.IsComponent[C]] struct{}
+type Without[C spoke2.IsComponent[C]] struct{}
 
 func (Without[C]) embeddable(isEmbeddableMarker) {}
 
-func (Without[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
-	return arch.Filter{
-		Without: arch.ComponentTypeOf[C](),
+func (Without[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
+	return spoke2.Filter{
+		Without: spoke2.ComponentTypeOf[C](),
 	}
 }
 
-type Changed[C arch.IsSupportsChangeDetectionComponent[C]] struct{}
+type Changed[C spoke2.IsSupportsChangeDetectionComponent[C]] struct{}
 
 func (Changed[C]) embeddable(isEmbeddableMarker) {}
 
-func (Changed[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
-	return arch.Filter{
-		Changed: arch.ComponentTypeOf[C](),
+func (Changed[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
+	return spoke2.Filter{
+		Changed: spoke2.ComponentTypeOf[C](),
 	}
 }
 
-type Added[C arch.IsComponent[C]] struct{}
+type Added[C spoke2.IsComponent[C]] struct{}
 
 func (Added[C]) embeddable(isEmbeddableMarker) {}
 
-func (Added[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
-	return arch.Filter{
-		Added: arch.ComponentTypeOf[C](),
+func (Added[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
+	return spoke2.Filter{
+		Added: spoke2.ComponentTypeOf[C](),
 	}
 }
 
@@ -149,15 +149,15 @@ type Or[A, B Filter] struct{}
 
 func (Or[A, B]) embeddable(isEmbeddableMarker) {}
 
-func (Or[A, B]) applyTo(result *ParsedQuery, fieldOffset uintptr) arch.Filter {
+func (Or[A, B]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke2.Filter {
 	var aZero A
 	filterA := aZero.applyTo(result, fieldOffset)
 
 	var bZero B
 	filterB := bZero.applyTo(result, fieldOffset)
 
-	return arch.Filter{
-		Or: []arch.Filter{
+	return spoke2.Filter{
+		Or: []spoke2.Filter{
 			filterA,
 			filterB,
 		},

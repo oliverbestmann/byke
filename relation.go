@@ -1,7 +1,7 @@
 package byke
 
 import (
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"slices"
 )
 
@@ -15,7 +15,7 @@ type IsRelationshipTargetComponent[T IsImmutableComponent[T]] interface {
 
 type isRelationshipTargetType interface {
 	ErasedComponent
-	RelationshipType() *arch.ComponentType
+	RelationshipType() *spoke.ComponentType
 	Children() []EntityId
 	addChild(id EntityId)
 	removeChild(id EntityId)
@@ -28,7 +28,7 @@ type IsRelationshipComponent[T IsImmutableComponent[T]] interface {
 
 type isRelationshipComponent interface {
 	ErasedComponent
-	RelationshipTargetType() *arch.ComponentType
+	RelationshipTargetType() *spoke.ComponentType
 	RelationshipEntityId() EntityId
 }
 
@@ -37,8 +37,8 @@ type RelationshipTarget[Child IsImmutableComponent[Child]] struct {
 	_children []EntityId
 }
 
-func (*RelationshipTarget[Child]) RelationshipType() *arch.ComponentType {
-	return arch.ComponentTypeOf[Child]()
+func (*RelationshipTarget[Child]) RelationshipType() *spoke.ComponentType {
+	return spoke.ComponentTypeOf[Child]()
 }
 
 func (p *RelationshipTarget[Child]) addChild(childId EntityId) {
@@ -61,8 +61,8 @@ func (p *RelationshipTarget[Child]) Children() []EntityId {
 // Relationship must be embedded on the client side of a relationship
 type Relationship[Parent IsImmutableComponent[Parent]] struct{}
 
-func (Relationship[Parent]) RelationshipTargetType() *arch.ComponentType {
-	return arch.ComponentTypeOf[Parent]()
+func (Relationship[Parent]) RelationshipTargetType() *spoke.ComponentType {
+	return spoke.ComponentTypeOf[Parent]()
 }
 
 type ChildOf struct {

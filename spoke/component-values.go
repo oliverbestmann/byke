@@ -1,4 +1,4 @@
-package arch
+package spoke
 
 type ComponentValue struct {
 	Value   ErasedComponent

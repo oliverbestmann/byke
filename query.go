@@ -2,8 +2,8 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/arch"
 	"github.com/oliverbestmann/byke/internal/query"
+	spoke2 "github.com/oliverbestmann/byke/spoke"
 	"iter"
 	"reflect"
 )
@@ -112,7 +112,7 @@ type queryParamState struct {
 
 	world   *World
 	inner   *innerQuery
-	mutable []*arch.ComponentType
+	mutable []*spoke2.ComponentType
 }
 
 func (q *queryParamState) getValue(sc systemContext) reflect.Value {
@@ -130,9 +130,9 @@ func (q *queryParamState) valueType() reflect.Type {
 
 type innerQuery struct {
 	Setters      []query.Setter
-	Query        *arch.CachedQuery
-	Storage      *arch.Storage
-	QueryContext arch.QueryContext
+	Query        *spoke2.CachedQuery
+	Storage      *spoke2.Storage
+	QueryContext spoke2.QueryContext
 }
 
 func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {

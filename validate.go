@@ -2,7 +2,7 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"reflect"
 )
 
@@ -17,7 +17,7 @@ import (
 //
 // This identifies mistakes in the type passed to Component during compile time.
 func ValidateComponent[C IsComponent[C]]() struct{} {
-	componentType := arch.ComponentTypeOf[C]()
+	componentType := spoke.ComponentTypeOf[C]()
 
 	var zero C
 

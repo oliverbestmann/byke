@@ -1,4 +1,4 @@
-package arch
+package spoke
 
 import (
 	"github.com/stretchr/testify/require"

@@ -5,7 +5,7 @@ import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	"github.com/oliverbestmann/byke/gm"
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"math"
 )
 
@@ -76,8 +76,8 @@ type Path struct {
 	version uint64
 }
 
-func (*Path) RequireComponents() []arch.ErasedComponent {
-	components := []arch.ErasedComponent(nil)
+func (*Path) RequireComponents() []spoke.ErasedComponent {
+	components := []spoke.ErasedComponent(nil)
 	return append(components, commonRenderComponents...)
 }
 

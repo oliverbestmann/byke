@@ -1,7 +1,7 @@
 package byke
 
 import (
-	"github.com/oliverbestmann/byke/internal/arch"
+	"github.com/oliverbestmann/byke/spoke"
 	"iter"
 	"reflect"
 )
@@ -28,7 +28,7 @@ func (RemovedComponents[C]) addToWorld(w *World) *Events[removedComponentEvent[C
 	registry, ok := ResourceOf[removedComponentsRegistry](w)
 	if !ok {
 		w.InsertResource(removedComponentsRegistry{
-			byComponentType: map[*arch.ComponentType]func(EntityId){},
+			byComponentType: map[*spoke.ComponentType]func(EntityId){},
 		})
 
 		registry, _ = ResourceOf[removedComponentsRegistry](w)
@@ -39,7 +39,7 @@ func (RemovedComponents[C]) addToWorld(w *World) *Events[removedComponentEvent[C
 
 	events, _ := ResourceOf[Events[removedComponentEvent[C]]](w)
 
-	componentType := arch.ComponentTypeOf[C]()
+	componentType := spoke.ComponentTypeOf[C]()
 
 	writer := events.Writer()
 	registry.byComponentType[componentType] = func(entityId EntityId) {
@@ -59,10 +59,10 @@ func (c RemovedComponents[C]) init(world *World) SystemParamState {
 type removedComponentEvent[C IsComponent[C]] EntityId
 
 type removedComponentsRegistry struct {
-	byComponentType map[*arch.ComponentType]func(EntityId)
+	byComponentType map[*spoke.ComponentType]func(EntityId)
 }
 
-func (r *removedComponentsRegistry) ComponentRemoved(entityId EntityId, componentType *arch.ComponentType) {
+func (r *removedComponentsRegistry) ComponentRemoved(entityId EntityId, componentType *spoke.ComponentType) {
 	emit, ok := r.byComponentType[componentType]
 	if !ok {
 		return
