@@ -1,20 +1,21 @@
 package main
 
 import (
-	"bytes"
+	"embed"
 	_ "embed"
 	"fmt"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	. "github.com/oliverbestmann/byke/gm"
 )
 
-//go:embed rect.png
-var RectPNG []byte
+//go:embed assets
+var assets embed.FS
 
 func main() {
 	var app App
+
+	app.InsertResource(MakeAssetFS(assets))
 
 	app.AddPlugin(GamePlugin)
 
@@ -38,8 +39,8 @@ type Gopher struct {
 	ComparableComponent[Gopher]
 }
 
-func createGopherSystem(commands *Commands, screenSize ScreenSize) {
-	rectImage, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(RectPNG))
+func createGopherSystem(commands *Commands, assets *Assets) {
+	rectImage := assets.Image("rect.png").Await()
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 100}),

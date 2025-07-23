@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bytes"
+	"embed"
 	_ "embed"
 	"fmt"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
@@ -14,13 +13,15 @@ import (
 	"math/rand/v2"
 )
 
-//go:embed ebiten.png
-var EbitenPNG []byte
+//go:embed assets
+var assets embed.FS
 
 func main() {
 	defer profile.Start(profile.CPUProfile).Stop()
 
 	var app App
+
+	app.InsertResource(MakeAssetFS(assets))
 
 	app.AddPlugin(GamePlugin)
 
@@ -55,9 +56,7 @@ type AvoidCursor struct {
 	ComparableComponent[AvoidCursor]
 }
 
-func createSprites(commands *Commands, screenSize ScreenSize) {
-	image, _, _ := ebitenutil.NewImageFromReader(bytes.NewReader(EbitenPNG))
-
+func createSprites(commands *Commands, assets *Assets, screenSize ScreenSize) {
 	for range 1000 {
 		posX := rand.Float64() * screenSize.X
 		posY := rand.Float64() * screenSize.Y
@@ -69,7 +68,7 @@ func createSprites(commands *Commands, screenSize ScreenSize) {
 		commands.Spawn(
 			TransformFromXY(posX, posY).WithScale(VecSplat(32.0/256.0)),
 			Velocity{Linear: Vec{X: velX, Y: velY}, Angular: velAngular},
-			Sprite{Image: image},
+			Sprite{Image: assets.Image("ebiten.png").Await()},
 			ColorTint{Color: color.RGBA(1.0, 1.0, 1.0, 0.25)},
 			WrapScreen{},
 			AvoidCursor{},

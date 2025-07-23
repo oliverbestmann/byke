@@ -15,13 +15,19 @@ import (
 
 var TransformSystems = &byke.SystemSet{}
 
-type AssetsFS = fs.FS
+type AssetFS struct {
+	fs.FS
+}
+
+func MakeAssetFS(root fs.FS) AssetFS {
+	sub, _ := fs.Sub(root, "assets")
+	return AssetFS{FS: sub}
+}
 
 func GamePlugin(app *byke.App) {
-	assetsFs, ok := byke.ResourceOf[AssetsFS](app.World())
+	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
 	if !ok {
-		dirFS := os.DirFS("assets")
-		assetsFs = &dirFS
+		assetFs = &AssetFS{FS: os.DirFS("assets")}
 	}
 
 	app.InsertResource(WindowConfig{
@@ -37,7 +43,7 @@ func GamePlugin(app *byke.App) {
 	app.InsertResource(MouseButtons{})
 	app.InsertResource(Keys{})
 
-	app.InsertResource(Assets{FS: *assetsFs})
+	app.InsertResource(Assets{fs: assetFs.FS})
 
 	app.AddEvent(byke.EventType[AppExit]())
 

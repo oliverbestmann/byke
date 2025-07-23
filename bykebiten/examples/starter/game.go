@@ -55,8 +55,8 @@ func spawnGameScreenSystem(commands *Commands, assets *Assets) {
 func inputToMotionIntentSystem(
 	keys Keys,
 	query Query[struct {
-	MotionIntent *MotionIntent
-}],
+		MotionIntent *MotionIntent
+	}],
 ) {
 	for item := range query.Items() {
 		dir := &item.MotionIntent.Direction
@@ -81,10 +81,10 @@ func inputToMotionIntentSystem(
 func movementSystem(
 	vt VirtualTime,
 	query Query[struct {
-	Ducky        Ducky
-	MotionIntent *MotionIntent
-	Transform    *Transform
-}],
+		Ducky        Ducky
+		MotionIntent *MotionIntent
+		Transform    *Transform
+	}],
 ) {
 	for item := range query.Items() {
 		delta := item.MotionIntent.Direction.Mul(item.Ducky.Speed * vt.DeltaSecs)

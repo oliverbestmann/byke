@@ -13,7 +13,7 @@ var assets embed.FS
 func main() {
 	var app App
 
-	app.InsertResource(AssetsFS(assets))
+	app.InsertResource(MakeAssetFS(assets))
 
 	// Add the bykebiten game plugin
 	app.AddPlugin(GamePlugin)

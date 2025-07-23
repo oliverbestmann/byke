@@ -33,20 +33,28 @@ func (a *assetCache[T]) Get(p string, load func() (T, error)) *AsyncAsset[T] {
 
 	a.loading.Add(1)
 
-	slog.Info("Start loading asset",
+	slog.Debug("Start loading asset",
 		slog.String("type", reflect.TypeFor[T]().String()),
 		slog.String("path", p))
 
 	startTime := time.Now()
 
 	// actually load the asset
-	asyncAsset := loadAsync(func() (T, error) {
+	asyncAsset := loadAsync(func() (value T, err error) {
 		defer a.finished.Add(1)
 		defer func() {
-			slog.Info("Finish loading asset",
-				slog.String("type", reflect.TypeFor[T]().String()),
-				slog.String("path", p),
-				slog.Duration("duration", time.Since(startTime)))
+			if err != nil {
+				slog.Warn("Failed to load asset",
+					slog.String("type", reflect.TypeFor[T]().String()),
+					slog.String("path", p),
+					slog.Duration("duration", time.Since(startTime)),
+					slog.String("error", err.Error()))
+			} else {
+				slog.Debug("Finish loading asset",
+					slog.String("type", reflect.TypeFor[T]().String()),
+					slog.String("path", p),
+					slog.Duration("duration", time.Since(startTime)))
+			}
 		}()
 
 		return load()
@@ -59,7 +67,7 @@ func (a *assetCache[T]) Get(p string, load func() (T, error)) *AsyncAsset[T] {
 }
 
 type Assets struct {
-	FS AssetsFS
+	fs fs.FS
 
 	bytes  assetCache[[]byte]
 	images assetCache[*ebiten.Image]
@@ -67,13 +75,13 @@ type Assets struct {
 
 func (a *Assets) Bytes(path string) *AsyncAsset[[]byte] {
 	return a.bytes.Get(path, func() ([]byte, error) {
-		return fs.ReadFile(a.FS, path)
+		return fs.ReadFile(a.fs, path)
 	})
 }
 
 func (a *Assets) Image(path string) *AsyncAsset[*ebiten.Image] {
 	return a.images.Get(path, func() (*ebiten.Image, error) {
-		fp, err := a.FS.Open(path)
+		fp, err := a.fs.Open(path)
 		if err != nil {
 			return nil, fmt.Errorf("open asset %q: %w", path, err)
 		}

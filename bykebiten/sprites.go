@@ -1,7 +1,6 @@
 package bykebiten
 
 import (
-	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
@@ -118,8 +117,6 @@ func computeSpriteSizeSystem(
 ) {
 	for item := range query.Items() {
 		var sourceSize, targetSize gm.Vec
-
-		fmt.Println(item)
 
 		if tiles, ok := item.Tiles.Get(); ok {
 			sourceSize = gm.Vec{X: float64(tiles.Width), Y: float64(tiles.Height)}
