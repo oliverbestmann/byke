@@ -19,9 +19,8 @@ type Archetype struct {
 	entities []EntityId
 	index    map[EntityId]Row
 
-	columns         []*ErasedColumn
-	columnsByType   map[*ComponentType]*ErasedColumn
-	columnsByTypeId [256]*ErasedColumn
+	columns       []*ErasedColumn
+	columnsByType map[*ComponentType]*ErasedColumn
 }
 
 func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
@@ -48,13 +47,12 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 	}
 
 	return &Archetype{
-		Id:              id,
-		Types:           sortedTypes,
-		entities:        nil,
-		columns:         columns,
-		columnsByType:   columnsByType,
-		columnsByTypeId: columnsByTypeId,
-		index:           map[EntityId]Row{},
+		Id:            id,
+		Types:         sortedTypes,
+		entities:      nil,
+		columns:       columns,
+		columnsByType: columnsByType,
+		index:         map[EntityId]Row{},
 	}
 }
 
@@ -212,7 +210,7 @@ func (a *Archetype) addedAt(row Row, componentType *ComponentType) Tick {
 }
 
 func (a *Archetype) getColumn(componentType *ComponentType) *ErasedColumn {
-	return a.columnsByTypeId[uint8(componentType.Id)]
+	return a.columnsByType[componentType]
 }
 
 func (a *Archetype) getAt(row Row) EntityRef {
@@ -425,21 +423,23 @@ type Archetypes struct {
 	lookup     map[ArchetypeId]*Archetype
 }
 
-func (a *Archetypes) Lookup(types []*ComponentType) *Archetype {
+func (a *Archetypes) Lookup(types []*ComponentType) (*Archetype, bool) {
 	id, sortedTypes := ArchetypeIdOf(types)
 
 	at, ok := a.lookup[id]
-	if !ok {
-		if a.lookup == nil {
-			a.lookup = map[ArchetypeId]*Archetype{}
-		}
-
-		at = makeArchetype(id, slices.Clone(sortedTypes))
-		a.lookup[id] = at
-		a.archetypes = append(a.archetypes, at)
+	if ok {
+		return at, false
 	}
 
-	return at
+	if a.lookup == nil {
+		a.lookup = map[ArchetypeId]*Archetype{}
+	}
+
+	at = makeArchetype(id, slices.Clone(sortedTypes))
+	a.lookup[id] = at
+	a.archetypes = append(a.archetypes, at)
+
+	return at, true
 }
 
 func (a *Archetypes) All() []*Archetype {

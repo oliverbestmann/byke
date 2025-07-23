@@ -2,23 +2,23 @@ package byke
 
 import (
 	"github.com/oliverbestmann/byke/internal/query"
-	spoke2 "github.com/oliverbestmann/byke/spoke"
+	spoke "github.com/oliverbestmann/byke/spoke"
 )
 
 // EntityId uniquely identifies an entity in a World.
-type EntityId = spoke2.EntityId
+type EntityId = spoke.EntityId
 
 // IsComponent can be used in a type parameter to ensure that type T is a Component type.
 //
 // To implement the IsComponent interface for a type, you must embed the Component type.
-type IsComponent[T any] = spoke2.IsComponent[T]
+type IsComponent[T any] = spoke.IsComponent[T]
 
 // IsImmutableComponent indicates that a component is immutable and can not be queried
 // using pointer access. Immutable components can be updated by inserting a new copy of the
 // same component into an entity using Command.
 //
 // To implement the IsImmutableComponent interface for a type, you must embed the ImmutableComponent type.
-type IsImmutableComponent[T IsComponent[T]] = spoke2.IsImmutableComponent[T]
+type IsImmutableComponent[T IsComponent[T]] = spoke.IsImmutableComponent[T]
 
 // IsComparableComponent indicates that a component is comparable. Only comparable components
 // and immutable components can be used with the Changed query filter.
@@ -26,25 +26,25 @@ type IsImmutableComponent[T IsComponent[T]] = spoke2.IsImmutableComponent[T]
 // by pointer.
 //
 // To implement the IsComparableComponent interface for a type, you must embed the ComparableComponent type.
-type IsComparableComponent[T IsComponent[T]] = spoke2.IsComparableComponent[T]
+type IsComparableComponent[T IsComponent[T]] = spoke.IsComparableComponent[T]
 
 // Component is a zero sized type that may be embedded into a struct to turn that
 // struct into a component (see IsComponent).
-type Component[T IsComponent[T]] = spoke2.Component[T]
+type Component[T IsComponent[T]] = spoke.Component[T]
 
 // ImmutableComponent is a zero sized type that may be embedded into a struct to turn that
 // struct into an immutable component (see IsComponent).
-type ImmutableComponent[T spoke2.IsImmutableComponent[T]] = spoke2.ImmutableComponent[T]
+type ImmutableComponent[T spoke.IsImmutableComponent[T]] = spoke.ImmutableComponent[T]
 
 // ComparableComponent is a zero sized type that may be embedded into a struct to turn that
 // struct into a comparable component (see IsComponent).
-type ComparableComponent[T IsComparableComponent[T]] = spoke2.ComparableComponent[T]
+type ComparableComponent[T IsComparableComponent[T]] = spoke.ComparableComponent[T]
 
 // ErasedComponent indicates a type erased Component value.
 //
 // Values given to the consumer of byke of this type are usually pointers,
 // even though the interface is actually implemented directly on the component type.
-type ErasedComponent = spoke2.ErasedComponent
+type ErasedComponent = spoke.ErasedComponent
 
 // Option is a query parameter that fetches a given Component of type T
 // if it exists on an entity.
@@ -78,7 +78,7 @@ type Added[C IsComponent[C]] = query.Added[C]
 //
 // Change detection currently works by hashing the component value. As such, matching
 // for changed component values is not 100% foolproof in case of hash collisions.
-type Changed[C spoke2.IsSupportsChangeDetectionComponent[C]] = query.Changed[C]
+type Changed[C spoke.IsSupportsChangeDetectionComponent[C]] = query.Changed[C]
 
 // Or is a query filter that allows you to combine two query filters with a local 'or'.
 // Simply adding multiple filters to a query requires all filters to match. Using Or

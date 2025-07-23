@@ -62,7 +62,7 @@ func (a *ArchetypeGraph) insertTransition(tr ArchetypeTransition, types []*Compo
 		a.transitions = map[ArchetypeTransition]*Archetype{}
 	}
 
-	archetype := a.Archetypes.Lookup(types)
+	archetype, _ := a.Archetypes.Lookup(types)
 	a.transitions[tr] = archetype
 
 	return archetype

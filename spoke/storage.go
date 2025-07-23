@@ -21,16 +21,25 @@ func NewStorage() *Storage {
 	return storage
 }
 
-func (s *Storage) Spawn(tick Tick, entityId EntityId) {
+func (s *Storage) Spawn(tick Tick, entityId EntityId, components []ErasedComponent) {
 	if _, exists := s.entityToArchetype[entityId]; exists {
 		panic(fmt.Sprintf("entity %s already exists", entityId))
 	}
 
-	// put entity into empty archetype
-	archetype := s.archetypes.Lookup(nil)
+	// collect the component types
+	var componentTypes []*ComponentType
+	for _, component := range components {
+		componentTypes = append(componentTypes, component.ComponentType())
+	}
+
+	// find or create the archetype we fit into
+	archetype, created := s.archetypes.Lookup(componentTypes)
+	if created {
+		s.handleNewArchetype(archetype)
+	}
 
 	// add entity to the archetype
-	archetype.Insert(tick, entityId, nil)
+	archetype.Insert(tick, entityId, components)
 
 	// remember where we put the entity
 	s.entityToArchetype[entityId] = archetype
@@ -45,6 +54,11 @@ func (s *Storage) Despawn(entityId EntityId) bool {
 	archetype.Remove(entityId)
 
 	delete(s.entityToArchetype, entityId)
+
+	if archetype.Len() == 0 {
+		// TODO maybe remove the archetype from the graph if it is empty?
+		//  that might speed up queries matching a lot of empty archetypes
+	}
 
 	return true
 }
@@ -286,7 +300,8 @@ func (s *Storage) IterQuery(q *CachedQuery, ctx QueryContext) QueryIter {
 func (s *Storage) HasComponent(entityId EntityId, componentType *ComponentType) bool {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
-		panic("entity does not exist")
+		// the entity itself does not exist
+		return false
 	}
 
 	return archetype.ContainsType(componentType)

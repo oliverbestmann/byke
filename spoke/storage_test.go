@@ -20,13 +20,14 @@ func TestStorage_All(t *testing.T) {
 
 	s := NewStorage()
 
-	s.Spawn(tick, 1)
-	s.InsertComponent(tick, 1, &Position{X: 10})
-	s.InsertComponent(tick, 1, &Velocity{X: 0})
+	s.Spawn(tick, 1, []ErasedComponent{
+		&Position{X: 10}, &Velocity{X: 0},
+	})
 
 	tick += 1
-	s.Spawn(tick, 2)
-	s.InsertComponent(tick, 2, &Velocity{X: 1})
+	s.Spawn(tick, 2, []ErasedComponent{
+		&Velocity{X: 1},
+	})
 
 	tick += 1
 
@@ -69,13 +70,13 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 
 	s := NewStorage()
 
-	s.Spawn(tick, 1)
+	s.Spawn(tick, 1, nil)
 	s.InsertComponent(tick, 1, &Position{X: 10})
 	s.InsertComponent(tick, 1, &Velocity{X: 0})
 
 	tick += 1
 
-	s.Spawn(tick, 2)
+	s.Spawn(tick, 2, nil)
 	s.InsertComponent(tick, 2, &Velocity{X: 0})
 
 	tick += 1

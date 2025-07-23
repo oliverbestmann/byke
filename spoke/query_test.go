@@ -28,7 +28,7 @@ func BenchmarkQueryMovement(b *testing.B) {
 	storage := NewStorage()
 
 	for idx := range EntityId(1000) {
-		storage.Spawn(0, idx)
+		storage.Spawn(0, idx, nil)
 		storage.InsertComponent(0, idx, &Position{})
 		storage.InsertComponent(0, idx, &Velocity{})
 		storage.InsertComponent(0, idx, &Acceleration{X: rand.Float64(), Y: rand.Float64()})

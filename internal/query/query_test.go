@@ -2,7 +2,7 @@ package query
 
 import (
 	"fmt"
-	spoke2 "github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/byke/spoke"
 	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
@@ -10,22 +10,22 @@ import (
 )
 
 type Position struct {
-	spoke2.ComparableComponent[Position]
+	spoke.ComparableComponent[Position]
 	X int
 }
 
 type Velocity struct {
-	spoke2.ComparableComponent[Velocity]
+	spoke.ComparableComponent[Velocity]
 	X int
 }
 
 type Acceleration struct {
-	spoke2.ComparableComponent[Acceleration]
+	spoke.ComparableComponent[Acceleration]
 	X int
 }
 
 type SomeConfig struct {
-	spoke2.ComparableComponent[SomeConfig]
+	spoke.ComparableComponent[SomeConfig]
 	MaxX, MaxSpeed int
 }
 
@@ -42,10 +42,10 @@ func parseQueryTest(t *testing.T, queryType reflect.Type, expected ParsedQuery) 
 
 func TestBuildQuerySimple(t *testing.T) {
 	parseQueryTest(t, reflect.TypeFor[Position](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Fetch: []spoke2.FetchComponent{
+		Builder: spoke.QueryBuilder{
+			Fetch: []spoke.FetchComponent{
 				{
-					ComponentType: spoke2.ComponentTypeOf[Position](),
+					ComponentType: spoke.ComponentTypeOf[Position](),
 				},
 			},
 		},
@@ -60,10 +60,10 @@ func TestBuildQuerySimple(t *testing.T) {
 	})
 
 	parseQueryTest(t, reflect.TypeFor[*Position](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Fetch: []spoke2.FetchComponent{
+		Builder: spoke.QueryBuilder{
+			Fetch: []spoke.FetchComponent{
 				{
-					ComponentType: spoke2.ComponentTypeOf[Position](),
+					ComponentType: spoke.ComponentTypeOf[Position](),
 				},
 			},
 		},
@@ -76,16 +76,16 @@ func TestBuildQuerySimple(t *testing.T) {
 			},
 		},
 
-		Mutable: []*spoke2.ComponentType{
-			spoke2.ComponentTypeOf[Position](),
+		Mutable: []*spoke.ComponentType{
+			spoke.ComponentTypeOf[Position](),
 		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Option[Position]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Fetch: []spoke2.FetchComponent{
+		Builder: spoke.QueryBuilder{
+			Fetch: []spoke.FetchComponent{
 				{
-					ComponentType: spoke2.ComponentTypeOf[Position](),
+					ComponentType: spoke.ComponentTypeOf[Position](),
 					Optional:      true,
 				},
 			},
@@ -101,10 +101,10 @@ func TestBuildQuerySimple(t *testing.T) {
 	})
 
 	parseQueryTest(t, reflect.TypeFor[OptionMut[Position]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Fetch: []spoke2.FetchComponent{
+		Builder: spoke.QueryBuilder{
+			Fetch: []spoke.FetchComponent{
 				{
-					ComponentType: spoke2.ComponentTypeOf[Position](),
+					ComponentType: spoke.ComponentTypeOf[Position](),
 					Optional:      true,
 				},
 			},
@@ -118,16 +118,16 @@ func TestBuildQuerySimple(t *testing.T) {
 			},
 		},
 
-		Mutable: []*spoke2.ComponentType{
-			spoke2.ComponentTypeOf[Position](),
+		Mutable: []*spoke.ComponentType{
+			spoke.ComponentTypeOf[Position](),
 		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Has[Position]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Fetch: []spoke2.FetchComponent{
+		Builder: spoke.QueryBuilder{
+			Fetch: []spoke.FetchComponent{
 				{
-					ComponentType: spoke2.ComponentTypeOf[Position](),
+					ComponentType: spoke.ComponentTypeOf[Position](),
 					Optional:      true,
 				},
 			},
@@ -143,55 +143,55 @@ func TestBuildQuerySimple(t *testing.T) {
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Added[Position]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Filters: []spoke2.Filter{
+		Builder: spoke.QueryBuilder{
+			Filters: []spoke.Filter{
 				{
-					Added: spoke2.ComponentTypeOf[Position](),
+					Added: spoke.ComponentTypeOf[Position](),
 				},
 			},
 		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Changed[Position]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Filters: []spoke2.Filter{
+		Builder: spoke.QueryBuilder{
+			Filters: []spoke.Filter{
 				{
-					Changed: spoke2.ComponentTypeOf[Position](),
+					Changed: spoke.ComponentTypeOf[Position](),
 				},
 			},
 		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[With[Position]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Filters: []spoke2.Filter{
+		Builder: spoke.QueryBuilder{
+			Filters: []spoke.Filter{
 				{
-					With: spoke2.ComponentTypeOf[Position](),
+					With: spoke.ComponentTypeOf[Position](),
 				},
 			},
 		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Without[Position]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Filters: []spoke2.Filter{
+		Builder: spoke.QueryBuilder{
+			Filters: []spoke.Filter{
 				{
-					Without: spoke2.ComponentTypeOf[Position](),
+					Without: spoke.ComponentTypeOf[Position](),
 				},
 			},
 		},
 	})
 
 	parseQueryTest(t, reflect.TypeFor[Or[With[Velocity], Without[Position]]](), ParsedQuery{
-		Builder: spoke2.QueryBuilder{
-			Filters: []spoke2.Filter{
+		Builder: spoke.QueryBuilder{
+			Filters: []spoke.Filter{
 				{
-					Or: []spoke2.Filter{
+					Or: []spoke.Filter{
 						{
-							With: spoke2.ComponentTypeOf[Velocity](),
+							With: spoke.ComponentTypeOf[Velocity](),
 						},
 						{
-							Without: spoke2.ComponentTypeOf[Position](),
+							Without: spoke.ComponentTypeOf[Position](),
 						},
 					},
 				},
@@ -207,10 +207,10 @@ func TestParseQueryStruct(t *testing.T) {
 		}
 
 		parseQueryTest(t, reflect.TypeFor[Item](), ParsedQuery{
-			Builder: spoke2.QueryBuilder{
-				Fetch: []spoke2.FetchComponent{
+			Builder: spoke.QueryBuilder{
+				Fetch: []spoke.FetchComponent{
 					{
-						ComponentType: spoke2.ComponentTypeOf[Position](),
+						ComponentType: spoke.ComponentTypeOf[Position](),
 					},
 				},
 			},
@@ -232,10 +232,10 @@ func TestParseQueryStruct(t *testing.T) {
 		}
 
 		parseQueryTest(t, reflect.TypeFor[Item](), ParsedQuery{
-			Builder: spoke2.QueryBuilder{
-				Fetch: []spoke2.FetchComponent{
+			Builder: spoke.QueryBuilder{
+				Fetch: []spoke.FetchComponent{
 					{
-						ComponentType: spoke2.ComponentTypeOf[Position](),
+						ComponentType: spoke.ComponentTypeOf[Position](),
 					},
 				},
 			},
@@ -248,8 +248,8 @@ func TestParseQueryStruct(t *testing.T) {
 				},
 			},
 
-			Mutable: []*spoke2.ComponentType{
-				spoke2.ComponentTypeOf[Position](),
+			Mutable: []*spoke.ComponentType{
+				spoke.ComponentTypeOf[Position](),
 			},
 		})
 	}
@@ -257,7 +257,7 @@ func TestParseQueryStruct(t *testing.T) {
 	{
 		type Item struct {
 			// can be embedded
-			spoke2.EntityId
+			spoke.EntityId
 
 			// embeddable filters can also be embedded
 			Without[Velocity]
@@ -272,26 +272,26 @@ func TestParseQueryStruct(t *testing.T) {
 		}
 
 		parseQueryTest(t, reflect.TypeFor[Item](), ParsedQuery{
-			Builder: spoke2.QueryBuilder{
-				Fetch: []spoke2.FetchComponent{
+			Builder: spoke.QueryBuilder{
+				Fetch: []spoke.FetchComponent{
 					{
-						ComponentType: spoke2.ComponentTypeOf[Position](),
+						ComponentType: spoke.ComponentTypeOf[Position](),
 					},
 					{
-						ComponentType: spoke2.ComponentTypeOf[SomeConfig](),
+						ComponentType: spoke.ComponentTypeOf[SomeConfig](),
 					},
 					{
-						ComponentType: spoke2.ComponentTypeOf[Acceleration](),
+						ComponentType: spoke.ComponentTypeOf[Acceleration](),
 						Optional:      true,
 					},
 				},
 
-				Filters: []spoke2.Filter{
+				Filters: []spoke.Filter{
 					{
-						Without: spoke2.ComponentTypeOf[Velocity](),
+						Without: spoke.ComponentTypeOf[Velocity](),
 					},
 					{
-						Changed: spoke2.ComponentTypeOf[Position](),
+						Changed: spoke.ComponentTypeOf[Position](),
 					},
 				},
 			},
@@ -319,8 +319,8 @@ func TestParseQueryStruct(t *testing.T) {
 				},
 			},
 
-			Mutable: []*spoke2.ComponentType{
-				spoke2.ComponentTypeOf[Position](),
+			Mutable: []*spoke.ComponentType{
+				spoke.ComponentTypeOf[Position](),
 			},
 		})
 	}
@@ -328,10 +328,11 @@ func TestParseQueryStruct(t *testing.T) {
 }
 
 func TestFromEntity(t *testing.T) {
-	s := spoke2.NewStorage()
-	s.Spawn(0, 10)
-	s.InsertComponent(0, 10, &Position{X: 1})
-	s.InsertComponent(0, 10, &Velocity{X: 2})
+	s := spoke.NewStorage()
+	s.Spawn(0, 10, []spoke.ErasedComponent{
+		&Position{X: 1},
+		&Velocity{X: 2},
+	})
 
 	entity, _ := s.Get(10)
 
@@ -356,7 +357,7 @@ func TestFromEntity(t *testing.T) {
 			HasVelocity Has[Velocity]
 		}
 
-		velocity := entity.Get(spoke2.ComponentTypeOf[Velocity]())
+		velocity := entity.Get(spoke.ComponentTypeOf[Velocity]())
 		runTestFromEntity(t, entity, QueryItemWithHas{
 			Position:    Position{X: 1},
 			HasVelocity: Has[Velocity]{ptr: uintptr(reflect.ValueOf(velocity).UnsafePointer())},
@@ -388,28 +389,28 @@ func TestFromEntity(t *testing.T) {
 
 	{
 		type QueryItemWithEntity struct {
-			EntityId spoke2.EntityId
+			EntityId spoke.EntityId
 			With[Velocity]
 		}
 
 		runTestFromEntity(t, entity, QueryItemWithEntity{
-			EntityId: spoke2.EntityId(10),
+			EntityId: spoke.EntityId(10),
 		})
 	}
 
 	{
 		type QueryItemWithEmbeddedEntity struct {
-			spoke2.EntityId
+			spoke.EntityId
 			With[Velocity]
 		}
 
 		runTestFromEntity(t, entity, QueryItemWithEmbeddedEntity{
-			EntityId: spoke2.EntityId(10),
+			EntityId: spoke.EntityId(10),
 		})
 	}
 
 	type QueryItemWithNestedStruct struct {
-		spoke2.EntityId
+		spoke.EntityId
 
 		Motion struct {
 			Position *Position
@@ -418,7 +419,7 @@ func TestFromEntity(t *testing.T) {
 	}
 
 	runTestFromEntity(t, entity, QueryItemWithNestedStruct{
-		EntityId: spoke2.EntityId(10),
+		EntityId: spoke.EntityId(10),
 		Motion: struct {
 			Position *Position
 			Velocity Velocity
@@ -429,11 +430,11 @@ func TestFromEntity(t *testing.T) {
 	})
 
 	{
-		runTestFromEntity(t, entity, spoke2.EntityId(10))
+		runTestFromEntity(t, entity, spoke.EntityId(10))
 	}
 }
 
-func runTestFromEntity[Q any](t *testing.T, entity spoke2.EntityRef, expected Q) {
+func runTestFromEntity[Q any](t *testing.T, entity spoke.EntityRef, expected Q) {
 	t.Run(reflect.TypeFor[Q]().String(), func(t *testing.T) {
 		parsed, err := ParseQuery(reflect.TypeFor[Q]())
 		require.NoError(t, err)
@@ -446,7 +447,7 @@ func runTestFromEntity[Q any](t *testing.T, entity spoke2.EntityRef, expected Q)
 
 func BenchmarkFromEntity(b *testing.B) {
 	type QueryItem struct {
-		spoke2.EntityId
+		spoke.EntityId
 
 		With[Acceleration]
 		Changed[Velocity]
@@ -460,11 +461,12 @@ func BenchmarkFromEntity(b *testing.B) {
 	query, err := ParseQuery(reflect.TypeFor[QueryItem]())
 	require.NoError(b, err)
 
-	s := spoke2.NewStorage()
-	s.Spawn(0, 10)
-	s.InsertComponent(0, 10, &Position{X: 1})
-	s.InsertComponent(0, 10, &Velocity{X: 2})
-	s.InsertComponent(0, 10, &Acceleration{X: 3})
+	s := spoke.NewStorage()
+	s.Spawn(0, 10, []spoke.ErasedComponent{
+		&Position{X: 1},
+		&Velocity{X: 2},
+		&Acceleration{X: 3},
+	})
 
 	entity, _ := s.Get(10)
 

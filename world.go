@@ -2,7 +2,7 @@ package byke
 
 import (
 	"fmt"
-	spoke2 "github.com/oliverbestmann/byke/spoke"
+	spoke "github.com/oliverbestmann/byke/spoke"
 	"reflect"
 	"slices"
 )
@@ -24,19 +24,19 @@ type AnyPtr = any
 // While an empty World can be created using NewWorld, it is normally created and configured
 // by using the App api.
 type World struct {
-	storage     *spoke2.Storage
+	storage     *spoke.Storage
 	entityIdSeq EntityId
 	resources   map[reflect.Type]resourceValue
 	schedules   map[ScheduleId]*schedule
 	systems     map[SystemId]*preparedSystem
-	currentTick spoke2.Tick
+	currentTick spoke.Tick
 }
 
 // NewWorld creates a new empty world.
 // You probably want to use the App api instead.
 func NewWorld() *World {
 	return &World{
-		storage:   spoke2.NewStorage(),
+		storage:   spoke.NewStorage(),
 		resources: map[reflect.Type]resourceValue{},
 		schedules: map[ScheduleId]*schedule{},
 		systems:   map[SystemId]*preparedSystem{},
@@ -215,22 +215,39 @@ func (w *World) reserveEntityId() EntityId {
 }
 
 func (w *World) spawnWithEntityId(entityId EntityId, components []ErasedComponent) EntityId {
-	if entityId == 0 {
+	if entityId == NoEntityId {
 		entityId = w.reserveEntityId()
 	}
 
-	w.storage.Spawn(w.currentTick, entityId)
-	w.insertComponents(entityId, components)
+	components, spawnChildren := w.prepareComponents(entityId, components)
+
+	w.storage.Spawn(w.currentTick, entityId, components)
+	w.onComponentsInsert(entityId, components)
+
+	// now spawn all childrens as necessary
+	for _, spawnChild := range spawnChildren {
+		components := append(spawnChild.Components, ChildOf{Parent: entityId})
+		w.spawnWithEntityId(w.reserveEntityId(), components)
+	}
+
 	return entityId
 }
 
-// TODO improve this by actually adding all components to storage at the same time.
 func (w *World) insertComponents(entityId EntityId, components []ErasedComponent) {
+	components, spawnChildren := w.prepareComponents(entityId, components)
+
+	w.storage.InsertComponents(w.currentTick, entityId, components)
+	w.onComponentsInsert(entityId, components)
+
+	// now spawn all childrens as necessary
+	for _, spawnChild := range spawnChildren {
+		components := append(spawnChild.Components, ChildOf{Parent: entityId})
+		w.spawnWithEntityId(w.reserveEntityId(), components)
+	}
+}
+
+func (w *World) prepareComponents(entityId EntityId, components []ErasedComponent) (collectedComponents []ErasedComponent, spawnChildren []*spawnChildComponent) {
 	queue := flattenComponents(nil, components...)
-
-	tick := w.currentTick
-
-	var spawnChildren []*spawnChildComponent
 
 	for idx := 0; idx < len(queue); idx++ {
 		// if in question we'll overwrite the components if they
@@ -263,20 +280,20 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 
 		// move it to the heap and add it to the entity
 		component = copyComponent(component)
-		component = w.storage.InsertComponent(tick, entityId, component)
-
-		// trigger hooks for this component
-		w.onComponentInsert(entityId, component)
+		collectedComponents = append(collectedComponents, component)
 
 		// enqueue all required components
-		if req, ok := component.(spoke2.RequireComponents); ok {
+		if req, ok := component.(spoke.RequireComponents); ok {
 			queue = append(queue, req.RequireComponents()...)
 		}
 	}
 
-	for _, spawnChild := range spawnChildren {
-		components := append(spawnChild.Components, ChildOf{Parent: entityId})
-		w.spawnWithEntityId(w.reserveEntityId(), components)
+	return
+}
+
+func (w *World) onComponentsInsert(id EntityId, components []ErasedComponent) {
+	for _, component := range components {
+		w.onComponentInsert(id, component)
 	}
 }
 
@@ -326,7 +343,7 @@ func (w *World) removeEntityFromParentComponentOf(entityId EntityId, component E
 	}
 }
 
-func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRelationshipTargetType, EntityId, *spoke2.ComponentType, bool) {
+func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRelationshipTargetType, EntityId, *spoke.ComponentType, bool) {
 	child, ok := component.(isRelationshipComponent)
 	if !ok {
 		return nil, 0, nil, false
@@ -453,7 +470,7 @@ func copyComponent(value ErasedComponent) ErasedComponent {
 	return ptrToValue
 }
 
-func (w *World) removeComponent(entityId EntityId, componentType *spoke2.ComponentType) {
+func (w *World) removeComponent(entityId EntityId, componentType *spoke.ComponentType) {
 	component, ok := w.storage.RemoveComponent(w.currentTick, entityId, componentType)
 	if !ok {
 		return
@@ -462,6 +479,6 @@ func (w *World) removeComponent(entityId EntityId, componentType *spoke2.Compone
 	w.onComponentRemoved(entityId, component)
 }
 
-func (w *World) recheckComponents(query *spoke2.Query, componentTypes []*spoke2.ComponentType) {
+func (w *World) recheckComponents(query *spoke.Query, componentTypes []*spoke.ComponentType) {
 	w.storage.CheckChanged(w.currentTick, query, componentTypes)
 }
