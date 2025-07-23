@@ -84,3 +84,8 @@ type Changed[C spoke.IsSupportsChangeDetectionComponent[C]] = query.Changed[C]
 // Simply adding multiple filters to a query requires all filters to match. Using Or
 // you can build a query, where just one of multiple filter need to match
 type Or[A, B query.Filter] = query.Or[A, B]
+
+// OrStruct combines a struct of multiple filters with a logical Or. The type parameter
+// S must  be a struct type that contains only fields of type EmbeddableFilter named with
+// an underscore.
+type OrStruct[S any] = query.OrStruct[S]

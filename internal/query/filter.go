@@ -2,7 +2,9 @@ package query
 
 import (
 	"fmt"
+	"github.com/oliverbestmann/byke/internal/refl"
 	spoke "github.com/oliverbestmann/byke/spoke"
+	"reflect"
 )
 
 type Filter interface {
@@ -162,4 +164,35 @@ func (Or[A, B]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke.Filter {
 			filterB,
 		},
 	}
+}
+
+type OrStruct[S any] struct{}
+
+func (OrStruct[S]) embeddable(isEmbeddableMarker) {}
+
+func (OrStruct[S]) applyTo(result *ParsedQuery, baseOffset uintptr) spoke.Filter {
+	orStructType := reflect.TypeFor[S]()
+
+	var res spoke.Filter
+
+	for field := range refl.IterFields(orStructType) {
+		if field.Name != "_" {
+			panic(fmt.Errorf("OrStruct %s field %q should be named \"_\"", orStructType, field.Name))
+		}
+
+		fieldOffset := baseOffset + field.Offset
+
+		if !isEmbeddableFilter(field.Type) {
+			panic(fmt.Errorf("OrStruct must contain only embeddable filters %s: %s", orStructType, field.Type))
+		}
+
+		filter := reflect.New(field.Type).Interface().(Filter)
+
+		f := filter.applyTo(result, fieldOffset)
+		if !f.IsZero() {
+			res.Or = append(res.Or, f)
+		}
+	}
+
+	return res
 }

@@ -92,6 +92,8 @@ func (s *Storage) InsertComponents(tick Tick, entityId EntityId, components []Er
 		for idx, component := range components {
 			components[idx] = prevArchetype.ReplaceComponentValue(tick, entityId, component)
 		}
+
+		return
 	}
 
 	// transfer our entity

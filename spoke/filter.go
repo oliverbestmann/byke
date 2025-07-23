@@ -168,19 +168,25 @@ func (f *Filter) MatchesArchetype(a *Archetype) bool {
 func (f *Filter) Matches(ctx QueryContext, entity EntityRef) bool {
 	if f.Added != nil {
 		tick := entity.Added(f.Added)
-		if tick < ctx.LastRun {
+		if tick == NoTick || tick < ctx.LastRun {
 			return false
 		}
 	}
 
 	if f.Changed != nil {
 		tick := entity.Changed(f.Changed)
-		if tick < ctx.LastRun {
+		if tick == NoTick || tick < ctx.LastRun {
 			return false
 		}
 	}
 
-	return true
+	for _, filter := range f.Or {
+		if filter.Matches(ctx, entity) {
+			return true
+		}
+	}
+
+	return len(f.Or) == 0
 }
 
 type QueryContext struct {

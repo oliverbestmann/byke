@@ -21,14 +21,16 @@ func pluginScreen(app *App) {
 	app.AddSystems(OnEnter(ScreenTitle), spawnTitleScreenSystem)
 }
 
-func spawnTitleScreenSystem(commands *Commands, screenSize ScreenSize, menuState *NextState[MenuState]) {
+func spawnTitleScreenSystem(commands *Commands,
+	assets *Assets,
+	screenSize ScreenSize, menuState *NextState[MenuState]) {
 	menuState.Set(MenuStateTitle)
 
 	commands.Spawn(
 		DespawnOnExitState(ScreenTitle),
 
 		Sprite{
-			Image: AssetEbiten(),
+			Image: assets.Image("ebiten.png").Await(),
 		},
 
 		// place at the center of the screen

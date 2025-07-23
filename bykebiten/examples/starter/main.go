@@ -1,13 +1,19 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 )
 
+//go:embed assets
+var assets embed.FS
+
 func main() {
 	var app App
+
+	app.InsertResource(AssetsFS(assets))
 
 	// Add the bykebiten game plugin
 	app.AddPlugin(GamePlugin)
@@ -24,6 +30,11 @@ func main() {
 	app.AddPlugin(pluginPause)
 	app.AddPlugin(pluginMenu)
 	app.AddPlugin(pluginGame)
+
+	// preload assets
+	assets, _ := ResourceOf[Assets](app.World())
+	assets.Image("ebiten.png")
+	assets.Image("ducky.png")
 
 	fmt.Println(app.Run())
 }

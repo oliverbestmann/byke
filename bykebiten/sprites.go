@@ -1,6 +1,7 @@
 package bykebiten
 
 import (
+	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
@@ -102,7 +103,11 @@ func updateTileCache(
 
 func computeSpriteSizeSystem(
 	query byke.Query[struct {
-		_ byke.Or[byke.Or[byke.Changed[Sprite], byke.Changed[Anchor]], byke.Changed[Tiles]]
+		_ byke.OrStruct[struct {
+			_ byke.Changed[Tiles]
+			_ byke.Changed[Sprite]
+			_ byke.Changed[Anchor]
+		}]
 
 		BBox   *BBox
 		Sprite Sprite
@@ -113,6 +118,8 @@ func computeSpriteSizeSystem(
 ) {
 	for item := range query.Items() {
 		var sourceSize, targetSize gm.Vec
+
+		fmt.Println(item)
 
 		if tiles, ok := item.Tiles.Get(); ok {
 			sourceSize = gm.Vec{X: float64(tiles.Width), Y: float64(tiles.Height)}

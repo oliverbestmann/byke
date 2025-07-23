@@ -2,6 +2,7 @@ package byke
 
 import (
 	"fmt"
+	"github.com/oliverbestmann/byke/internal/set"
 	spoke "github.com/oliverbestmann/byke/spoke"
 	"reflect"
 	"slices"
@@ -248,6 +249,7 @@ func (w *World) insertComponents(entityId EntityId, components []ErasedComponent
 
 func (w *World) prepareComponents(entityId EntityId, components []ErasedComponent) (collectedComponents []ErasedComponent, spawnChildren []*spawnChildComponent) {
 	queue := flattenComponents(nil, components...)
+	var inserted set.Set[*spoke.ComponentType]
 
 	for idx := 0; idx < len(queue); idx++ {
 		// if in question we'll overwrite the components if they
@@ -262,6 +264,11 @@ func (w *World) prepareComponents(entityId EntityId, components []ErasedComponen
 		// end to spawn children
 		if spawnChild, ok := component.(*spawnChildComponent); ok {
 			spawnChildren = append(spawnChildren, spawnChild)
+			continue
+		}
+
+		// skip if we've already added the component type to the queue
+		if !inserted.Insert(componentType) {
 			continue
 		}
 

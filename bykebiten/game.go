@@ -6,6 +6,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
+	"io/fs"
+	"os"
 	"reflect"
 	"slices"
 	"time"
@@ -13,7 +15,15 @@ import (
 
 var TransformSystems = &byke.SystemSet{}
 
+type AssetsFS = fs.FS
+
 func GamePlugin(app *byke.App) {
+	assetsFs, ok := byke.ResourceOf[AssetsFS](app.World())
+	if !ok {
+		dirFS := os.DirFS("assets")
+		assetsFs = &dirFS
+	}
+
 	app.InsertResource(WindowConfig{
 		Title:  "Ebitengine",
 		Width:  800,
@@ -26,6 +36,8 @@ func GamePlugin(app *byke.App) {
 
 	app.InsertResource(MouseButtons{})
 	app.InsertResource(Keys{})
+
+	app.InsertResource(Assets{FS: *assetsFs})
 
 	app.AddEvent(byke.EventType[AppExit]())
 

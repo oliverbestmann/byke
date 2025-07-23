@@ -28,7 +28,7 @@ type MotionIntent struct {
 	Direction Vec
 }
 
-func spawnGameScreenSystem(commands *Commands) {
+func spawnGameScreenSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		DespawnOnExitState(ScreenGame),
 		TransformFromXY(400, 300),
@@ -38,7 +38,7 @@ func spawnGameScreenSystem(commands *Commands) {
 		},
 		MotionIntent{},
 		Sprite{
-			Image:      AssetDucky(),
+			Image:      assets.Image("ducky.png").Await(),
 			CustomSize: Some(VecSplat(96.0)),
 		},
 		Tiles{
@@ -55,8 +55,8 @@ func spawnGameScreenSystem(commands *Commands) {
 func inputToMotionIntentSystem(
 	keys Keys,
 	query Query[struct {
-		MotionIntent *MotionIntent
-	}],
+	MotionIntent *MotionIntent
+}],
 ) {
 	for item := range query.Items() {
 		dir := &item.MotionIntent.Direction
@@ -81,10 +81,10 @@ func inputToMotionIntentSystem(
 func movementSystem(
 	vt VirtualTime,
 	query Query[struct {
-		Ducky        Ducky
-		MotionIntent *MotionIntent
-		Transform    *Transform
-	}],
+	Ducky        Ducky
+	MotionIntent *MotionIntent
+	Transform    *Transform
+}],
 ) {
 	for item := range query.Items() {
 		delta := item.MotionIntent.Direction.Mul(item.Ducky.Speed * vt.DeltaSecs)
