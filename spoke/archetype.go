@@ -209,6 +209,24 @@ func (a *Archetype) addedAt(row Row, componentType *ComponentType) Tick {
 	return column.Added(row)
 }
 
+func (a *Archetype) LastAdded(componentType *ComponentType) Tick {
+	column := a.getColumn(componentType)
+	if column == nil {
+		return NoTick
+	}
+
+	return column.LastAdded
+}
+
+func (a *Archetype) LastChanged(componentType *ComponentType) Tick {
+	column := a.getColumn(componentType)
+	if column == nil {
+		return NoTick
+	}
+
+	return column.LastChanged
+}
+
 func (a *Archetype) getColumn(componentType *ComponentType) *ErasedColumn {
 	return a.columnsByType[componentType]
 }

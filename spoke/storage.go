@@ -208,9 +208,13 @@ func (s *Storage) Get(entityId EntityId) (EntityRef, bool) {
 	return archetype.Get(entityId)
 }
 
-func (s *Storage) GetWithQuery(q *CachedQuery, ctx QueryContext, entityId EntityId) (EntityRef, bool) {
+func (s *Storage) GetWithQuery(q *CachedQuery, qc QueryContext, entityId EntityId) (EntityRef, bool) {
 	archetype, ok := s.entityToArchetype[entityId]
 	if !ok {
+		return EntityRef{}, false
+	}
+
+	if !q.MatchesArchetypeWithQueryContext(qc, archetype) {
 		return EntityRef{}, false
 	}
 
@@ -224,10 +228,8 @@ func (s *Storage) GetWithQuery(q *CachedQuery, ctx QueryContext, entityId Entity
 		panic("archetype does not contain entity")
 	}
 
-	if !q.IsArchetypeOnly {
-		if !q.Matches(ctx, entity) {
-			return EntityRef{}, false
-		}
+	if !q.IsArchetypeOnly && !q.Matches(qc, entity) {
+		return EntityRef{}, false
 	}
 
 	entity.fetch = unsafeSlice(q.Accessors[accessorIdx].Columns)
@@ -293,7 +295,7 @@ func (it *ArchetypeIter) Next() *Archetype {
 // IterQuery returns an iterator over entity refs matching the given query.
 func (s *Storage) IterQuery(q *CachedQuery, ctx QueryContext) QueryIter {
 	return QueryIter{
-		ctx:         ctx,
+		qc:          ctx,
 		query:       *q,
 		accessorIdx: -1,
 	}
@@ -314,7 +316,7 @@ func (s *Storage) EntityCount() int {
 }
 
 type QueryIter struct {
-	ctx   QueryContext
+	qc    QueryContext
 	query CachedQuery
 
 	row Row
@@ -336,7 +338,7 @@ func (it *QueryIter) Next() (EntityRef, bool) {
 
 			it.row += 1
 
-			if it.query.IsArchetypeOnly || it.query.Matches(it.ctx, entity) {
+			if it.query.IsArchetypeOnly || it.query.Matches(it.qc, entity) {
 				return entity, true
 			}
 		}
@@ -347,9 +349,15 @@ func (it *QueryIter) Next() (EntityRef, bool) {
 			break
 		}
 
+		ac := &it.query.Accessors[it.accessorIdx]
+
+		if !it.query.MatchesArchetypeWithQueryContext(it.qc, ac.Archetype) {
+			continue
+		}
+
 		// reset iterator
 		it.row = 0
-		it.entities = it.query.Accessors[it.accessorIdx].Archetype.entities
+		it.entities = ac.Archetype.entities
 	}
 
 	return EntityRef{}, false

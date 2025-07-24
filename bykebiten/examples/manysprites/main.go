@@ -4,6 +4,7 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
+	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
@@ -33,7 +34,9 @@ func main() {
 	})
 
 	app.AddSystems(Startup, createSprites)
-	app.AddSystems(Update, System(avoidCursorSystem, movementSystem, wrapScreenSystem).Chain())
+	app.AddSystems(Update, System(avoidCursorSystem, movementSystem, dampenSystem, wrapScreenSystem).Chain())
+
+	app.AddSystems(Update, System(pauseSystem).RunIf(KeyJustPressed(ebiten.KeySpace)))
 
 	fmt.Println(app.Run())
 }
@@ -90,6 +93,15 @@ func movementSystem(items Query[moveSpritesItem], t VirtualTime) {
 	}
 }
 
+func dampenSystem(t VirtualTime, items Query[*Velocity]) {
+	for item := range items.Items() {
+		if item.Linear.LengthSqr() < 10 {
+			continue
+		}
+		item.Linear = item.Linear.Mul(0.999 * (1 - t.DeltaSecs))
+	}
+}
+
 type wrapScreenItem struct {
 	With[WrapScreen]
 
@@ -122,5 +134,13 @@ func avoidCursorSystem(mouseCursor MouseCursor, vt VirtualTime, items Query[stru
 
 		newVelocity := item.Velocity.Linear.Mul(1 - vt.DeltaSecs).Add(mouseCursor.VecTo(pos).Normalized().Mul(f * vt.DeltaSecs))
 		item.Velocity.Linear = newVelocity
+	}
+}
+
+func pauseSystem(vt *VirtualTime) {
+	if vt.Scale == 0 {
+		vt.Scale = 1
+	} else {
+		vt.Scale = 0
 	}
 }

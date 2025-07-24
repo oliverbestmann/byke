@@ -25,6 +25,11 @@ type ErasedColumn struct {
 	added   []Tick
 	changed []Tick
 
+	// used to speed up Added + Changed queries directly based
+	// on archetype checks
+	LastAdded   Tick
+	LastChanged Tick
+
 	// keeps track of the latest hash value of a component
 	// for comparable components
 	hashes []HashValue
@@ -44,6 +49,8 @@ func MakeErasedColumn(ty *ComponentType) MakeColumn {
 
 		return &ErasedColumn{
 			ComponentType: ty,
+			LastAdded:     NoTick,
+			LastChanged:   NoTick,
 			itemSize:      ty.Type.Size(),
 			slice:         slice,
 			len:           slice.Len(),
@@ -65,7 +72,16 @@ func (e *ErasedColumn) ptrTo(row Row) unsafe.Pointer {
 	return unsafe.Add(e.memory, uintptr(row)*e.itemSize)
 }
 
-func (e *ErasedColumn) copyValueTo(row Row, value ErasedComponent) {
+func (e *ErasedColumn) copyValueTo(rowTarget Row, component ErasedComponent) {
+	if e.trivialCopy {
+		e.memcopyValueTo(rowTarget, component)
+	} else {
+		ptrTarget := e.ptrTo(rowTarget)
+		e.ComponentType.UnsafeSetValue(ptrTarget, component)
+	}
+}
+
+func (e *ErasedColumn) memcopyValueTo(row Row, value ErasedComponent) {
 	target := buf(e.ptrTo(row))
 	source := buf(pointerTo(value))
 	copy((*target)[:e.itemSize], (*source)[:e.itemSize])
@@ -80,16 +96,14 @@ func (e *ErasedColumn) Append(tick Tick, component ErasedComponent) {
 
 	e.len += 1
 
-	if e.trivialCopy {
-		e.copyValueTo(rowTarget, component)
-	} else {
-		target := e.ptrTo(rowTarget)
-		e.ComponentType.UnsafeSetValue(target, component)
-	}
+	e.copyValueTo(rowTarget, component)
 
 	e.added = append(e.added, tick)
 	e.changed = append(e.changed, tick)
 	e.hashes = append(e.hashes, e.hash(rowTarget))
+
+	e.LastAdded = tick
+	e.LastChanged = tick
 }
 
 func (e *ErasedColumn) Copy(from, to Row) {
@@ -129,13 +143,9 @@ func (e *ErasedColumn) Changed(row Row) Tick {
 
 func (e *ErasedColumn) Update(tick Tick, row Row, cv ErasedComponent) {
 	e.changed[row] = tick
+	e.LastChanged = tick
 
-	if e.trivialCopy {
-		e.copyValueTo(row, cv)
-	} else {
-		e.ComponentType.UnsafeSetValue(e.ptrTo(row), cv)
-	}
-
+	e.copyValueTo(row, cv)
 	e.hashes[row] = e.hash(row)
 }
 
@@ -143,6 +153,9 @@ func (e *ErasedColumn) Import(sourceColumn *ErasedColumn, row Row) {
 	e.added = append(e.added, sourceColumn.added[row])
 	e.changed = append(e.changed, sourceColumn.changed[row])
 	e.hashes = append(e.hashes, sourceColumn.hashes[row])
+
+	e.LastAdded = max(e.LastAdded, sourceColumn.added[row])
+	e.LastChanged = max(e.LastChanged, sourceColumn.changed[row])
 
 	e.ensureSpace()
 
@@ -185,29 +198,35 @@ func (e *ErasedColumn) CheckChanged(tick Tick) {
 	_ = hashes[n-1]
 	_ = changed[n-1]
 
-	if e.ComponentType.TriviallyHashable {
+	var hasChanges bool
+
+	switch {
+	case e.ComponentType.TriviallyHashable:
 		memorySlices := e.ComponentType.MemorySlices
 		for row := range n {
 			hashValue := hashOf(memorySlices, e.ptrTo(row))
 			if hashes[row] != hashValue {
 				changed[row] = tick
 				hashes[row] = hashValue
+				hasChanges = true
 			}
 		}
 
-		return
-	}
+	case e.ComponentType.Maphash != nil:
+		maphash := e.ComponentType.Maphash
 
-	if maphash := e.ComponentType.Maphash; maphash != nil {
 		for row := range n {
 			hashValue := maphash(e.Get(row))
 			if hashes[row] != hashValue {
 				changed[row] = tick
 				hashes[row] = hashValue
+				hasChanges = true
 			}
 		}
+	}
 
-		return
+	if hasChanges {
+		e.LastChanged = tick
 	}
 }
 

@@ -80,13 +80,24 @@ func (q *Query) MatchesArchetype(a *Archetype) bool {
 	return true
 }
 
-// Matches must only be run for entities provided by an Archetype that matched MatchesArchetype.
-// If the query IsArchetypeOnly, this method does not need to be called.
-func (q *Query) Matches(ctx QueryContext, entity EntityRef) bool {
+// MatchesArchetypeWithQueryContext must only be called if MatchesArchetype already returns true.
+func (q *Query) MatchesArchetypeWithQueryContext(qc QueryContext, a *Archetype) bool {
 	if q.IsArchetypeOnly {
 		return true
 	}
 
+	for idx := range q.Filters {
+		if !q.Filters[idx].MatchesArchetypeWithQueryContext(qc, a) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Matches must only be run for entities provided by an Archetype that matched MatchesArchetype.
+// If the query IsArchetypeOnly, this method does not need to be called.
+func (q *Query) Matches(ctx QueryContext, entity EntityRef) bool {
 	for idx := range q.Filters {
 		if !q.Filters[idx].Matches(ctx, entity) {
 			return false
@@ -154,39 +165,76 @@ func (f *Filter) MatchesArchetype(a *Archetype) bool {
 		return false
 	}
 
+	if len(f.Or) == 0 {
+		return true
+	}
+
 	for idx := range f.Or {
 		if f.Or[idx].MatchesArchetype(a) {
 			return true
 		}
 	}
 
-	return len(f.Or) == 0
+	return false
+}
+
+// MatchesArchetypeWithQueryContext checks for QueryContext dependent checks on the
+// archetype itself. This must only be called if MatchesArchetype already returns true.
+func (f *Filter) MatchesArchetypeWithQueryContext(qc QueryContext, a *Archetype) bool {
+	if f.Added != nil {
+		tick := a.LastAdded(f.Added)
+		if tick == NoTick || tick < qc.LastRun {
+			return false
+		}
+	}
+
+	if f.Changed != nil {
+		tick := a.LastChanged(f.Changed)
+		if tick == NoTick || tick < qc.LastRun {
+			return false
+		}
+	}
+
+	if len(f.Or) == 0 {
+		return true
+	}
+
+	for _, filter := range f.Or {
+		if filter.MatchesArchetypeWithQueryContext(qc, a) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Matches checks the non-archetype specific checks. This must only be called for
 // an entity from an Archetype accepted by MatchesArchetype.
-func (f *Filter) Matches(ctx QueryContext, entity EntityRef) bool {
+func (f *Filter) Matches(qc QueryContext, entity EntityRef) bool {
 	if f.Added != nil {
 		tick := entity.Added(f.Added)
-		if tick == NoTick || tick < ctx.LastRun {
+		if tick == NoTick || tick < qc.LastRun {
 			return false
 		}
 	}
 
 	if f.Changed != nil {
 		tick := entity.Changed(f.Changed)
-		if tick == NoTick || tick < ctx.LastRun {
+		if tick == NoTick || tick < qc.LastRun {
 			return false
 		}
 	}
 
+	if len(f.Or) == 0 {
+		return true
+	}
 	for _, filter := range f.Or {
-		if filter.Matches(ctx, entity) {
+		if filter.Matches(qc, entity) {
 			return true
 		}
 	}
 
-	return len(f.Or) == 0
+	return false
 }
 
 type QueryContext struct {
