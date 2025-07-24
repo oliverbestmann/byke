@@ -44,13 +44,14 @@ func TestStorage_All(t *testing.T) {
 		},
 	}
 
-	iter := s.IterQuery(s.OptimizeQuery(query), QueryContext{LastRun: tick})
+	q := s.OptimizeQuery(query)
+	iter := s.IterQuery(q, QueryContext{LastRun: tick})
 	for entity := range iter.AsSeq() {
 		value := entity.Get(ComponentTypeOf[Velocity]())
 		value.(*Velocity).X = 2
 	}
 
-	s.CheckChanged(7, nil, []*ComponentType{ComponentTypeOf[Velocity]()})
+	s.CheckChanged(7, q, []*ComponentType{ComponentTypeOf[Velocity]()})
 
 	{
 		entity, _ := s.Get(1)

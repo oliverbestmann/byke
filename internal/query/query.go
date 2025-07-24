@@ -21,15 +21,15 @@ type Setter struct {
 	// offset of this field to the start of the struct
 	UnsafeFieldOffset uintptr
 
-	// UseEntityId implies that UnsafeFieldOffset is a pointer to an EntityId variable
-	// and we're supposed to copy the value of the current EntityId into that field.
-	UseEntityId bool
+	ComponentIdx      int
+	ComponentTypeSize uintptr
 
 	UnsafeCopyComponentValue bool
 	UnsafeCopyComponentAddr  bool
 
-	ComponentIdx      int
-	ComponentTypeSize uintptr
+	// UseEntityId implies that UnsafeFieldOffset is a pointer to an EntityId variable
+	// and we're supposed to copy the value of the current EntityId into that field.
+	UseEntityId bool
 }
 
 func FromEntity[T any](target *T, setters []Setter, ref spoke.EntityRef) {

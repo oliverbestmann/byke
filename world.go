@@ -37,10 +37,11 @@ type World struct {
 // You probably want to use the App api instead.
 func NewWorld() *World {
 	return &World{
-		storage:   spoke.NewStorage(),
-		resources: map[reflect.Type]resourceValue{},
-		schedules: map[ScheduleId]*schedule{},
-		systems:   map[SystemId]*preparedSystem{},
+		storage:     spoke.NewStorage(),
+		resources:   map[reflect.Type]resourceValue{},
+		schedules:   map[ScheduleId]*schedule{},
+		systems:     map[SystemId]*preparedSystem{},
+		currentTick: 1,
 	}
 }
 
@@ -486,6 +487,6 @@ func (w *World) removeComponent(entityId EntityId, componentType *spoke.Componen
 	w.onComponentRemoved(entityId, component)
 }
 
-func (w *World) recheckComponents(query *spoke.Query, componentTypes []*spoke.ComponentType) {
+func (w *World) recheckComponents(query *spoke.CachedQuery, componentTypes []*spoke.ComponentType) {
 	w.storage.CheckChanged(w.currentTick, query, componentTypes)
 }

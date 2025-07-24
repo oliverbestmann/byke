@@ -237,24 +237,26 @@ func (s *Storage) GetWithQuery(q *CachedQuery, qc QueryContext, entityId EntityI
 	return entity, true
 }
 
-func (s *Storage) CheckChanged(tick Tick, query *Query, types []*ComponentType) {
+func (s *Storage) CheckChanged(tick Tick, query *CachedQuery, types []*ComponentType) {
 	for _, ty := range types {
 		if !ty.Comparable {
 			continue
 		}
 
-		for _, archetype := range s.archetypes.All() {
-			if !archetype.ContainsType(ty) {
+		for idx := range query.Accessors {
+			ac := &query.Accessors[idx]
+
+			if !ac.Archetype.ContainsType(ty) {
 				continue
 			}
 
-			if query != nil && !query.MatchesArchetype(archetype) {
+			if !query.MatchesArchetype(ac.Archetype) {
 				// the query did not return any values from this archetype,
 				// so no way anything has changed
 				continue
 			}
 
-			archetype.CheckChanged(tick, ty)
+			ac.Archetype.CheckChanged(tick, ty)
 		}
 	}
 }

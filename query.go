@@ -130,7 +130,7 @@ func (q *queryParamState) getValue(sc systemContext) reflect.Value {
 }
 
 func (q *queryParamState) cleanupValue() {
-	q.world.recheckComponents(&q.inner.Query.Query, q.mutable)
+	q.world.recheckComponents(q.inner.Query, q.mutable)
 }
 
 func (q *queryParamState) valueType() reflect.Type {
