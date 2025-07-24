@@ -47,6 +47,8 @@ type ComponentType struct {
 
 	// Comparable indicates if the type is comparable
 	Comparable bool
+
+	memcmp bool
 }
 
 func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
@@ -147,6 +149,8 @@ func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 
 		ty.MakeColumn = MakeErasedColumn(ty)
 		ty.Comparable = true
+
+		ty.memcmp = !typeHasPaddingBytes(reflectType) && len(ty.MemorySlices) == 1
 
 		ty.Maphash = func(component ErasedComponent) HashValue {
 			return HashValue(maphash.Comparable(seed, *any(component).(*C)))

@@ -37,6 +37,8 @@ type ErasedColumn struct {
 	// slice of values
 	slice reflect.Value
 
+	sliceCopy []byte
+
 	dummyValue ErasedComponent
 
 	trivialCopy bool
@@ -104,6 +106,9 @@ func (e *ErasedColumn) Append(tick Tick, component ErasedComponent) {
 
 	e.LastAdded = tick
 	e.LastChanged = tick
+
+	// copy the byte to the extra storage
+	e.sliceCopy = append(e.sliceCopy, (*(buf)(e.ptrTo(rowTarget)))[:e.itemSize]...)
 }
 
 func (e *ErasedColumn) Copy(from, to Row) {
@@ -127,6 +132,8 @@ func (e *ErasedColumn) Truncate(n Row) {
 	e.hashes = e.hashes[:n]
 
 	e.len = int(n)
+
+	e.sliceCopy = e.sliceCopy[:uintptr(n)*e.itemSize]
 }
 
 func (e *ErasedColumn) Get(row Row) ErasedComponent {
@@ -171,6 +178,9 @@ func (e *ErasedColumn) Import(sourceColumn *ErasedColumn, row Row) {
 	} else {
 		e.ComponentType.UnsafeCopyValue(target, source)
 	}
+
+	// copy the byte to the extra storage
+	e.sliceCopy = append(e.sliceCopy, (*(buf)(e.ptrTo(rowTarget)))[:e.itemSize]...)
 }
 
 func (e *ErasedColumn) ensureSpace() {
@@ -192,6 +202,11 @@ func (e *ErasedColumn) CheckChanged(tick Tick) {
 		return
 	}
 
+	if e.ComponentType.memcmp {
+		e.memcheck(tick)
+		return
+	}
+
 	n := Row(e.len)
 	hashes, changed := e.hashes, e.changed
 
@@ -201,6 +216,9 @@ func (e *ErasedColumn) CheckChanged(tick Tick) {
 	var hasChanges bool
 
 	switch {
+	case e.ComponentType.memcmp:
+		e.memcheck(tick)
+
 	case e.ComponentType.TriviallyHashable:
 		memorySlices := e.ComponentType.MemorySlices
 		for row := range n {
@@ -227,6 +245,39 @@ func (e *ErasedColumn) CheckChanged(tick Tick) {
 
 	if hasChanges {
 		e.LastChanged = tick
+	}
+}
+
+func (e *ErasedColumn) memcheck(tick Tick) {
+	slice := (*(buf)(e.ptrTo(0)))[:uintptr(e.len)*e.itemSize]
+
+	var hasChanges bool
+
+	itemSize := int(e.itemSize)
+	if itemSize <= 0 {
+		return
+	}
+
+	var minOffset = math.MaxInt
+	var maxOffset = math.MinInt
+
+	for offset := 0; offset < e.len*itemSize; offset += itemSize {
+		offset = memcmp(slice, e.sliceCopy, offset)
+		if offset == -1 {
+			break
+		}
+
+		item := offset / itemSize
+		e.changed[item] = tick
+		hasChanges = true
+
+		minOffset = min(minOffset, offset)
+		maxOffset = max(maxOffset, (item+1)*itemSize)
+	}
+
+	if hasChanges {
+		e.LastChanged = tick
+		copy(e.sliceCopy[minOffset:maxOffset], slice[minOffset:maxOffset])
 	}
 }
 
