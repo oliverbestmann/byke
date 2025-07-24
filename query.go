@@ -79,6 +79,15 @@ func (q *Query[T]) Items() iter.Seq[T] {
 	return q.items
 }
 
+func (q *Query[T]) AppendTo(values []T) []T {
+	iterValues(q.inner, func(value T) bool {
+		values = append(values, value)
+		return true
+	})
+
+	return values
+}
+
 func (q *Query[T]) Single() (T, bool) {
 	var result T
 	var count int
@@ -135,23 +144,27 @@ type innerQuery struct {
 	QueryContext spoke.QueryContext
 }
 
-func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
+func iterValues[T any](inner *innerQuery, fn func(value T) bool) {
+	it := inner.Storage.IterQuery(inner.Query, inner.QueryContext)
+
 	var target T
 
-	return func(yield func(T) bool) {
-		it := inner.Storage.IterQuery(inner.Query, inner.QueryContext)
-
-		for {
-			ref, more := it.Next()
-			if !more {
-				return
-			}
-
-			query.FromEntity(&target, inner.Setters, ref)
-
-			if !yield(target) {
-				return
-			}
+	for {
+		ref, more := it.Next()
+		if !more {
+			break
 		}
+
+		query.FromEntity(&target, inner.Setters, ref)
+
+		if !fn(target) {
+			break
+		}
+	}
+}
+
+func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
+	return func(yield func(T) bool) {
+		iterValues[T](inner, yield)
 	}
 }

@@ -147,9 +147,9 @@ func renderSystem(
 	}()
 
 	// re-use the slices and collect all values
-	c.Sprites = slices.AppendSeq(c.Sprites[:0], spritesQuery.Items())
-	c.Texts = slices.AppendSeq(c.Texts[:0], textsQuery.Items())
-	c.Vectors = slices.AppendSeq(c.Vectors[:0], vectorsQuery.Items())
+	c.Sprites = spritesQuery.AppendTo(c.Sprites[:0])
+	c.Texts = textsQuery.AppendTo(c.Texts[:0])
+	c.Vectors = vectorsQuery.AppendTo(c.Vectors[:0])
 
 	items := c.Items()
 

@@ -38,7 +38,8 @@ func FromEntity[T any](target *T, setters []Setter, ref spoke.EntityRef) {
 	for idx := range setters {
 		setter := &setters[idx]
 
-		if setter.UnsafeCopyComponentValue {
+		switch {
+		case setter.UnsafeCopyComponentValue:
 			// target points to a component value
 			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
 			source := ref.GetAt(setter.ComponentIdx)
@@ -50,10 +51,7 @@ func FromEntity[T any](target *T, setters []Setter, ref spoke.EntityRef) {
 				clear((*buf(target))[:setter.ComponentTypeSize])
 			}
 
-			continue
-		}
-
-		if setter.UnsafeCopyComponentAddr {
+		case setter.UnsafeCopyComponentAddr:
 			// target points to a pointer to a component value
 			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
 			source := ref.GetAt(setter.ComponentIdx)
@@ -61,13 +59,9 @@ func FromEntity[T any](target *T, setters []Setter, ref spoke.EntityRef) {
 			// set the target pointer to the address of the source
 			*(*unsafe.Pointer)(target) = source
 
-			continue
-		}
-
-		if setter.UseEntityId {
+		case setter.UseEntityId:
 			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
 			*(*spoke.EntityId)(target) = ref.EntityId()
-			continue
 		}
 	}
 }

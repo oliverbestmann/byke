@@ -199,8 +199,8 @@ func (f *Filter) MatchesArchetypeWithQueryContext(qc QueryContext, a *Archetype)
 		return true
 	}
 
-	for _, filter := range f.Or {
-		if filter.MatchesArchetypeWithQueryContext(qc, a) {
+	for idx := range f.Or {
+		if f.Or[idx].MatchesArchetypeWithQueryContext(qc, a) {
 			return true
 		}
 	}
@@ -228,8 +228,8 @@ func (f *Filter) Matches(qc QueryContext, entity EntityRef) bool {
 	if len(f.Or) == 0 {
 		return true
 	}
-	for _, filter := range f.Or {
-		if filter.Matches(qc, entity) {
+	for idx := range f.Or {
+		if f.Or[idx].Matches(qc, entity) {
 			return true
 		}
 	}
