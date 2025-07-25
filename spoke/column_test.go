@@ -36,14 +36,15 @@ func BenchmarkColumn_Get1k(b *testing.B) {
 func BenchmarkColumn_CheckChanges(b *testing.B) {
 	type Velocity struct {
 		ComparableComponent[Velocity]
-		X, Y float64
+		X, Y float32
+		Z    float32
 	}
 
 	velocities := ComponentTypeOf[Velocity]().MakeColumn()
 
 	// append a random row
 	for range 1000 {
-		velocities.Append(1, &Velocity{X: rand.Float64(), Y: rand.Float64()})
+		velocities.Append(1, &Velocity{X: rand.Float32(), Y: rand.Float32(), Z: rand.Float32()})
 	}
 
 	b.ReportAllocs()
@@ -54,7 +55,7 @@ func BenchmarkColumn_CheckChanges(b *testing.B) {
 	var n byte
 	for b.Loop() {
 		for idx := range 200 {
-			*(*byte)(unsafe.Add(velocities.memory, (300+idx*2)*int(velocities.itemSize))) = n
+			*(*byte)(unsafe.Add(velocities.memory, (300+idx*2)*int(velocities.itemSize)+2)) = n
 		}
 
 		n += 1
@@ -66,14 +67,15 @@ func BenchmarkColumn_CheckChanges(b *testing.B) {
 func BenchmarkColumn_DirtyCheck(b *testing.B) {
 	type Velocity struct {
 		ComparableComponent[Velocity]
-		X, Y float64
+		X, Y float32
+		Z    float32
 	}
 
 	velocities := ComponentTypeOf[Velocity]().MakeColumn()
 
 	// append a random row
 	for range 1000 {
-		velocities.Append(1, &Velocity{X: rand.Float64(), Y: rand.Float64()})
+		velocities.Append(1, &Velocity{X: rand.Float32(), Y: rand.Float32(), Z: rand.Float32()})
 	}
 
 	b.ReportAllocs()
@@ -82,11 +84,11 @@ func BenchmarkColumn_DirtyCheck(b *testing.B) {
 	var n byte
 	for b.Loop() {
 		for idx := range 200 {
-			*(*byte)(unsafe.Add(velocities.memory, (300+idx*2)*int(velocities.itemSize))) = n
+			*(*byte)(unsafe.Add(velocities.memory, (300+idx*2)*int(velocities.itemSize)+2)) = n
 		}
 
 		n += 1
 
-		velocities.memcheck(Tick(2))
+		velocities.checkChangesUsingSliceCompare(Tick(2))
 	}
 }

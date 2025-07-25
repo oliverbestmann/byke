@@ -1,6 +1,7 @@
 package spoke
 
 import (
+	"bytes"
 	"math"
 	"reflect"
 	"unsafe"
@@ -37,6 +38,7 @@ type ErasedColumn struct {
 	// slice of values
 	slice reflect.Value
 
+	// a second copy of the values used for dirty tracking
 	sliceCopy []byte
 
 	dummyValue ErasedComponent
@@ -74,19 +76,34 @@ func (e *ErasedColumn) ptrTo(row Row) unsafe.Pointer {
 	return unsafe.Add(e.memory, uintptr(row)*e.itemSize)
 }
 
+func (e *ErasedColumn) shadowPtrTo(row Row) unsafe.Pointer {
+	if int(row) >= e.len {
+		panic("out of bounds")
+	}
+
+	base := unsafe.Pointer(unsafe.SliceData(e.sliceCopy))
+	return unsafe.Add(base, uintptr(row)*e.itemSize)
+}
+
 func (e *ErasedColumn) copyValueTo(rowTarget Row, component ErasedComponent) {
 	if e.trivialCopy {
-		e.memcopyValueTo(rowTarget, component)
+		e.rawCopyValue(rowTarget, component)
 	} else {
 		ptrTarget := e.ptrTo(rowTarget)
 		e.ComponentType.UnsafeSetValue(ptrTarget, component)
 	}
 }
 
-func (e *ErasedColumn) memcopyValueTo(row Row, value ErasedComponent) {
-	target := buf(e.ptrTo(row))
-	source := buf(pointerTo(value))
-	copy((*target)[:e.itemSize], (*source)[:e.itemSize])
+func rawCopy(to, from unsafe.Pointer, size uintptr) {
+	dst := (*buf(to))[:size]
+	src := (*buf(from))[:size]
+	copy(dst, src)
+}
+
+func (e *ErasedColumn) rawCopyValue(row Row, value ErasedComponent) {
+	target := e.ptrTo(row)
+	source := pointerTo(value)
+	rawCopy(target, source, e.itemSize)
 }
 
 func (e *ErasedColumn) Append(tick Tick, component ErasedComponent) {
@@ -120,10 +137,13 @@ func (e *ErasedColumn) Copy(from, to Row) {
 	target := e.ptrTo(to)
 
 	if e.trivialCopy {
-		copy((*buf(target))[:e.itemSize], (*buf(source))[:e.itemSize])
+		rawCopy(target, source, e.itemSize)
 	} else {
 		e.ComponentType.UnsafeCopyValue(target, source)
 	}
+
+	// copy the byte within the extra storage
+	rawCopy(e.shadowPtrTo(to), e.shadowPtrTo(from), e.itemSize)
 }
 
 func (e *ErasedColumn) Truncate(n Row) {
@@ -154,6 +174,9 @@ func (e *ErasedColumn) Update(tick Tick, row Row, cv ErasedComponent) {
 
 	e.copyValueTo(row, cv)
 	e.hashes[row] = e.hash(row)
+
+	// copy the new data into the shadow buffer
+	rawCopy(e.shadowPtrTo(row), e.ptrTo(row), e.itemSize)
 }
 
 func (e *ErasedColumn) Import(sourceColumn *ErasedColumn, row Row) {
@@ -174,12 +197,12 @@ func (e *ErasedColumn) Import(sourceColumn *ErasedColumn, row Row) {
 	target := e.ptrTo(rowTarget)
 
 	if e.trivialCopy {
-		copy((*buf(target))[:e.itemSize], (*buf(source))[:e.itemSize])
+		rawCopy(target, source, e.itemSize)
 	} else {
 		e.ComponentType.UnsafeCopyValue(target, source)
 	}
 
-	// copy the byte to the extra storage
+	// append the byte to the extra storage
 	e.sliceCopy = append(e.sliceCopy, (*(buf)(e.ptrTo(rowTarget)))[:e.itemSize]...)
 }
 
@@ -203,7 +226,7 @@ func (e *ErasedColumn) CheckChanged(tick Tick) {
 	}
 
 	if e.ComponentType.memcmp {
-		e.memcheck(tick)
+		e.checkChangesUsingSliceCompare(tick)
 		return
 	}
 
@@ -217,7 +240,7 @@ func (e *ErasedColumn) CheckChanged(tick Tick) {
 
 	switch {
 	case e.ComponentType.memcmp:
-		e.memcheck(tick)
+		e.checkChangesUsingSliceCompare(tick)
 
 	case e.ComponentType.TriviallyHashable:
 		memorySlices := e.ComponentType.MemorySlices
@@ -248,26 +271,33 @@ func (e *ErasedColumn) CheckChanged(tick Tick) {
 	}
 }
 
-func (e *ErasedColumn) memcheck(tick Tick) {
+const noOffset = math.MaxUint64
+
+func (e *ErasedColumn) checkChangesUsingSliceCompare(tick Tick) {
+	// no need to check if we do not have any items
+	itemSize := e.itemSize
+	if itemSize == 0 {
+		return
+	}
+
+	// view of the current data as a byte slice
 	slice := (*(buf)(e.ptrTo(0)))[:uintptr(e.len)*e.itemSize]
 
 	var hasChanges bool
 
-	itemSize := int(e.itemSize)
-	if itemSize <= 0 {
-		return
-	}
+	// keep track of the min and max offset of dirty bytes to copy over later
+	var minOffset = uintptr(math.MaxInt)
+	var maxOffset = uintptr(0)
 
-	var minOffset = math.MaxInt
-	var maxOffset = math.MinInt
-
-	for offset := 0; offset < e.len*itemSize; offset += itemSize {
-		offset = memcmp(slice, e.sliceCopy, offset)
-		if offset == -1 {
+	for item := uintptr(0); item < uintptr(e.len); item++ {
+		// start comparing from the current item
+		offset := sliceCompare(slice, e.sliceCopy, item*itemSize)
+		if offset == noOffset {
 			break
 		}
 
-		item := offset / itemSize
+		// calculate item of the first change
+		item = offset / itemSize
 		e.changed[item] = tick
 		hasChanges = true
 
@@ -278,6 +308,12 @@ func (e *ErasedColumn) memcheck(tick Tick) {
 	if hasChanges {
 		e.LastChanged = tick
 		copy(e.sliceCopy[minOffset:maxOffset], slice[minOffset:maxOffset])
+	}
+
+	if debug {
+		if !bytes.Equal(slice, e.sliceCopy) {
+			panic("more changes detected")
+		}
 	}
 }
 
