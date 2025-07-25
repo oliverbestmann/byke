@@ -50,7 +50,7 @@ type ColorTint struct {
 	color.Color
 }
 
-type RenderTarget struct {
+type screenRenderTarget struct {
 	*ebiten.Image
 }
 
@@ -74,10 +74,11 @@ var commonRenderComponents = []byke.ErasedComponent{
 }
 
 type renderCommonValues struct {
-	BBox      BBox
-	ColorTint ColorTint
-	Layer     Layer
-	Transform GlobalTransform
+	BBox         BBox
+	ColorTint    ColorTint
+	Layer        Layer
+	Transform    GlobalTransform
+	RenderLayers byke.Option[RenderLayers]
 }
 
 type hasCommonValues interface {
@@ -118,6 +119,8 @@ func (r *renderVectorValue) commonValues() *renderCommonValues {
 }
 
 type renderCache struct {
+	Cameras []cameraValue
+
 	Sprites []renderSpriteValue
 	Texts   []renderTextValue
 	Vectors []renderVectorValue
@@ -130,8 +133,15 @@ type renderCache struct {
 	all []hasCommonValues
 }
 
+type cameraValue struct {
+	Camera       Camera
+	Transform    GlobalTransform
+	RenderLayers byke.Option[RenderLayers]
+}
+
 func renderSystem(
-	screen RenderTarget,
+	screen screenRenderTarget,
+	camerasQuery byke.Query[cameraValue],
 	spritesQuery byke.Query[renderSpriteValue],
 	textsQuery byke.Query[renderTextValue],
 	vectorsQuery byke.Query[renderVectorValue],
@@ -147,6 +157,7 @@ func renderSystem(
 	}()
 
 	// re-use the slices and collect all values
+	c.Cameras = camerasQuery.AppendTo(c.Cameras[:0])
 	c.Sprites = spritesQuery.AppendTo(c.Sprites[:0])
 	c.Texts = textsQuery.AppendTo(c.Texts[:0])
 	c.Vectors = vectorsQuery.AppendTo(c.Vectors[:0])
@@ -158,8 +169,40 @@ func renderSystem(
 		return compareZ(a.commonValues(), b.commonValues())
 	})
 
+	// sort cameras
+	slices.SortFunc(c.Cameras, func(a, b cameraValue) int {
+		return a.Camera.Order - b.Camera.Order
+	})
+
+	for _, camera := range c.Cameras {
+		// get the target to render to
+		renderTarget := camera.Camera.RenderTarget.Image
+		if renderTarget == nil {
+			renderTarget = screen.Image
+		}
+
+		// render all items that are part of this camera
+		renderItems(c, renderTarget, camera, items)
+	}
+}
+
+func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items []hasCommonValues) {
+	var crl RenderLayers = camera.RenderLayers.Or(renderLayerZero)
+
+	screenSize := imageSizeOf(screen)
+
+	var cameraTr ebiten.GeoM
+	// set the origin of the viewport to the center first
+	cameraTr.Translate(-screenSize.X/2, -screenSize.Y/2)
+	cameraTr.Concat(camera.Camera.ToScreenSpace(camera.Transform))
+	cameraTr.Translate(screenSize.X/2, screenSize.Y/2)
+
 	for _, item := range items {
 		common := item.commonValues()
+
+		if !crl.Intersects(common.RenderLayers.Or(renderLayerZero)) {
+			continue
+		}
 
 		var g ebiten.GeoM
 
@@ -193,6 +236,8 @@ func renderSystem(
 		// move to target position
 		g.Translate(tr.Translation.X, tr.Translation.Y)
 
+		g.Concat(cameraTr)
+
 		// apply color
 		var colorScale ebiten.ColorScale
 		colorScale.Scale(common.ColorTint.PremultipliedValues())
@@ -217,7 +262,7 @@ func renderSystem(
 			op.GeoM = g
 			op.ColorScale = colorScale
 			op.LineSpacing = item.Face.Metrics().VLineGap
-			text.Draw(screen.Image, item.Text.Text, item.Face, &op)
+			text.Draw(screen, item.Text.Text, item.Face, &op)
 
 		case *renderVectorValue:
 			// need to pre translate using the paths origin to make it match the
@@ -226,19 +271,19 @@ func renderSystem(
 			pathG.Translate(-origin.X, -origin.Y)
 			pathG.Concat(g)
 
-			path := &cache.Value.TempPath
+			path := &c.TempPath
 			path.Reset()
 			path.AddPath(item.Path.inner(), &vector.AddPathOptions{GeoM: pathG})
 
 			if fill_, ok := item.Fill.Get(); ok {
 				var fill Fill = fill_
-				vector.FillPath(screen.Image, path, fill.Color, fill.Antialias, vector.FillRuleNonZero)
+				vector.FillPath(screen, path, fill.Color, fill.Antialias, vector.FillRuleNonZero)
 			}
 
 			if stroke_, ok := item.Stroke.Get(); ok {
 				var stroke Stroke = stroke_
 
-				vector.StrokePath(screen.Image, path, stroke.Color, stroke.Antialias, &vector.StrokeOptions{
+				vector.StrokePath(screen, path, stroke.Color, stroke.Antialias, &vector.StrokeOptions{
 					Width:      float32(stroke.Width),
 					LineCap:    stroke.LineCap,
 					LineJoin:   stroke.LineJoin,

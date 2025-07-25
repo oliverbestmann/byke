@@ -37,7 +37,7 @@ func GamePlugin(app *byke.App) {
 	})
 
 	app.InsertResource(MouseCursor{})
-	app.InsertResource(RenderTarget{})
+	app.InsertResource(screenRenderTarget{})
 	app.InsertResource(ScreenSize{})
 
 	app.InsertResource(MouseButtons{})
@@ -94,7 +94,7 @@ func toggleRenderTimingsSystem(world *byke.World) {
 
 func renderTimingsSystem(
 	timings byke.TimingStats,
-	renderTarget RenderTarget,
+	renderTarget screenRenderTarget,
 	frameCounter *byke.Local[int],
 	image *byke.Local[*ebiten.Image],
 ) {
@@ -209,7 +209,7 @@ func (g *game) Update() error {
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
-	g.World.InsertResource(RenderTarget{Image: screen})
+	g.World.InsertResource(screenRenderTarget{Image: screen})
 	g.World.InsertResource(ScreenSize{Vec: imageSizeOf(screen)})
 
 	g.World.RunSchedule(byke.Main)

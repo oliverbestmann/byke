@@ -36,5 +36,16 @@ func main() {
 	assets.Image("ebiten.png")
 	assets.Image("ducky.png")
 
+	// spawn the camera
+	app.AddSystems(Startup, spawnCameraSystem)
+
 	fmt.Println(app.Run())
+}
+
+func spawnCameraSystem(commands *Commands) {
+	commands.Spawn(Camera{})
+
+	// commands.Spawn(Camera{}, NewTransform().
+	// 	WithRotation(math.Pi/2).
+	// 	WithScale(gm.VecSplat(0.25)))
 }
