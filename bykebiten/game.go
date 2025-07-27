@@ -61,7 +61,7 @@ func GamePlugin(app *byke.App) {
 	)
 
 	app.AddSystems(byke.PreRender,
-		computeCachedVertices,
+		computePathSizeSystem,
 		computeSpriteSizeSystem,
 		computeTextSizeSystem,
 	)
@@ -188,6 +188,7 @@ func runWorld(world *byke.World) error {
 	win, _ := byke.ResourceOf[WindowConfig](world)
 	ebiten.SetWindowTitle(win.Title)
 	ebiten.SetWindowSize(win.Width, win.Height)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	var options ebiten.RunGameOptions
 	options.SingleThread = true

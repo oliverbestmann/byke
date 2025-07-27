@@ -12,6 +12,10 @@ func Some[T any](value T) Optional[T] {
 	}
 }
 
+func None[T any]() Optional[T] {
+	return Optional[T]{}
+}
+
 func (o *Optional[T]) Or(fallbackValue T) T {
 	if !o.IsSet {
 		return fallbackValue

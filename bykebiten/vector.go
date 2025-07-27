@@ -77,8 +77,7 @@ type Path struct {
 }
 
 func (*Path) RequireComponents() []spoke.ErasedComponent {
-	components := []spoke.ErasedComponent(nil)
-	return append(components, commonRenderComponents...)
+	return commonRenderComponents
 }
 
 func (p *Path) inner() *vector.Path {
@@ -145,16 +144,25 @@ func (p *Path) Close() {
 	p.inner().Close()
 }
 
-func computeCachedVertices(
+func computePathSizeSystem(
 	query byke.Query[struct {
-		byke.Or[byke.Changed[Path], byke.Changed[Stroke]]
+		_ byke.OrStruct[struct {
+			_ byke.Changed[Path]
+			_ byke.Changed[Anchor]
+		}]
 
 		Path   Path
 		Anchor Anchor
 
 		BBox *BBox
 	}],
+
+	pathTemp *byke.Local[vector.Path],
 ) {
+	const pathScale = 1000.0
+
+	var apo vector.AddPathOptions
+	apo.GeoM.Scale(pathScale, pathScale)
 
 	for item := range query.Items() {
 		// get the actual path
@@ -163,10 +171,14 @@ func computeCachedVertices(
 			continue
 		}
 
-		bbox := path.Bounds()
+		// path bounds is integer sized, so that is not very accurate.
+		// to get a better resolution, we scale the path up before taking its bounds
+		pathTemp.Value.Reset()
+		pathTemp.Value.AddPath(path, &apo)
+		bbox := pathTemp.Value.Bounds()
 
-		minVec := gm.VecOf(float64(bbox.Min.X), float64(bbox.Min.Y))
-		maxVec := gm.VecOf(float64(bbox.Max.X), float64(bbox.Max.Y))
+		minVec := gm.VecOf(float64(bbox.Min.X), float64(bbox.Min.Y)).Mul(1.0 / pathScale)
+		maxVec := gm.VecOf(float64(bbox.Max.X), float64(bbox.Max.Y)).Mul(1.0 / pathScale)
 
 		// calculate bounding box
 		size := maxVec.Sub(minVec)

@@ -2,6 +2,7 @@ package gm
 
 import (
 	"fmt"
+	"image"
 )
 
 type Rect struct {
@@ -83,6 +84,13 @@ func (r Rect) Translate(offset Vec) Rect {
 func (r Rect) Contains(p Vec) bool {
 	return r.Min.X <= p.X && p.X <= r.Max.X &&
 		r.Min.Y <= p.Y && p.Y <= r.Max.Y
+}
+
+func (r Rect) ToImageRectangle() image.Rectangle {
+	return image.Rectangle{
+		Min: r.Min.ToImagePoint(),
+		Max: r.Max.ToImagePoint(),
+	}
 }
 
 func (r Rect) String() string {

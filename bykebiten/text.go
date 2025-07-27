@@ -21,12 +21,17 @@ type Text struct {
 	Text string
 }
 
-func (t Text) RequireComponents() []spoke.ErasedComponent {
+var textRequiredComponents = sync.OnceValue(func() []spoke.ErasedComponent {
 	components := []ErasedComponent{
-		TextFace{Face: DefaultFontFace()},
+		&TextFace{Face: DefaultFontFace()},
+		AnchorCenter,
 	}
 
 	return append(components, commonRenderComponents...)
+})
+
+func (t Text) RequireComponents() []spoke.ErasedComponent {
+	return textRequiredComponents()
 }
 
 type TextFace struct {

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
+	"github.com/oliverbestmann/byke/bykebiten/color"
+	"github.com/oliverbestmann/byke/gm"
 )
 
 //go:embed assets
@@ -43,7 +45,25 @@ func main() {
 }
 
 func spawnCameraSystem(commands *Commands) {
-	commands.Spawn(Camera{})
+	commands.Spawn(
+		Camera{
+			ClearColor: &color.Color{
+				R: 0.1,
+				G: 0.1,
+				B: 0.1,
+				A: 1.0,
+			},
+
+			SubCameraView: &gm.Rect{
+				Min: gm.VecSplat(0.2),
+				Max: gm.VecSplat(0.8),
+			},
+		}, OrthographicProjection{
+			Scale:          1,
+			ViewportOrigin: gm.VecSplat(0.5),
+			ScalingMode:    ScalingModeFixed{Viewport: gm.VecOf(800.0, 600)},
+		},
+	)
 
 	// commands.Spawn(Camera{}, NewTransform().
 	// 	WithRotation(math.Pi/2).

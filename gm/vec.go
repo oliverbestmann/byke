@@ -2,6 +2,7 @@ package gm
 
 import (
 	"fmt"
+	"image"
 	"math"
 )
 
@@ -126,6 +127,18 @@ func (v VecType[S]) DistanceToSqr(other VecType[S]) S {
 // VecTo returns the vector that points from v to other.
 func (v VecType[S]) VecTo(other VecType[S]) VecType[S] {
 	return other.Sub(v)
+}
+
+// ToImagePoint converts the instance into a image.Point. The values are truncated.
+func (v VecType[S]) ToImagePoint() image.Point {
+	return image.Point{
+		X: int(v.X),
+		Y: int(v.Y),
+	}
+}
+
+func (v VecType[S]) XY() (S, S) {
+	return v.X, v.Y
 }
 
 func (v VecType[S]) String() string {

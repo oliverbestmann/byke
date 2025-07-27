@@ -34,15 +34,15 @@ type Anchor struct {
 }
 
 var (
-	AnchorTopLeft      = Anchor{Vec: gm.Vec{}}
-	AnchorTopCenter    = Anchor{Vec: gm.Vec{X: 0.5}}
-	AnchorTopRight     = Anchor{Vec: gm.Vec{X: 1.0}}
-	AnchorCenterLeft   = Anchor{Vec: gm.Vec{X: 0, Y: 0.5}}
-	AnchorCenter       = Anchor{Vec: gm.Vec{X: 0.5, Y: 0.5}}
-	AnchorCenterRight  = Anchor{Vec: gm.Vec{X: 1.0, Y: 0.5}}
-	AnchorBottomLeft   = Anchor{Vec: gm.Vec{Y: 1.0}}
-	AnchorBottomCenter = Anchor{Vec: gm.Vec{X: 0.5, Y: 1.0}}
-	AnchorBottomRight  = Anchor{Vec: gm.Vec{X: 1.0, Y: 1.0}}
+	AnchorTopLeft      = &Anchor{Vec: gm.Vec{}}
+	AnchorTopCenter    = &Anchor{Vec: gm.Vec{X: 0.5}}
+	AnchorTopRight     = &Anchor{Vec: gm.Vec{X: 1.0}}
+	AnchorCenterLeft   = &Anchor{Vec: gm.Vec{X: 0, Y: 0.5}}
+	AnchorCenter       = &Anchor{Vec: gm.Vec{X: 0.5, Y: 0.5}}
+	AnchorCenterRight  = &Anchor{Vec: gm.Vec{X: 1.0, Y: 0.5}}
+	AnchorBottomLeft   = &Anchor{Vec: gm.Vec{Y: 1.0}}
+	AnchorBottomCenter = &Anchor{Vec: gm.Vec{X: 0.5, Y: 1.0}}
+	AnchorBottomRight  = &Anchor{Vec: gm.Vec{X: 1.0, Y: 1.0}}
 )
 
 type ColorTint struct {
@@ -51,7 +51,7 @@ type ColorTint struct {
 }
 
 type screenRenderTarget struct {
-	*ebiten.Image
+	Image *ebiten.Image
 }
 
 type BBox struct {
@@ -66,11 +66,10 @@ type BBox struct {
 }
 
 var commonRenderComponents = []byke.ErasedComponent{
-	NewTransform(),
-	Layer{},
-	AnchorCenter,
-	ColorTint{Color: color.White},
-	BBox{},
+	&Transform{Scale: gm.VecOne},
+	&Layer{},
+	&ColorTint{Color: color.White},
+	&BBox{},
 }
 
 type renderCommonValues struct {
@@ -136,6 +135,7 @@ type renderCache struct {
 type cameraValue struct {
 	Camera       Camera
 	Transform    GlobalTransform
+	Projection   OrthographicProjection
 	RenderLayers byke.Option[RenderLayers]
 }
 
@@ -176,7 +176,7 @@ func renderSystem(
 
 	for _, camera := range c.Cameras {
 		// get the target to render to
-		renderTarget := camera.Camera.RenderTarget.Image
+		renderTarget := camera.Camera.Target.Image
 		if renderTarget == nil {
 			renderTarget = screen.Image
 		}
@@ -191,11 +191,51 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 
 	screenSize := imageSizeOf(screen)
 
+	// get the sub viewport of the image if needed
+	if sub := camera.Camera.SubCameraView; sub != nil {
+		rect := gm.Rect{
+			Min: sub.Min.MulEach(screenSize),
+			Max: sub.Max.MulEach(screenSize),
+		}
+
+		screen = screen.SubImage(rect.ToImageRectangle()).(*ebiten.Image)
+		screenSize = imageSizeOf(screen)
+	}
+
+	// if we have a clear color, clear the image
+	if cc := camera.Camera.ClearColor; cc != nil {
+		screen.Fill(cc)
+	}
+
+	// calculate the cameras viewport size in world units
+	viewportSizeInWorld := camera.Projection.ScalingMode.
+		ViewportSize(screenSize.X, screenSize.Y).
+		Mul(camera.Projection.Scale).
+		MulEach(camera.Transform.Scale)
+
+	// and the offset from the center of the viewport in world units
+	viewportOffsetInWorld := camera.Projection.ViewportOrigin.MulEach(viewportSizeInWorld)
+
+	scaleWorldToScreen := screenSize.DivEach(viewportSizeInWorld)
+
 	var cameraTr ebiten.GeoM
-	// set the origin of the viewport to the center first
-	cameraTr.Translate(-screenSize.X/2, -screenSize.Y/2)
-	cameraTr.Concat(camera.Camera.ToScreenSpace(camera.Transform))
-	cameraTr.Translate(screenSize.X/2, screenSize.Y/2)
+
+	// move the camera to the target position in world space
+	cameraTr.Translate(camera.Transform.Translation.Mul(-1).XY())
+
+	// now rotate everything around that point
+	if camera.Transform.Rotation != 0 {
+		cameraTr.Rotate(float64(-camera.Transform.Rotation))
+	}
+
+	// TODO I think we're missing a scale here,
+	//  but i am not sure about it.
+
+	// move the viewport
+	cameraTr.Translate(viewportOffsetInWorld.Mul(1).XY())
+
+	// scale the result to world size
+	cameraTr.Scale(scaleWorldToScreen.XY())
 
 	for _, item := range items {
 		common := item.commonValues()
@@ -219,9 +259,6 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 		// flip the direction the origin translation need to be applied
 		origin := common.BBox.Min
 		g.Translate(origin.X*signOf(toSourceScale.X), origin.Y*signOf(toSourceScale.Y))
-
-		// apply flip values
-		// g.Scale(common.BBox.FlipScale.X, toSourceScale.Y)
 
 		if tr.Scale != gm.VecOne {
 			// apply custom size based on transform
