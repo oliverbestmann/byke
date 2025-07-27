@@ -146,13 +146,9 @@ func (p *Path) Close() {
 
 func computePathSizeSystem(
 	query byke.Query[struct {
-		_ byke.OrStruct[struct {
-			_ byke.Changed[Path]
-			_ byke.Changed[Anchor]
-		}]
+		_ byke.Changed[Path]
 
-		Path   Path
-		Anchor Anchor
+		Path Path
 
 		BBox *BBox
 	}],
@@ -181,10 +177,7 @@ func computePathSizeSystem(
 		maxVec := gm.VecOf(float64(bbox.Max.X), float64(bbox.Max.Y)).Mul(1.0 / pathScale)
 
 		// calculate bounding box
-		size := maxVec.Sub(minVec)
-		origin := item.Anchor.MulEach(size).Mul(-1)
-		item.BBox.Rect = gm.RectWithOriginAndSize(origin, size)
+		item.BBox.Rect = gm.RectWithPoints(minVec, maxVec)
 		item.BBox.ToSourceScale = gm.VecOne
-		item.BBox.LocalOrigin = minVec
 	}
 }

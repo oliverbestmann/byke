@@ -6,6 +6,10 @@ import (
 	"slices"
 )
 
+type PickingCamera struct {
+	Component[PickingCamera]
+}
+
 type Interactable struct {
 	ImmutableComponent[Interactable]
 }
@@ -39,20 +43,32 @@ type interactionQueryItem = struct {
 	EntityId
 
 	BBox             BBox
-	Anchor           Anchor
 	Layer            Layer
 	GlobalTransform  GlobalTransform
 	InteractionState InteractionState
+}
+
+type cameraQueryItem struct {
+	_          With[PickingCamera]
+	Transform  GlobalTransform
+	Projection OrthographicProjection
 }
 
 func interactionSystem(
 	commands *Commands,
 	mouseCursor MouseCursor,
 	buttons MouseButtons,
+	screenSize ScreenSize,
+	cameras Query[cameraQueryItem],
 	query Query[interactionQueryItem],
 	queryCache *Local[[]interactionQueryItem],
 ) {
-	queryCache.Value = slices.AppendSeq(queryCache.Value[:0], query.Items())
+	camera, ok := cameras.Single()
+	if !ok {
+		return
+	}
+
+	queryCache.Value = query.AppendTo(queryCache.Value[:0])
 
 	items := queryCache.Value
 
@@ -68,6 +84,14 @@ func interactionSystem(
 		}
 	})
 
+	// calculate camera transform
+	toWorld, ok := CalculateWorldToScreenTransform(camera.Projection, camera.Transform, screenSize.Vec).TryInverse()
+	if !ok {
+		return
+	}
+
+	worldCursor := toWorld.Transform(mouseCursor.Vec)
+
 	for _, item := range items {
 		toLocal, ok := item.GlobalTransform.AsAffine().TryInverse()
 		if !ok {
@@ -76,7 +100,7 @@ func interactionSystem(
 		}
 
 		// transform mouse position into the local space of the component
-		pos := toLocal.Transform(mouseCursor.Vec)
+		pos := toLocal.Transform(worldCursor)
 
 		// check if we hit the bounding box
 		hover := item.BBox.Contains(pos)

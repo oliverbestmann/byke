@@ -62,7 +62,6 @@ type BBox struct {
 	// that have a custom size set. ToSourceScale describes the factor that
 	// the Rect would need to be multiplied with to get the sources size.
 	ToSourceScale gm.Vec
-	LocalOrigin   gm.Vec
 }
 
 var commonRenderComponents = []byke.ErasedComponent{
@@ -207,35 +206,15 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 		screen.Fill(cc)
 	}
 
-	// calculate the cameras viewport size in world units
-	viewportSizeInWorld := camera.Projection.ScalingMode.
-		ViewportSize(screenSize.X, screenSize.Y).
-		Mul(camera.Projection.Scale).
-		MulEach(camera.Transform.Scale)
+	cameraWorldToScreen := CalculateWorldToScreenTransform(camera.Projection, camera.Transform, screenSize)
 
-	// and the offset from the center of the viewport in world units
-	viewportOffsetInWorld := camera.Projection.ViewportOrigin.MulEach(viewportSizeInWorld)
-
-	scaleWorldToScreen := screenSize.DivEach(viewportSizeInWorld)
-
-	var cameraTr ebiten.GeoM
-
-	// move the camera to the target position in world space
-	cameraTr.Translate(camera.Transform.Translation.Mul(-1).XY())
-
-	// now rotate everything around that point
-	if camera.Transform.Rotation != 0 {
-		cameraTr.Rotate(float64(-camera.Transform.Rotation))
-	}
-
-	// TODO I think we're missing a scale here,
-	//  but i am not sure about it.
-
-	// move the viewport
-	cameraTr.Translate(viewportOffsetInWorld.Mul(1).XY())
-
-	// scale the result to world size
-	cameraTr.Scale(scaleWorldToScreen.XY())
+	var toScreen ebiten.GeoM
+	toScreen.SetElement(0, 0, cameraWorldToScreen.Matrix.XAxis.X)
+	toScreen.SetElement(0, 1, cameraWorldToScreen.Matrix.XAxis.Y)
+	toScreen.SetElement(0, 2, cameraWorldToScreen.Translation.X)
+	toScreen.SetElement(1, 0, cameraWorldToScreen.Matrix.YAxis.X)
+	toScreen.SetElement(1, 1, cameraWorldToScreen.Matrix.YAxis.Y)
+	toScreen.SetElement(1, 2, cameraWorldToScreen.Translation.Y)
 
 	for _, item := range items {
 		common := item.commonValues()
@@ -255,10 +234,13 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			g.Scale(1/toSourceScale.X, 1/toSourceScale.Y)
 		}
 
-		// transform by offset. Need to multiply by the sign of source scale as that might
-		// flip the direction the origin translation need to be applied
-		origin := common.BBox.Min
-		g.Translate(origin.X*signOf(toSourceScale.X), origin.Y*signOf(toSourceScale.Y))
+		// FIXME Get this working again
+		if _, ok := item.(*renderVectorValue); !ok {
+			// transform by offset. Need to multiply by the sign of source scale as that might
+			// flip the direction the origin translation need to be applied
+			origin := common.BBox.Min
+			g.Translate(origin.X*signOf(toSourceScale.X), origin.Y*signOf(toSourceScale.Y))
+		}
 
 		if tr.Scale != gm.VecOne {
 			// apply custom size based on transform
@@ -273,7 +255,7 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 		// move to target position
 		g.Translate(tr.Translation.X, tr.Translation.Y)
 
-		g.Concat(cameraTr)
+		g.Concat(toScreen)
 
 		// apply color
 		var colorScale ebiten.ColorScale
@@ -302,15 +284,9 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			text.Draw(screen, item.Text.Text, item.Face, &op)
 
 		case *renderVectorValue:
-			// need to pre translate using the paths origin to make it match the
-			// actual render origin
-			var pathG ebiten.GeoM
-			pathG.Translate(-origin.X, -origin.Y)
-			pathG.Concat(g)
-
 			path := &c.TempPath
 			path.Reset()
-			path.AddPath(item.Path.inner(), &vector.AddPathOptions{GeoM: pathG})
+			path.AddPath(item.Path.inner(), &vector.AddPathOptions{GeoM: g})
 
 			if fill_, ok := item.Fill.Get(); ok {
 				var fill Fill = fill_
@@ -329,6 +305,34 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			}
 		}
 	}
+}
+
+func CalculateWorldToScreenTransform(projection OrthographicProjection, cameraTransform GlobalTransform, screenSize gm.Vec) gm.Affine {
+	// calculate the cameras viewport size in world units
+	viewportSizeInWorld := projection.ScalingMode.
+		ViewportSize(screenSize.X, screenSize.Y).
+		Mul(projection.Scale).
+		MulEach(cameraTransform.Scale)
+
+	toScreen := gm.IdentityAffine()
+
+	// and the offset from the center of the viewport in world units
+	viewportOffsetInWorld := projection.ViewportOrigin.MulEach(viewportSizeInWorld)
+
+	scaleWorldToScreen := screenSize.DivEach(viewportSizeInWorld)
+
+	// scale the viewport
+	toScreen = toScreen.Scale(scaleWorldToScreen)
+
+	// move the viewport
+	toScreen = toScreen.Translate(viewportOffsetInWorld)
+
+	// now rotate everything around that point
+	toScreen = toScreen.Rotate(-cameraTransform.Rotation)
+
+	// move the camera to the target position in world space
+	toScreen = toScreen.Translate(cameraTransform.Translation.Mul(-1))
+	return toScreen
 }
 
 func (c *renderCache) Items() []hasCommonValues {

@@ -45,6 +45,7 @@ func main() {
 }
 
 func spawnCameraSystem(commands *Commands) {
+
 	commands.Spawn(
 		Camera{
 			ClearColor: &color.Color{
@@ -54,18 +55,33 @@ func spawnCameraSystem(commands *Commands) {
 				A: 1.0,
 			},
 
-			SubCameraView: &gm.Rect{
-				Min: gm.VecSplat(0.2),
-				Max: gm.VecSplat(0.8),
-			},
-		}, OrthographicProjection{
+			// SubCameraView: &gm.Rect{
+			// 	Min: gm.VecSplat(0.2),
+			// 	Max: gm.VecSplat(0.8),
+			// },
+		},
+		OrthographicProjection{
 			Scale:          1,
 			ViewportOrigin: gm.VecSplat(0.5),
-			ScalingMode:    ScalingModeFixed{Viewport: gm.VecOf(800.0, 600)},
+			ScalingMode: ScalingModeAutoMin{
+				MinWidth:  1000,
+				MinHeight: 1000,
+			},
 		},
 	)
 
-	// commands.Spawn(Camera{}, NewTransform().
-	// 	WithRotation(math.Pi/2).
-	// 	WithScale(gm.VecSplat(0.25)))
+	commands.Spawn(
+		UiCamera,
+		PickingCamera{},
+		Camera{Order: 1},
+		OrthographicProjection{
+			Scale: 1,
+			ScalingMode: ScalingModeFixedHorizontal{
+				ViewportWidth: 800.0,
+			},
+			ViewportOrigin: gm.VecSplat(0.5),
+		},
+	)
 }
+
+var UiCamera = RenderLayersOf(1)

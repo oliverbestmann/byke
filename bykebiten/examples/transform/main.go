@@ -26,60 +26,64 @@ func main() {
 		Height: 600,
 	})
 
-	app.AddSystems(Startup, createGopherSystem)
-	app.AddSystems(Update, rotateGopherSystem)
+	app.AddSystems(Startup, startupSystem)
+	app.AddSystems(Update, rotateSystem)
 
 	fmt.Println(app.Run())
 }
 
-var _ = ValidateComponent[Gopher]()
+var _ = ValidateComponent[Marker]()
 
-// Gopher is a component that identifies an entity as a gopher.
-type Gopher struct {
-	ComparableComponent[Gopher]
+type Marker struct {
+	ComparableComponent[Marker]
 }
 
-func createGopherSystem(commands *Commands, assets *Assets) {
+func startupSystem(commands *Commands, assets *Assets) {
 	rectImage := assets.Image("rect.png").Await()
 
 	commands.Spawn(
+		Camera{},
+		TransformFromXY(400, 300),
+	)
+
+	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 100}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 200, Y: 100}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage},
 		AnchorCenter,
 	)
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 100}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage},
 		AnchorBottomRight,
 	)
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 200}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage, FlipX: true},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 200, Y: 200}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage, FlipX: true},
 		AnchorCenter,
 	)
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 200}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage, FlipX: true},
 		AnchorBottomRight,
 	)
@@ -88,34 +92,34 @@ func createGopherSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 300}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 300}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
 		AnchorCenter,
 	)
 
 	commands.Spawn(
 		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 500, Y: 300}),
-		Gopher{},
+		Marker{},
 		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
 		AnchorBottomRight,
 	)
 }
 
 type rotateGopherItems struct {
-	With[Gopher]
+	With[Marker]
 
 	// components we want to mutate must be pointers
 	Transform *Transform
 }
 
-func rotateGopherSystem(gophers Query[rotateGopherItems], t VirtualTime) {
+func rotateSystem(gophers Query[rotateGopherItems], t VirtualTime) {
 	for gopher := range gophers.Items() {
 		// rotate gopher around its center
 		gopher.Transform.Rotation += Rad(2 * t.DeltaSecs)

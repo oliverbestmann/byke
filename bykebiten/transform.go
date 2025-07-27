@@ -54,7 +54,7 @@ func (t Transform) AsAffine() gm.Affine {
 
 func (Transform) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
-		GlobalTransform{},
+		GlobalTransform{Scale: gm.VecOne},
 	}
 }
 

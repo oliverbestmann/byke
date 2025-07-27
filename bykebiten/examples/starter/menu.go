@@ -32,6 +32,8 @@ func button(pos gm.Vec, text string) ErasedComponent {
 	buttonShape.Rectangle(gm.RectWithCenterAndSize(gm.VecZero, gm.Vec{X: 192.0, Y: 48.0}))
 
 	return Bundle(
+		UiCamera,
+
 		NewTransform().WithTranslation(pos),
 
 		buttonShape,
@@ -46,17 +48,18 @@ func button(pos gm.Vec, text string) ErasedComponent {
 		Interactable{},
 
 		SpawnChild(
+			UiCamera,
 			Text{Text: text},
 			Layer{Z: 1},
 		),
 	)
 }
 
-func spawnTitleMenuSystem(commands *Commands, screenSize ScreenSize) {
+func spawnTitleMenuSystem(commands *Commands) {
 	commands.
 		Spawn(
 			DespawnOnExitState(ScreenTitle),
-			button(screenSize.Mul(0.5).Add(gm.Vec{Y: -32}), "Start game"),
+			button(gm.Vec{Y: -32}, "Start game"),
 		).
 		Observe(func(_ On[Clicked], screenState *NextState[Screen], menuState *NextState[MenuState]) {
 			screenState.Set(ScreenGame)
@@ -66,7 +69,7 @@ func spawnTitleMenuSystem(commands *Commands, screenSize ScreenSize) {
 	commands.
 		Spawn(
 			DespawnOnExitState(ScreenTitle),
-			button(screenSize.Mul(0.5).Add(gm.Vec{Y: 32}), "Exit Game"),
+			button(gm.Vec{Y: 32}, "Exit Game"),
 		).
 		Observe(func(_ On[Clicked], exit *EventWriter[AppExit]) {
 			exit.Write(AppExitSuccess)
@@ -89,11 +92,11 @@ func applyColorByInteractionState(query Query[applyColorByInteractionStateQueryI
 	}
 }
 
-func spawnPausedMenuSystem(commands *Commands, screenSize ScreenSize) {
+func spawnPausedMenuSystem(commands *Commands) {
 	commands.
 		Spawn(
 			DespawnOnExitState(MenuStatePause),
-			button(screenSize.Mul(0.5).Add(gm.Vec{Y: -32}), "Continue game"),
+			button(gm.Vec{Y: -32}, "Continue game"),
 		).
 		Observe(func(_ On[Clicked], pauseState *NextState[PauseState], menuState *NextState[MenuState]) {
 			pauseState.Set(PauseStateUnpaused)
@@ -103,7 +106,7 @@ func spawnPausedMenuSystem(commands *Commands, screenSize ScreenSize) {
 	commands.
 		Spawn(
 			DespawnOnExitState(MenuStatePause),
-			button(screenSize.Mul(0.5).Add(gm.Vec{Y: 32}), "Back to menu"),
+			button(gm.Vec{Y: 32}, "Back to menu"),
 		).
 		Observe(func(_ On[Clicked], nextScreen *NextState[Screen], pauseState *NextState[PauseState]) {
 			nextScreen.Set(ScreenTitle)

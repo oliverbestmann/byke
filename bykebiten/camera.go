@@ -32,8 +32,6 @@ type Camera struct {
 	Order int
 }
 
-var DefaultCamera = Camera{}
-
 func (c Camera) RequireComponents() []spoke.ErasedComponent {
 	return []byke.ErasedComponent{
 		NewTransform(),
@@ -43,14 +41,6 @@ func (c Camera) RequireComponents() []spoke.ErasedComponent {
 			Scale:          1,
 		},
 	}
-}
-
-func (c Camera) ToScreenSpace(gt GlobalTransform) ebiten.GeoM {
-	var tr ebiten.GeoM
-	tr.Rotate(float64(gt.Rotation))
-	tr.Scale(gt.Scale.X, gt.Scale.Y)
-	tr.Translate(gt.Translation.X, gt.Translation.Y)
-	return tr
 }
 
 type RenderTarget struct {

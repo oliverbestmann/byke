@@ -33,6 +33,7 @@ func main() {
 		Height: 600,
 	})
 
+	app.AddSystems(Startup, createCamera)
 	app.AddSystems(Startup, createSprites)
 	app.AddSystems(Update, System(avoidCursorSystem, movementSystem, dampenSystem, wrapScreenSystem).Chain())
 
@@ -59,19 +60,38 @@ type AvoidCursor struct {
 	ComparableComponent[AvoidCursor]
 }
 
-func createSprites(commands *Commands, assets *Assets, screenSize ScreenSize) {
-	for range 1000 {
-		posX := rand.Float64() * screenSize.X
-		posY := rand.Float64() * screenSize.Y
+var worldSize = Vec{X: 800, Y: 600}
 
-		velX := (rand.Float64() - 0.5) * 20
-		velY := (rand.Float64() - 0.5) * 20
+func createCamera(commands *Commands) {
+	commands.Spawn(
+		Camera{},
+
+		OrthographicProjection{
+			Scale: 1.0,
+			ScalingMode: ScalingModeAutoMin{
+				MinWidth:  worldSize.X,
+				MinHeight: worldSize.Y,
+			},
+			ViewportOrigin: VecSplat(0.5),
+		},
+	)
+}
+
+func createSprites(commands *Commands, assets *Assets) {
+	image := assets.Image("ebiten.png").Await()
+
+	for range 1000 {
+		posX := (rand.Float64() - 0.5) * worldSize.X
+		posY := (rand.Float64() - 0.5) * worldSize.Y
+
+		velX := (rand.Float64() - 0.5) * 30
+		velY := (rand.Float64() - 0.5) * 30
 		velAngular := Rad(rand.Float64() - 0.5)
 
 		commands.Spawn(
 			TransformFromXY(posX, posY).WithScale(VecSplat(32.0/256.0)),
 			Velocity{Linear: Vec{X: velX, Y: velY}, Angular: velAngular},
-			Sprite{Image: assets.Image("ebiten.png").Await()},
+			Sprite{Image: image},
 			ColorTint{Color: color.RGBA(1.0, 1.0, 1.0, 0.25)},
 			WrapScreen{},
 			AvoidCursor{},
@@ -108,31 +128,48 @@ type wrapScreenItem struct {
 	Transform *Transform
 }
 
-func wrapScreenSystem(items Query[wrapScreenItem], screenSize ScreenSize) {
+func wrapScreenSystem(items Query[wrapScreenItem]) {
 	for item := range items.Items() {
-		pos := item.Transform.Translation.Add(screenSize.Vec)
+		pos := item.Transform.Translation.Add(worldSize.Mul(0.5))
 
-		item.Transform.Translation.X = math.Mod(pos.X, screenSize.X)
-		item.Transform.Translation.Y = math.Mod(pos.Y, screenSize.Y)
+		pos.X = math.Mod(pos.X, worldSize.X)
+		pos.Y = math.Mod(pos.Y, worldSize.Y)
+
+		item.Transform.Translation = pos.Sub(worldSize.Mul(0.5))
 	}
 }
 
-func avoidCursorSystem(mouseCursor MouseCursor, vt VirtualTime, items Query[struct {
-	With[AvoidCursor]
-	Velocity  *Velocity
-	Transform Transform
-}]) {
+func avoidCursorSystem(mouseCursor MouseCursor, vt VirtualTime, screenSize ScreenSize,
+	items Query[struct {
+		_         With[AvoidCursor]
+		Velocity  *Velocity
+		Transform Transform
+	}],
+	cameras Query[struct {
+		Projection OrthographicProjection
+		Transform  GlobalTransform
+	}],
+) {
+	proj := cameras.MustFirst()
+	toScreen := CalculateWorldToScreenTransform(proj.Projection, proj.Transform, screenSize.Vec)
+	toWorld, ok := toScreen.TryInverse()
+	if !ok {
+		return
+	}
+
+	worldCursor := toWorld.Transform(mouseCursor.Vec)
+
 	for item := range items.Items() {
 		pos := item.Transform.Translation
 
-		if mouseCursor.DistanceTo(pos) > 100 {
+		if worldCursor.DistanceTo(pos) > 100 {
 			continue
 		}
 
 		// TODO use time independent exponential interpolation here
-		f := 10 * 200 / mouseCursor.DistanceTo(pos)
+		f := 10 * 200 / worldCursor.DistanceTo(pos)
 
-		newVelocity := item.Velocity.Linear.Mul(1 - vt.DeltaSecs).Add(mouseCursor.VecTo(pos).Normalized().Mul(f * vt.DeltaSecs))
+		newVelocity := item.Velocity.Linear.Mul(1 - vt.DeltaSecs).Add(worldCursor.VecTo(pos).Normalized().Mul(f * vt.DeltaSecs))
 		item.Velocity.Linear = newVelocity
 	}
 }

@@ -86,12 +86,12 @@ type tileCache struct {
 
 func updateTileCache(
 	query byke.Query[struct {
-	_ byke.Or[byke.Changed[Tiles], byke.Changed[Sprite]]
+		_ byke.Or[byke.Changed[Tiles], byke.Changed[Sprite]]
 
-	Tiles  Tiles
-	Sprite Sprite
-	Cache  *tileCache
-}],
+		Tiles  Tiles
+		Sprite Sprite
+		Cache  *tileCache
+	}],
 ) {
 	for item := range query.Items() {
 		// reuse tiles array
@@ -107,18 +107,18 @@ func updateTileCache(
 
 func computeSpriteSizeSystem(
 	query byke.Query[struct {
-	_ byke.OrStruct[struct {
-		_ byke.Changed[Tiles]
-		_ byke.Changed[Sprite]
-		_ byke.Changed[Anchor]
-	}]
+		_ byke.OrStruct[struct {
+			_ byke.Changed[Tiles]
+			_ byke.Changed[Sprite]
+			_ byke.Changed[Anchor]
+		}]
 
-	BBox   *BBox
-	Sprite Sprite
-	Anchor Anchor
+		BBox   *BBox
+		Sprite Sprite
+		Anchor Anchor
 
-	Tiles byke.Option[Tiles]
-}],
+		Tiles byke.Option[Tiles]
+	}],
 ) {
 	for item := range query.Items() {
 		var sourceSize, targetSize gm.Vec

@@ -177,9 +177,10 @@ func renderTimingsSystem(
 }
 
 type WindowConfig struct {
-	Title  string
-	Width  int
-	Height int
+	Title         string
+	Width         int
+	Height        int
+	DisableResize bool
 }
 
 func runWorld(world *byke.World) error {
@@ -188,7 +189,10 @@ func runWorld(world *byke.World) error {
 	win, _ := byke.ResourceOf[WindowConfig](world)
 	ebiten.SetWindowTitle(win.Title)
 	ebiten.SetWindowSize(win.Width, win.Height)
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+	if !win.DisableResize {
+		ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	}
 
 	var options ebiten.RunGameOptions
 	options.SingleThread = true

@@ -31,15 +31,15 @@ type MotionIntent struct {
 func spawnGameScreenSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		DespawnOnExitState(ScreenGame),
-		TransformFromXY(400, 300),
+
 		Ducky{
 			AnimationTimer: NewTimer(250*time.Millisecond, TimerModeRepeating),
-			Speed:          80,
+			Speed:          160,
 		},
 		MotionIntent{},
 		Sprite{
 			Image:      assets.Image("ducky.png").Await(),
-			CustomSize: Some(VecSplat(96.0)),
+			CustomSize: Some(VecSplat(100.0)),
 		},
 		Tiles{
 			Rows:    2,

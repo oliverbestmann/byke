@@ -21,11 +21,13 @@ func main() {
 
 	// optional: configure the game window
 	app.InsertResource(WindowConfig{
-		Title:  "Example",
-		Width:  800,
-		Height: 600,
+		Title:         "Example",
+		Width:         800,
+		Height:        600,
+		DisableResize: true,
 	})
 
+	app.AddSystems(Startup, createCamera)
 	app.AddSystems(Startup, createVectors)
 	app.AddSystems(Update, System(avoidCursorSystem, movementSystem, wrapScreenSystem).Chain())
 
@@ -54,6 +56,13 @@ type WrapScreen struct {
 
 type AvoidCursor struct {
 	ComparableComponent[AvoidCursor]
+}
+
+func createCamera(commands *Commands, screenSize ScreenSize) {
+	commands.Spawn(
+		Camera{},
+		TransformFromXY(screenSize.Mul(0.5).XY()),
+	)
 }
 
 func createVectors(commands *Commands, screenSize ScreenSize) {

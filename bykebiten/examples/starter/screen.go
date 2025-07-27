@@ -23,18 +23,16 @@ func pluginScreen(app *App) {
 
 func spawnTitleScreenSystem(commands *Commands,
 	assets *Assets,
-	screenSize ScreenSize, menuState *NextState[MenuState]) {
+	menuState *NextState[MenuState]) {
 	menuState.Set(MenuStateTitle)
 
 	commands.Spawn(
+		UiCamera,
 		DespawnOnExitState(ScreenTitle),
 
 		Sprite{
 			Image: assets.Image("ebiten.png").Await(),
 		},
-
-		// place at the center of the screen
-		NewTransform().WithTranslation(screenSize.Mul(0.5)),
 
 		ColorTint{
 			Color: color.RGBA(1.0, 1.0, 1.0, 0.2),
