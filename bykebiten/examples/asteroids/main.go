@@ -30,7 +30,7 @@ func main() {
 
 	app.InsertResource(Gravity(Vec{Y: -9.81}))
 
-	app.AddSystems(Startup, setupCamera, spawnSpaceShipSystem, spawnLevelSystem)
+	app.AddSystems(Startup, setupCamera, spawnSpaceShipSystem, spawnTerrainSystem)
 	app.AddSystems(Update, System(handleSpaceshipInput).InSet(InputSystems))
 	app.AddSystems(Update, System(applyGravitySystem, moveObjectsSystem, checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
 	app.AddSystems(PostUpdate, followShipSystem, alignWithVelocity, despawnWithDelaySystem)
@@ -44,6 +44,7 @@ var _ = ValidateComponent[Plume]()
 var _ = ValidateComponent[Missile]()
 var _ = ValidateComponent[DespawnWithDelay]()
 var _ = ValidateComponent[AlignWithVelocity]()
+var _ = ValidateComponent[Collider]()
 
 type SpaceShip struct {
 	Component[SpaceShip]
@@ -62,13 +63,22 @@ type Missile struct {
 	Component[Missile]
 }
 
+type DespawnWithDelay struct {
+	Component[DespawnWithDelay]
+	Timer Timer
+}
+
 type AlignWithVelocity struct {
 	Component[AlignWithVelocity]
 }
 
-type DespawnWithDelay struct {
-	Component[DespawnWithDelay]
-	Timer Timer
+type Collider struct {
+	Component[Collider]
+	Points []Vec
+}
+
+type TerrainContact struct {
+	Position Vec
 }
 
 func setupCamera(commands *Commands) {
@@ -83,13 +93,13 @@ func setupCamera(commands *Commands) {
 	)
 }
 
-var shipCorners = []Vec{
-	{X: -10, Y: 10},
-	{X: 15, Y: 0},
-	{X: -10, Y: -10},
-}
-
 func spawnSpaceShipSystem(commands *Commands) {
+	var shipCorners = []Vec{
+		{X: -10, Y: 10},
+		{X: 15, Y: 0},
+		{X: -10, Y: -10},
+	}
+
 	var spaceShipShape Path
 	for _, vec := range shipCorners {
 		spaceShipShape.LineTo(vec)
@@ -102,33 +112,39 @@ func spawnSpaceShipSystem(commands *Commands) {
 	plume.LineTo(Vec{X: -20, Y: 0})
 	plume.Close()
 
-	commands.Spawn(
-		SpaceShip{},
-		TransformFromXY(0, 300),
-		Velocity{},
-		spaceShipShape,
-		Stroke{
-			Width: 2,
-			Color: color.White,
-		},
-
-		SpawnChild(
-			Plume{},
-			plume,
-			// put the plume below the spaceship
-			Layer{Z: -0.1},
-			Fill{
-				Color: color.RGB(1, 0.75, 0.5),
+	commands.
+		Spawn(
+			SpaceShip{},
+			TransformFromXY(0, 300),
+			Velocity{},
+			Collider{Points: shipCorners},
+			spaceShipShape,
+			Stroke{
+				Width: 2,
+				Color: color.White,
 			},
-		),
-	)
+
+			SpawnChild(
+				Plume{},
+				plume,
+				// put the plume below the spaceship
+				Layer{Z: -0.1},
+				Fill{
+					Color: color.RGB(1, 0.75, 0.5),
+				},
+			),
+		).
+		Observe(func(trigger On[TerrainContact], commands *Commands) {
+			commands.Entity(trigger.Target).Despawn()
+			commands.Queue(Explode(trigger.Event.Position, 50))
+		})
 }
 
-type Heightmap struct {
+type Terrain struct {
 	height []Vec
 }
 
-func (h *Heightmap) IsAboveGround(p Vec) bool {
+func (h *Terrain) IsAboveGround(p Vec) bool {
 	prev := h.height[0]
 
 	for _, next := range h.height[1:] {
@@ -143,7 +159,7 @@ func (h *Heightmap) IsAboveGround(p Vec) bool {
 	return p.Y > 0
 }
 
-func spawnLevelSystem(commands *Commands) {
+func spawnTerrainSystem(commands *Commands) {
 	var height []Vec
 
 	var terrain Path
@@ -157,11 +173,17 @@ func spawnLevelSystem(commands *Commands) {
 		height = append(height, pos)
 	}
 
+	// fill in the ground
+	terrain.LineTo(Vec{X: 2000, Y: -10})
+	terrain.LineTo(Vec{X: -2000, Y: -10})
+
 	// store the heightmap for later collision checking
-	commands.InsertResource(Heightmap{height: height})
+	commands.InsertResource(Terrain{height: height})
 
 	commands.Spawn(
 		terrain,
+		Layer{Z: 10},
+		Fill{Color: color.Black},
 		Stroke{
 			Width: 4,
 			Color: color.Gray(0.7),
@@ -171,26 +193,24 @@ func spawnLevelSystem(commands *Commands) {
 
 func checkGroundCollisionSystem(
 	commands *Commands,
-
-	heightmap Heightmap,
-
-	ship Single[struct {
-	_ With[SpaceShip]
+	terrain Terrain,
+	query Query[struct {
 	EntityId
 	Transform Transform
+	Collider  Collider
 }],
 ) {
-	s := &ship.Value
+	for item := range query.Items() {
+		tr := item.Transform.AsAffine()
 
-	for _, vec := range shipCorners {
-		vec = vec.Rotate(s.Transform.Rotation)
-		vec = vec.Add(s.Transform.Translation)
+		for _, point := range item.Collider.Points {
+			point = tr.Transform(point)
 
-		above := heightmap.IsAboveGround(vec)
-		if !above {
-			commands.Entity(s.EntityId).Despawn()
-			commands.Queue(Explode(vec))
-			break
+			above := terrain.IsAboveGround(point)
+			if !above {
+				commands.Entity(item.EntityId).Trigger(TerrainContact{Position: point})
+				break
+			}
 		}
 	}
 }
@@ -301,7 +321,7 @@ func moveTowards(current, target, delta float64) float64 {
 	return result
 }
 
-func Explode(pos Vec) Command {
+func Explode(pos Vec, radius float64) Command {
 	return func(world *World) {
 		world.RunSystem(func(commands *Commands) {
 			var circle Path
@@ -310,7 +330,7 @@ func Explode(pos Vec) Command {
 			commands.Spawn(
 				DespawnAfter(100*time.Millisecond),
 				circle,
-				TransformFromXY(pos.XY()).WithScale(VecSplat(50.0)),
+				TransformFromXY(pos.XY()).WithScale(VecSplat(radius)),
 				Fill{Color: color.RGB(1.0, 0.5, 0.2)},
 				Layer{Z: 1},
 			)
@@ -318,7 +338,7 @@ func Explode(pos Vec) Command {
 			commands.Spawn(
 				DespawnAfter(150*time.Millisecond),
 				circle,
-				TransformFromXY(pos.XY()).WithScale(VecSplat(50.0)),
+				TransformFromXY(pos.XY()).WithScale(VecSplat(radius)),
 				Stroke{
 					Width: 5,
 					Color: color.RGBA(1.0, 0.5, 0.2, 0.5),
@@ -336,15 +356,21 @@ func FireMissile(start, velocity Vec) Command {
 			missile.MoveTo(Vec{X: -5})
 			missile.LineTo(Vec{X: 5})
 
-			commands.Spawn(
-				TransformFromXY(start.XY()).WithRotation(velocity.Angle()),
-				Missile{},
-				AlignWithVelocity{},
-				Velocity{Linear: velocity},
-				missile,
-				Stroke{Width: 2, Color: color.White},
-				DespawnAfter(10*time.Second),
-			)
+			commands.
+				Spawn(
+					TransformFromXY(start.XY()).WithRotation(velocity.Angle()),
+					Missile{},
+					Collider{Points: []Vec{{X: -5}, {X: 5}}},
+					AlignWithVelocity{},
+					Velocity{Linear: velocity},
+					missile,
+					Stroke{Width: 2, Color: color.White},
+					DespawnAfter(10*time.Second),
+				).
+				Observe(func(trigger On[TerrainContact], commands *Commands) {
+					commands.Entity(trigger.Target).Despawn()
+					commands.Queue(Explode(trigger.Event.Position, 20))
+				})
 		})
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/byke/internal/typedpool"
 	"github.com/oliverbestmann/byke/spoke"
+	"log/slog"
 	"reflect"
 	"runtime"
 	"strings"
@@ -49,6 +50,8 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		systemConfig: config,
 		Name:         funcNameOf(config.SystemFunc),
 	}
+
+	slog.Info("Prepare system", slog.String("name", preparedSystem.Name), slog.Int("idx", len(w.systems)))
 
 	systemType := rSystem.Type()
 
@@ -108,12 +111,19 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 
 		sc.LastRun = preparedSystem.LastRun
 
-		for _, param := range params {
+		for idx, param := range params {
 			value, err := param.getValue(sc)
-			switch {
-			case errors.Is(err, ErrSkipSystem):
-				return nil
-			case err != nil:
+
+			if err != nil {
+				// need to cleanup the ones we've already added
+				for _, param := range params[:idx+1] {
+					param.cleanupValue()
+				}
+
+				if errors.Is(err, ErrSkipSystem) {
+					return nil
+				}
+
 				panic(err)
 			}
 

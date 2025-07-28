@@ -6,6 +6,7 @@ import (
 	spoke "github.com/oliverbestmann/byke/spoke"
 	"reflect"
 	"slices"
+	"sync/atomic"
 )
 
 const NoEntityId = EntityId(0)
@@ -31,6 +32,9 @@ type World struct {
 	schedules   map[ScheduleId]*schedule
 	systems     map[SystemId]*preparedSystem
 	currentTick spoke.Tick
+
+	activeQueries atomic.Int32
+	flushes       []func()
 }
 
 // NewWorld creates a new empty world.
@@ -117,6 +121,10 @@ func (w *World) runSystem(system *preparedSystem, ctx systemContext) any {
 	// at the next run
 	system.LastRun = w.currentTick
 
+	if w.activeQueries.Load() == 0 {
+		w.flushCommands()
+	}
+
 	return result
 }
 
@@ -182,6 +190,8 @@ func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
 	eventType := reflect.TypeOf(eventValue)
 
 	// TODO maybe check for valid event? Better introduce an Event interface
+	// FIXME this allocates a new system each time. Use something like In[X] to pass data into
+	//  a single instance of the system.
 	w.RunSystem(func(observers Query[*Observer], commands *Commands) {
 		for observer := range observers.Items() {
 			if observer.eventType != eventType {
@@ -461,6 +471,20 @@ func ResourceOf[T any](w *World) (*T, bool) {
 	}
 
 	return value.(*T), true
+}
+
+func (w *World) flushCommands() {
+	if w.activeQueries.Load() != 0 {
+		panic("can not flush, queries are still running")
+	}
+
+	// TODO evaluate if this is save like this. maybe we can do better here?
+	for len(w.flushes) > 0 {
+		fn := w.flushes[0]
+		w.flushes = w.flushes[1:]
+
+		fn()
+	}
 }
 
 func copyComponent(value ErasedComponent) ErasedComponent {

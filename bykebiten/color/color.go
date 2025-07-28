@@ -1,7 +1,8 @@
 package color
 
-var White = RGB(1.0, 1.0, 1.0)
-var Transparent = RGBA(0.0, 0.0, 0.0, 0.0)
+var White = RGB(1, 1, 1)
+var Black = RGB(0, 0, 0)
+var Transparent = RGBA(0, 0, 0, 0)
 
 // Color is a non alpha pre-multiplied color value in Color space.
 // A value of 1 indicates full color

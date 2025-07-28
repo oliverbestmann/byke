@@ -125,12 +125,14 @@ type queryParamState struct {
 }
 
 func (q *queryParamState) getValue(sc systemContext) (reflect.Value, error) {
+	q.world.activeQueries.Add(1)
 	q.inner.QueryContext.LastRun = sc.LastRun
 	return q.ptrToValue.Elem(), nil
 }
 
 func (q *queryParamState) cleanupValue() {
 	q.world.recheckComponents(q.inner.Query, q.mutable)
+	q.world.activeQueries.Add(-1)
 }
 
 func (q *queryParamState) valueType() reflect.Type {
