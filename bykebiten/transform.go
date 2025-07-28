@@ -108,10 +108,6 @@ type rootItems struct {
 	// but it should have children
 	byke.With[byke.Children]
 
-	//	// should have either a change in children or a changed transform,
-	//	// otherwise the immediate subtree did not change (it might have on a deeper level)
-	//	_ byke.Or[byke.Changed[byke.Children], byke.Changed[Transform]]
-
 	Children        byke.Option[byke.Children]
 	Transform       Transform
 	GlobalTransform *GlobalTransform

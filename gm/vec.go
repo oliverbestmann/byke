@@ -137,6 +137,22 @@ func (v VecType[S]) ToImagePoint() image.Point {
 	}
 }
 
+// Angle returns the angle the vector is pointing at
+func (v VecType[S]) Angle() Rad {
+	return Rad(math.Atan2(float64(v.Y), float64(v.X)))
+}
+
+// Rotate rotates the
+func (v VecType[S]) Rotate(angle Rad) VecType[S] {
+	res := RotationMat(angle).Transform(v.AsVec())
+	return VecType[S]{X: S(res.X), Y: S(res.Y)}
+}
+
+// AsVec returns a Vec for v, converting the components to float64.
+func (v VecType[S]) AsVec() Vec {
+	return Vec{X: float64(v.X), Y: float64(v.Y)}
+}
+
 func (v VecType[S]) XY() (S, S) {
 	return v.X, v.Y
 }

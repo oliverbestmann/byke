@@ -69,14 +69,17 @@ var commonRenderComponents = []byke.ErasedComponent{
 	&Layer{},
 	&ColorTint{Color: color.White},
 	&BBox{},
+	&InheritVisibility,
+	&ComputedVisibility{},
 }
 
 type renderCommonValues struct {
-	BBox         BBox
-	ColorTint    ColorTint
-	Layer        Layer
-	Transform    GlobalTransform
-	RenderLayers byke.Option[RenderLayers]
+	BBox               BBox
+	ColorTint          ColorTint
+	Layer              Layer
+	Transform          GlobalTransform
+	RenderLayers       byke.Option[RenderLayers]
+	ComputedVisibility ComputedVisibility
 }
 
 type hasCommonValues interface {
@@ -220,6 +223,10 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 		common := item.commonValues()
 
 		if !crl.Intersects(common.RenderLayers.Or(renderLayerZero)) {
+			continue
+		}
+
+		if !item.commonValues().ComputedVisibility.Visible {
 			continue
 		}
 

@@ -14,6 +14,7 @@ import (
 )
 
 var TransformSystems = &byke.SystemSet{}
+var VisibilitySystems = &byke.SystemSet{}
 
 type AssetFS struct {
 	fs.FS
@@ -55,6 +56,11 @@ func GamePlugin(app *byke.App) {
 		System(syncSimpleTransformSystem, propagateTransformSystem).
 		Chain().
 		InSet(TransformSystems))
+
+	app.AddSystems(byke.PostUpdate, byke.
+		System(syncSimpleVisibilitySystem, propagateVisibilitySystem).
+		Chain().
+		InSet(VisibilitySystems))
 
 	app.AddSystems(byke.PreRender,
 		byke.System(updateTileCache).Before(computeSpriteSizeSystem),

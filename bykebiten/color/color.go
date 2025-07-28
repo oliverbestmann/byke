@@ -17,6 +17,10 @@ func RGB(r, g, b float32) Color {
 	return RGBA(r, g, b, 1.0)
 }
 
+func Gray(g float32) Color {
+	return RGB(g, g, g)
+}
+
 func (c Color) WithAlpha(a float32) Color {
 	c.A = a
 	return c
