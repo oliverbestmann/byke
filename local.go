@@ -15,8 +15,8 @@ func (l *Local[T]) init(*World) SystemParamState {
 	return l
 }
 
-func (l *Local[T]) getValue(systemContext) reflect.Value {
-	return reflect.ValueOf(l)
+func (l *Local[T]) getValue(systemContext) (reflect.Value, error) {
+	return reflect.ValueOf(l), nil
 }
 
 func (l *Local[T]) cleanupValue() {}

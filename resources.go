@@ -28,17 +28,18 @@ func makeResourceSystemParamState(world *World, typ reflect.Type) SystemParamSta
 	return r
 }
 
-func (r resourceSystemParamState) getValue(systemContext) reflect.Value {
+func (r resourceSystemParamState) getValue(systemContext) (reflect.Value, error) {
 	ptrToValue, ok := r.world.Resource(r.typ)
 	if !ok {
-		panic(fmt.Sprintf("Resource of type %s does not exist in world", r.typ))
+		err := fmt.Errorf("resource of type %s does not exist in world", r.typ)
+		return reflect.Value{}, err
 	}
 
 	if r.mutable {
-		return reflect.ValueOf(ptrToValue)
+		return reflect.ValueOf(ptrToValue), nil
 	}
 
-	return reflect.ValueOf(ptrToValue).Elem()
+	return reflect.ValueOf(ptrToValue).Elem(), nil
 }
 
 func (r resourceSystemParamState) cleanupValue() {
@@ -66,7 +67,7 @@ func (r *Res[T]) init(world *World) SystemParamState {
 	return r
 }
 
-func (r *Res[T]) getValue(systemContext) reflect.Value {
+func (r *Res[T]) getValue(systemContext) (reflect.Value, error) {
 	lookupType := reflect.TypeFor[T]()
 	if lookupType.Kind() == reflect.Pointer {
 		lookupType = lookupType.Elem()
@@ -79,7 +80,7 @@ func (r *Res[T]) getValue(systemContext) reflect.Value {
 
 	r.setValue(resValue)
 
-	return reflect.ValueOf(r).Elem()
+	return reflect.ValueOf(r).Elem(), nil
 }
 
 func (r *Res[T]) cleanupValue() {
@@ -115,7 +116,7 @@ func (r *ResOption[T]) init(world *World) SystemParamState {
 	return r
 }
 
-func (r *ResOption[T]) getValue(systemContext) reflect.Value {
+func (r *ResOption[T]) getValue(systemContext) (reflect.Value, error) {
 	lookupType := reflect.TypeFor[T]()
 
 	resValue, ok := r.world.Resource(lookupType)
@@ -125,7 +126,7 @@ func (r *ResOption[T]) getValue(systemContext) reflect.Value {
 		r.Value = resValue.(*T)
 	}
 
-	return reflect.ValueOf(r).Elem()
+	return reflect.ValueOf(r).Elem(), nil
 }
 
 func (r *ResOption[T]) cleanupValue() {

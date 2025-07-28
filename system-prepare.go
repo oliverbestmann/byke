@@ -1,6 +1,7 @@
 package byke
 
 import (
+	"errors"
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/byke/internal/typedpool"
@@ -108,7 +109,15 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		sc.LastRun = preparedSystem.LastRun
 
 		for _, param := range params {
-			*paramValues = append(*paramValues, param.getValue(sc))
+			value, err := param.getValue(sc)
+			switch {
+			case errors.Is(err, ErrSkipSystem):
+				return nil
+			case err != nil:
+				panic(err)
+			}
+
+			*paramValues = append(*paramValues, value)
 		}
 
 		returnValues := rSystem.Call(*paramValues)

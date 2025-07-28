@@ -1,6 +1,11 @@
 package byke
 
-import "reflect"
+import (
+	"errors"
+	"reflect"
+)
+
+var ErrSkipSystem = errors.New("skip system")
 
 // SystemParam is an interface to give a type special behaviour when it is used
 // as a parameter to a system.
@@ -26,7 +31,7 @@ type SystemParamState interface {
 	// it must be of the same type as the SystemParam.
 	//
 	// In case that the parameter has no value, a zero reflect.Value is to be returned.
-	getValue(sc systemContext) reflect.Value
+	getValue(sc systemContext) (reflect.Value, error)
 
 	// cleanupValue will be called once the system is executed. It is used
 	// to e.g. apply a Commands object against the world
@@ -41,8 +46,8 @@ type SystemParamState interface {
 // that just returns a constant value
 type valueSystemParamState reflect.Value
 
-func (s valueSystemParamState) getValue(systemContext) reflect.Value {
-	return reflect.Value(s)
+func (s valueSystemParamState) getValue(systemContext) (reflect.Value, error) {
+	return reflect.Value(s), nil
 }
 
 func (s valueSystemParamState) valueType() reflect.Type {

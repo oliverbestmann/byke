@@ -37,8 +37,8 @@ type onSystemParamState struct {
 	makeValue func(target EntityId, event any) isTriggerComponent
 }
 
-func (o onSystemParamState) getValue(sc systemContext) reflect.Value {
-	return reflect.ValueOf(o.makeValue(sc.Trigger.TargetId, sc.Trigger.EventValue))
+func (o onSystemParamState) getValue(sc systemContext) (reflect.Value, error) {
+	return reflect.ValueOf(o.makeValue(sc.Trigger.TargetId, sc.Trigger.EventValue)), nil
 }
 
 func (o onSystemParamState) cleanupValue() {}

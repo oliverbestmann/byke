@@ -124,9 +124,9 @@ type queryParamState struct {
 	mutable []*spoke.ComponentType
 }
 
-func (q *queryParamState) getValue(sc systemContext) reflect.Value {
+func (q *queryParamState) getValue(sc systemContext) (reflect.Value, error) {
 	q.inner.QueryContext.LastRun = sc.LastRun
-	return q.ptrToValue.Elem()
+	return q.ptrToValue.Elem(), nil
 }
 
 func (q *queryParamState) cleanupValue() {

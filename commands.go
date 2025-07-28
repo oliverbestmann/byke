@@ -37,6 +37,12 @@ func (c *Commands) Queue(command Command) *Commands {
 	return c
 }
 
+func (c *Commands) InsertResource(resource any) {
+	c.Queue(func(world *World) {
+		world.InsertResource(resource)
+	})
+}
+
 func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
 	entityId := c.world.reserveEntityId()
 
@@ -119,8 +125,8 @@ func InsertComponent[C IsComponent[C]](maybeValue ...C) EntityCommand {
 
 type commandSystemParamState Commands
 
-func (c *commandSystemParamState) getValue(systemContext) reflect.Value {
-	return reflect.ValueOf((*Commands)(c))
+func (c *commandSystemParamState) getValue(systemContext) (reflect.Value, error) {
+	return reflect.ValueOf((*Commands)(c)), nil
 }
 
 func (c *commandSystemParamState) cleanupValue() {

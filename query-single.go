@@ -17,17 +17,17 @@ func (s Single[T]) init(world *World) SystemParamState {
 	return &singleParamState{
 		QueryState: queryState,
 		Type:       reflect.TypeFor[Single[T]](),
-		extractValue: func(q reflect.Value) reflect.Value {
+		extractValue: func(q reflect.Value) (reflect.Value, error) {
 			query := q.Addr().Interface().(*Query[T])
 
 			singleValue, ok := query.Single()
 			if !ok {
-				panic("query did not return a single result")
+				return reflect.Value{}, ErrSkipSystem
 			}
 
 			value.Value = singleValue
 
-			return reflect.ValueOf(&value).Elem()
+			return reflect.ValueOf(&value).Elem(), nil
 		},
 	}
 }
@@ -35,11 +35,16 @@ func (s Single[T]) init(world *World) SystemParamState {
 type singleParamState struct {
 	QueryState   SystemParamState
 	Type         reflect.Type
-	extractValue func(q reflect.Value) reflect.Value
+	extractValue func(q reflect.Value) (reflect.Value, error)
 }
 
-func (s *singleParamState) getValue(sc systemContext) reflect.Value {
-	return s.extractValue(s.QueryState.getValue(sc))
+func (s *singleParamState) getValue(sc systemContext) (reflect.Value, error) {
+	value, err := s.QueryState.getValue(sc)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	return s.extractValue(value)
 }
 
 func (s *singleParamState) cleanupValue() {

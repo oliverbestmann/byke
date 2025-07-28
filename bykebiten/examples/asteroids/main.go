@@ -32,7 +32,7 @@ func main() {
 
 	app.AddSystems(Startup, setupCamera, spawnSpaceShipSystem, spawnLevelSystem)
 	app.AddSystems(Update, System(handleSpaceshipInput).InSet(InputSystems))
-	app.AddSystems(Update, System(applyGravitySystem, moveObjectsSystem).Chain().InSet(PhysicsSystems))
+	app.AddSystems(Update, System(applyGravitySystem, moveObjectsSystem, checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
 	app.AddSystems(PostUpdate, followShipSystem, alignWithVelocity, despawnWithDelaySystem)
 	fmt.Println(app.Run())
 }
@@ -83,11 +83,17 @@ func setupCamera(commands *Commands) {
 	)
 }
 
+var shipCorners = []Vec{
+	{X: -10, Y: 10},
+	{X: 15, Y: 0},
+	{X: -10, Y: -10},
+}
+
 func spawnSpaceShipSystem(commands *Commands) {
 	var spaceShipShape Path
-	spaceShipShape.MoveTo(Vec{X: -10, Y: 10})
-	spaceShipShape.LineTo(Vec{X: 15, Y: 0})
-	spaceShipShape.LineTo(Vec{X: -10, Y: -10})
+	for _, vec := range shipCorners {
+		spaceShipShape.LineTo(vec)
+	}
 	spaceShipShape.Close()
 
 	var plume Path
@@ -118,7 +124,26 @@ func spawnSpaceShipSystem(commands *Commands) {
 	)
 }
 
-func spawnLevelSystem(world *World, commands *Commands) {
+type Heightmap struct {
+	height []Vec
+}
+
+func (h *Heightmap) IsAboveGround(p Vec) bool {
+	prev := h.height[0]
+
+	for _, next := range h.height[1:] {
+		if p.X < prev.X || p.X > next.X {
+			prev = next
+			continue
+		}
+
+		return next.Sub(prev).Cross(p.Sub(prev)) > 0
+	}
+
+	return p.Y > 0
+}
+
+func spawnLevelSystem(commands *Commands) {
 	var height []Vec
 
 	var terrain Path
@@ -132,6 +157,9 @@ func spawnLevelSystem(world *World, commands *Commands) {
 		height = append(height, pos)
 	}
 
+	// store the heightmap for later collision checking
+	commands.InsertResource(Heightmap{height: height})
+
 	commands.Spawn(
 		terrain,
 		Stroke{
@@ -139,6 +167,32 @@ func spawnLevelSystem(world *World, commands *Commands) {
 			Color: color.Gray(0.7),
 		},
 	)
+}
+
+func checkGroundCollisionSystem(
+	commands *Commands,
+
+	heightmap Heightmap,
+
+	ship Single[struct {
+	_ With[SpaceShip]
+	EntityId
+	Transform Transform
+}],
+) {
+	s := &ship.Value
+
+	for _, vec := range shipCorners {
+		vec = vec.Rotate(s.Transform.Rotation)
+		vec = vec.Add(s.Transform.Translation)
+
+		above := heightmap.IsAboveGround(vec)
+		if !above {
+			commands.Entity(s.EntityId).Despawn()
+			commands.Queue(Explode(vec))
+			break
+		}
+	}
 }
 
 func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
@@ -245,6 +299,34 @@ func moveTowards(current, target, delta float64) float64 {
 	}
 
 	return result
+}
+
+func Explode(pos Vec) Command {
+	return func(world *World) {
+		world.RunSystem(func(commands *Commands) {
+			var circle Path
+			circle.Circle(VecZero, 1)
+
+			commands.Spawn(
+				DespawnAfter(100*time.Millisecond),
+				circle,
+				TransformFromXY(pos.XY()).WithScale(VecSplat(50.0)),
+				Fill{Color: color.RGB(1.0, 0.5, 0.2)},
+				Layer{Z: 1},
+			)
+
+			commands.Spawn(
+				DespawnAfter(150*time.Millisecond),
+				circle,
+				TransformFromXY(pos.XY()).WithScale(VecSplat(50.0)),
+				Stroke{
+					Width: 5,
+					Color: color.RGBA(1.0, 0.5, 0.2, 0.5),
+				},
+				Layer{Z: 2},
+			)
+		})
+	}
 }
 
 func FireMissile(start, velocity Vec) Command {

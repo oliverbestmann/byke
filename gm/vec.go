@@ -148,6 +148,11 @@ func (v VecType[S]) Rotate(angle Rad) VecType[S] {
 	return VecType[S]{X: S(res.X), Y: S(res.Y)}
 }
 
+// Cross product of two vectors.
+func (v VecType[S]) Cross(other VecType[S]) S {
+	return v.X*other.Y - v.Y*other.X
+}
+
 // AsVec returns a Vec for v, converting the components to float64.
 func (v VecType[S]) AsVec() Vec {
 	return Vec{X: float64(v.X), Y: float64(v.Y)}
