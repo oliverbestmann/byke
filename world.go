@@ -72,6 +72,12 @@ func (w *World) RunSystem(system AnySystem) {
 	w.runSystem(preparedSystem, systemContext{})
 }
 
+func (w *World) RunSystemWithInValue(system AnySystem, inValue any) {
+	systemConfig := asSystemConfig(system)
+	preparedSystem := w.prepareSystem(systemConfig)
+	w.runSystem(preparedSystem, systemContext{InValue: inValue})
+}
+
 func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*SystemSet) {
 	schedule := w.scheduleOf(scheduleId)
 
@@ -189,27 +195,10 @@ func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
 	// get the event type first
 	eventType := reflect.TypeOf(eventValue)
 
-	// TODO maybe check for valid event? Better introduce an Event interface
-	// FIXME this allocates a new system each time. Use something like In[X] to pass data into
-	//  a single instance of the system.
-	w.RunSystem(func(observers Query[*Observer], commands *Commands) {
-		for observer := range observers.Items() {
-			if observer.eventType != eventType {
-				continue
-			}
-
-			if len(observer.entities) > 0 && !slices.Contains(observer.entities, targetId) {
-				continue
-			}
-
-			// we found a match, trigger observer
-			w.runSystem(observer.system, systemContext{
-				Trigger: systemTrigger{
-					TargetId:   targetId,
-					EventValue: eventValue,
-				},
-			})
-		}
+	w.RunSystemWithInValue(triggerObserverSystem, triggerObserverIn{
+		ObserverType: eventType,
+		TargetId:     targetId,
+		EventValue:   eventValue,
 	})
 }
 
@@ -513,4 +502,31 @@ func (w *World) removeComponent(entityId EntityId, componentType *spoke.Componen
 
 func (w *World) recheckComponents(query *spoke.CachedQuery, componentTypes []*spoke.ComponentType) {
 	w.storage.CheckChanged(w.currentTick, query, componentTypes)
+}
+
+type triggerObserverIn struct {
+	ObserverType reflect.Type
+	TargetId     EntityId
+	EventValue   any
+}
+
+func triggerObserverSystem(observers Query[*Observer], w *World, in In[triggerObserverIn]) {
+	params := &in.Value
+	for observer := range observers.Items() {
+		if observer.eventType != params.ObserverType {
+			continue
+		}
+
+		if len(observer.entities) > 0 && !slices.Contains(observer.entities, in.Value.TargetId) {
+			continue
+		}
+
+		// we found a match, trigger observer
+		w.runSystem(observer.system, systemContext{
+			Trigger: systemTrigger{
+				TargetId:   params.TargetId,
+				EventValue: params.EventValue,
+			},
+		})
+	}
 }

@@ -323,56 +323,74 @@ func moveTowards(current, target, delta float64) float64 {
 
 func Explode(pos Vec, radius float64) Command {
 	return func(world *World) {
-		world.RunSystem(func(commands *Commands) {
-			var circle Path
-			circle.Circle(VecZero, 1)
-
-			commands.Spawn(
-				DespawnAfter(100*time.Millisecond),
-				circle,
-				TransformFromXY(pos.XY()).WithScale(VecSplat(radius)),
-				Fill{Color: color.RGB(1.0, 0.5, 0.2)},
-				Layer{Z: 1},
-			)
-
-			commands.Spawn(
-				DespawnAfter(150*time.Millisecond),
-				circle,
-				TransformFromXY(pos.XY()).WithScale(VecSplat(radius)),
-				Stroke{
-					Width: 5,
-					Color: color.RGBA(1.0, 0.5, 0.2, 0.5),
-				},
-				Layer{Z: 2},
-			)
-		})
+		world.RunSystemWithInValue(spawnExplosionSystem, ExplosionParams{Position: pos, Radius: radius})
 	}
+}
+
+type ExplosionParams struct {
+	Position Vec
+	Radius   float64
+}
+
+func spawnExplosionSystem(commands *Commands, params In[ExplosionParams]) {
+	p := &params.Value
+
+	var circle Path
+	circle.Circle(VecZero, 1)
+
+	commands.Spawn(
+		DespawnAfter(100*time.Millisecond),
+		circle,
+		TransformFromXY(p.Position.XY()).WithScale(VecSplat(p.Radius)),
+		Fill{Color: color.RGB(1.0, 0.5, 0.2)},
+		Layer{Z: 1},
+	)
+
+	commands.Spawn(
+		DespawnAfter(150*time.Millisecond),
+		circle,
+		TransformFromXY(p.Position.XY()).WithScale(VecSplat(p.Radius)),
+		Stroke{
+			Width: 5,
+			Color: color.RGBA(1.0, 0.5, 0.2, 0.5),
+		},
+		Layer{Z: 2},
+	)
+}
+
+type FireMissileIn struct {
+	Start    Vec
+	Velocity Vec
 }
 
 func FireMissile(start, velocity Vec) Command {
 	return func(world *World) {
-		world.RunSystem(func(commands *Commands) {
-			var missile Path
-			missile.MoveTo(Vec{X: -5})
-			missile.LineTo(Vec{X: 5})
-
-			commands.
-				Spawn(
-					TransformFromXY(start.XY()).WithRotation(velocity.Angle()),
-					Missile{},
-					Collider{Points: []Vec{{X: -5}, {X: 5}}},
-					AlignWithVelocity{},
-					Velocity{Linear: velocity},
-					missile,
-					Stroke{Width: 2, Color: color.White},
-					DespawnAfter(10*time.Second),
-				).
-				Observe(func(trigger On[TerrainContact], commands *Commands) {
-					commands.Entity(trigger.Target).Despawn()
-					commands.Queue(Explode(trigger.Event.Position, 20))
-				})
-		})
+		world.RunSystemWithInValue(fireMissileSystem, FireMissileIn{Start: start, Velocity: velocity})
 	}
+}
+
+func fireMissileSystem(commands *Commands, param In[FireMissileIn]) {
+	p := &param.Value
+
+	var missile Path
+	missile.MoveTo(Vec{X: -5})
+	missile.LineTo(Vec{X: 5})
+
+	commands.
+		Spawn(
+			TransformFromXY(p.Start.XY()).WithRotation(p.Velocity.Angle()),
+			Missile{},
+			Collider{Points: []Vec{{X: -5}, {X: 5}}},
+			AlignWithVelocity{},
+			Velocity{Linear: p.Velocity},
+			missile,
+			Stroke{Width: 2, Color: color.White},
+			DespawnAfter(10*time.Second),
+		).
+		Observe(func(trigger On[TerrainContact], commands *Commands) {
+			commands.Entity(trigger.Target).Despawn()
+			commands.Queue(Explode(trigger.Event.Position, 20))
+		})
 }
 
 func alignWithVelocity(

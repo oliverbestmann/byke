@@ -26,6 +26,7 @@ type systemContext struct {
 
 	// last tick the system ran
 	LastRun spoke.Tick
+	InValue any
 }
 
 type preparedSystem struct {
