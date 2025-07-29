@@ -11,18 +11,18 @@ type spawnChildComponent struct {
 	Components []ErasedComponent
 }
 
-func Bundle(components ...ErasedComponent) ErasedComponent {
-	return &bundleComponent{Components: components}
+func BundleOf(components ...ErasedComponent) ErasedComponent {
+	return &Bundle{Components: components}
 }
 
-type bundleComponent struct {
-	Component[bundleComponent]
+type Bundle struct {
+	Component[Bundle]
 	Components []ErasedComponent
 }
 
 func flattenComponents(target []ErasedComponent, components ...ErasedComponent) []ErasedComponent {
 	for _, component := range components {
-		if bundle, ok := component.(*bundleComponent); ok {
+		if bundle, ok := component.(*Bundle); ok {
 			// recurse into the bundle and flatten its components
 			target = flattenComponents(target, bundle.Components...)
 		} else {

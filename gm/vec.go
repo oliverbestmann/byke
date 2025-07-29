@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"math"
+	"math/rand/v2"
 )
 
 type ScalarTypes interface {
@@ -33,6 +34,20 @@ func VecOf[S Scalar](x, y S) VecType[S] {
 // VecSplat returns a new Vec with both values set to value.
 func VecSplat[S Scalar](value S) VecType[S] {
 	return VecType[S]{X: value, Y: value}
+}
+
+// RandomVec returns a vector uniformly sampled from within the unit circle.
+func RandomVec[S Scalar]() VecType[S] {
+	for {
+		v := VecType[S]{
+			X: S(rand.Float64()*2 - 1),
+			Y: S(rand.Float64()*2 - 1),
+		}
+
+		if v.LengthSqr() <= 1 {
+			return v
+		}
+	}
 }
 
 type VecType[S Scalar] struct {

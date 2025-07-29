@@ -31,7 +31,7 @@ func button(pos gm.Vec, text string) ErasedComponent {
 	var buttonShape Path
 	buttonShape.Rectangle(gm.RectWithCenterAndSize(gm.VecZero, gm.Vec{X: 192.0, Y: 48.0}))
 
-	return Bundle(
+	return BundleOf(
 		UiCamera,
 
 		NewTransform().WithTranslation(pos),

@@ -22,9 +22,11 @@ func main() {
 	})
 
 	var InputSystems = &SystemSet{}
+	var GameSystems = &SystemSet{}
 	var PhysicsSystems = &SystemSet{}
 
-	app.ConfigureSystemSets(Update, InputSystems.Before(PhysicsSystems))
+	app.ConfigureSystemSets(Update, InputSystems.Before(GameSystems))
+	app.ConfigureSystemSets(Update, GameSystems.Before(PhysicsSystems))
 
 	app.AddPlugin(GamePlugin)
 
@@ -32,8 +34,9 @@ func main() {
 
 	app.AddSystems(Startup, setupCamera, spawnSpaceShipSystem, spawnTerrainSystem)
 	app.AddSystems(Update, System(handleSpaceshipInput).InSet(InputSystems))
+	app.AddSystems(Update, System(spawnSmokeSystem).InSet(GameSystems))
 	app.AddSystems(Update, System(applyGravitySystem, moveObjectsSystem, checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
-	app.AddSystems(PostUpdate, followShipSystem, alignWithVelocity, despawnWithDelaySystem)
+	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain(), alignWithVelocity, despawnWithDelaySystem)
 	fmt.Println(app.Run())
 }
 
@@ -45,6 +48,8 @@ var _ = ValidateComponent[Missile]()
 var _ = ValidateComponent[DespawnWithDelay]()
 var _ = ValidateComponent[AlignWithVelocity]()
 var _ = ValidateComponent[Collider]()
+var _ = ValidateComponent[SmokeEmitter]()
+var _ = ValidateComponent[CameraTarget]()
 
 type SpaceShip struct {
 	Component[SpaceShip]
@@ -77,6 +82,16 @@ type Collider struct {
 	Points []Vec
 }
 
+type SmokeEmitter struct {
+	Component[SmokeEmitter]
+	Offset Vec
+	Timer  Timer
+}
+
+type CameraTarget struct {
+	ImmutableComponent[CameraTarget]
+}
+
 type TerrainContact struct {
 	Position Vec
 }
@@ -90,6 +105,16 @@ func setupCamera(commands *Commands) {
 			ScalingMode:    ScalingModeFixedVertical{ViewportHeight: 600},
 			Scale:          1,
 		},
+	)
+
+	var path Path
+	path.Circle(VecZero, 3)
+
+	commands.Spawn(
+		TransformFromXY(0, 300),
+		CameraTarget{},
+		// path,
+		// Fill{Color: color.RGB(1, 0, 0)},
 	)
 }
 
@@ -120,8 +145,9 @@ func spawnSpaceShipSystem(commands *Commands) {
 			Collider{Points: shipCorners},
 			spaceShipShape,
 			Stroke{
-				Width: 2,
-				Color: color.White,
+				Width:     2,
+				Color:     color.White,
+				Antialias: true,
 			},
 
 			SpawnChild(
@@ -130,7 +156,8 @@ func spawnSpaceShipSystem(commands *Commands) {
 				// put the plume below the spaceship
 				Layer{Z: -0.1},
 				Fill{
-					Color: color.RGB(1, 0.75, 0.5),
+					Color:     color.RGB(1, 0.75, 0.5),
+					Antialias: true,
 				},
 			),
 		).
@@ -185,8 +212,9 @@ func spawnTerrainSystem(commands *Commands) {
 		Layer{Z: 10},
 		Fill{Color: color.Black},
 		Stroke{
-			Width: 4,
-			Color: color.Gray(0.7),
+			Width:     4,
+			Color:     color.Gray(0.7),
+			Antialias: true,
 		},
 	)
 }
@@ -244,7 +272,6 @@ func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 		p.Visibility.SetVisible()
 	} else {
 		p.Visibility.SetInvisible()
-
 	}
 
 	// Maybe limit maximum velocity?
@@ -278,9 +305,10 @@ func moveObjectsSystem(vt VirtualTime, query Query[struct {
 	}
 }
 
-func followShipSystem(vt VirtualTime,
-	camera Single[struct {
-	_         With[Camera]
+func moveCameraTargetSystem(
+	vt VirtualTime,
+	cameraTarget Single[struct {
+	_         With[CameraTarget]
 	Transform *Transform
 }],
 	ship Single[struct {
@@ -289,18 +317,45 @@ func followShipSystem(vt VirtualTime,
 	Velocity  Velocity
 }],
 ) {
-	pos := ship.Value.Transform.Translation
+	posShip := ship.Value.Transform.Translation
 
-	targetX := pos.X + ship.Value.Velocity.Linear.X
-	targetY := max(300, pos.Y+ship.Value.Velocity.Linear.Y)
+	target := posShip.Add(ship.Value.Velocity.Linear)
+	target.Y = max(300, target.Y)
+
+	posCameraTarget := &cameraTarget.Value.Transform.Translation
+
+	x := nudge(target.X, posCameraTarget.X, 5, vt.DeltaSecs)
+	y := nudge(target.Y, posCameraTarget.Y, 5, vt.DeltaSecs)
+
+	posCameraTarget.X = moveTowards(posCameraTarget.X, target.X, x)
+	posCameraTarget.Y = moveTowards(posCameraTarget.Y, target.Y, y)
+
+	delta := posCameraTarget.Sub(posShip)
+	if delta.Length() > 300 {
+		*posCameraTarget = posShip.Add(delta.Normalized().Mul(300))
+	}
+}
+
+func moveCameraSystem(
+	vt VirtualTime,
+	camera Single[struct {
+	_         With[Camera]
+	Transform *Transform
+}],
+	target Single[struct {
+	_         With[CameraTarget]
+	Transform Transform
+}],
+) {
+	posTarget := target.Value.Transform.Translation
 
 	posCamera := &camera.Value.Transform.Translation
 
-	x := nudge(targetX, posCamera.X, 2, vt.DeltaSecs)
-	y := nudge(targetY, posCamera.Y, 2, vt.DeltaSecs)
+	x := nudge(posTarget.X, posCamera.X, 5, vt.DeltaSecs)
+	y := nudge(posTarget.Y, posCamera.Y, 5, vt.DeltaSecs)
 
-	posCamera.X = moveTowards(posCamera.X, targetX, x)
-	posCamera.Y = moveTowards(posCamera.Y, targetY, y)
+	posCamera.X = moveTowards(posCamera.X, posTarget.X, x)
+	posCamera.Y = moveTowards(posCamera.Y, posTarget.Y, y)
 }
 
 func nudge(target, current, decay, dt float64) float64 {
@@ -351,8 +406,9 @@ func spawnExplosionSystem(commands *Commands, params In[ExplosionParams]) {
 		circle,
 		TransformFromXY(p.Position.XY()).WithScale(VecSplat(p.Radius)),
 		Stroke{
-			Width: 5,
-			Color: color.RGBA(1.0, 0.5, 0.2, 0.5),
+			Width:     5,
+			Color:     color.RGBA(1.0, 0.5, 0.2, 0.5),
+			Antialias: true,
 		},
 		Layer{Z: 2},
 	)
@@ -384,8 +440,9 @@ func fireMissileSystem(commands *Commands, param In[FireMissileIn]) {
 			AlignWithVelocity{},
 			Velocity{Linear: p.Velocity},
 			missile,
-			Stroke{Width: 2, Color: color.White},
+			Stroke{Width: 2, Color: color.White, Antialias: true},
 			DespawnAfter(10*time.Second),
+			SmokeEmitter{Offset: Vec{X: -5}, Timer: NewTimerWithFrequency(100.0)},
 		).
 		Observe(func(trigger On[TerrainContact], commands *Commands) {
 			commands.Entity(trigger.Target).Despawn()
@@ -423,6 +480,44 @@ func despawnWithDelaySystem(
 		timer := &item.DespawnWithDelay.Timer
 		if timer.Tick(vt.Delta).JustFinished() || timer.Finished() {
 			commands.Entity(item.EntityId).Despawn()
+		}
+	}
+}
+
+func spawnSmokeSystem(
+	commands *Commands,
+	vt VirtualTime,
+	query Query[struct {
+	Transform  Transform
+	SpawnSmoke *SmokeEmitter
+}],
+) {
+	for item := range query.Items() {
+		item.SpawnSmoke.Timer.Tick(vt.Delta)
+		for range item.SpawnSmoke.Timer.TimesFinishedThisTick() {
+			r := rand.Float64()*5 + 2
+
+			velocity := Vec{
+				X: rand.Float64() * 5,
+				Y: rand.Float64() * 5,
+			}
+
+			// transform local offset into world space
+			pos := item.Transform.AsAffine().Transform(item.SpawnSmoke.Offset)
+
+			// add a small offset to the position
+			pos = pos.Add(RandomVec[float64]().Mul(2.0))
+
+			var puff Path
+			puff.Circle(VecZero, r)
+
+			commands.Spawn(
+				puff,
+				Fill{Color: color.RGBA(1, 1, 1, 0.2)},
+				TransformFromXY(pos.XY()),
+				DespawnAfter(1*time.Second),
+				Velocity{Linear: velocity},
+			)
 		}
 	}
 }

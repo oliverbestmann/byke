@@ -28,6 +28,12 @@ func NewTimer(duration time.Duration, mode TimerMode) Timer {
 	}
 }
 
+// NewTimerWithFrequency creates a new repeating timer with the given frequency
+func NewTimerWithFrequency(hz float64) Timer {
+	interval := time.Duration(float64(time.Second) / hz)
+	return NewTimer(interval, TimerModeRepeating)
+}
+
 // Tick adds the given amount of time to the Timer.
 func (t *Timer) Tick(delta time.Duration) *Timer {
 	t.finishedCountInTick = 0
