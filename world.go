@@ -5,7 +5,6 @@ import (
 	"github.com/oliverbestmann/byke/internal/set"
 	spoke "github.com/oliverbestmann/byke/spoke"
 	"reflect"
-	"slices"
 	"sync/atomic"
 )
 
@@ -67,9 +66,7 @@ func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems
 
 // RunSystem runs a system within the world.
 func (w *World) RunSystem(system AnySystem) {
-	systemConfig := asSystemConfig(system)
-	preparedSystem := w.prepareSystem(systemConfig)
-	w.runSystem(preparedSystem, systemContext{})
+	w.RunSystemWithInValue(system, nil)
 }
 
 func (w *World) RunSystemWithInValue(system AnySystem, inValue any) {
@@ -510,18 +507,27 @@ type triggerObserverIn struct {
 	EventValue   any
 }
 
-func triggerObserverSystem(observers Query[*Observer], w *World, in In[triggerObserverIn]) {
+func triggerObserverSystem(
+	w *World,
+	observers Query[*Observer],
+	in In[triggerObserverIn],
+) {
 	params := &in.Value
+
 	for observer := range observers.Items() {
-		if observer.eventType != params.ObserverType {
+		if !observer.ObservesType(params.ObserverType) {
 			continue
 		}
 
-		if len(observer.entities) > 0 && !slices.Contains(observer.entities, in.Value.TargetId) {
+		if params.TargetId == NoEntityId && observer.IsScoped() {
 			continue
 		}
 
-		// we found a match, trigger observer
+		if params.TargetId != NoEntityId && !observer.Observes(params.TargetId) {
+			continue
+		}
+
+		// we found a match, trigger the observer
 		w.runSystem(observer.system, systemContext{
 			Trigger: systemTrigger{
 				TargetId:   params.TargetId,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/refl"
 	"reflect"
+	"slices"
 )
 
 type On[E any] struct {
@@ -91,4 +92,16 @@ func NewObserver(fn any) Observer {
 func (o Observer) WatchEntity(entityId EntityId) Observer {
 	o.entities = append(o.entities, entityId)
 	return o
+}
+
+func (o Observer) ObservesType(ty reflect.Type) bool {
+	return o.eventType == ty
+}
+
+func (o Observer) IsScoped() bool {
+	return len(o.entities) > 0
+}
+
+func (o Observer) Observes(id EntityId) bool {
+	return slices.Contains(o.entities, id)
 }

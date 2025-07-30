@@ -49,8 +49,8 @@ func (c *Commands) Queue(command Command) *Commands {
 	return c
 }
 
-func (c *Commands) InsertResource(resource any) {
-	c.Queue(insertResourceCommand{Resource: resource})
+func (c *Commands) InsertResource(resource any) *Commands {
+	return c.Queue(insertResourceCommand{Resource: resource})
 }
 
 func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
@@ -65,6 +65,26 @@ func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
 		entityId: entityId,
 		commands: c,
 	}
+}
+
+func (c *Commands) RunSystem(system AnySystem) *Commands {
+	return c.Queue(runSystemCommand{
+		System: system,
+	})
+}
+
+func (c *Commands) RunSystemWith(system AnySystem, inValue any) *Commands {
+	return c.Queue(runSystemCommand{
+		System:  system,
+		InValue: inValue,
+	})
+}
+
+func (c *Commands) Trigger(eventValue any) *Commands {
+	return c.Queue(triggerCommand{
+		EntityId:   NoEntityId,
+		EventValue: eventValue,
+	})
 }
 
 func (c *Commands) Entity(entityId EntityId) EntityCommands {
@@ -215,6 +235,15 @@ type insertComponentEntityCommand struct {
 	InitialValue ErasedComponent
 }
 
-func (i insertComponentEntityCommand) Apply(world *World, entityId EntityId) {
-	world.insertComponents(entityId, []ErasedComponent{i.InitialValue})
+func (c insertComponentEntityCommand) Apply(world *World, entityId EntityId) {
+	world.insertComponents(entityId, []ErasedComponent{c.InitialValue})
+}
+
+type runSystemCommand struct {
+	System  AnySystem
+	InValue any
+}
+
+func (c runSystemCommand) Apply(world *World) {
+	world.RunSystemWithInValue(c.System, c.InValue)
 }

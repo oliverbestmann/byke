@@ -41,6 +41,9 @@ func main() {
 	app.AddSystems(Update, System(spawnSmokeSystem).InSet(GameSystems))
 	app.AddSystems(Update, System(applyGravitySystem, moveObjectsSystem, checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
 	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain(), alignWithVelocity, despawnWithDelaySystem)
+
+	app.World().AddObserver(NewObserver(spawnExplosionSystem))
+
 	fmt.Println(app.Run())
 }
 
@@ -171,7 +174,7 @@ func spawnSpaceShipSystem(commands *Commands) {
 		).
 		Observe(func(trigger On[TerrainContact], commands *Commands) {
 			commands.Entity(trigger.Target).Despawn()
-			commands.Queue(Explode(trigger.Event.Position, 50))
+			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 50})
 		})
 }
 
@@ -393,19 +396,13 @@ func moveTowards(current, target, delta float64) float64 {
 	return result
 }
 
-func Explode(pos Vec, radius float64) Command {
-	return CommandFn(func(world *World) {
-		world.RunSystemWithInValue(spawnExplosionSystem, ExplosionParams{Position: pos, Radius: radius})
-	})
-}
-
-type ExplosionParams struct {
+type Explode struct {
 	Position Vec
 	Radius   float64
 }
 
-func spawnExplosionSystem(commands *Commands, params In[ExplosionParams]) {
-	p := &params.Value
+func spawnExplosionSystem(params On[Explode], commands *Commands) {
+	p := &params.Event
 
 	var circle Path
 	circle.Circle(VecZero, 1)
@@ -463,7 +460,7 @@ func fireMissileSystem(commands *Commands, param In[FireMissileIn]) {
 		).
 		Observe(func(trigger On[TerrainContact], commands *Commands) {
 			commands.Entity(trigger.Target).Despawn()
-			commands.Queue(Explode(trigger.Event.Position, 20))
+			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 20})
 		})
 }
 
