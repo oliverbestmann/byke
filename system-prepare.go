@@ -37,6 +37,10 @@ type preparedSystem struct {
 	RawSystem   func(systemContext) any
 	IsPredicate bool
 
+	// This system has a Commands parameter. We need this to handle flush point
+	// generation between systems in the future
+	HasCommands bool
+
 	Predicates []*preparedSystem
 }
 
@@ -79,14 +83,19 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		}
 	}
 
-	// verify that all the param types match their actual types
 	for idx, param := range params {
 		inType := systemType.In(idx)
+
+		// verify that all the param types match their actual types
 		if !param.valueType().AssignableTo(inType) {
 			panic(fmt.Sprintf(
 				"Argument %d (%s) of %q is not assignable to value of type %s",
 				idx, param.valueType(), preparedSystem.Name, inType,
 			))
+		}
+
+		if inType == reflect.TypeFor[*Commands]() {
+			preparedSystem.HasCommands = true
 		}
 	}
 

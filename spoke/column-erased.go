@@ -44,6 +44,7 @@ type ErasedColumn struct {
 	dummyValue ErasedComponent
 
 	trivialCopy bool
+	zeroSized   bool
 }
 
 func MakeErasedColumn(ty *ComponentType) MakeColumn {
@@ -62,6 +63,7 @@ func MakeErasedColumn(ty *ComponentType) MakeColumn {
 			memory:        slice.UnsafePointer(),
 			trivialCopy:   !ty.HasPointers,
 			dummyValue:    ty.New(),
+			zeroSized:     ty.Type.Size() == 0,
 		}
 	}
 }
@@ -82,6 +84,10 @@ func (e *ErasedColumn) shadowPtrTo(row Row) unsafe.Pointer {
 	}
 
 	base := unsafe.Pointer(unsafe.SliceData(e.sliceCopy))
+	if base == nil {
+		panic("no shadow pointer")
+	}
+
 	return unsafe.Add(base, uintptr(row)*e.itemSize)
 }
 
@@ -109,13 +115,19 @@ func (e *ErasedColumn) rawCopyValue(row Row, value ErasedComponent) {
 func (e *ErasedColumn) Append(tick Tick, component ErasedComponent) {
 	//assert.IsPointerType(reflect.TypeOf(component))
 
-	e.ensureSpace()
+	if !e.zeroSized {
+		e.ensureSpace()
+	}
 
 	rowTarget := Row(e.len)
-
 	e.len += 1
 
-	e.copyValueTo(rowTarget, component)
+	if !e.zeroSized {
+		e.copyValueTo(rowTarget, component)
+
+		// copy the byte to the extra storage
+		e.sliceCopy = append(e.sliceCopy, (*(buf)(e.ptrTo(rowTarget)))[:e.itemSize]...)
+	}
 
 	e.added = append(e.added, tick)
 	e.changed = append(e.changed, tick)
@@ -124,8 +136,6 @@ func (e *ErasedColumn) Append(tick Tick, component ErasedComponent) {
 	e.LastAdded = tick
 	e.LastChanged = tick
 
-	// copy the byte to the extra storage
-	e.sliceCopy = append(e.sliceCopy, (*(buf)(e.ptrTo(rowTarget)))[:e.itemSize]...)
 }
 
 func (e *ErasedColumn) Copy(from, to Row) {
@@ -133,17 +143,19 @@ func (e *ErasedColumn) Copy(from, to Row) {
 	e.changed[to] = e.changed[from]
 	e.hashes[to] = e.hashes[from]
 
-	source := e.ptrTo(from)
-	target := e.ptrTo(to)
+	if !e.zeroSized {
+		source := e.ptrTo(from)
+		target := e.ptrTo(to)
 
-	if e.trivialCopy {
-		rawCopy(target, source, e.itemSize)
-	} else {
-		e.ComponentType.UnsafeCopyValue(target, source)
+		if e.trivialCopy {
+			rawCopy(target, source, e.itemSize)
+		} else {
+			e.ComponentType.UnsafeCopyValue(target, source)
+		}
+
+		// copy the byte within the extra storage
+		rawCopy(e.shadowPtrTo(to), e.shadowPtrTo(from), e.itemSize)
 	}
-
-	// copy the byte within the extra storage
-	rawCopy(e.shadowPtrTo(to), e.shadowPtrTo(from), e.itemSize)
 }
 
 func (e *ErasedColumn) Truncate(n Row) {
@@ -153,7 +165,9 @@ func (e *ErasedColumn) Truncate(n Row) {
 
 	e.len = int(n)
 
-	e.sliceCopy = e.sliceCopy[:uintptr(n)*e.itemSize]
+	if !e.zeroSized {
+		e.sliceCopy = e.sliceCopy[:uintptr(n)*e.itemSize]
+	}
 }
 
 func (e *ErasedColumn) Get(row Row) ErasedComponent {
@@ -172,11 +186,13 @@ func (e *ErasedColumn) Update(tick Tick, row Row, cv ErasedComponent) {
 	e.changed[row] = tick
 	e.LastChanged = tick
 
-	e.copyValueTo(row, cv)
-	e.hashes[row] = e.hash(row)
+	if !e.zeroSized {
+		e.copyValueTo(row, cv)
+		e.hashes[row] = e.hash(row)
 
-	// copy the new data into the shadow buffer
-	rawCopy(e.shadowPtrTo(row), e.ptrTo(row), e.itemSize)
+		// copy the new data into the shadow buffer
+		rawCopy(e.shadowPtrTo(row), e.ptrTo(row), e.itemSize)
+	}
 }
 
 func (e *ErasedColumn) Import(sourceColumn *ErasedColumn, row Row) {
@@ -187,27 +203,31 @@ func (e *ErasedColumn) Import(sourceColumn *ErasedColumn, row Row) {
 	e.LastAdded = max(e.LastAdded, sourceColumn.added[row])
 	e.LastChanged = max(e.LastChanged, sourceColumn.changed[row])
 
-	e.ensureSpace()
+	if !e.zeroSized {
+		e.ensureSpace()
+	}
 
 	rowTarget := Row(e.len)
 
 	e.len += 1
 
-	source := sourceColumn.ptrTo(row)
-	target := e.ptrTo(rowTarget)
+	if !e.zeroSized {
+		source := sourceColumn.ptrTo(row)
+		target := e.ptrTo(rowTarget)
 
-	if e.trivialCopy {
-		rawCopy(target, source, e.itemSize)
-	} else {
-		e.ComponentType.UnsafeCopyValue(target, source)
+		if e.trivialCopy {
+			rawCopy(target, source, e.itemSize)
+		} else {
+			e.ComponentType.UnsafeCopyValue(target, source)
+		}
+
+		// append the byte to the extra storage
+		e.sliceCopy = append(e.sliceCopy, (*(buf)(e.ptrTo(rowTarget)))[:e.itemSize]...)
 	}
-
-	// append the byte to the extra storage
-	e.sliceCopy = append(e.sliceCopy, (*(buf)(e.ptrTo(rowTarget)))[:e.itemSize]...)
 }
 
 func (e *ErasedColumn) ensureSpace() {
-	if e.cap == e.len {
+	if e.cap == e.len && !e.zeroSized {
 		// need to allocate memory
 		e.slice.SetLen(e.len)
 		e.slice.Grow(max(16, e.len*2/3))
@@ -221,7 +241,7 @@ func (e *ErasedColumn) ensureSpace() {
 }
 
 func (e *ErasedColumn) CheckChanged(tick Tick) {
-	if e.itemSize == 0 || e.len == 0 || !e.ComponentType.Comparable {
+	if e.zeroSized || e.len == 0 || !e.ComponentType.Comparable {
 		return
 	}
 
@@ -336,7 +356,7 @@ func (e *ErasedColumn) Access() ColumnAccess {
 }
 
 func (e *ErasedColumn) hash(row Row) HashValue {
-	if !e.ComponentType.Comparable {
+	if e.zeroSized || !e.ComponentType.Comparable {
 		return 0
 	}
 
