@@ -149,7 +149,6 @@ func computePathSizeSystem(
 		_ byke.Changed[Path]
 
 		Path Path
-
 		BBox *BBox
 	}],
 
