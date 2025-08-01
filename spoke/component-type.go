@@ -149,7 +149,10 @@ func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 
 		ty.Comparable = true
 
-		ty.MakeColumn = NewShadowComparableColumn[C]
+		if ty.Type.Size() > 0 {
+			ty.MakeColumn = NewShadowComparableColumn[C]
+		}
+
 		ty.memcmp = !typeHasPaddingBytes(reflectType) && len(ty.MemorySlices) == 1
 
 		ty.Maphash = func(component ErasedComponent) HashValue {
