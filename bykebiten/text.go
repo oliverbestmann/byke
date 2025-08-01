@@ -30,7 +30,7 @@ var textRequiredComponents = sync.OnceValue(func() []spoke.ErasedComponent {
 	return append(components, commonRenderComponents...)
 })
 
-func (t Text) RequireComponents() []spoke.ErasedComponent {
+func (Text) RequireComponents() []spoke.ErasedComponent {
 	return textRequiredComponents()
 }
 

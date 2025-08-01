@@ -29,6 +29,9 @@ type ComponentType struct {
 	// The Id of the type
 	Id ComponentTypeId
 
+	// Slice of required components. Do not modify the returned slice.
+	RequiredComponents []ErasedComponent
+
 	// HasPointers indicates that a value of the type contains pointers, e.g.
 	// by having a field of type *T, a string, an interface, a slice or a map value.
 	HasPointers bool
@@ -37,9 +40,14 @@ type ComponentType struct {
 	// the types MemorySlices
 	TriviallyHashable bool
 
-	// DirtyTracking indicates if the type is comparable
-	DirtyTracking        bool
-	IsMarker             bool
+	// DirtyTracking indicates that the type will use dirty tracking
+	DirtyTracking bool
+
+	// IsMarker is true if the type is a zero sized marker type
+	IsMarker bool
+
+	// IsImmutableComponent indicates, that a component can not be injected as
+	// a mutable reference. It can only be updated via commands.
 	IsImmutableComponent bool
 }
 
@@ -181,11 +189,21 @@ func baseComponentTypeOf[C IsComponent[C]](id ComponentTypeId) *ComponentType {
 
 	_, isImmutableComponent := any(cValue).(IsErasedImmutableComponent)
 
+	var requiredComponents []ErasedComponent
+	if c, ok := any(cValue).(RequireComponents); ok {
+		requiredComponents = c.RequireComponents()
+	}
+
+	if c, ok := any(&cValue).(RequireComponents); ok {
+		requiredComponents = c.RequireComponents()
+	}
+
 	return &ComponentType{
 		Id:                   id,
 		Type:                 reflectType,
 		Name:                 reflectType.String(),
 		Size:                 unsafe.Sizeof(cValue),
+		RequiredComponents:   requiredComponents,
 		IsMarker:             unsafe.Sizeof(cValue) == 0,
 		HasPointers:          typeHasPointers(reflectType),
 		TriviallyHashable:    typeIsTriviallyHashable(reflectType),

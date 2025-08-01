@@ -14,7 +14,7 @@ type Interactable struct {
 	ImmutableComponent[Interactable]
 }
 
-func (i Interactable) RequireComponents() []ErasedComponent {
+func (Interactable) RequireComponents() []ErasedComponent {
 	return []ErasedComponent{
 		InteractionState{None: true},
 	}

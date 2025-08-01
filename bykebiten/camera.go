@@ -32,7 +32,7 @@ type Camera struct {
 	Order int
 }
 
-func (c Camera) RequireComponents() []spoke.ErasedComponent {
+func (Camera) RequireComponents() []spoke.ErasedComponent {
 	return []byke.ErasedComponent{
 		NewTransform(),
 		OrthographicProjection{

@@ -1,6 +1,7 @@
 package spoke
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -72,7 +73,16 @@ func (c *TypedColumn[C]) OnGrow(onGrow func()) {
 }
 
 func (c *TypedColumn[C]) toValue(component ErasedComponent) C {
-	return *any(component).(*C)
+	switch value := any(component).(type) {
+	case C:
+		return value
+	case *C:
+		return *value
+	default:
+		var c C
+		var ptrC C
+		panic(fmt.Errorf("got type %T, expected either %T or %T", component, c, ptrC))
+	}
 }
 
 func (c *TypedColumn[C]) appendValue(value C) (realloc bool) {

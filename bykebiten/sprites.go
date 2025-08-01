@@ -49,7 +49,7 @@ type Tiles struct {
 	GapY    uint16
 }
 
-func (t *Tiles) RequireComponents() []spoke.ErasedComponent {
+func (*Tiles) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		TileIndex{},
 		tileCache{},

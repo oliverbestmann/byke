@@ -283,13 +283,10 @@ func (w *World) prepareComponents(entityId EntityId, components []ErasedComponen
 		}
 
 		// move it to the heap and add it to the entity
-		component = copyComponent(component)
 		collectedComponents = append(collectedComponents, component)
 
 		// enqueue all required components
-		if req, ok := component.(spoke.RequireComponents); ok {
-			queue = append(queue, req.RequireComponents()...)
-		}
+		queue = append(queue, componentType.RequiredComponents...)
 	}
 
 	return
@@ -368,10 +365,6 @@ func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRela
 
 	// there is no component in the parent
 	return nil, parentId, parentType, true
-}
-
-func (w *World) NewCommands() *Commands {
-	return &Commands{world: w}
 }
 
 // InsertResource inserts a new resource into the world.
@@ -475,7 +468,7 @@ func (w *World) flushCommands() {
 
 func copyComponent(value ErasedComponent) ErasedComponent {
 	componentType := value.ComponentType()
-	ptrToValue := componentType.New()
+	ptrToCopy := componentType.New()
 
 	// get the actual value of the source
 	sourceValue := reflect.ValueOf(value)
@@ -484,8 +477,8 @@ func copyComponent(value ErasedComponent) ErasedComponent {
 	}
 
 	// copy the source to the newly allocated component
-	reflect.ValueOf(ptrToValue).Elem().Set(sourceValue)
-	return ptrToValue
+	reflect.ValueOf(ptrToCopy).Elem().Set(sourceValue)
+	return ptrToCopy
 }
 
 func (w *World) removeComponent(entityId EntityId, componentType *spoke.ComponentType) {
