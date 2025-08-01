@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/oliverbestmann/byke/internal/set"
+	"github.com/oliverbestmann/byke/internal/typedpool"
 	"hash/maphash"
 	"slices"
 	"strings"
@@ -469,14 +470,20 @@ func (a *Archetypes) All() []*Archetype {
 	return a.archetypes
 }
 
-var typesScratch []*ComponentType
+var typesScratch = typedpool.New[[]*ComponentType]()
 
 // ArchetypeIdOf returns the ArchetypeId for the given ComponentType slice.
 // The return value sortedTypes contains the provided types in a deterministic order.
-// The returned slice will be reused at the next call of ArchetypeIdOf and must not be kept around.
+// The returned slice might be reused at the next call of ArchetypeIdOf and must not be kept around.
 func ArchetypeIdOf(types []*ComponentType) (id ArchetypeId, sortedTypes []*ComponentType) {
+	scratch := typesScratch.Get()
+	defer typesScratch.Put(scratch)
+
 	// clone the types into our scratch buffer for soring
-	types = append(typesScratch[:0], types...)
+	types = append((*scratch)[:0], types...)
+
+	// update the scratch to re-use the memory next time
+	*scratch = types
 
 	// sort slices by id to have a deterministic ordering
 	slices.SortFunc(types, compareComponentTypes)
