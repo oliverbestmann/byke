@@ -9,7 +9,7 @@ var _ = ValidateComponent[Name]()
 // Name assigns a non unique name to an entity.
 // Adding a name can be helpful for debugging.
 type Name struct {
-	spoke.Component[Name]
+	spoke.ImmutableComponent[Name]
 	Name string
 }
 

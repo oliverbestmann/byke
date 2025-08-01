@@ -37,6 +37,9 @@ func BenchmarkColumn_CheckChanges(b *testing.B) {
 		ComparableComponent[Velocity]
 		X, Y float32
 		Z    float32
+
+		// this forces the type to not be trivially hashable
+		_ [0]string
 	}
 
 	velocities := ComponentTypeOf[Velocity]().MakeColumn()
@@ -48,8 +51,6 @@ func BenchmarkColumn_CheckChanges(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-
-	ComponentTypeOf[Velocity]().memcmp = false
 
 	var n byte
 	for b.Loop() {

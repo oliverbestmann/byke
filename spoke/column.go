@@ -109,11 +109,16 @@ func typeIsTriviallyHashable(t reflect.Type) bool {
 		reflect.Float64,
 		reflect.Complex64,
 		reflect.Complex128,
-		reflect.Array,
+
+		// we do not hash whatever a pointer points to, we only hash
+		// the pointer address itself
 		reflect.Pointer,
 		reflect.UnsafePointer:
 
 		return true
+
+	case reflect.Array:
+		return typeIsTriviallyHashable(t.Elem())
 
 	case reflect.Struct:
 		for idx := range t.NumField() {
@@ -123,6 +128,13 @@ func typeIsTriviallyHashable(t reflect.Type) bool {
 		}
 
 		return true
+
+	case reflect.Slice,
+		reflect.Map,
+		reflect.String,
+		reflect.Interface:
+
+		fallthrough
 
 	default:
 		return false

@@ -240,7 +240,7 @@ func (s *Storage) GetWithQuery(q *CachedQuery, qc QueryContext, entityId EntityI
 
 func (s *Storage) CheckChanged(tick Tick, query *CachedQuery, types []*ComponentType) {
 	for _, ty := range types {
-		if !ty.Comparable {
+		if !ty.DirtyTracking {
 			continue
 		}
 

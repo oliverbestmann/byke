@@ -47,7 +47,7 @@ type ComparableComponent[T IsComparableComponent[T]] struct{}
 func (ComparableComponent[T]) IsComponent(t T) {}
 
 func (ComparableComponent[T]) ComponentType() *ComponentType {
-	return comparableComponentTypeOf[T]()
+	return makeComparableComponentTypeOf[T]()
 }
 
 func (ComparableComponent[T]) isComponent(isComponentMarker) {}

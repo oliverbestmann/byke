@@ -7,7 +7,7 @@ import (
 )
 
 type PickingCamera struct {
-	Component[PickingCamera]
+	ImmutableComponent[PickingCamera]
 }
 
 type Interactable struct {

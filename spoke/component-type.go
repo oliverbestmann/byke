@@ -19,36 +19,28 @@ type MakeColumn func() Column
 type ComponentTypeId uint16
 
 type ComponentType struct {
-	Name            string
-	Type            reflect.Type
-	MakeColumn      MakeColumn
-	UnsafeSetValue  UnsafeSetValue
-	UnsafeCopyValue func(from, to unsafe.Pointer)
+	Name       string
+	Type       reflect.Type
+	MakeColumn MakeColumn
 
-	// Maphash is an optional function to calculates the maphash
-	// using maphash.Comparable. This is only defined if the type is comparable and
-	// the component embeds ComparableComponent.
-	Maphash func(ErasedComponent) HashValue
-
-	// MemorySlices define regions that this type is well defined in. If the type has holes
-	// due to having padding bytes, we might have multiple memory slices.
-	MemorySlices []memorySlice
+	// The size of the underlying datatype in bytes
+	Size uintptr
 
 	// The Id of the type
 	Id ComponentTypeId
 
 	// HasPointers indicates that a value of the type contains pointers, e.g.
-	// by having a field of type *T, a string, a slice or a map value.
+	// by having a field of type *T, a string, an interface, a slice or a map value.
 	HasPointers bool
 
 	// TriviallyHashable indicates that the type can be trivially hashed by hashing
 	// the types MemorySlices
 	TriviallyHashable bool
 
-	// Comparable indicates if the type is comparable
-	Comparable bool
-
-	memcmp bool
+	// DirtyTracking indicates if the type is comparable
+	DirtyTracking        bool
+	IsMarker             bool
+	IsImmutableComponent bool
 }
 
 func ComponentTypeOf[C IsComponent[C]]() *ComponentType {
@@ -70,6 +62,10 @@ func (c *ComponentType) CopyOf(value ErasedComponent) ErasedComponent {
 
 func (c *ComponentType) String() string {
 	return c.Name
+}
+
+func (c *ComponentType) LogValue() slog.Value {
+	return slog.StringValue(c.Name)
 }
 
 var componentTypes atomic.Pointer[map[unsafe.Pointer]*ComponentType]
@@ -129,10 +125,10 @@ func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
 		fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
 	}
 
-	return ensureComponentType[C](ptrToType, makeComponentType[C])
+	return ensureComponentType[C](ptrToType, makeNonComparableComponentType[C])
 }
 
-func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
+func makeComparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 	reflectType := reflect.TypeFor[C]()
 	ptrToType := abiTypePointerTo(reflectType)
 
@@ -145,52 +141,56 @@ func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 	}
 
 	return ensureComponentType[C](ptrToType, func(id ComponentTypeId) *ComponentType {
-		ty := makeComponentType[C](id)
+		ty := baseComponentTypeOf[C](id)
 
-		ty.Comparable = true
+		switch {
+		case ty.IsMarker:
+			ty.MakeColumn = NewZeroSizedColumn[C]
 
-		if ty.Type.Size() > 0 {
+		case ty.TriviallyHashable:
+			ty.DirtyTracking = true
 			ty.MakeColumn = NewShadowComparableColumn[C]
-		}
 
-		ty.memcmp = !typeHasPaddingBytes(reflectType) && len(ty.MemorySlices) == 1
-
-		ty.Maphash = func(component ErasedComponent) HashValue {
-			return HashValue(maphash.Comparable(seed, *any(component).(*C)))
+		default:
+			ty.DirtyTracking = true
+			ty.MakeColumn = NewHashedComparableColumn[C]
 		}
 
 		return ty
 	})
 }
 
-func makeComponentType[C IsComponent[C]](id ComponentTypeId) *ComponentType {
-	reflectType := reflect.TypeFor[C]()
-
-	ty := &ComponentType{
-		Id:   id,
-		Type: reflectType,
-		Name: reflectType.String(),
-	}
+func makeNonComparableComponentType[C IsComponent[C]](id ComponentTypeId) *ComponentType {
+	ty := baseComponentTypeOf[C](id)
 
 	switch {
-	case reflectType.Size() == 0:
+	case ty.IsMarker:
 		ty.MakeColumn = NewZeroSizedColumn[C]
 
 	default:
 		ty.MakeColumn = NewTypedColumn[C]
 	}
 
-	ty.UnsafeSetValue = unsafeCopyComponentValue[C]
-	ty.UnsafeCopyValue = unsafeCopyValue[C]
-
-	ty.HasPointers = typeHasPointers(reflectType)
-
-	ty.TriviallyHashable = typeIsTriviallyHashable(reflectType)
-	if ty.TriviallyHashable {
-		ty.MemorySlices = memorySlicesOf(reflectType, 0, nil)
-	}
-
 	return ty
+}
+
+func baseComponentTypeOf[C IsComponent[C]](id ComponentTypeId) *ComponentType {
+	reflectType := reflect.TypeFor[C]()
+
+	var cValue C
+
+	_, isImmutableComponent := any(cValue).(IsErasedImmutableComponent)
+
+	return &ComponentType{
+		Id:                   id,
+		Type:                 reflectType,
+		Name:                 reflectType.String(),
+		Size:                 unsafe.Sizeof(cValue),
+		IsMarker:             unsafe.Sizeof(cValue) == 0,
+		HasPointers:          typeHasPointers(reflectType),
+		TriviallyHashable:    typeIsTriviallyHashable(reflectType),
+		IsImmutableComponent: isImmutableComponent,
+	}
 }
 
 func unsafeCopyComponentValue[C IsComponent[C]](target unsafe.Pointer, value ErasedComponent) {
