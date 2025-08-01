@@ -14,7 +14,7 @@ var seed = maphash.MakeSeed()
 
 type UnsafeSetValue func(target unsafe.Pointer, ref ErasedComponent)
 
-type MakeColumn func() *ErasedColumn
+type MakeColumn func() Column
 
 type ComponentTypeId uint16
 
@@ -147,9 +147,9 @@ func comparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType {
 	return ensureComponentType[C](ptrToType, func(id ComponentTypeId) *ComponentType {
 		ty := makeComponentType[C](id)
 
-		ty.MakeColumn = MakeErasedColumn(ty)
 		ty.Comparable = true
 
+		ty.MakeColumn = NewShadowComparableColumn[C]
 		ty.memcmp = !typeHasPaddingBytes(reflectType) && len(ty.MemorySlices) == 1
 
 		ty.Maphash = func(component ErasedComponent) HashValue {
@@ -169,7 +169,13 @@ func makeComponentType[C IsComponent[C]](id ComponentTypeId) *ComponentType {
 		Name: reflectType.String(),
 	}
 
-	ty.MakeColumn = MakeErasedColumn(ty)
+	switch {
+	case reflectType.Size() == 0:
+		ty.MakeColumn = NewZeroSizedColumn[C]
+
+	default:
+		ty.MakeColumn = NewTypedColumn[C]
+	}
 
 	ty.UnsafeSetValue = unsafeCopyComponentValue[C]
 	ty.UnsafeCopyValue = unsafeCopyValue[C]

@@ -32,8 +32,10 @@ type Setter struct {
 	UseEntityId bool
 }
 
-func FromEntity[T any](target *T, setters []Setter, ref spoke.EntityRef) {
-	ptrToTarget := unsafe.Pointer(target)
+func FromEntity[T any](setters []Setter, ref spoke.EntityRef) T {
+	var target T
+
+	ptrToTarget := unsafe.Pointer(&target)
 
 	for idx := range setters {
 		setter := &setters[idx]
@@ -45,6 +47,8 @@ func FromEntity[T any](target *T, setters []Setter, ref spoke.EntityRef) {
 			source := ref.GetAt(setter.ComponentIdx)
 
 			if source != nil {
+				// I think this is safe as we're copying a value from the heap to the stack,
+				// and we do not need a write barrier in that case.
 				memmove(target, source, setter.ComponentTypeSize)
 			} else {
 				// no value, clear memory
@@ -64,6 +68,8 @@ func FromEntity[T any](target *T, setters []Setter, ref spoke.EntityRef) {
 			*(*spoke.EntityId)(target) = ref.EntityId()
 		}
 	}
+
+	return target
 }
 
 func ParseQuery(queryType reflect.Type) (ParsedQuery, error) {
@@ -179,6 +185,6 @@ func isEntityId(ty reflect.Type) bool {
 
 type buf *[math.MaxInt32]byte
 
-func memmove(target, source unsafe.Pointer, count uintptr) {
-	copy((*buf(target))[:count], (*buf(source))[:count])
+func memmove(target, source unsafe.Pointer, byteCount uintptr) {
+	copy((*buf(target))[:byteCount], (*buf(source))[:byteCount])
 }

@@ -58,6 +58,7 @@ func (s *Storage) Despawn(entityId EntityId) bool {
 	if archetype.Len() == 0 {
 		// TODO maybe remove the archetype from the graph if it is empty?
 		//  that might speed up queries matching a lot of empty archetypes
+		//  we would also need to call the optimizer again
 	}
 
 	return true
@@ -195,7 +196,7 @@ func (s *Storage) handleNewArchetype(newArchetype *Archetype) {
 	// we register a callback to re-optimize all queries that are looking at data
 	// of one of the columns to update any changed pointers
 	for _, column := range newArchetype.columns {
-		column.OnGrow = doOptimize
+		column.OnGrow(doOptimize)
 	}
 }
 

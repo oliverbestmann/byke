@@ -439,8 +439,7 @@ func runTestFromEntity[Q any](t *testing.T, entity spoke.EntityRef, expected Q) 
 		parsed, err := ParseQuery(reflect.TypeFor[Q]())
 		require.NoError(t, err)
 
-		var queryTarget Q
-		FromEntity(&queryTarget, parsed.Setters, entity)
+		queryTarget := FromEntity[Q](parsed.Setters, entity)
 		require.Equal(t, expected, queryTarget)
 	})
 }
@@ -470,12 +469,10 @@ func BenchmarkFromEntity(b *testing.B) {
 
 	entity, _ := s.Get(10)
 
-	var value QueryItem
-
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		FromEntity(&value, query.Setters, entity)
+		FromEntity[QueryItem](query.Setters, entity)
 	}
 }

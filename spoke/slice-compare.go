@@ -1,8 +1,11 @@
 package spoke
 
 import (
+	"math"
 	"unsafe"
 )
+
+const noOffset = math.MaxUint64
 
 func sliceCompareSlow(lhs, rhs unsafe.Pointer, n uintptr) uintptr {
 	for idx := uintptr(0); idx < n; idx++ {
@@ -55,7 +58,7 @@ func sliceCompare(lhs, rhs []byte, offset uintptr) uintptr {
 		panic("offset not aligned")
 	}
 
-	for ; offset < n; offset += 8 {
+	for ; offset < n-n%8; offset += 8 {
 		ptrA := unsafe.Add(ptrA, offset)
 		ptrB := unsafe.Add(ptrB, offset)
 
@@ -75,7 +78,11 @@ func sliceCompare(lhs, rhs []byte, offset uintptr) uintptr {
 
 		ptrA := unsafe.Add(ptrA, offset)
 		ptrB := unsafe.Add(ptrB, offset)
-		return offset + sliceCompareSlow(ptrA, ptrB, rem)
+
+		res := sliceCompareSlow(ptrA, ptrB, rem)
+		if res != noOffset {
+			return offset + res
+		}
 	}
 
 	return noOffset

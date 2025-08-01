@@ -49,15 +49,13 @@ func (q *Query[T]) parse() (query.ParsedQuery, error) {
 }
 
 func (q *Query[T]) Get(entityId EntityId) (T, bool) {
-	var target T
-
 	ref, ok := q.inner.Storage.GetWithQuery(q.inner.Query, q.inner.QueryContext, entityId)
 	if !ok {
-		return target, false
+		var tZero T
+		return tZero, false
 	}
 
-	query.FromEntity(&target, q.inner.Setters, ref)
-
+	target := query.FromEntity[T](q.inner.Setters, ref)
 	return target, true
 }
 
@@ -149,15 +147,13 @@ type innerQuery struct {
 func iterValues[T any](inner *innerQuery, fn func(value T) bool) {
 	it := inner.Storage.IterQuery(inner.Query, inner.QueryContext)
 
-	var target T
-
 	for {
 		ref, more := it.Next()
 		if !more {
 			break
 		}
 
-		query.FromEntity(&target, inner.Setters, ref)
+		target := query.FromEntity[T](inner.Setters, ref)
 
 		if !fn(target) {
 			break

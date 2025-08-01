@@ -2,11 +2,31 @@ package spoke
 
 import (
 	"hash/maphash"
+	"math"
 	"reflect"
 	"unsafe"
 )
 
 type Row uint32
+
+type Column interface {
+	Append(tick Tick, component ErasedComponent)
+	Import(column Column, source Row)
+	Update(tick Tick, row Row, component ErasedComponent)
+	Copy(from, to Row)
+	Truncate(swap Row)
+	Get(row Row) ErasedComponent
+	Access() ColumnAccess
+	Len() int
+	CheckChanged(tick Tick)
+	OnGrow(onGrow func())
+	Added(row Row) Tick
+	LastAdded() Tick
+	Changed(row Row) Tick
+	LastChanged() Tick
+}
+
+type buf *[math.MaxInt32]byte
 
 // maphashOf is a safe hash that uses the maphash package to hash a value of type C.
 func maphashOf[C IsComparableComponent[C]](value *C) HashValue {

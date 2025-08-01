@@ -111,3 +111,85 @@ func BenchmarkStorageIterQuery(b *testing.B) {
 		}
 	}
 }
+
+func TestAddRemove(t *testing.T) {
+	s := NewStorage()
+	s.Spawn(Tick(0), EntityId(1), []ErasedComponent{
+		&Velocity{},
+		&Position{},
+	})
+
+	require.True(t, s.HasComponent(EntityId(1), ComponentTypeOf[Velocity]()))
+
+	s.Despawn(EntityId(1))
+	require.False(t, s.HasComponent(EntityId(1), ComponentTypeOf[Velocity]()))
+
+	s.Spawn(Tick(0), EntityId(1), []ErasedComponent{
+		&Velocity{},
+		&Position{},
+	})
+
+	require.True(t, s.HasComponent(EntityId(1), ComponentTypeOf[Velocity]()))
+}
+
+func TestStorage_OptimizeQuery(t *testing.T) {
+	s := NewStorage()
+
+	q := s.OptimizeQuery(Query{
+		Fetch: []FetchComponent{
+			{
+				ComponentType: ComponentTypeOf[Velocity](),
+				Optional:      false,
+			},
+		},
+	})
+
+	s.Spawn(Tick(0), EntityId(1), []ErasedComponent{
+		&Velocity{},
+		&Position{},
+	})
+
+	iter := s.IterQuery(q, QueryContext{})
+	_, ok := iter.Next()
+	require.True(t, ok)
+
+	_, ok = iter.Next()
+	require.False(t, ok)
+
+	// spawn a new entry with a new archetype
+	s.Spawn(Tick(1), EntityId(2), []ErasedComponent{
+		&Velocity{},
+	})
+
+	// run the query again
+	iter = s.IterQuery(q, QueryContext{})
+
+	_, ok = iter.Next()
+	require.True(t, ok)
+
+	_, ok = iter.Next()
+	require.True(t, ok)
+
+	_, ok = iter.Next()
+	require.False(t, ok)
+
+	// force a realloc of the second archetype by adding 1000 items. afterwards we should have
+	// exactly 1000 + 2 entities
+	for i := range 1000 {
+		s.Spawn(Tick(2), EntityId(100+i), []ErasedComponent{
+			&Velocity{},
+		})
+	}
+
+	// run the query again
+	iter = s.IterQuery(q, QueryContext{})
+
+	for range 1002 {
+		_, ok := iter.Next()
+		require.True(t, ok)
+	}
+
+	_, ok = iter.Next()
+	require.False(t, ok)
+
+}

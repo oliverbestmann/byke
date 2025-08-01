@@ -19,8 +19,8 @@ type Archetype struct {
 	entities []EntityId
 	index    map[EntityId]Row
 
-	columns       []*ErasedColumn
-	columnsByType map[*ComponentType]*ErasedColumn
+	columns       []Column
+	columnsByType map[*ComponentType]Column
 }
 
 func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
@@ -32,18 +32,15 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 		}
 	}
 
-	columnsByType := map[*ComponentType]*ErasedColumn{}
+	columnsByType := map[*ComponentType]Column{}
 
-	var columnsByTypeId [256]*ErasedColumn
-
-	var columns []*ErasedColumn
+	var columns []Column
 	for _, ty := range sortedTypes {
 		column := ty.MakeColumn()
 		columns = append(columns, column)
 
 		// put column into index too
 		columnsByType[ty] = column
-		columnsByTypeId[ty.Id&0xff] = column
 	}
 
 	return &Archetype{
@@ -215,7 +212,7 @@ func (a *Archetype) LastAdded(componentType *ComponentType) Tick {
 		return NoTick
 	}
 
-	return column.LastAdded
+	return column.LastAdded()
 }
 
 func (a *Archetype) LastChanged(componentType *ComponentType) Tick {
@@ -224,10 +221,10 @@ func (a *Archetype) LastChanged(componentType *ComponentType) Tick {
 		return NoTick
 	}
 
-	return column.LastChanged
+	return column.LastChanged()
 }
 
-func (a *Archetype) getColumn(componentType *ComponentType) *ErasedColumn {
+func (a *Archetype) getColumn(componentType *ComponentType) Column {
 	return a.columnsByType[componentType]
 }
 
@@ -251,7 +248,7 @@ func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIt
 	// check what types we can fetch
 	for _, typ := range query.Fetch {
 		column := a.getColumn(typ.ComponentType)
-		fetch = append(fetch, column.Access())
+		fetch = append(fetch, columnAccessOf(column))
 	}
 
 	// now we have columns in the same order as the queries fetch values.
@@ -263,6 +260,14 @@ func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIt
 	}
 
 	return iter, fetch
+}
+
+func columnAccessOf(column Column) ColumnAccess {
+	if column == nil {
+		return ColumnAccess{}
+	} else {
+		return column.Access()
+	}
 }
 
 func (a *Archetype) Import(tick Tick, source *Archetype, entityId EntityId, newComponents ...ErasedComponent) {

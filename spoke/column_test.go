@@ -3,7 +3,6 @@ package spoke
 import (
 	"math/rand/v2"
 	"testing"
-	"unsafe"
 )
 
 func BenchmarkColumn_Get1k(b *testing.B) {
@@ -54,12 +53,7 @@ func BenchmarkColumn_CheckChanges(b *testing.B) {
 
 	var n byte
 	for b.Loop() {
-		for idx := range 200 {
-			*(*byte)(unsafe.Add(velocities.memory, (300+idx*2)*int(velocities.itemSize)+2)) = n
-		}
-
 		n += 1
-
 		velocities.CheckChanged(Tick(2))
 	}
 }
@@ -83,12 +77,7 @@ func BenchmarkColumn_DirtyCheck(b *testing.B) {
 
 	var n byte
 	for b.Loop() {
-		for idx := range 200 {
-			*(*byte)(unsafe.Add(velocities.memory, (300+idx*2)*int(velocities.itemSize)+2)) = n
-		}
-
 		n += 1
-
-		velocities.checkChangesUsingSliceCompare(Tick(2))
+		velocities.CheckChanged(Tick(2))
 	}
 }
