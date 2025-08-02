@@ -134,6 +134,15 @@ func (e EntityCommands) Trigger(eventValue any) EntityCommands {
 	return e
 }
 
+func (e EntityCommands) Insert(components ...ErasedComponent) EntityCommands {
+	e.commands.Queue(insertComponentsCommand{
+		EntityId:   e.entityId,
+		Components: components,
+	})
+
+	return e
+}
+
 func RemoveComponent[C IsComponent[C]]() EntityCommand {
 	return (*removeComponentEntityCommand)(spoke.ComponentTypeOf[C]())
 }
@@ -237,6 +246,15 @@ type insertComponentEntityCommand struct {
 
 func (c insertComponentEntityCommand) Apply(world *World, entityId EntityId) {
 	world.insertComponents(entityId, []ErasedComponent{c.InitialValue})
+}
+
+type insertComponentsCommand struct {
+	EntityId   EntityId
+	Components []ErasedComponent
+}
+
+func (c insertComponentsCommand) Apply(world *World) {
+	world.insertComponents(c.EntityId, c.Components)
 }
 
 type runSystemCommand struct {

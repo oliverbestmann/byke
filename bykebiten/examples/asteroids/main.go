@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
@@ -12,6 +13,9 @@ import (
 	"math/rand/v2"
 	"time"
 )
+
+//go:embed assets/*
+var assets embed.FS
 
 func main() {
 	// defer profile.Start(profile.MemProfile, profile.MemProfileRate(512)).Stop()
@@ -28,6 +32,8 @@ func main() {
 	var InputSystems = &SystemSet{}
 	var GameSystems = &SystemSet{}
 	var PhysicsSystems = &SystemSet{}
+
+	app.InsertResource(MakeAssetFS(assets))
 
 	app.ConfigureSystemSets(Update, InputSystems.Before(GameSystems))
 	app.ConfigureSystemSets(Update, GameSystems.Before(PhysicsSystems))
@@ -401,7 +407,7 @@ type Explode struct {
 	Radius   float64
 }
 
-func spawnExplosionSystem(params On[Explode], commands *Commands) {
+func spawnExplosionSystem(params On[Explode], commands *Commands, assets *Assets) {
 	p := &params.Event
 
 	var circle Path
@@ -426,6 +432,11 @@ func spawnExplosionSystem(params On[Explode], commands *Commands) {
 		},
 		Layer{Z: 2},
 	)
+
+	commands.Spawn(
+		AudioPlayerOf(assets.Audio("explosion.ogg").Await()),
+		PlaybackSettingsDespawn.WithStartAt(900*time.Millisecond),
+	)
 }
 
 type FireMissileIn struct {
@@ -439,7 +450,7 @@ func FireMissile(start, velocity Vec) Command {
 	})
 }
 
-func fireMissileSystem(commands *Commands, param In[FireMissileIn]) {
+func fireMissileSystem(commands *Commands, assets *Assets, param In[FireMissileIn]) {
 	p := &param.Value
 
 	var missile Path
@@ -462,6 +473,11 @@ func fireMissileSystem(commands *Commands, param In[FireMissileIn]) {
 			commands.Entity(trigger.Target).Despawn()
 			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 20})
 		})
+
+	commands.Spawn(
+		AudioPlayerOf(assets.Audio("launch.ogg").Await()),
+		PlaybackSettingsDespawn,
+	)
 }
 
 func alignWithVelocity(

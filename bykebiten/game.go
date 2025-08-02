@@ -15,6 +15,7 @@ import (
 
 var TransformSystems = &byke.SystemSet{}
 var VisibilitySystems = &byke.SystemSet{}
+var AudioSystems = &byke.SystemSet{}
 
 type AssetFS struct {
 	fs.FS
@@ -44,6 +45,8 @@ func GamePlugin(app *byke.App) {
 	app.InsertResource(MouseButtons{})
 	app.InsertResource(Keys{})
 
+	app.InsertResource(AudioContext{audioContext})
+
 	app.InsertResource(Assets{fs: assetFs.FS})
 
 	app.AddEvent(byke.EventType[AppExit]())
@@ -71,6 +74,9 @@ func GamePlugin(app *byke.App) {
 		computeSpriteSizeSystem,
 		computeTextSizeSystem,
 	)
+
+	app.AddSystems(byke.PreRender,
+		byke.System(createAudioSinkSystem, cleanupAudioSinkSystem).Chain().InSet(AudioSystems))
 
 	app.AddSystems(byke.Render, byke.System(renderSystem).Chain())
 
