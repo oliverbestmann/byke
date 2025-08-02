@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
+	"github.com/oliverbestmann/byke/bykebiten/audio"
 	"image"
 	"io"
 	"io/fs"
@@ -106,19 +106,28 @@ func (a *Assets) Audio(path string) *AsyncAsset[*AudioSource] {
 			return nil, fmt.Errorf("open asset %q: %w", path, err)
 		}
 
-		stream, err := vorbis.DecodeWithSampleRate(SampleRate, fp)
+		buf, err := io.ReadAll(fp)
 		if err != nil {
-			return nil, fmt.Errorf("create vorbis decoder: %w", err)
+			return nil, fmt.Errorf("read asset %q into memory: %w", path, err)
 		}
 
-		// allocate memory for the decoded audio stream
-		w := bytes.NewBuffer(make([]byte, 0, stream.Length()))
-		if _, err := io.Copy(w, stream); err != nil {
-			return nil, fmt.Errorf("decoding vorbis: %w", err)
+		// try to parse the file once. if that works, we will just create an instance
+		// each time without error checking
+		if _, err := audio.OpenStream(bytes.NewReader(buf)); err != nil {
+			return nil, fmt.Errorf("create stream for %q: %w", path, err)
 		}
 
-		samples := bytesAsSamples[int16](w.Bytes())
-		return &AudioSource{samples: samples}, nil
+		factory := func() audio.AudioStream[float32] {
+			stream, err := audio.OpenStream(bytes.NewReader(buf))
+			if err != nil {
+				err := fmt.Errorf("create stream for %q: %w", path, err)
+				panic(err)
+			}
+
+			return stream
+		}
+
+		return &AudioSource{factory: factory}, nil
 	})
 }
 

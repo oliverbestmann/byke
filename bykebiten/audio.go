@@ -1,12 +1,12 @@
 package bykebiten
 
 import (
-	"github.com/hajimehoshi/ebiten/v2/audio"
+	eaudio "github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/bykebiten/audio"
 	"github.com/oliverbestmann/byke/spoke"
 	"log/slog"
 	"time"
-	"unsafe"
 )
 
 var _ = byke.ValidateComponent[AudioPlayer]()
@@ -17,30 +17,18 @@ var _ = byke.ValidateComponent[playbackRemoveMarker]()
 
 const SampleRate = 48_000
 
-var audioContext = audio.NewContext(SampleRate)
+var audioContext = eaudio.NewContext(SampleRate)
 
 type AudioContext struct {
-	*audio.Context
+	*eaudio.Context
 }
 
 type AudioSource struct {
-	// 16 bit 2 channel audio at SampleRate
-	samples []int16
+	factory func() audio.AudioStream[float32]
 }
 
-func samplesAsBytes[S int16 | float32](samples []S) []byte {
-	ptr := (*byte)(unsafe.Pointer(unsafe.SliceData(samples)))
-	return unsafe.Slice(ptr, unsafe.Sizeof(S(0))*uintptr(len(samples)))
-}
-
-func bytesAsSamples[S int16 | float32](buf []byte) []S {
-	ptr := unsafe.Pointer(unsafe.SliceData(buf))
-
-	if uintptr(ptr)%unsafe.Alignof(S(0)) != 0 {
-		panic("buffer not aligned with sample type")
-	}
-
-	return unsafe.Slice((*S)(ptr), uintptr(len(buf))/unsafe.Sizeof(S(0)))
+func (a *AudioSource) NewStream() audio.AudioStream[float32] {
+	return a.factory()
 }
 
 type AudioPlayer struct {
@@ -60,11 +48,17 @@ func (AudioPlayer) RequireComponents() []spoke.ErasedComponent {
 type AudioSink struct {
 	byke.ImmutableComponent[AudioSink]
 	ps     PlaybackSettings
-	player *audio.Player
+	player *eaudio.Player
 }
 
 func createAudioSink(source *AudioSource, ps PlaybackSettings) AudioSink {
-	player := audioContext.NewPlayerFromBytes(samplesAsBytes(source.samples))
+	stream := source.NewStream()
+
+	if ps.Mode == PlaybackModeLoop {
+		stream = audio.Loop(stream)
+	}
+
+	player, _ := audioContext.NewPlayerF32(audio.ToReadSeeker(stream))
 
 	player.SetVolume(ps.Volume)
 	if ps.Muted {
@@ -159,6 +153,16 @@ type PlaybackSettings struct {
 
 func (p PlaybackSettings) WithStartAt(startAt time.Duration) PlaybackSettings {
 	p.StartAt = startAt
+	return p
+}
+
+func (p PlaybackSettings) WithDuration(duration time.Duration) PlaybackSettings {
+	p.Duration = duration
+	return p
+}
+
+func (p PlaybackSettings) WithVolume(volume float64) PlaybackSettings {
+	p.Volume = volume
 	return p
 }
 
