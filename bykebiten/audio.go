@@ -50,39 +50,64 @@ func (AudioPlayer) RequireComponents() []spoke.ErasedComponent {
 }
 
 type AudioSink struct {
-	byke.ImmutableComponent[AudioSink]
-	ps     PlaybackSettings
+	byke.Component[AudioSink]
+	ps PlaybackSettings
+
+	// The player. For spatial audio, this is the left ear.
 	player *eaudio.Player
+
+	// A second player. For spatial audio, this one is the right ear.
+	second *eaudio.Player
 }
 
 func createAudioSink(source *AudioSource, ps PlaybackSettings, globalVolume GlobalVolume) AudioSink {
-	stream := source.NewStream()
+	newChannel := func(channel int) *eaudio.Player {
+		stream := source.NewStream()
 
-	if ps.Mode == PlaybackModeLoop {
-		stream = audio.Loop(stream)
+		if ps.Mode == PlaybackModeLoop {
+			stream = audio.Loop(stream)
+		}
+
+		if channel >= 0 {
+			stream = audio.SelectChannel(stream, channel)
+		}
+
+		player, _ := audioContext.NewPlayerF32(audio.ToReadSeeker(stream))
+
+		player.SetVolume(ps.Volume)
+		if ps.Muted || channel >= 0 {
+			player.SetVolume(0)
+		}
+
+		if ps.StartAt > 0 {
+			_ = player.SetPosition(ps.StartAt)
+		}
+
+		if !ps.Paused {
+			player.Play()
+		}
+
+		return player
 	}
 
 	// apply global volume
 	ps.Volume *= globalVolume.Volume
 
-	player, _ := audioContext.NewPlayerF32(audio.ToReadSeeker(stream))
+	var player, second *eaudio.Player
 
-	player.SetVolume(ps.Volume)
-	if ps.Muted {
-		player.SetVolume(0)
-	}
-
-	if ps.StartAt > 0 {
-		_ = player.SetPosition(ps.StartAt)
-	}
-
-	if !ps.Paused {
-		player.Play()
+	if ps.Spatial {
+		// we need a player for each ear
+		player = newChannel(0)
+		second = newChannel(1)
+	} else {
+		// we need only one player playing all channels
+		player = newChannel(-1)
 	}
 
 	return AudioSink{
 		ps:     ps,
 		player: player,
+		second: second,
 	}
 }
 
@@ -102,12 +127,20 @@ func (as *AudioSink) Pause() {
 	if p := as.player; p != nil {
 		p.Pause()
 	}
+
+	if p := as.second; p != nil {
+		p.Pause()
+	}
 }
 
 func (as *AudioSink) Play() {
 	as.ps.Paused = false
 
 	if p := as.player; p != nil {
+		p.Play()
+	}
+
+	if p := as.second; p != nil {
 		p.Play()
 	}
 }
@@ -122,6 +155,10 @@ func (as *AudioSink) Mute() {
 	if p := as.player; p != nil {
 		p.SetVolume(0)
 	}
+
+	if p := as.second; p != nil {
+		p.SetVolume(0)
+	}
 }
 
 func (as *AudioSink) Unmute() {
@@ -130,10 +167,28 @@ func (as *AudioSink) Unmute() {
 	if p := as.player; p != nil {
 		p.SetVolume(max(0, min(1, as.ps.Volume)))
 	}
+
+	if p := as.second; p != nil {
+		p.SetVolume(max(0, min(1, as.ps.Volume)))
+	}
 }
 
 func (as *AudioSink) IsMuted() bool {
 	return as.ps.Muted
+}
+
+func (as *AudioSink) SpatialVolume(left, right float64) {
+	if as.IsMuted() {
+		return
+	}
+
+	if p := as.player; p != nil {
+		p.SetVolume(as.ps.Volume * left)
+	}
+
+	if p := as.second; p != nil {
+		p.SetVolume(as.ps.Volume * right)
+	}
 }
 
 func (as *AudioSink) Stop() {
@@ -141,14 +196,18 @@ func (as *AudioSink) Stop() {
 		as.player = nil
 		_ = p.Close()
 	}
+
+	if p := as.second; p != nil {
+		as.second = nil
+		_ = p.Close()
+	}
 }
 
 type PlaybackSettings struct {
 	byke.ImmutableComponent[PlaybackSettings]
-	Mode   PlaybackMode
-	Volume float64
-	Paused bool
-	Muted  bool
+	Mode         PlaybackMode
+	Volume       float64
+	SpatialScale float64
 
 	// StartAt indicates where to start the audio source
 	StartAt time.Duration
@@ -156,6 +215,10 @@ type PlaybackSettings struct {
 	// Duration indicates the duration of the audio to play.
 	// If Duration is set to zero, the audio will be played to the end.
 	Duration time.Duration
+
+	Paused  bool
+	Muted   bool
+	Spatial bool
 }
 
 func (p PlaybackSettings) WithStartAt(startAt time.Duration) PlaybackSettings {
@@ -170,6 +233,17 @@ func (p PlaybackSettings) WithDuration(duration time.Duration) PlaybackSettings 
 
 func (p PlaybackSettings) WithVolume(volume float64) PlaybackSettings {
 	p.Volume = volume
+	return p
+}
+
+func (p PlaybackSettings) WithSpatial() PlaybackSettings {
+	p.Spatial = true
+	return p
+}
+
+func (p PlaybackSettings) WithSpatialScale(spatialScale float64) PlaybackSettings {
+	p.Spatial = true
+	p.SpatialScale = spatialScale
 	return p
 }
 
@@ -230,13 +304,19 @@ func createAudioSinkSystem(
 		// create a new audio sink and insert it into the entity
 		sink := createAudioSink(item.Player.Source, item.PlaybackSettings, globalVolume)
 
+		var entity byke.EntityCommands
+
 		switch item.PlaybackSettings.Mode {
 		case PlaybackModeOnce, PlaybackModeLoop:
-			commands.Entity(item.EntityId).Insert(sink)
+			entity = commands.Entity(item.EntityId).Insert(sink)
 		case PlaybackModeDespawn:
-			commands.Entity(item.EntityId).Insert(sink, playbackDespawnMarker{})
+			entity = commands.Entity(item.EntityId).Insert(sink, playbackDespawnMarker{})
 		case PlaybackModeRemove:
-			commands.Entity(item.EntityId).Insert(sink, playbackRemoveMarker{})
+			entity = commands.Entity(item.EntityId).Insert(sink, playbackRemoveMarker{})
+		}
+
+		if sink.ps.Spatial {
+			entity.Insert(&spatialSinkMarker{})
 		}
 	}
 }
@@ -268,6 +348,7 @@ func cleanupAudioSinkSystem(
 				byke.RemoveComponent[AudioSink](),
 				byke.RemoveComponent[PlaybackSettings](),
 				byke.RemoveComponent[playbackRemoveMarker](),
+				byke.RemoveComponent[spatialSinkMarker](),
 			)
 		}
 	}

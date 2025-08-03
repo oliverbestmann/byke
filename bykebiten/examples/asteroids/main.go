@@ -175,6 +175,11 @@ func spawnSpaceShipSystem(commands *Commands) {
 				Antialias: true,
 			},
 
+			Microphone{
+				LeftEarOffset:  Vec{Y: 20},
+				RightEarOffset: Vec{Y: -20},
+			},
+
 			SpawnChild(
 				Plume{},
 				plume,
@@ -443,7 +448,8 @@ func spawnExplosionSystem(params On[Explode], commands *Commands, assets *Assets
 
 	commands.Spawn(
 		AudioPlayerOf(assets.Audio("explosion.ogg").Await()),
-		PlaybackSettingsDespawn.WithStartAt(900*time.Millisecond),
+		PlaybackSettingsDespawn.WithStartAt(900*time.Millisecond).WithSpatialScale(1/500.0),
+		TransformFromXY(p.Position.XY()),
 	)
 }
 

@@ -78,7 +78,7 @@ func GamePlugin(app *byke.App) {
 	)
 
 	app.AddSystems(byke.PreRender,
-		byke.System(createAudioSinkSystem, cleanupAudioSinkSystem).Chain().InSet(AudioSystems))
+		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).Chain().InSet(AudioSystems))
 
 	app.AddSystems(byke.Render, byke.System(renderSystem).Chain())
 
