@@ -1,29 +1,44 @@
 package bykebiten
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/oliverbestmann/byke/bykebiten/audio"
-	"image"
 	"io"
 	"io/fs"
 	"log/slog"
 	"path"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"time"
 )
 
 type assetCache[T any] struct {
-	values   map[string]*AsyncAsset[T]
+	values   map[string]*asyncAsset[T]
 	loading  atomic.Int32
 	finished atomic.Int32
 }
 
-func (a *assetCache[T]) Get(p string, load func() (T, error)) *AsyncAsset[T] {
+func (a *assetCache[T]) Loading() int32 {
+	if a == nil {
+		return 0
+	}
+
+	return a.loading.Load()
+}
+
+func (a *assetCache[T]) Finished() int32 {
+	if a == nil {
+		return 0
+	}
+
+	return a.finished.Load()
+}
+
+func (a *assetCache[T]) Get(p string, load func() (T, error)) *asyncAsset[T] {
 	if a.values == nil {
-		a.values = make(map[string]*AsyncAsset[T], 64)
+		a.values = make(map[string]*asyncAsset[T], 64)
 	}
 
 	// cleanup path to improve cache hits
@@ -69,38 +84,64 @@ func (a *assetCache[T]) Get(p string, load func() (T, error)) *AsyncAsset[T] {
 	return asyncAsset
 }
 
+type LoadContext struct {
+	// The path to the file we're currently loading
+	Path string
+
+	// A load specific settings object
+	Settings any
+}
+
+type AssetLoader interface {
+	Load(ctx LoadContext, r io.Reader) (any, error)
+	Extensions() []string
+}
+
 type Assets struct {
 	fs fs.FS
 
-	bytes  assetCache[[]byte]
-	images assetCache[*ebiten.Image]
-	audios assetCache[*AudioSource]
+	loaders map[string]AssetLoader
+	generic *assetCache[any]
+
+	bytes *assetCache[[]byte]
 }
 
-func (a *Assets) Bytes(path string) *AsyncAsset[[]byte] {
-	return a.bytes.Get(path, func() ([]byte, error) {
-		return fs.ReadFile(a.fs, path)
-	})
+func makeAssets(fs fs.FS, loaders ...AssetLoader) Assets {
+	assets := Assets{
+		fs:      fs,
+		loaders: make(map[string]AssetLoader, 8),
+		generic: &assetCache[any]{},
+		bytes:   &assetCache[[]byte]{},
+	}
+
+	for _, l := range loaders {
+		assets.RegisterLoader(l)
+	}
+
+	return assets
 }
 
-func (a *Assets) Image(path string) *AsyncAsset[*ebiten.Image] {
-	return a.images.Get(path, func() (*ebiten.Image, error) {
-		fp, err := a.fs.Open(path)
-		if err != nil {
-			return nil, fmt.Errorf("open asset %q: %w", path, err)
-		}
-
-		img, _, err := image.Decode(fp)
-		if err != nil {
-			return nil, fmt.Errorf("decode image %q: %w", path, err)
-		}
-
-		return ebiten.NewImageFromImage(img), nil
-	})
+func (a *Assets) RegisterLoader(l AssetLoader) {
+	for _, ext := range l.Extensions() {
+		ext = strings.ToLower(ext)
+		a.loaders[ext] = l
+	}
 }
 
-func (a *Assets) Audio(path string) *AsyncAsset[*AudioSource] {
-	return a.audios.Get(path, func() (*AudioSource, error) {
+func (a *Assets) Load(path string) AsyncAsset[any] {
+	if a.generic == nil {
+		a.generic = &assetCache[any]{}
+	}
+
+	ext := strings.ToLower(filepath.Ext(path))
+
+	loader, ok := a.loaders[ext]
+	if !ok {
+		err := fmt.Errorf("no loader for extension %q", ext)
+		panic(err)
+	}
+
+	return a.generic.Get(path, func() (any, error) {
 		fp, err := a.fs.Open(path)
 		if err != nil {
 			return nil, fmt.Errorf("open asset %q: %w", path, err)
@@ -108,59 +149,55 @@ func (a *Assets) Audio(path string) *AsyncAsset[*AudioSource] {
 
 		defer func() { _ = fp.Close() }()
 
-		buf, err := io.ReadAll(fp)
+		ctx := LoadContext{
+			Path:     path,
+			Settings: nil,
+		}
+
+		asset, err := loader.Load(ctx, fp)
 		if err != nil {
-			return nil, fmt.Errorf("read asset %q into memory: %w", path, err)
+			return nil, fmt.Errorf("loading asset %q with loader %T: %w", path, loader, err)
 		}
 
-		// try to parse the file once.
-		stream, err := audio.OpenStream(bytes.NewReader(buf))
-		if err != nil {
-			return nil, fmt.Errorf("create stream for %q: %w", path, err)
-		}
-
-		config := stream.Config()
-
-		// now decode the stream into samples
-		samples, err := audio.ReadAll(stream)
-		if err != nil {
-			return nil, fmt.Errorf("decoding stream %q: %w", path, err)
-		}
-
-		slog.Debug("Cached audio asset",
-			slog.String("path", path),
-			slog.Int("sampleCount", len(samples)),
-		)
-
-		factory := func() audio.AudioStream[float32] {
-			return audio.FromSamples(config, samples)
-		}
-
-		return &AudioSource{factory: factory}, nil
+		return asset, nil
 	})
 }
 
+func (a *Assets) Bytes(path string) AsyncAsset[[]byte] {
+	return a.bytes.Get(path, func() ([]byte, error) {
+		return fs.ReadFile(a.fs, path)
+	})
+}
+
+func (a *Assets) Image(path string) AsyncAsset[*ebiten.Image] {
+	return asTypedAsyncAsset[*ebiten.Image](a.Load(path))
+}
+
+func (a *Assets) Audio(path string) AsyncAsset[*AudioSource] {
+	return asTypedAsyncAsset[*AudioSource](a.Load(path))
+}
+
 func (a *Assets) StartCount() int {
-	return int(a.bytes.loading.Load() + a.images.loading.Load())
+	return int(a.bytes.Loading() + a.generic.Loading())
 }
 
 func (a *Assets) FinishCount() int {
-	return int(a.bytes.finished.Load() + a.images.finished.Load())
+	return int(a.bytes.Finished() + a.generic.Finished())
 }
 
 func (a *Assets) IsLoading() bool {
 	return a.StartCount() > a.FinishCount()
 }
 
-type AsyncAsset[T any] struct {
+type asyncAsset[T any] struct {
 	value atomic.Pointer[T]
 	error atomic.Pointer[error]
 	done  <-chan struct{}
 }
 
-func loadAsync[T any](load func() (T, error)) *AsyncAsset[T] {
+func loadAsync[T any](load func() (T, error)) *asyncAsset[T] {
 	doneCh := make(chan struct{})
-	asset := &AsyncAsset[T]{done: doneCh}
+	asset := &asyncAsset[T]{done: doneCh}
 
 	// spawn the go routine to load the actual asset
 	go func() {
@@ -188,7 +225,7 @@ func loadAsync[T any](load func() (T, error)) *AsyncAsset[T] {
 	return asset
 }
 
-func (a *AsyncAsset[T]) Poll() (T, error, bool) {
+func (a *asyncAsset[T]) Poll() (T, error, bool) {
 	var tZero T
 
 	if value := a.value.Load(); value != nil {
@@ -202,7 +239,7 @@ func (a *AsyncAsset[T]) Poll() (T, error, bool) {
 	return tZero, nil, false
 }
 
-func (a *AsyncAsset[T]) PollSuccess() (T, bool) {
+func (a *asyncAsset[T]) PollSuccess() (T, bool) {
 	value, err, ok := a.Poll()
 	if ok && err != nil {
 		panic(fmt.Errorf("failed to load asset: %w", err))
@@ -211,7 +248,7 @@ func (a *AsyncAsset[T]) PollSuccess() (T, bool) {
 	return value, ok
 }
 
-func (a *AsyncAsset[T]) Await() T {
+func (a *asyncAsset[T]) Await() T {
 	value, err := a.TryAwait()
 	if err != nil {
 		panic(fmt.Errorf("failed to load asset: %w", err))
@@ -220,7 +257,7 @@ func (a *AsyncAsset[T]) Await() T {
 	return value
 }
 
-func (a *AsyncAsset[T]) TryAwait() (T, error) {
+func (a *asyncAsset[T]) TryAwait() (T, error) {
 	for {
 		if value := a.value.Load(); value != nil {
 			return *value, nil
@@ -234,4 +271,53 @@ func (a *AsyncAsset[T]) TryAwait() (T, error) {
 		// wait for the channel to close
 		<-a.done
 	}
+}
+
+type AsyncAsset[T any] interface {
+	Await() T
+	TryAwait() (T, error)
+	PollSuccess() (T, bool)
+	Poll() (T, error, bool)
+}
+
+func asTypedAsyncAsset[T any](asset AsyncAsset[any]) AsyncAsset[T] {
+	return &typedAsyncAsset[T]{Asset: asset}
+}
+
+type typedAsyncAsset[T any] struct {
+	Asset AsyncAsset[any]
+}
+
+func (t *typedAsyncAsset[T]) Await() T {
+	return t.Asset.Await().(T)
+}
+
+func (t *typedAsyncAsset[T]) TryAwait() (T, error) {
+	value, err := t.Asset.TryAwait()
+	if err != nil {
+		var tZero T
+		return tZero, err
+	}
+
+	return value.(T), nil
+}
+
+func (t *typedAsyncAsset[T]) PollSuccess() (T, bool) {
+	value, _, ok := t.Poll()
+	return value, ok
+}
+
+func (t *typedAsyncAsset[T]) Poll() (T, error, bool) {
+	value, err, ok := t.Asset.Poll()
+	if !ok {
+		var tZero T
+		return tZero, nil, false
+	}
+
+	if err != nil {
+		var tZero T
+		return tZero, err, true
+	}
+
+	return value.(T), nil, true
 }
