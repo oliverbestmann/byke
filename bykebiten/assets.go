@@ -129,6 +129,10 @@ func (a *Assets) RegisterLoader(l AssetLoader) {
 }
 
 func (a *Assets) Load(path string) AsyncAsset[any] {
+	return a.LoadWithSettings(path, nil)
+}
+
+func (a *Assets) LoadWithSettings(path string, settings any) AsyncAsset[any] {
 	if a.generic == nil {
 		a.generic = &assetCache[any]{}
 	}
@@ -151,7 +155,7 @@ func (a *Assets) Load(path string) AsyncAsset[any] {
 
 		ctx := LoadContext{
 			Path:     path,
-			Settings: nil,
+			Settings: settings,
 		}
 
 		asset, err := loader.Load(ctx, fp)
