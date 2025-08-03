@@ -12,11 +12,15 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/gomobile v0.0.0-20250329061421-6d0a8e981e4c // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
+	github.com/ebitengine/oto/v3 v3.4.0-alpha.8 // indirect
 	github.com/ebitengine/purego v0.9.0-alpha.9 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
 	github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5 // indirect
+	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
+	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
+	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
