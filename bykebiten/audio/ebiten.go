@@ -30,7 +30,7 @@ func AdaptAudioStream[S Sample](r ebitenAudioStream) AudioStream[S] {
 
 	byteCount := int(r.Length())
 	if byteCount > 0 {
-		st.config.ChannelSampleCount = byteCount * sampleSize / st.config.Channels
+		st.config.ChannelSampleCount = byteCount / (sampleSize * st.config.Channels)
 	}
 
 	return st

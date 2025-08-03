@@ -1,6 +1,7 @@
 package bykebiten
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"io"
@@ -14,74 +15,8 @@ import (
 	"time"
 )
 
-type assetCache[T any] struct {
-	values   map[string]*asyncAsset[T]
-	loading  atomic.Int32
-	finished atomic.Int32
-}
-
-func (a *assetCache[T]) Loading() int32 {
-	if a == nil {
-		return 0
-	}
-
-	return a.loading.Load()
-}
-
-func (a *assetCache[T]) Finished() int32 {
-	if a == nil {
-		return 0
-	}
-
-	return a.finished.Load()
-}
-
-func (a *assetCache[T]) Get(p string, load func() (T, error)) *asyncAsset[T] {
-	if a.values == nil {
-		a.values = make(map[string]*asyncAsset[T], 64)
-	}
-
-	// cleanup path to improve cache hits
-	p = path.Clean(p)
-
-	// check cache first
-	if cached, ok := a.values[p]; ok {
-		return cached
-	}
-
-	a.loading.Add(1)
-
-	slog.Debug("Start loading asset",
-		slog.String("type", reflect.TypeFor[T]().String()),
-		slog.String("path", p))
-
-	startTime := time.Now()
-
-	// actually load the asset
-	asyncAsset := loadAsync(func() (value T, err error) {
-		defer a.finished.Add(1)
-		defer func() {
-			if err != nil {
-				slog.Warn("Failed to load asset",
-					slog.String("type", reflect.TypeFor[T]().String()),
-					slog.String("path", p),
-					slog.Duration("duration", time.Since(startTime)),
-					slog.String("error", err.Error()))
-			} else {
-				slog.Debug("Finish loading asset",
-					slog.String("type", reflect.TypeFor[T]().String()),
-					slog.String("path", p),
-					slog.Duration("duration", time.Since(startTime)))
-			}
-		}()
-
-		return load()
-	})
-
-	// and put the promise into the cache
-	a.values[p] = asyncAsset
-
-	return asyncAsset
+type LoadAssetSettings interface {
+	IsLoadSettings()
 }
 
 type LoadContext struct {
@@ -89,11 +24,11 @@ type LoadContext struct {
 	Path string
 
 	// A load specific settings object
-	Settings any
+	Settings LoadAssetSettings
 }
 
 type AssetLoader interface {
-	Load(ctx LoadContext, r io.Reader) (any, error)
+	Load(ctx LoadContext, r io.ReadSeekCloser) (any, error)
 	Extensions() []string
 }
 
@@ -132,7 +67,7 @@ func (a *Assets) Load(path string) AsyncAsset[any] {
 	return a.LoadWithSettings(path, nil)
 }
 
-func (a *Assets) LoadWithSettings(path string, settings any) AsyncAsset[any] {
+func (a *Assets) LoadWithSettings(path string, settings LoadAssetSettings) AsyncAsset[any] {
 	if a.generic == nil {
 		a.generic = &assetCache[any]{}
 	}
@@ -151,14 +86,12 @@ func (a *Assets) LoadWithSettings(path string, settings any) AsyncAsset[any] {
 			return nil, fmt.Errorf("open asset %q: %w", path, err)
 		}
 
-		defer func() { _ = fp.Close() }()
-
 		ctx := LoadContext{
 			Path:     path,
 			Settings: settings,
 		}
 
-		asset, err := loader.Load(ctx, fp)
+		asset, err := loader.Load(ctx, readSeekerOf(fp))
 		if err != nil {
 			return nil, fmt.Errorf("loading asset %q with loader %T: %w", path, loader, err)
 		}
@@ -324,4 +257,115 @@ func (t *typedAsyncAsset[T]) Poll() (T, error, bool) {
 	}
 
 	return value.(T), nil, true
+}
+
+type assetCache[T any] struct {
+	values   map[string]*asyncAsset[T]
+	loading  atomic.Int32
+	finished atomic.Int32
+}
+
+func (a *assetCache[T]) Loading() int32 {
+	if a == nil {
+		return 0
+	}
+
+	return a.loading.Load()
+}
+
+func (a *assetCache[T]) Finished() int32 {
+	if a == nil {
+		return 0
+	}
+
+	return a.finished.Load()
+}
+
+func (a *assetCache[T]) Get(p string, load func() (T, error)) *asyncAsset[T] {
+	if a.values == nil {
+		a.values = make(map[string]*asyncAsset[T], 64)
+	}
+
+	// cleanup path to improve cache hits
+	p = path.Clean(p)
+
+	// check cache first
+	if cached, ok := a.values[p]; ok {
+		return cached
+	}
+
+	a.loading.Add(1)
+
+	slog.Debug("Start loading asset",
+		slog.String("type", reflect.TypeFor[T]().String()),
+		slog.String("path", p))
+
+	startTime := time.Now()
+
+	// actually load the asset
+	asyncAsset := loadAsync(func() (value T, err error) {
+		defer a.finished.Add(1)
+		defer func() {
+			if err != nil {
+				slog.Warn("Failed to load asset",
+					slog.String("type", reflect.TypeFor[T]().String()),
+					slog.String("path", p),
+					slog.Duration("duration", time.Since(startTime)),
+					slog.String("error", err.Error()))
+			} else {
+				slog.Debug("Finish loading asset",
+					slog.String("type", reflect.TypeFor[T]().String()),
+					slog.String("path", p),
+					slog.Duration("duration", time.Since(startTime)))
+			}
+		}()
+
+		return load()
+	})
+
+	// and put the promise into the cache
+	a.values[p] = asyncAsset
+
+	return asyncAsset
+}
+
+func readSeekerOf(r io.ReadCloser) io.ReadSeekCloser {
+	if rs, ok := r.(io.ReadSeekCloser); ok {
+		return rs
+	}
+
+	defer func() { _ = r.Close() }()
+
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		return errRead{error: err}
+	}
+
+	type RSC struct {
+		io.ReadSeeker
+		io.Closer
+	}
+
+	reader := bytes.NewReader(buf)
+
+	return RSC{
+		ReadSeeker: reader,
+		Closer:     io.NopCloser(reader),
+	}
+}
+
+type errRead struct {
+	error error
+}
+
+func (e errRead) Read(p []byte) (n int, err error) {
+	return 0, e.error
+}
+
+func (e errRead) Seek(offset int64, whence int) (int64, error) {
+	return 0, e.error
+}
+
+func (e errRead) Close() error {
+	return nil
 }

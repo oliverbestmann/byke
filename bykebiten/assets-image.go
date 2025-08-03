@@ -9,7 +9,9 @@ import (
 
 type ImageLoader struct{}
 
-func (i ImageLoader) Load(ctx LoadContext, r io.Reader) (any, error) {
+func (i ImageLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
+	defer func() { _ = r.Close() }()
+
 	img, _, err := image.Decode(r)
 	if err != nil {
 		return nil, fmt.Errorf("decode image: %w", err)
