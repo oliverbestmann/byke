@@ -106,25 +106,34 @@ func (a *Assets) Audio(path string) *AsyncAsset[*AudioSource] {
 			return nil, fmt.Errorf("open asset %q: %w", path, err)
 		}
 
+		defer func() { _ = fp.Close() }()
+
 		buf, err := io.ReadAll(fp)
 		if err != nil {
 			return nil, fmt.Errorf("read asset %q into memory: %w", path, err)
 		}
 
-		// try to parse the file once. if that works, we will just create an instance
-		// each time without error checking
-		if _, err := audio.OpenStream(bytes.NewReader(buf)); err != nil {
+		// try to parse the file once.
+		stream, err := audio.OpenStream(bytes.NewReader(buf))
+		if err != nil {
 			return nil, fmt.Errorf("create stream for %q: %w", path, err)
 		}
 
-		factory := func() audio.AudioStream[float32] {
-			stream, err := audio.OpenStream(bytes.NewReader(buf))
-			if err != nil {
-				err := fmt.Errorf("create stream for %q: %w", path, err)
-				panic(err)
-			}
+		config := stream.Config()
 
-			return stream
+		// now decode the stream into samples
+		samples, err := audio.ReadAll(stream)
+		if err != nil {
+			return nil, fmt.Errorf("decoding stream %q: %w", path, err)
+		}
+
+		slog.Debug("Cached audio asset",
+			slog.String("path", path),
+			slog.Int("sampleCount", len(samples)),
+		)
+
+		factory := func() audio.AudioStream[float32] {
+			return audio.FromSamples(config, samples)
 		}
 
 		return &AudioSource{factory: factory}, nil

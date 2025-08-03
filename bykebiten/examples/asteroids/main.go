@@ -40,6 +40,8 @@ func main() {
 
 	app.AddPlugin(GamePlugin)
 
+	app.InsertResource(GlobalVolume{Volume: 0.1})
+
 	app.InsertResource(Gravity(Vec{Y: -9.81}))
 
 	app.AddSystems(Startup, setupCamera, spawnSpaceShipSystem, spawnTerrainSystem)
@@ -49,6 +51,12 @@ func main() {
 	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain(), alignWithVelocity, despawnWithDelaySystem)
 
 	app.World().AddObserver(NewObserver(spawnExplosionSystem))
+
+	// preload audio assets in the background
+	app.World().RunSystem(func(assets *Assets) {
+		assets.Audio("launch.ogg")
+		assets.Audio("explosion.ogg")
+	})
 
 	fmt.Println(app.Run())
 }

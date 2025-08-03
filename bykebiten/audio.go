@@ -23,6 +23,10 @@ type AudioContext struct {
 	*eaudio.Context
 }
 
+type GlobalVolume struct {
+	Volume float64
+}
+
 type AudioSource struct {
 	factory func() audio.AudioStream[float32]
 }
@@ -51,12 +55,15 @@ type AudioSink struct {
 	player *eaudio.Player
 }
 
-func createAudioSink(source *AudioSource, ps PlaybackSettings) AudioSink {
+func createAudioSink(source *AudioSource, ps PlaybackSettings, globalVolume GlobalVolume) AudioSink {
 	stream := source.NewStream()
 
 	if ps.Mode == PlaybackModeLoop {
 		stream = audio.Loop(stream)
 	}
+
+	// apply global volume
+	ps.Volume *= globalVolume.Volume
 
 	player, _ := audioContext.NewPlayerF32(audio.ToReadSeeker(stream))
 
@@ -205,6 +212,7 @@ type playbackRemoveMarker struct {
 
 func createAudioSinkSystem(
 	commands *byke.Commands,
+	globalVolume GlobalVolume,
 	query byke.Query[struct {
 		_ byke.Added[AudioPlayer]
 		byke.EntityId
@@ -220,7 +228,7 @@ func createAudioSinkSystem(
 		}
 
 		// create a new audio sink and insert it into the entity
-		sink := createAudioSink(item.Player.Source, item.PlaybackSettings)
+		sink := createAudioSink(item.Player.Source, item.PlaybackSettings, globalVolume)
 
 		switch item.PlaybackSettings.Mode {
 		case PlaybackModeOnce, PlaybackModeLoop:

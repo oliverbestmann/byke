@@ -46,6 +46,7 @@ func GamePlugin(app *byke.App) {
 	app.InsertResource(Keys{})
 
 	app.InsertResource(AudioContext{audioContext})
+	app.InsertResource(GlobalVolume{Volume: 1.0})
 
 	app.InsertResource(Assets{fs: assetFs.FS})
 

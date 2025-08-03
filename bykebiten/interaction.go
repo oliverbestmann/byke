@@ -6,6 +6,10 @@ import (
 	"slices"
 )
 
+var _ = ValidateComponent[PickingCamera]()
+var _ = ValidateComponent[Interactable]()
+var _ = ValidateComponent[InteractionState]()
+
 type PickingCamera struct {
 	ImmutableComponent[PickingCamera]
 }

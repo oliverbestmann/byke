@@ -8,6 +8,10 @@ import (
 	"github.com/oliverbestmann/byke/spoke"
 )
 
+var _ = byke.ValidateComponent[Camera]()
+var _ = byke.ValidateComponent[OrthographicProjection]()
+var _ = byke.ValidateComponent[RenderTarget]()
+
 type Camera struct {
 	byke.Component[Camera]
 
