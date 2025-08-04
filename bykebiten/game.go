@@ -41,6 +41,7 @@ func GamePlugin(app *byke.App) {
 	app.InsertResource(MouseCursor{})
 	app.InsertResource(screenRenderTarget{})
 	app.InsertResource(ScreenSize{})
+	app.InsertResource(DrawFinalScreen(ebiten.DefaultDrawFinalScreen))
 
 	app.InsertResource(MouseButtons{})
 	app.InsertResource(Keys{})
@@ -234,6 +235,16 @@ func (g *game) Draw(screen *ebiten.Image) {
 	g.World.RunSchedule(byke.Main)
 }
 
+func (g *game) DrawFinalScreen(screen ebiten.FinalScreen, offscreen *ebiten.Image, geoM ebiten.GeoM) {
+	draw, ok := byke.ResourceOf[DrawFinalScreen](g.World)
+
+	if ok {
+		(*draw)(screen, offscreen, geoM)
+	} else {
+		ebiten.DefaultDrawFinalScreen(screen, offscreen, geoM)
+	}
+}
+
 func (g *game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	g.screenSize = gm.Vec{X: float64(outsideWidth), Y: float64(outsideHeight)}
 	return outsideWidth, outsideHeight
@@ -242,6 +253,9 @@ func (g *game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 type ScreenSize struct {
 	gm.Vec
 }
+
+// DrawFinalScreen is a resource that overrides the default DrawFinalScreen implementation
+type DrawFinalScreen func(screen ebiten.FinalScreen, offscreen *ebiten.Image, geoM ebiten.GeoM)
 
 type MouseCursor struct {
 	gm.Vec

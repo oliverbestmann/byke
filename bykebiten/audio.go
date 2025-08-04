@@ -348,6 +348,8 @@ func cleanupAudioSinkSystem(
 ) {
 	for item := range despawnQuery.Items() {
 		if item.AudioSink.Empty() {
+			item.AudioSink.Stop()
+
 			slog.Debug("Despawn AudioPlayer", slog.Any("entityId", item.EntityId))
 			commands.Entity(item.EntityId).Despawn()
 		}
@@ -355,6 +357,8 @@ func cleanupAudioSinkSystem(
 
 	for item := range removeQuery.Items() {
 		if item.AudioSink.Empty() {
+			item.AudioSink.Stop()
+
 			commands.Entity(item.EntityId).Update(
 				byke.RemoveComponent[AudioPlayer](),
 				byke.RemoveComponent[AudioSink](),
