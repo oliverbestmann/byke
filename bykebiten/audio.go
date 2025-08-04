@@ -4,6 +4,7 @@ import (
 	eaudio "github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/audio"
+	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
 	"log/slog"
 	"time"
@@ -25,6 +26,10 @@ type AudioContext struct {
 
 type GlobalVolume struct {
 	Volume float64
+}
+
+type GlobalSpatialScale struct {
+	Scale gm.Vec
 }
 
 type AudioSource struct {
@@ -60,7 +65,7 @@ type AudioSink struct {
 	second *eaudio.Player
 }
 
-func createAudioSink(source *AudioSource, ps PlaybackSettings, globalVolume GlobalVolume) AudioSink {
+func createAudioSink(source *AudioSource, ps PlaybackSettings) AudioSink {
 	newChannel := func(channel int) *eaudio.Player {
 		stream := source.NewStream()
 
@@ -89,9 +94,6 @@ func createAudioSink(source *AudioSource, ps PlaybackSettings, globalVolume Glob
 
 		return player
 	}
-
-	// apply global volume
-	ps.Volume *= globalVolume.Volume
 
 	var player, second *eaudio.Player
 
@@ -205,9 +207,12 @@ func (as *AudioSink) Stop() {
 
 type PlaybackSettings struct {
 	byke.ImmutableComponent[PlaybackSettings]
-	Mode         PlaybackMode
-	Volume       float64
-	SpatialScale float64
+	Mode   PlaybackMode
+	Volume float64
+
+	// If non zero, the SpatialScale will override the GlobalSpatialScale value for
+	// this playback instance
+	SpatialScale gm.Vec
 
 	// StartAt indicates where to start the audio source
 	StartAt time.Duration
@@ -241,7 +246,7 @@ func (p PlaybackSettings) WithSpatial() PlaybackSettings {
 	return p
 }
 
-func (p PlaybackSettings) WithSpatialScale(spatialScale float64) PlaybackSettings {
+func (p PlaybackSettings) WithSpatialScale(spatialScale gm.Vec) PlaybackSettings {
 	p.Spatial = true
 	p.SpatialScale = spatialScale
 	return p
@@ -287,6 +292,7 @@ type playbackRemoveMarker struct {
 func createAudioSinkSystem(
 	commands *byke.Commands,
 	globalVolume GlobalVolume,
+	globalSpatialScale GlobalSpatialScale,
 	query byke.Query[struct {
 		_ byke.Added[AudioPlayer]
 		byke.EntityId
@@ -301,8 +307,14 @@ func createAudioSinkSystem(
 			sink.Stop()
 		}
 
+		ps := item.PlaybackSettings
+		ps.Volume *= globalVolume.Volume
+		if ps.SpatialScale == gm.VecZero {
+			ps.SpatialScale = globalSpatialScale.Scale
+		}
+
 		// create a new audio sink and insert it into the entity
-		sink := createAudioSink(item.Player.Source, item.PlaybackSettings, globalVolume)
+		sink := createAudioSink(item.Player.Source, ps)
 
 		var entity byke.EntityCommands
 

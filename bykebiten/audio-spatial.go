@@ -7,6 +7,9 @@ import (
 	"math"
 )
 
+var _ = byke.ValidateComponent[Microphone]()
+var _ = byke.ValidateComponent[spatialSinkMarker]()
+
 type spatialSinkMarker struct {
 	byke.ImmutableComponent[spatialSinkMarker]
 }
@@ -25,15 +28,15 @@ func (Microphone) RequireComponents() []spoke.ErasedComponent {
 
 func adjustSpatialAudioVolume(
 	microphoneQuery byke.Query[struct {
-	Microphone Microphone
-	Transform  GlobalTransform
-}],
+		Microphone Microphone
+		Transform  GlobalTransform
+	}],
 
 	sinksQuery byke.Query[struct {
-	_         byke.With[spatialSinkMarker]
-	Sink      *AudioSink
-	Transform GlobalTransform
-}],
+		_         byke.With[spatialSinkMarker]
+		Sink      *AudioSink
+		Transform GlobalTransform
+	}],
 ) {
 	mic, ok := microphoneQuery.Single()
 	if !ok {
@@ -41,13 +44,19 @@ func adjustSpatialAudioVolume(
 	}
 
 	micTr := mic.Transform.AsAffine()
-	left := micTr.Transform(mic.Microphone.LeftEarOffset)
-	right := micTr.Transform(mic.Microphone.RightEarOffset)
+	leftGlobal := micTr.Transform(mic.Microphone.LeftEarOffset)
+	rightGlobal := micTr.Transform(mic.Microphone.RightEarOffset)
 
 	for item := range sinksQuery.Items() {
 		spatialScale := item.Sink.ps.SpatialScale
-		left, right := calculateSpatialVolume(item.Transform.Translation.Mul(spatialScale), left.Mul(spatialScale), right.Mul(spatialScale))
-		item.Sink.SpatialVolume(left, right)
+
+		leftScaled := leftGlobal.MulEach(spatialScale)
+		rightScaled := rightGlobal.MulEach(spatialScale)
+		emitter := item.Transform.Translation.MulEach(spatialScale)
+
+		leftVolume, rightVolume := calculateSpatialVolume(emitter, leftScaled, rightScaled)
+
+		item.Sink.SpatialVolume(leftVolume, rightVolume)
 	}
 }
 

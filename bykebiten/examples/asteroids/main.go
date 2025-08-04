@@ -41,6 +41,7 @@ func main() {
 	app.AddPlugin(GamePlugin)
 
 	app.InsertResource(GlobalVolume{Volume: 0.1})
+	app.InsertResource(GlobalSpatialScale{Scale: VecSplat(1 / 500.0)})
 
 	app.InsertResource(Gravity(Vec{Y: -9.81}))
 
@@ -122,6 +123,13 @@ func setupCamera(commands *Commands) {
 	commands.Spawn(
 		TransformFromXY(0, 300).WithScale(Vec{X: -1, Y: -1}),
 		Camera{},
+
+		// listen left and right of the camera
+		Microphone{
+			LeftEarOffset:  Vec{X: 20},
+			RightEarOffset: Vec{Y: -20},
+		},
+
 		OrthographicProjection{
 			ViewportOrigin: VecSplat(0.5),
 			ScalingMode:    ScalingModeFixedVertical{ViewportHeight: 600},
@@ -173,11 +181,6 @@ func spawnSpaceShipSystem(commands *Commands) {
 				Width:     2,
 				Color:     color.White,
 				Antialias: true,
-			},
-
-			Microphone{
-				LeftEarOffset:  Vec{Y: 20},
-				RightEarOffset: Vec{Y: -20},
 			},
 
 			SpawnChild(
@@ -448,7 +451,7 @@ func spawnExplosionSystem(params On[Explode], commands *Commands, assets *Assets
 
 	commands.Spawn(
 		AudioPlayerOf(assets.Audio("explosion.ogg").Await()),
-		PlaybackSettingsDespawn.WithStartAt(900*time.Millisecond).WithSpatialScale(1/500.0),
+		PlaybackSettingsDespawn.WithStartAt(900*time.Millisecond).WithSpatial(),
 		TransformFromXY(p.Position.XY()),
 	)
 }
