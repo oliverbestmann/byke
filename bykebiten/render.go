@@ -87,11 +87,11 @@ type hasCommonValues interface {
 }
 
 type renderSpriteValue struct {
-	Common renderCommonValues
-	Sprite Sprite
-
+	Common    renderCommonValues
+	Sprite    Sprite
 	TileIndex byke.Option[TileIndex]
 	TileCache byke.Option[tileCache]
+	Shader    byke.Option[Shader]
 }
 
 func (r *renderSpriteValue) commonValues() *renderCommonValues {
@@ -278,10 +278,26 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 				image = tileCache.Tiles[idx%len(tileCache.Tiles)]
 			}
 
-			var op ebiten.DrawImageOptions
-			op.GeoM = g
-			op.ColorScale = colorScale
-			screen.DrawImage(image, &op)
+			if shader_, ok := item.Shader.Get(); ok {
+				var shader *ebiten.Shader = shader_.Shader
+
+				imageSize := imageSizeOf(image)
+
+				// TODO this just supports the very basics
+				screen.DrawRectShader(int(imageSize.X), int(imageSize.Y), shader, &ebiten.DrawRectShaderOptions{
+					GeoM:       g,
+					ColorScale: colorScale,
+					Images: [4]*ebiten.Image{
+						image,
+					},
+				})
+
+			} else {
+				var op ebiten.DrawImageOptions
+				op.GeoM = g
+				op.ColorScale = colorScale
+				screen.DrawImage(image, &op)
+			}
 
 		case *renderTextValue:
 			var op text.DrawOptions

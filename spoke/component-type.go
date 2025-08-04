@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"maps"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
@@ -30,7 +31,7 @@ type ComponentType struct {
 	Id ComponentTypeId
 
 	// Slice of required components. Do not modify the returned slice.
-	RequiredComponents []ErasedComponent
+	RequiredComponents func() []ErasedComponent
 
 	// HasPointers indicates that a value of the type contains pointers, e.g.
 	// by having a field of type *T, a string, an interface, a slice or a map value.
@@ -189,13 +190,14 @@ func baseComponentTypeOf[C IsComponent[C]](id ComponentTypeId) *ComponentType {
 
 	_, isImmutableComponent := any(cValue).(IsErasedImmutableComponent)
 
-	var requiredComponents []ErasedComponent
+	requiredComponents := func() []ErasedComponent { return nil }
+
 	if c, ok := any(cValue).(RequireComponents); ok {
-		requiredComponents = c.RequireComponents()
+		requiredComponents = sync.OnceValue(c.RequireComponents)
 	}
 
 	if c, ok := any(&cValue).(RequireComponents); ok {
-		requiredComponents = c.RequireComponents()
+		requiredComponents = sync.OnceValue(c.RequireComponents)
 	}
 
 	return &ComponentType{

@@ -15,10 +15,6 @@ type resourceValue struct {
 	Value reflect.Value
 }
 
-type ptrValue struct {
-	reflect.Value
-}
-
 type AnyPtr = any
 
 // World holds all entities and resources, schedules, systems, etc.
@@ -286,7 +282,7 @@ func (w *World) prepareComponents(entityId EntityId, components []ErasedComponen
 		collectedComponents = append(collectedComponents, component)
 
 		// enqueue all required components
-		queue = append(queue, componentType.RequiredComponents...)
+		queue = append(queue, componentType.RequiredComponents()...)
 	}
 
 	return

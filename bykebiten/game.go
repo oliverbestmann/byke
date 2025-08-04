@@ -48,6 +48,7 @@ func GamePlugin(app *byke.App) {
 
 	app.InsertResource(AudioContext{audioContext})
 	app.InsertResource(GlobalVolume{Volume: 1.0})
+	app.InsertResource(GlobalSpatialScale{Scale: gm.VecOne})
 
 	assets := makeAssets(assetFs.FS, ImageLoader{}, AudioLoader{})
 	app.InsertResource(assets)
