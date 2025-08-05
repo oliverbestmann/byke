@@ -2,9 +2,10 @@ package query
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/oliverbestmann/byke/internal/refl"
 	spoke "github.com/oliverbestmann/byke/spoke"
-	"reflect"
 )
 
 type Filter interface {
@@ -17,6 +18,25 @@ type EmbeddableFilter interface {
 }
 
 type isEmbeddableMarker struct{}
+
+// Ref fetches a a pointer to the component data. This can be used as a performance optimization to
+// not fetch the full component data. It should be used with care, as it allows you to modify the component
+// value without dirty checking. You MUST promise not to modify the Value.
+type Ref[C spoke.IsComponent[C]] struct {
+	Value *C
+}
+
+func (Ref[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke.Filter {
+	idx := result.Builder.FetchComponent(spoke.ComponentTypeOf[C](), false)
+
+	result.Setters = append(result.Setters, Setter{
+		UnsafeFieldOffset:       fieldOffset,
+		UnsafeCopyComponentAddr: true,
+		ComponentIdx:            idx,
+	})
+
+	return spoke.Filter{}
+}
 
 type Option[C spoke.IsComponent[C]] struct {
 	value *C
