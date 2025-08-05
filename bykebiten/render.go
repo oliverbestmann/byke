@@ -95,6 +95,7 @@ type renderCommonValues struct {
 
 type hasCommonValues interface {
 	commonValues() *renderCommonValues
+	needsTranslate() bool
 }
 
 type renderSpriteValue struct {
@@ -112,6 +113,10 @@ func (r *renderSpriteValue) commonValues() *renderCommonValues {
 	return &r.Common
 }
 
+func (*renderSpriteValue) needsTranslate() bool {
+	return true
+}
+
 type renderTextValue struct {
 	Common renderCommonValues
 	Text   Text
@@ -122,6 +127,10 @@ type renderTextValue struct {
 
 func (r *renderTextValue) commonValues() *renderCommonValues {
 	return &r.Common
+}
+
+func (*renderTextValue) needsTranslate() bool {
+	return true
 }
 
 type renderVectorValue struct {
@@ -135,12 +144,34 @@ func (r *renderVectorValue) commonValues() *renderCommonValues {
 	return &r.Common
 }
 
+func (*renderVectorValue) needsTranslate() bool {
+	return false
+}
+
+type renderMeshValue struct {
+	Common       renderCommonValues
+	Mesh         Mesh
+	Blend        Blend
+	Filter       Filter
+	Shader       byke.Option[Shader]
+	ShaderInputs byke.Option[ShaderInput]
+}
+
+func (r *renderMeshValue) commonValues() *renderCommonValues {
+	return &r.Common
+}
+
+func (*renderMeshValue) needsTranslate() bool {
+	return false
+}
+
 type renderCache struct {
 	Cameras []cameraValue
 
 	Sprites []renderSpriteValue
 	Texts   []renderTextValue
 	Vectors []renderVectorValue
+	Meshes  []renderMeshValue
 
 	TempPath vector.Path
 
@@ -163,6 +194,7 @@ func renderSystem(
 	spritesQuery byke.Query[renderSpriteValue],
 	textsQuery byke.Query[renderTextValue],
 	vectorsQuery byke.Query[renderVectorValue],
+	meshesQuery byke.Query[renderMeshValue],
 	cache *byke.Local[renderCache],
 ) {
 	c := &cache.Value
@@ -179,6 +211,7 @@ func renderSystem(
 	c.Sprites = spritesQuery.AppendTo(c.Sprites[:0])
 	c.Texts = textsQuery.AppendTo(c.Texts[:0])
 	c.Vectors = vectorsQuery.AppendTo(c.Vectors[:0])
+	c.Meshes = meshesQuery.AppendTo(c.Meshes[:0])
 
 	items := c.Items()
 
@@ -257,7 +290,7 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			g.Scale(1/toSourceScale.X, 1/toSourceScale.Y)
 		}
 
-		if _, ok := item.(*renderVectorValue); !ok {
+		if item.needsTranslate() {
 			// transform by offset. Need to multiply by the sign of source scale as that might
 			// flip the direction the origin translation need to be applied
 			origin := common.BBox.Min
@@ -350,6 +383,27 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 					MiterLimit: float32(stroke.MiterLimit),
 				})
 			}
+
+		case *renderMeshValue:
+			colorTint := item.Common.ColorTint.Color
+			vertices := transformVertices(item.Mesh.Vertices, g, colorTint)
+
+			if shader_, ok := item.Shader.Get(); ok {
+				var shader *ebiten.Shader = shader_.Shader
+				var inputs ShaderInput = item.ShaderInputs.OrZero()
+
+				screen.DrawTrianglesShader32(vertices, item.Mesh.Indices, shader, &ebiten.DrawTrianglesShaderOptions{
+					Blend:    item.Blend.Blend,
+					Uniforms: inputs.Uniforms,
+					Images:   inputs.Images,
+				})
+
+			} else {
+				screen.DrawTriangles32(vertices, item.Mesh.Indices, whiteImage(), &ebiten.DrawTrianglesOptions{
+					Blend:  item.Blend.Blend,
+					Filter: item.Filter.Filter,
+				})
+			}
 		}
 	}
 }
@@ -397,6 +451,10 @@ func (c *renderCache) Items() []hasCommonValues {
 		c.all = append(c.all, &c.Vectors[idx])
 	}
 
+	for idx := range c.Meshes {
+		c.all = append(c.all, &c.Meshes[idx])
+	}
+
 	return c.all
 }
 
@@ -417,4 +475,30 @@ func signOf(x float64) float64 {
 	} else {
 		return 1
 	}
+}
+
+var scratchVertices []ebiten.Vertex
+
+func transformVertices(vertices []Vertex, g ebiten.GeoM, tint color.Color) []ebiten.Vertex {
+	scratchVertices = append(scratchVertices[:0], vertices...)
+
+	for idx := range scratchVertices {
+		x, y := g.Apply(float64(scratchVertices[idx].DstX), float64(scratchVertices[idx].DstY))
+		scratchVertices[idx].DstX = float32(x)
+		scratchVertices[idx].DstY = float32(y)
+
+	}
+
+	if !tint.IsIdentity() {
+		r, g, b, a := tint.PremultipliedValues()
+
+		for idx := range scratchVertices {
+			scratchVertices[idx].ColorR *= r
+			scratchVertices[idx].ColorG *= g
+			scratchVertices[idx].ColorB *= b
+			scratchVertices[idx].ColorA *= a
+		}
+	}
+
+	return scratchVertices
 }

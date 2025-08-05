@@ -45,6 +45,10 @@ func (c Color) PremultipliedValues() (float32, float32, float32, float32) {
 	return r, g, b, c.A
 }
 
+func (c Color) IsIdentity() bool {
+	return c.R == 1 && c.G == 1 && c.B == 1 && c.A == 1
+}
+
 func clamp[T float32 | float64](value, min, max T) T {
 	if value < min {
 		return min

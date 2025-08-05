@@ -79,6 +79,7 @@ func GamePlugin(app *byke.App) {
 		computePathSizeSystem,
 		computeSpriteSizeSystem,
 		computeTextSizeSystem,
+		computeMeshSizeSystem,
 	)
 
 	app.AddSystems(byke.PreRender,

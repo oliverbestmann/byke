@@ -40,14 +40,16 @@ func startupSystem(
 	}
 
 	commands.Spawn(
-		Sprite{
-			Image:      assets.Image("ebiten.png").Await(),
-			CustomSize: Some(gm.VecSplat(100.0)),
-		},
+		// Sprite{
+		// 	Image:      assets.Image("ebiten.png").Await(),
+		// 	CustomSize: Some(gm.VecSplat(100.0)),
+		// },
+		Ellipse(gm.VecSplat(100.0), 48),
 		Shader{Shader: shader},
 		ShaderInput{
 			Uniforms: map[string]any{
 				"Scale": 1.0,
+				"Alpha": 1.0,
 			},
 		},
 	)
@@ -59,6 +61,7 @@ package main
 
 var Time float
 var Scale float
+var Alpha float
 
 func rand(n vec2) float {
 	return fract(cos(dot(n, vec2(12.9898, 4.1414))) * 43758.5453)
@@ -106,7 +109,7 @@ func Fragment(dp vec4, srcPos vec2, color vec4) vec4 {
 	q := fbm(p - Time * 0.1);
 	r := vec2(fbm(p + q + Time * speed.x - p.x - p.y), fbm(p + q - Time * speed.y))
 	c := mix(c1, c2, fbm(p + r)) + mix(c3, c4, r.x) - mix(c5, c6, r.y)
-	return vec4(c * cos(shift * dstPos.y), alpha)
+	return vec4(c * cos(shift * dstPos.y), alpha) * Alpha
 }
 
 `

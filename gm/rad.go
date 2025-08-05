@@ -41,6 +41,11 @@ func (r Rad) Sin() float64 {
 	return math.Sin(float64(r))
 }
 
+// SinCos returns the sine and cosine of the angle at the same time.
+func (r Rad) SinCos() (sin float64, cos float64) {
+	return math.Sincos(float64(r))
+}
+
 func DegToRad(deg float64) Rad {
 	return Rad(math.Pi / 180 * deg)
 }
