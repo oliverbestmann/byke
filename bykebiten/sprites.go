@@ -24,7 +24,7 @@ type Sprite struct {
 }
 
 var spriteRequireComponents = append(
-	[]byke.ErasedComponent{AnchorCenter},
+	[]byke.ErasedComponent{AnchorCenter, &Blend{}, &Filter{}},
 	commonRenderComponents...,
 )
 

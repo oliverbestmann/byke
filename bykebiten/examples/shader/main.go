@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
@@ -16,7 +17,7 @@ func main() {
 	app.InsertResource(MakeAssetFS(assets))
 	app.AddPlugin(GamePlugin)
 	app.AddSystems(Startup, startupSystem)
-	app.Run()
+	fmt.Println(app.Run())
 }
 
 func startupSystem(

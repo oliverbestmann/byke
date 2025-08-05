@@ -28,6 +28,16 @@ type Layer struct {
 	Z float64
 }
 
+type Filter struct {
+	byke.Component[Filter]
+	ebiten.Filter
+}
+
+type Blend struct {
+	byke.Component[Blend]
+	ebiten.Blend
+}
+
 type Anchor struct {
 	byke.ComparableComponent[Anchor]
 	gm.Vec
@@ -92,6 +102,8 @@ type renderSpriteValue struct {
 	TileIndex byke.Option[TileIndex]
 	TileCache byke.Option[tileCache]
 	Shader    byke.Option[Shader]
+	Filter    Filter
+	Blend     Blend
 }
 
 func (r *renderSpriteValue) commonValues() *renderCommonValues {
@@ -102,6 +114,8 @@ type renderTextValue struct {
 	Common renderCommonValues
 	Text   Text
 	Face   TextFace
+	Filter Filter
+	Blend  Blend
 }
 
 func (r *renderTextValue) commonValues() *renderCommonValues {
@@ -287,15 +301,19 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 				screen.DrawRectShader(int(imageSize.X), int(imageSize.Y), shader, &ebiten.DrawRectShaderOptions{
 					GeoM:       g,
 					ColorScale: colorScale,
+					Blend:      item.Blend.Blend,
 					Images: [4]*ebiten.Image{
 						image,
 					},
 				})
 
 			} else {
+				// TODO add support for Filter + Blend
 				var op ebiten.DrawImageOptions
 				op.GeoM = g
 				op.ColorScale = colorScale
+				op.Blend = item.Blend.Blend
+				op.Filter = item.Filter.Filter
 				screen.DrawImage(image, &op)
 			}
 
@@ -303,6 +321,8 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			var op text.DrawOptions
 			op.GeoM = g
 			op.ColorScale = colorScale
+			op.Blend = item.Blend.Blend
+			op.Filter = item.Filter.Filter
 			op.LineSpacing = item.Face.Metrics().VLineGap
 			text.Draw(screen, item.Text.Text, item.Face, &op)
 
