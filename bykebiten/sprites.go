@@ -1,11 +1,12 @@
 package bykebiten
 
 import (
+	"image"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
-	"image"
 )
 
 var _ = byke.ValidateComponent[Sprite]()
@@ -23,13 +24,11 @@ type Sprite struct {
 	FlipX, FlipY bool
 }
 
-var spriteRequireComponents = append(
-	[]byke.ErasedComponent{AnchorCenter, &Blend{}, &Filter{}},
-	commonRenderComponents...,
-)
-
 func (Sprite) RequireComponents() []byke.ErasedComponent {
-	return spriteRequireComponents
+	return append(
+		[]byke.ErasedComponent{AnchorCenter, Blend{}, Filter{}},
+		commonRenderComponents...,
+	)
 }
 
 type TileIndex struct {

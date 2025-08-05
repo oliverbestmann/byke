@@ -1,15 +1,16 @@
 package bykebiten
 
 import (
+	"image"
+	"slices"
+	"sync"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	"github.com/oliverbestmann/byke/gm"
-	"image"
-	"slices"
-	"sync"
 )
 
 var whiteImage = sync.OnceValue(func() *ebiten.Image {
@@ -75,12 +76,12 @@ type BBox struct {
 }
 
 var commonRenderComponents = []byke.ErasedComponent{
-	&Transform{Scale: gm.VecOne},
-	&Layer{},
-	&ColorTint{Color: color.White},
-	&BBox{},
-	&InheritVisibility,
-	&ComputedVisibility{},
+	Transform{Scale: gm.VecOne},
+	Layer{},
+	ColorTint{Color: color.White},
+	BBox{},
+	InheritVisibility,
+	ComputedVisibility{},
 }
 
 type renderCommonValues struct {

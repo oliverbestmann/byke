@@ -1,12 +1,13 @@
 package bykebiten
 
 import (
+	"sync"
+
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	. "github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/assets"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
-	"sync"
 )
 
 var DefaultFontFace = sync.OnceValue(func() text.Face {
@@ -21,17 +22,16 @@ type Text struct {
 	Text string
 }
 
-var textRequiredComponents = sync.OnceValue(func() []spoke.ErasedComponent {
-	components := []ErasedComponent{
-		&TextFace{Face: DefaultFontFace()},
-		AnchorCenter,
-	}
-
-	return append(components, commonRenderComponents...)
-})
-
 func (Text) RequireComponents() []spoke.ErasedComponent {
-	return textRequiredComponents()
+	return append(
+		[]ErasedComponent{
+			AnchorCenter,
+			TextFace{Face: DefaultFontFace()},
+			Filter{},
+			Blend{},
+		},
+		commonRenderComponents...,
+	)
 }
 
 type TextFace struct {

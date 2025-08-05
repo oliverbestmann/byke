@@ -2,10 +2,11 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/set"
-	spoke "github.com/oliverbestmann/byke/spoke"
 	"reflect"
 	"sync/atomic"
+
+	"github.com/oliverbestmann/byke/internal/set"
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 const NoEntityId = EntityId(0)
@@ -278,7 +279,6 @@ func (w *World) prepareComponents(entityId EntityId, components []ErasedComponen
 			))
 		}
 
-		// move it to the heap and add it to the entity
 		collectedComponents = append(collectedComponents, component)
 
 		// enqueue all required components
@@ -463,18 +463,7 @@ func (w *World) flushCommands() {
 }
 
 func copyComponent(value ErasedComponent) ErasedComponent {
-	componentType := value.ComponentType()
-	ptrToCopy := componentType.New()
-
-	// get the actual value of the source
-	sourceValue := reflect.ValueOf(value)
-	for sourceValue.Kind() == reflect.Pointer {
-		sourceValue = sourceValue.Elem()
-	}
-
-	// copy the source to the newly allocated component
-	reflect.ValueOf(ptrToCopy).Elem().Set(sourceValue)
-	return ptrToCopy
+	return value.ComponentType().CopyOf(value)
 }
 
 func (w *World) removeComponent(entityId EntityId, componentType *spoke.ComponentType) {

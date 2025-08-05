@@ -1,13 +1,14 @@
 package bykebiten
 
 import (
+	"log/slog"
+	"time"
+
 	eaudio "github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/audio"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
-	"log/slog"
-	"time"
 )
 
 var _ = byke.ValidateComponent[AudioPlayer]()
@@ -50,8 +51,7 @@ func AudioPlayerOf(source *AudioSource) *AudioPlayer {
 }
 
 func (AudioPlayer) RequireComponents() []spoke.ErasedComponent {
-	once := PlaybackSettingsOnce
-	return []spoke.ErasedComponent{&once}
+	return []spoke.ErasedComponent{PlaybackSettingsOnce}
 }
 
 type AudioSink struct {
@@ -207,7 +207,6 @@ func (as *AudioSink) Stop() {
 
 type PlaybackSettings struct {
 	byke.ImmutableComponent[PlaybackSettings]
-	Mode   PlaybackMode
 	Volume float64
 
 	// If non zero, the SpatialScale will override the GlobalSpatialScale value for
@@ -220,6 +219,8 @@ type PlaybackSettings struct {
 	// Duration indicates the duration of the audio to play.
 	// If Duration is set to zero, the audio will be played to the end.
 	Duration time.Duration
+
+	Mode PlaybackMode
 
 	Paused  bool
 	Muted   bool

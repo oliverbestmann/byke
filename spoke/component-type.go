@@ -64,9 +64,17 @@ func (c *ComponentType) New() ErasedComponent {
 }
 
 func (c *ComponentType) CopyOf(value ErasedComponent) ErasedComponent {
-	target := reflect.New(c.Type)
-	target.Elem().Set(reflect.ValueOf(value).Elem())
-	return target.Interface().(ErasedComponent)
+	ptrToCopy := c.New()
+
+	// get the actual value of the source
+	sourceValue := reflect.ValueOf(value)
+	for sourceValue.Kind() == reflect.Pointer {
+		sourceValue = sourceValue.Elem()
+	}
+
+	// copy the source to the newly allocated component
+	reflect.ValueOf(ptrToCopy).Elem().Set(sourceValue)
+	return ptrToCopy
 }
 
 func (c *ComponentType) String() string {
@@ -193,11 +201,11 @@ func baseComponentTypeOf[C IsComponent[C]](id ComponentTypeId) *ComponentType {
 	requiredComponents := func() []ErasedComponent { return nil }
 
 	if c, ok := any(cValue).(RequireComponents); ok {
-		requiredComponents = sync.OnceValue(c.RequireComponents)
+		requiredComponents = requiredComponentsOf(c)
 	}
 
 	if c, ok := any(&cValue).(RequireComponents); ok {
-		requiredComponents = sync.OnceValue(c.RequireComponents)
+		requiredComponents = requiredComponentsOf(c)
 	}
 
 	return &ComponentType{
@@ -213,11 +221,16 @@ func baseComponentTypeOf[C IsComponent[C]](id ComponentTypeId) *ComponentType {
 	}
 }
 
-func unsafeCopyComponentValue[C IsComponent[C]](target unsafe.Pointer, value ErasedComponent) {
-	// target points to a C
-	*(*C)(target) = *any(value).(*C)
-}
+func requiredComponentsOf(c RequireComponents) func() []ErasedComponent {
+	return sync.OnceValue[[]ErasedComponent](func() []ErasedComponent {
+		var requiredComponents []ErasedComponent
 
-func unsafeCopyValue[C IsComponent[C]](to, from unsafe.Pointer) {
-	*(*C)(to) = *(*C)(from)
+		components := c.RequireComponents()
+		for _, component := range components {
+			requiredComponents = append(requiredComponents,
+				component.ComponentType().CopyOf(component))
+		}
+
+		return requiredComponents
+	})
 }
