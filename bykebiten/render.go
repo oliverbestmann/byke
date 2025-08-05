@@ -98,13 +98,14 @@ type hasCommonValues interface {
 }
 
 type renderSpriteValue struct {
-	Common    renderCommonValues
-	Sprite    Sprite
-	TileIndex byke.Option[TileIndex]
-	TileCache byke.Option[tileCache]
-	Shader    byke.Option[Shader]
-	Filter    Filter
-	Blend     Blend
+	Common       renderCommonValues
+	Sprite       Sprite
+	Filter       Filter
+	Blend        Blend
+	TileIndex    byke.Option[TileIndex]
+	TileCache    byke.Option[tileCache]
+	Shader       byke.Option[Shader]
+	ShaderInputs byke.Option[ShaderInput]
 }
 
 func (r *renderSpriteValue) commonValues() *renderCommonValues {
@@ -256,7 +257,6 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			g.Scale(1/toSourceScale.X, 1/toSourceScale.Y)
 		}
 
-		// FIXME Get this working again
 		if _, ok := item.(*renderVectorValue); !ok {
 			// transform by offset. Need to multiply by the sign of source scale as that might
 			// flip the direction the origin translation need to be applied
@@ -295,21 +295,24 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 
 			if shader_, ok := item.Shader.Get(); ok {
 				var shader *ebiten.Shader = shader_.Shader
+				var inputs ShaderInput = item.ShaderInputs.OrZero()
 
-				imageSize := imageSizeOf(image)
+				imageSize := intImageSizeOf(image)
 
-				// TODO this just supports the very basics
-				screen.DrawRectShader(int(imageSize.X), int(imageSize.Y), shader, &ebiten.DrawRectShaderOptions{
+				screen.DrawRectShader(imageSize.X, imageSize.Y, shader, &ebiten.DrawRectShaderOptions{
 					GeoM:       g,
 					ColorScale: colorScale,
 					Blend:      item.Blend.Blend,
+					Uniforms:   inputs.Uniforms,
 					Images: [4]*ebiten.Image{
 						image,
+						inputs.Images[1],
+						inputs.Images[2],
+						inputs.Images[3],
 					},
 				})
 
 			} else {
-				// TODO add support for Filter + Blend
 				var op ebiten.DrawImageOptions
 				op.GeoM = g
 				op.ColorScale = colorScale

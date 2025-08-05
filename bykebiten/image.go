@@ -11,3 +11,10 @@ func imageSizeOf(image *ebiten.Image) gm.Vec {
 		Y: float64(image.Bounds().Dy()),
 	}
 }
+
+func intImageSizeOf(image *ebiten.Image) gm.IVec {
+	return gm.IVec{
+		X: image.Bounds().Dx(),
+		Y: image.Bounds().Dy(),
+	}
+}

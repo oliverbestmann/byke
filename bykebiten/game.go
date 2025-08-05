@@ -2,15 +2,16 @@ package bykebiten
 
 import (
 	"fmt"
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/gm"
 	"io/fs"
 	"os"
 	"reflect"
 	"slices"
 	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/gm"
 )
 
 var TransformSystems = &byke.SystemSet{}
@@ -71,6 +72,7 @@ func GamePlugin(app *byke.App) {
 
 	app.AddSystems(byke.PreRender,
 		byke.System(updateTileCache).Before(computeSpriteSizeSystem),
+		updateUniformsSystem,
 	)
 
 	app.AddSystems(byke.PreRender,

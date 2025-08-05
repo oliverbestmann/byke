@@ -2,7 +2,7 @@ package byke
 
 import (
 	"github.com/oliverbestmann/byke/internal/query"
-	spoke "github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 // EntityId uniquely identifies an entity in a World.

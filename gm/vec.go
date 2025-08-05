@@ -20,10 +20,11 @@ type Vec = Vec64
 var VecZero = Vec{}
 var VecOne = Vec{X: 1, Y: 1}
 
+type IVec = VecType[int]
 type IVec32 = VecType[int32]
 
 type Scalar interface {
-	int32 | int64 | float32 | float64
+	int | int32 | int64 | float32 | float64
 }
 
 // VecOf returns a new vector for the given values x and y.
