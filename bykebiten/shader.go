@@ -44,6 +44,12 @@ func (s *ShaderInput) Put(uniform string, value any) {
 	s.Uniforms[uniform] = toUniformValue(value)
 }
 
+// DisableAutoUniforms is a marker component to indicate that byke should not
+// automatically inject common uniform values such as Time or Transform
+type DisableAutoUniforms struct {
+	byke.ImmutableComponent[DisableAutoUniforms]
+}
+
 // SetUniformsFromStruct takes uniform values from a struct value. It iterates over the fields
 // of the struct and sets the values of exported fields in ShaderInput.Uniforms
 func (s *ShaderInput) SetUniformsFromStruct(value any) {
@@ -96,10 +102,16 @@ func toUniformValue(value any) any {
 
 func updateUniformsSystem(
 	vt byke.VirtualTime,
-	query byke.Query[*ShaderInput],
+	query byke.Query[struct {
+		_ byke.Without[DisableAutoUniforms]
+
+		Input           *ShaderInput
+		GlobalTransform Transform
+	}],
 ) {
 	time := vt.Elapsed.Seconds()
-	for input := range query.Items() {
-		input.Put("Time", time)
+	for item := range query.Items() {
+		item.Input.Put("Time", time)
+		item.Input.Put("Transform", gm.RotationMat(item.GlobalTransform.Rotation))
 	}
 }

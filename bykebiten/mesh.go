@@ -26,6 +26,15 @@ func (Mesh) RequireComponents() []spoke.ErasedComponent {
 	return append(components, commonRenderComponents...)
 }
 
+func RegularPolygon(radius float64, sides uint) Mesh {
+	// a regular polygon is actually just a circle
+	return Circle(radius, sides)
+}
+
+func Circle(radius float64, resolution uint) Mesh {
+	return Ellipse(gm.VecSplat(radius).Mul(2.0), resolution)
+}
+
 func Ellipse(size gm.Vec, resolution uint) Mesh {
 	halfSize := size.Mul(0.5)
 
@@ -55,6 +64,89 @@ func Ellipse(size gm.Vec, resolution uint) Mesh {
 	}
 
 	for i := uint32(1); i < uint32(resolution)-1; i++ {
+		indices = append(indices, 0, i, i+1)
+	}
+
+	return Mesh{
+		Vertices: vertices,
+		Indices:  indices,
+	}
+}
+
+func Rectangle(size gm.Vec) Mesh {
+	hw, hh := size.Mul(0.5).XY()
+
+	vertices := []ebiten.Vertex{
+		{
+			DstX:    float32(hw),
+			DstY:    float32(hh),
+			ColorR:  1,
+			ColorG:  1,
+			ColorB:  1,
+			ColorA:  1,
+			Custom0: 1.0,
+			Custom1: 0.0,
+		},
+		{
+			DstX:    float32(-hw),
+			DstY:    float32(hh),
+			ColorR:  1,
+			ColorG:  1,
+			ColorB:  1,
+			ColorA:  1,
+			Custom0: 0.0,
+			Custom1: 0.0,
+		},
+		{
+			DstX:    float32(-hw),
+			DstY:    float32(-hh),
+			ColorR:  1,
+			ColorG:  1,
+			ColorB:  1,
+			ColorA:  1,
+			Custom0: 0.0,
+			Custom1: 1.0,
+		},
+		{
+			DstX:    float32(hw),
+			DstY:    float32(-hh),
+			ColorR:  1,
+			ColorG:  1,
+			ColorB:  1,
+			ColorA:  1,
+			Custom0: 1.0,
+			Custom1: 1.0,
+		},
+	}
+
+	indices := []uint32{0, 1, 2, 0, 2, 3}
+
+	return Mesh{
+		Vertices: vertices,
+		Indices:  indices,
+	}
+}
+
+func ConvexPolygon(points []gm.Vec) Mesh {
+	if len(points) <= 2 {
+		return Mesh{}
+	}
+
+	indices := make([]uint32, 0, (len(points)-2)*3)
+	vertices := make([]Vertex, 0, len(points))
+
+	for _, point := range points {
+		vertices = append(vertices, ebiten.Vertex{
+			DstX:   float32(point.X),
+			DstY:   float32(point.Y),
+			ColorR: 1,
+			ColorG: 1,
+			ColorB: 1,
+			ColorA: 1,
+		})
+	}
+
+	for i := uint32(1); i < uint32(len(points)-1); i++ {
 		indices = append(indices, 0, i, i+1)
 	}
 

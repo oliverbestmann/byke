@@ -18,6 +18,14 @@ func main() {
 	app.InsertResource(MakeAssetFS(assets))
 	app.AddPlugin(GamePlugin)
 	app.AddSystems(Startup, startupSystem)
+	app.AddSystems(Update, func(q Query[struct {
+		_         With[Shader]
+		Transform *Transform
+	}]) {
+		for item := range q.Items() {
+			item.Transform.Rotation += 0.05
+		}
+	})
 	fmt.Println(app.Run())
 }
 
@@ -44,7 +52,8 @@ func startupSystem(
 		// 	Image:      assets.Image("ebiten.png").Await(),
 		// 	CustomSize: Some(gm.VecSplat(100.0)),
 		// },
-		Ellipse(gm.VecSplat(100.0), 48),
+		RegularPolygon(50, 8),
+		NewTransform().WithRotation(gm.DegToRad(180)),
 		Shader{Shader: shader},
 		ShaderInput{
 			Uniforms: map[string]any{
@@ -62,6 +71,8 @@ package main
 var Time float
 var Scale float
 var Alpha float
+var Rotation float
+var Transform mat2
 
 func rand(n vec2) float {
 	return fract(cos(dot(n, vec2(12.9898, 4.1414))) * 43758.5453)
@@ -86,13 +97,15 @@ func fbm(n vec2) float {
 	return total
 }
 
-func Fragment(dp vec4, srcPos vec2, color vec4) vec4 {
+func Fragment(dp vec4, srcPos vec2, color vec4, uv vec4) vec4 {
 	dstPos := dp
-	dstPos.xy -= imageDstOrigin()
+	dstPos.xy -= imageDstOrigin() + imageDstSize() * 0.5
+	dstPos.xy = Transform * dstPos.xy
 	dstPos.xy /= imageDstSize().y
-	dstPos.y = 1 - dstPos.y
-	
+
 	dstPos.xy *= Scale
+
+	dstPos.xy = uv.xy;
 
 	c1 := vec3(0.5, 0.0, 0.1)
 	c2 := vec3(0.9, 0.0, 0.0)
@@ -105,9 +118,11 @@ func Fragment(dp vec4, srcPos vec2, color vec4) vec4 {
 	shift := 1.6;
 	alpha := 1.0;
 
+	t := Time
+
 	p := dstPos.xy * 8.0
-	q := fbm(p - Time * 0.1);
-	r := vec2(fbm(p + q + Time * speed.x - p.x - p.y), fbm(p + q - Time * speed.y))
+	q := fbm(p - t * 0.1);
+	r := vec2(fbm(p + q + t * speed.x - p.x - p.y), fbm(p + q - t * speed.y))
 	c := mix(c1, c2, fbm(p + r)) + mix(c3, c4, r.x) - mix(c5, c6, r.y)
 	return vec4(c * cos(shift * dstPos.y), alpha) * Alpha
 }
