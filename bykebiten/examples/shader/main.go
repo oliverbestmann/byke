@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"fmt"
+	"math"
+	"math/rand/v2"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
@@ -47,12 +49,23 @@ func startupSystem(
 		panic(err)
 	}
 
+	var points []gm.Vec
+	var hole []gm.Vec
+
+	for r := gm.Rad(0); r < gm.Rad(math.Pi*2); r += 0.1 {
+		vec := gm.Vec{X: rand.Float64()*25 + 25}
+		points = append(points, vec.Rotated(r))
+
+		vec = gm.Vec{X: rand.Float64()*10 + 10}
+		hole = append(hole, vec.Rotated(r))
+	}
+
 	commands.Spawn(
 		// Sprite{
 		// 	Image:      assets.Image("ebiten.png").Await(),
 		// 	CustomSize: Some(gm.VecSplat(100.0)),
 		// },
-		RegularPolygon(50, 8),
+		Polygon(points, hole),
 		NewTransform().WithRotation(gm.DegToRad(180)),
 		Shader{Shader: shader},
 		ShaderInput{

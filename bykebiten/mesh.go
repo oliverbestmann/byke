@@ -1,12 +1,15 @@
 package bykebiten
 
 import (
+	"fmt"
 	"math"
+	"unsafe"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
+	"github.com/tchayen/triangolatte"
 )
 
 type Vertex = ebiten.Vertex
@@ -148,6 +151,76 @@ func ConvexPolygon(points []gm.Vec) Mesh {
 
 	for i := uint32(1); i < uint32(len(points)-1); i++ {
 		indices = append(indices, 0, i, i+1)
+	}
+
+	return Mesh{
+		Vertices: vertices,
+		Indices:  indices,
+	}
+}
+
+func Polygon(polygon []gm.Vec, holes ...[]gm.Vec) Mesh {
+	pointsOf := func(vecs []gm.Vec) []triangolatte.Point {
+		data := unsafe.SliceData(vecs)
+		return unsafe.Slice((*triangolatte.Point)(data), len(vecs))
+	}
+
+	points := pointsOf(polygon)
+
+	if len(holes) > 0 {
+		polygons := [][]triangolatte.Point{points}
+
+		for _, hole := range holes {
+			polygons = append(polygons, pointsOf(hole))
+		}
+
+		joined, err := triangolatte.JoinHoles(polygons)
+		if err != nil {
+			panic(fmt.Errorf("joining holes: %w", err))
+		}
+
+		points = joined
+	}
+
+	triangles, err := triangolatte.Polygon(points)
+	if err != nil {
+		panic(fmt.Errorf("triangulate: %w", err))
+	}
+
+	vertices := make([]ebiten.Vertex, 0, len(triangles)/6)
+
+	for idx := 0; idx < len(triangles); idx += 6 {
+		vertices = append(vertices,
+			ebiten.Vertex{
+				DstX:   float32(triangles[idx+0]),
+				DstY:   float32(triangles[idx+1]),
+				ColorR: 1,
+				ColorG: 1,
+				ColorB: 1,
+				ColorA: 1,
+			},
+			ebiten.Vertex{
+				DstX:   float32(triangles[idx+2]),
+				DstY:   float32(triangles[idx+3]),
+				ColorR: 1,
+				ColorG: 1,
+				ColorB: 1,
+				ColorA: 1,
+			},
+			ebiten.Vertex{
+				DstX:   float32(triangles[idx+4]),
+				DstY:   float32(triangles[idx+5]),
+				ColorR: 1,
+				ColorG: 1,
+				ColorB: 1,
+				ColorA: 1,
+			},
+		)
+	}
+
+	indices := make([]uint32, len(vertices))
+	for idx := range len(vertices) {
+		indices[idx] = uint32(idx)
 	}
 
 	return Mesh{

@@ -376,8 +376,12 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			if stroke_, ok := item.Stroke.Get(); ok {
 				var stroke Stroke = stroke_
 
+				// estimate stroke
+				origin := gm.VecOf(g.Apply(0, 0))
+				strokeWidth := gm.VecOf(g.Apply(1, 0)).DistanceTo(origin) * stroke.Width
+
 				vector.StrokePath(screen, path, stroke.Color, stroke.Antialias, &vector.StrokeOptions{
-					Width:      float32(stroke.Width),
+					Width:      float32(strokeWidth),
 					LineCap:    stroke.LineCap,
 					LineJoin:   stroke.LineJoin,
 					MiterLimit: float32(stroke.MiterLimit),

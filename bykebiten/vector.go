@@ -1,12 +1,13 @@
 package bykebiten
 
 import (
+	"math"
+
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
-	"math"
 )
 
 type Direction = vector.Direction
@@ -104,6 +105,15 @@ func (p *Path) Circle(center gm.Vec, radius float64) {
 func (p *Path) LineTo(vec gm.Vec) {
 	p.version += 1
 	p.inner().LineTo(float32(vec.X), float32(vec.Y))
+}
+
+func (p *Path) LineStrip(points []gm.Vec) {
+	p.version += 1
+	inner := p.inner()
+
+	for _, point := range points {
+		inner.LineTo(float32(point.X), float32(point.Y))
+	}
 }
 
 func (p *Path) MoveTo(vec gm.Vec) {

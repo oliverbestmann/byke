@@ -158,8 +158,8 @@ func (v VecType[S]) Angle() Rad {
 	return Rad(math.Atan2(float64(v.Y), float64(v.X)))
 }
 
-// Rotate rotates the
-func (v VecType[S]) Rotate(angle Rad) VecType[S] {
+// Rotated rotates the
+func (v VecType[S]) Rotated(angle Rad) VecType[S] {
 	res := RotationMat(angle).Transform(v.AsVec())
 	return VecType[S]{X: S(res.X), Y: S(res.Y)}
 }
