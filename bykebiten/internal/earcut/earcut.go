@@ -1,6 +1,7 @@
 package earcut
 
 import (
+	"fmt"
 	"math"
 	"slices"
 
@@ -10,21 +11,80 @@ import (
 type Point = gm.Vec
 
 func EarCut(polygon []Point, holes [][]Point) ([]Point, []uint32) {
-	outer := linkedList(polygon, true, 0)
-	outer = eliminateHoles(outer, holes, uint32(len(polygon)))
+	// count the number of points
+	pointCount := len(polygon)
+	for _, hole := range holes {
+		pointCount += len(hole)
+	}
 
-	var points []Point
+	// collect all points
+	points := make([]Point, 0, pointCount)
 	points = append(points, polygon...)
 	for _, hole := range holes {
 		points = append(points, hole...)
 	}
 
-	return points, earcutLinked(outer, nil, 0)
+	var invSize invSize
+	if len(points) > 80 {
+		invSize = calculateInvSize(points)
+	}
+
+	// create a linked Node list
+	outer := linkedList(polygon, true, 0)
+
+	if outer == nil || outer.Next == outer.Prev {
+		return nil, nil
+	}
+
+	outer = eliminateHoles(outer, holes, uint32(len(polygon)))
+
+	fmt.Println("OuterNode", outer.Index, "prev=", outer.Prev.Index)
+	return points, earcutLinked(outer, nil, invSize, 0)
 }
 
-func earcutLinked(ear *Node, triangles []uint32, pass int) []uint32 {
+type invSize struct {
+	Scale      float64
+	MinX, MinY float64
+}
+
+func (i *invSize) Valid() bool {
+	return i.Scale > 0
+}
+
+func calculateInvSize(points []Point) invSize {
+	minX := points[0].X
+	maxX := points[0].X
+
+	minY := points[0].Y
+	maxY := points[0].Y
+
+	for _, point := range points[1:] {
+		minX = min(minX, point.X)
+		minY = min(minY, point.Y)
+		maxX = max(maxX, point.X)
+		maxY = max(maxY, point.Y)
+	}
+
+	invSize := invSize{
+		MinX: minX,
+		MinY: minY,
+	}
+
+	maxSize := max(maxX-minX, maxY-minY)
+	if maxSize != 0 {
+		invSize.Scale = 32767 / maxSize
+	}
+
+	return invSize
+}
+
+func earcutLinked(ear *Node, triangles []uint32, invSize invSize, pass int) []uint32 {
 	if ear == nil {
 		return triangles
+	}
+
+	if pass == 0 && invSize.Valid() {
+		indexCurve(ear, invSize)
 	}
 
 	stop := ear
@@ -32,11 +92,18 @@ func earcutLinked(ear *Node, triangles []uint32, pass int) []uint32 {
 	for ear.Prev != ear.Next {
 		prev, next := ear.Prev, ear.Next
 
-		// TODO invSize
-		if isEar(ear) {
+		var val bool
+		if invSize.Valid() {
+			val = isEarHashed(ear, invSize)
+		} else {
+			val = isEar(ear)
+		}
+
+		if val {
 			// cut off the triangle
 			triangles = append(triangles, prev.Index, ear.Index, next.Index)
 
+			fmt.Println("RemoveEar", ear.Index)
 			removeNode(ear)
 
 			ear = next.Next
@@ -52,14 +119,15 @@ func earcutLinked(ear *Node, triangles []uint32, pass int) []uint32 {
 			switch pass {
 			case 0:
 				points := filterPoints(ear, nil)
-				triangles = earcutLinked(points, triangles, 1)
+				triangles = earcutLinked(points, triangles, invSize, 1)
 
 			case 1:
+				// if this didn't work, try curing all small self-intersections locally
 				ear, triangles = cureLocalIntersections(filterPoints(ear, nil), triangles)
-				triangles = earcutLinked(ear, triangles, 2)
+				triangles = earcutLinked(ear, triangles, invSize, 2)
 
 			case 2:
-				triangles = splitEarcut(ear, triangles)
+				triangles = splitEarcut(ear, triangles, invSize)
 			}
 
 			break
@@ -69,8 +137,117 @@ func earcutLinked(ear *Node, triangles []uint32, pass int) []uint32 {
 	return triangles
 }
 
+func indexCurve(start *Node, invSize invSize) {
+	p := start
+
+	for {
+		if p.Z == 0 {
+			p.Z = zOrder(p.Point, invSize)
+		}
+
+		p.PrevZ = p.Prev
+		p.NextZ = p.Next
+
+		p = p.Next
+
+		if p == start {
+			break
+		}
+	}
+
+	p.PrevZ.NextZ = nil
+	p.PrevZ = nil
+
+	sortLinked(p)
+}
+
+// z-order of a point given coords and inverse of the longer side of data bbox
+func zOrder(point Point, invSize invSize) uint32 {
+	xf, yf := point.XY()
+
+	// coords are transformed into non-negative 15-bit integer range
+	x := int32((xf - invSize.MinX) * invSize.Scale)
+	y := int32((yf - invSize.MinY) * invSize.Scale)
+
+	x = (x | (x << 8)) & 0x00ff00ff
+	x = (x | (x << 4)) & 0x0f0f0f0f
+	x = (x | (x << 2)) & 0x33333333
+	x = (x | (x << 1)) & 0x55555555
+
+	y = (y | (y << 8)) & 0x00ff00ff
+	y = (y | (y << 4)) & 0x0f0f0f0f
+	y = (y | (y << 2)) & 0x33333333
+	y = (y | (y << 1)) & 0x55555555
+
+	return uint32(x | (y << 1))
+}
+
+// Simon Tatham's linked list merge sort algorithm
+// http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
+func sortLinked(list *Node) *Node {
+	inSize := 1
+
+	for {
+		var e, tail *Node
+		var numMerges int
+
+		p := list
+		list = nil
+
+		for p != nil {
+			numMerges += 1
+			q := p
+			pSize := 0
+
+			for range inSize {
+				pSize++
+				q = q.NextZ
+				if q == nil {
+					break
+				}
+			}
+
+			qSize := inSize
+
+			for pSize > 0 || (qSize > 0 && q != nil) {
+				if pSize != 0 && (qSize == 0 || q == nil || p.Z <= q.Z) {
+					e = p
+					p = p.NextZ
+					pSize--
+				} else {
+					e = q
+					q = q.NextZ
+					qSize--
+				}
+
+				if tail != nil {
+					tail.NextZ = e
+				} else {
+					list = e
+				}
+
+				e.PrevZ = tail
+				tail = e
+			}
+
+			p = q
+		}
+
+		tail.NextZ = nil
+		inSize *= 2
+
+		if numMerges <= 1 {
+			break
+		}
+	}
+
+	return list
+}
+
 // check whether a polygon node forms a valid ear with adjacent nodes
 func isEar(ear *Node) bool {
+	// fmt.Println("Ear", ear.Index)
+
 	a := ear.Prev
 	b := ear
 	c := ear.Next
@@ -81,18 +258,11 @@ func isEar(ear *Node) bool {
 	}
 
 	// now make sure we don't have other points inside the potential ear
-	ax := a.X
-	bx := b.X
-	cx := c.X
-	ay := a.Y
-	by := b.Y
-	cy := c.Y
-
 	// triangle bbox
-	x0 := min(ax, bx, cx)
-	y0 := min(ay, by, cy)
-	x1 := max(ax, bx, cx)
-	y1 := max(ay, by, cy)
+	x0 := min(a.X, b.X, c.X)
+	y0 := min(a.Y, b.Y, c.Y)
+	x1 := max(a.X, b.X, c.X)
+	y1 := max(a.Y, b.Y, c.Y)
 
 	p := c.Next
 
@@ -105,6 +275,93 @@ func isEar(ear *Node) bool {
 		}
 
 		p = p.Next
+	}
+
+	return true
+}
+
+func isEarHashed(ear *Node, invSize invSize) bool {
+	a := ear.Prev
+	b := ear
+	c := ear.Next
+
+	if area(a.Point, b.Point, c.Point) >= 0 {
+		// reflex, can't be an ear
+		return false
+	}
+
+	// triangle bbox
+	x0 := min(a.X, b.X, c.X)
+	y0 := min(a.Y, b.Y, c.Y)
+	x1 := max(a.X, b.X, c.X)
+	y1 := max(a.Y, b.Y, c.Y)
+
+	// z-order range for the current triangle bbox;
+	minZ := zOrder(Point{X: x0, Y: y0}, invSize)
+	maxZ := zOrder(Point{X: x1, Y: y1}, invSize)
+
+	p := ear.PrevZ
+	n := ear.NextZ
+
+	// look for points inside the triangle in both directions
+	for p != nil && p.Z >= minZ && n != nil && n.Z <= maxZ {
+		if p.X >= x0 &&
+			p.X <= x1 &&
+			p.Y >= y0 &&
+			p.Y <= y1 &&
+			p != a &&
+			p != c &&
+			pointInTriangleExceptFirst(a.Point, b.Point, c.Point, p.Point) &&
+			area(p.Prev.Point, p.Point, p.Next.Point) >= 0 {
+			return false
+		}
+
+		p = p.PrevZ
+
+		if n.X >= x0 &&
+			n.X <= x1 &&
+			n.Y >= y0 &&
+			n.Y <= y1 &&
+			n != a &&
+			n != c &&
+			pointInTriangleExceptFirst(a.Point, b.Point, c.Point, n.Point) &&
+			area(n.Prev.Point, n.Point, n.Next.Point) >= 0 {
+			return false
+		}
+
+		n = n.NextZ
+	}
+
+	// look for remaining points in decreasing z-order
+	for p != nil && p.Z >= minZ {
+		if p.X >= x0 &&
+			p.X <= x1 &&
+			p.Y >= y0 &&
+			p.Y <= y1 &&
+			p != a &&
+			p != c &&
+			pointInTriangleExceptFirst(a.Point, b.Point, c.Point, p.Point) &&
+			area(p.Prev.Point, p.Point, p.Next.Point) >= 0 {
+			return false
+		}
+
+		p = p.PrevZ
+	}
+
+	// look for remaining points in increasing z-order
+	for n != nil && n.Z <= maxZ {
+		if n.X >= x0 &&
+			n.X <= x1 &&
+			n.Y >= y0 &&
+			n.Y <= y1 &&
+			n != a &&
+			n != c &&
+			pointInTriangleExceptFirst(a.Point, b.Point, c.Point, n.Point) &&
+			area(n.Prev.Point, n.Point, n.Next.Point) >= 0 {
+			return false
+		}
+
+		n = n.NextZ
 	}
 
 	return true
@@ -123,6 +380,9 @@ func cureLocalIntersections(start *Node, triangles []uint32) (*Node, []uint32) {
 			// remove two nodes involved
 			removeNode(p)
 			removeNode(p.Next)
+
+			p = b
+			start = b
 		}
 
 		p = p.Next
@@ -169,19 +429,19 @@ func onSegment(p, q, r Point) bool {
 }
 
 func sign(value float64) int {
-	if value < 0 {
-		return -1
-	}
-
 	if value > 0 {
 		return 1
+	}
+
+	if value < 0 {
+		return -1
 	}
 
 	return 0
 }
 
 // try splitting polygon into two and triangulate them independently
-func splitEarcut(start *Node, triangles []uint32) []uint32 {
+func splitEarcut(start *Node, triangles []uint32, invSize invSize) []uint32 {
 	// look for a valid diagonal that divides the polygon into two
 	a := start
 
@@ -198,8 +458,8 @@ func splitEarcut(start *Node, triangles []uint32) []uint32 {
 				c = filterPoints(c, c.Next)
 
 				// run earcut on each half
-				triangles = earcutLinked(a, triangles, 0)
-				triangles = earcutLinked(c, triangles, 0)
+				triangles = earcutLinked(a, triangles, invSize, 0)
+				triangles = earcutLinked(c, triangles, invSize, 0)
 				return triangles
 			}
 
@@ -267,49 +527,6 @@ func intersectsPolygon(a, b *Node) bool {
 	}
 }
 
-/*// go through all polygon nodes and cure small local self-intersections
-function splitEarcut(start, triangles, dim, minX, minY, invSize) {
-    // look for a valid diagonal that divides the polygon into two
-    let a = start;
-    do {
-        let b = a.next.next;
-        while (b !== a.prev) {
-            if (a.i !== b.i && isValidDiagonal(a, b)) {
-                // split the polygon in two by the diagonal
-                let c = splitPolygon(a, b);
-
-                // filter colinear points around the cuts
-                a = filterPoints(a, a.next);
-                c = filterPoints(c, c.next);
-
-                // run earcut on each half
-                earcutLinked(a, triangles, dim, minX, minY, invSize, 0);
-                earcutLinked(c, triangles, dim, minX, minY, invSize, 0);
-                return;
-            }
-            b = b.next;
-        }
-        a = a.next;
-    } while (a !== start);
-}
-
-*/
-
-func collect(node *Node) []Point {
-	var points []Point
-
-	p := node
-	for {
-		points = append(points, p.Point)
-
-		p = p.Next
-
-		if p == node {
-			return points
-		}
-	}
-}
-
 func eliminateHoles(outer *Node, holes [][]Point, indexOffset uint32) *Node {
 	var queue []*Node
 
@@ -322,19 +539,12 @@ func eliminateHoles(outer *Node, holes [][]Point, indexOffset uint32) *Node {
 	}
 
 	slices.SortFunc(queue, func(a, b *Node) int {
-		val := compareXYSlope(a, b)
-		switch {
-		case val < 0:
-			return -1
-		case val > 0:
-			return +1
-		default:
-			return 0
-		}
+		return sign(compareXYSlope(a, b))
 	})
 
 	// process holes from left to right
 	for _, hole := range queue {
+		fmt.Println("Queue Hole", hole.Index)
 		outer = eliminateHole(hole, outer)
 	}
 
@@ -367,11 +577,10 @@ func filterPoints(start, end *Node) *Node {
 
 	p := start
 
-	var again bool
 	for {
-		again = false
+		var again bool
 
-		if !p.Steiner && (p.EqualTo(p.Next) || area(p.Prev.Point, p.Point, p.Next.Point) == 0) {
+		if !p.Steiner && (p.EqualTo(p.Next) || clampZero(area(p.Prev.Point, p.Point, p.Next.Point)) == 0) {
 			removeNode(p)
 			end = p.Prev
 			p = p.Prev
@@ -416,11 +625,7 @@ func findHoleBridge(hole, outer *Node) *Node {
 			x := p.X + (hy-p.Y)*(p.Next.X-p.X)/(p.Next.Y-p.Y)
 			if x <= hx && x > qx {
 				qx = x
-				if p.X < p.Next.X {
-					m = p
-				} else {
-					m = p.Next
-				}
+				m = pick(p.X < p.Next.X, p, p.Next)
 
 				if x == hx {
 					// hole touches outer segment; pick leftmost endpoint
@@ -456,10 +661,10 @@ func findHoleBridge(hole, outer *Node) *Node {
 		p2 := Point{X: pick(hy < my, qx, hx), Y: hy}
 
 		if hx >= p.X && p.X >= mx && hx != p.X && pointInTriangle(p0, p1, p2, p.Point) {
-			tan := math.Abs(hy-p.Y) / (hx - p.Y) // tangential
+			tan := math.Abs(hy-p.Y) / (hx - p.X) // tangential
 
 			if locallyInside(p, hole) &&
-				(tan < tanMin || tan == tanMin && (p.X > m.X || (p.Y == m.Y && sectorContainsSector(m, p)))) {
+				(tan < tanMin || (tan == tanMin && (p.X > m.X || (p.X == m.X && sectorContainsSector(m, p))))) {
 
 				m = p
 				tanMin = tan
@@ -476,7 +681,7 @@ func findHoleBridge(hole, outer *Node) *Node {
 	return m
 }
 
-func pick(cond bool, a, b float64) float64 {
+func pick[T any](cond bool, a, b T) T {
 	if cond {
 		return a
 	} else {
@@ -491,11 +696,21 @@ func pointInTriangle(a, b, c, p Point) bool {
 }
 
 func pointInTriangleExceptFirst(a, b, c, p Point) bool {
-	return a != b && pointInTriangle(a, b, c, p)
+	return a != p && pointInTriangle(a, b, c, p)
 }
 
+// signed area of a triangle
 func area(p, q, r Point) float64 {
 	return (q.Y-p.Y)*(r.X-q.X) - (q.X-p.X)*(r.Y-q.Y)
+}
+
+func clampZero(value float64) float64 {
+	if math.Abs(value) < 1e-9 {
+		// needed for issue142, maybe different floating point handling?
+		value = 0
+	}
+
+	return value
 }
 
 // check if a polygon diagonal is locally inside the polygon
@@ -562,24 +777,9 @@ func getLeftmost(start *Node) *Node {
 	}
 }
 
-/*
-
-// find the leftmost node of a polygon ring
-function getLeftmost(start) {
-    let p = start,
-        leftmost = start;
-    do {
-        if (p.x < leftmost.x || (p.x === leftmost.x && p.y < leftmost.y)) leftmost = p;
-        p = p.next;
-    } while (p !== start);
-
-    return leftmost;
-}
-*/
-
 type Node struct {
 	Point
-	Z float64
+	Z uint32
 
 	Prev, Next   *Node
 	PrevZ, NextZ *Node
@@ -644,6 +844,7 @@ func removeNode(p *Node) {
 // link two polygon vertices with a bridge; if the vertices belong to the same ring, it splits polygon into two;
 // if one belongs to the outer ring and another to a hole, it merges it into a single ring
 func splitPolygon(a, b *Node) *Node {
+	fmt.Println("Split at", a.Index, b.Index)
 	a2 := createNode(a.Index, a.Point)
 	b2 := createNode(b.Index, b.Point)
 
@@ -652,9 +853,9 @@ func splitPolygon(a, b *Node) *Node {
 
 	a.SetNext(b)
 
-	bp.SetNext(b2)
-	b2.SetNext(a2)
 	a2.SetNext(an)
+	b2.SetNext(a2)
+	bp.SetNext(b2)
 
 	return b2
 }
