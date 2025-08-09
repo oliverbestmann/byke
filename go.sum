@@ -14,11 +14,8 @@ github.com/ebitengine/gomobile v0.0.0-20250329061421-6d0a8e981e4c h1:Ccgks2VROTr
 github.com/ebitengine/gomobile v0.0.0-20250329061421-6d0a8e981e4c/go.mod h1:M6DDA2RbegvWBVv4Dq482lwyFTtMczT1A7UNm1qOYzY=
 github.com/ebitengine/hideconsole v1.0.0 h1:5J4U0kXF+pv/DhiXt5/lTz0eO5ogJ1iXb8Yj1yReDqE=
 github.com/ebitengine/hideconsole v1.0.0/go.mod h1:hTTBTvVYWKBuxPr7peweneWdkUwEuHuB3C1R/ielR1A=
-github.com/ebitengine/oto/v3 v3.4.0-alpha.8 h1:vBpB2ioW5Tfw/4VJ9EEVJMxQaac2AYICb8g6LPgcwys=
-github.com/ebitengine/oto/v3 v3.4.0-alpha.8/go.mod h1:7uZIlKsUnAA+cO1POJxmUZtCmO5GN40+mVMDk4Uqq5E=
+github.com/ebitengine/oto/v3 v3.4.0-alpha.9 h1:FdG/8VOZr37EuR8yuqetOVpPpGpJ7j31/5bEDX5E8og=
 github.com/ebitengine/oto/v3 v3.4.0-alpha.9/go.mod h1:7uZIlKsUnAA+cO1POJxmUZtCmO5GN40+mVMDk4Uqq5E=
-github.com/ebitengine/purego v0.9.0-alpha.9 h1:+OPDXjPESTGhQ/2zO0aQeUR8r4o1feLMSDQzkA6z9ug=
-github.com/ebitengine/purego v0.9.0-alpha.9/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/ebitengine/purego v0.9.0-alpha.10 h1:audsHbrB2mnadP/fVRdQRDc0lymjY7oWTNfzT59XICo=
 github.com/ebitengine/purego v0.9.0-alpha.10/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/felixge/fgprof v0.9.3/go.mod h1:RdbpDgzqYVh/T9fPELJyV7EYJuHB55UTEULNun8eiPw=
@@ -35,10 +32,8 @@ github.com/google/pprof v0.0.0-20211214055906-6f57359322fd/go.mod h1:KgnwoLYCZ8I
 github.com/google/pprof v0.0.0-20240227163752-401108e1b7e7/go.mod h1:czg5+yv1E0ZGTi6S6vVK1mke0fV+FaUhNGcd6VRS9Ik=
 github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5 h1:xhMrHhTJ6zxu3gA4enFM9MLn9AY7613teCdFnlUVbSQ=
 github.com/google/pprof v0.0.0-20250630185457-6e76a2b096b5/go.mod h1:5hDyRhoBCxViHszMt12TnOpEI4VVi+U8Gm9iphldiMA=
-github.com/hajimehoshi/bitmapfont/v4 v4.1.0-alpha.0.20250717181956-7a1172bbcd2d h1://wSCiCbAOS5cU9O6Xr8Qb7rfSMRXBFAxLcWW9xfIkc=
-github.com/hajimehoshi/bitmapfont/v4 v4.1.0-alpha.0.20250717181956-7a1172bbcd2d/go.mod h1:9KdLJljAPdDiSz6KZK6s3iZl0m1HVvBgU68CYw3U2dk=
-github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9.0.20250717182450-f54d9ce7167a h1:G4vQPX2Hor/0xH38rLeUhsgVvq0cRdfesaxxzh2HU5g=
-github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9.0.20250717182450-f54d9ce7167a/go.mod h1:WpF50AATB7rb0bgUXso19ZOZe948doUahbhIXvUF6Cg=
+github.com/hajimehoshi/bitmapfont/v4 v4.1.0-alpha.3 h1:9tz45psYUC9TQzhGmQ+MdQc4+6Ma6oKBpoTr8+MStJo=
+github.com/hajimehoshi/bitmapfont/v4 v4.1.0-alpha.3/go.mod h1:/PD+aLjAJ0F2UoQx6hkOfXqWN7BkroDUMr5W+IT1dpE=
 github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.13.0.20250809091923-4f9cc042aa1a h1:ODAjMWmQWuQbuXxcC18VRThZ4Mu+sJeQhErXw17hcgQ=
 github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.13.0.20250809091923-4f9cc042aa1a/go.mod h1:250uQM8QrmbHEHEjsvZpmnn4KKwKb5oPWDnHCLaaq6I=
 github.com/hajimehoshi/go-mp3 v0.3.4 h1:NUP7pBYH8OguP4diaTZ9wJbUbk3tC0KlfzsEpWmYj68=
@@ -82,8 +77,6 @@ golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.34.0 h1:H5Y5sJ2L2JRdyv7ROF1he/lPdvFsd0mJHFw2ThKHxLA=
-golang.org/x/sys v0.34.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
 golang.org/x/sys v0.35.0 h1:vz1N37gP5bs89s7He8XuIYXpyY0+QlsKmzipCbUtyxI=
 golang.org/x/sys v0.35.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
 golang.org/x/text v0.27.0 h1:4fGWRpyh641NLlecmyl4LOe6yDdfaYNrGb2zdfo4JV4=
