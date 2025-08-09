@@ -23,7 +23,6 @@ require (
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/tchayen/triangolatte v0.0.0-20210804113255-8b66c3824e73 // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
 	golang.org/x/image v0.29.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
