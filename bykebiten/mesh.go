@@ -192,7 +192,7 @@ func ConvexPolygon(points []gm.Vec) Mesh {
 // Polygon creates a Mesh from a (possibly concave) polygon. The polygon might
 // contain holes. A best effort at triangulation is performed.
 func Polygon(polygon []gm.Vec, holes ...[]gm.Vec) Mesh {
-	points, indices := earcut.EarCut(polygon, holes)
+	points, indices := earcut.Triangulate(polygon, holes)
 
 	vertices := make([]Vertex, len(points))
 	for idx, point := range points {
@@ -237,11 +237,11 @@ func UnionDisjoint(meshes ...Mesh) Mesh {
 
 func computeMeshSizeSystem(
 	query byke.Query[struct {
-	_ byke.Changed[Mesh]
+		_ byke.Changed[Mesh]
 
-	Mesh Mesh
-	BBox *BBox
-}],
+		Mesh Mesh
+		BBox *BBox
+	}],
 ) {
 	for item := range query.Items() {
 		vertices := item.Mesh.Vertices

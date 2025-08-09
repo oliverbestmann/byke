@@ -10,7 +10,7 @@ import (
 
 type Point = gm.Vec
 
-func EarCut(polygon []Point, holes [][]Point) ([]Point, []uint32) {
+func Triangulate(polygon []Point, holes [][]Point) ([]Point, []uint32) {
 	// count the number of points
 	pointCount := len(polygon)
 	for _, hole := range holes {

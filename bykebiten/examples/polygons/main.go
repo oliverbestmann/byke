@@ -43,7 +43,7 @@ func startupSystem(
 		hole = append(hole, vec.Rotated(r))
 	}
 
-	pp, indices := earcut.EarCut(outer, [][]earcut.Point{hole})
+	pp, indices := earcut.Triangulate(outer, [][]earcut.Point{hole})
 	polygon := Mesh{
 		Indices: indices,
 	}
