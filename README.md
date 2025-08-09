@@ -23,16 +23,28 @@ Documentation and examples will improve in the near feature.
 
 ### Ebitengine Integration
 
-The `bykebiten` package provides basic integration with [Ebitengine](https://ebitengine.org/):
-
-* Starts and manages a game loop
-* Provides resources for window config, screen size, mouse input, and more
-* Handles sprite rendering with support for z-ordering, anchor points, and custom sizes
-* Propagates transforms through the entity hierarchy
+The `bykebiten` package provides integration with [Ebitengine](https://ebitengine.org/):
+* Initializes and manages the game loop
+* Configures window settings, screen size, and input
+* Applies transforms through entity hierarchy
+* Manages rendering with z-order, anchors, and sizes
+* Sprites, also supports sprite sheets
+* Text rendering with custom fonts
+* Handles vectors with filled and stroked paths
+* Supports meshes: circles, rectangles, and triangulated polygons
+* Shaders for sprites and meshes with uniforms and image inputs
+* Multi-camera functionality
+* Custom render targets via *ebiten.Image
+* Asset loading:
+  * AssetLoader support
+  * Tracks asset loads
+  * Custom fs.FS: embedded, http, local support
+* Audio playback with looping and despawning
+* Spatial audio (see `astroids` example)
 
 ### Example
 
-Check out the [examples](https://github.com/oliverbestmann/byke/blob/main/bykebiten/examples/manysprites/main.go) for a
+Check out the [examples](https://github.com/oliverbestmann/byke/blob/main/bykebiten/examples/) for a
 look at how everything comes together.
 
 ---
