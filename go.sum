@@ -16,8 +16,11 @@ github.com/ebitengine/hideconsole v1.0.0 h1:5J4U0kXF+pv/DhiXt5/lTz0eO5ogJ1iXb8Yj
 github.com/ebitengine/hideconsole v1.0.0/go.mod h1:hTTBTvVYWKBuxPr7peweneWdkUwEuHuB3C1R/ielR1A=
 github.com/ebitengine/oto/v3 v3.4.0-alpha.8 h1:vBpB2ioW5Tfw/4VJ9EEVJMxQaac2AYICb8g6LPgcwys=
 github.com/ebitengine/oto/v3 v3.4.0-alpha.8/go.mod h1:7uZIlKsUnAA+cO1POJxmUZtCmO5GN40+mVMDk4Uqq5E=
+github.com/ebitengine/oto/v3 v3.4.0-alpha.9/go.mod h1:7uZIlKsUnAA+cO1POJxmUZtCmO5GN40+mVMDk4Uqq5E=
 github.com/ebitengine/purego v0.9.0-alpha.9 h1:+OPDXjPESTGhQ/2zO0aQeUR8r4o1feLMSDQzkA6z9ug=
 github.com/ebitengine/purego v0.9.0-alpha.9/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
+github.com/ebitengine/purego v0.9.0-alpha.10 h1:audsHbrB2mnadP/fVRdQRDc0lymjY7oWTNfzT59XICo=
+github.com/ebitengine/purego v0.9.0-alpha.10/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/felixge/fgprof v0.9.3/go.mod h1:RdbpDgzqYVh/T9fPELJyV7EYJuHB55UTEULNun8eiPw=
 github.com/felixge/fgprof v0.9.5 h1:8+vR6yu2vvSKn08urWyEuxx75NWPEvybbkBirEpsbVY=
 github.com/felixge/fgprof v0.9.5/go.mod h1:yKl+ERSa++RYOs32d8K6WEXCB4uXdLls4ZaZPpayhMM=
@@ -36,6 +39,8 @@ github.com/hajimehoshi/bitmapfont/v4 v4.1.0-alpha.0.20250717181956-7a1172bbcd2d 
 github.com/hajimehoshi/bitmapfont/v4 v4.1.0-alpha.0.20250717181956-7a1172bbcd2d/go.mod h1:9KdLJljAPdDiSz6KZK6s3iZl0m1HVvBgU68CYw3U2dk=
 github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9.0.20250717182450-f54d9ce7167a h1:G4vQPX2Hor/0xH38rLeUhsgVvq0cRdfesaxxzh2HU5g=
 github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.9.0.20250717182450-f54d9ce7167a/go.mod h1:WpF50AATB7rb0bgUXso19ZOZe948doUahbhIXvUF6Cg=
+github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.13.0.20250809091923-4f9cc042aa1a h1:ODAjMWmQWuQbuXxcC18VRThZ4Mu+sJeQhErXw17hcgQ=
+github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.13.0.20250809091923-4f9cc042aa1a/go.mod h1:250uQM8QrmbHEHEjsvZpmnn4KKwKb5oPWDnHCLaaq6I=
 github.com/hajimehoshi/go-mp3 v0.3.4 h1:NUP7pBYH8OguP4diaTZ9wJbUbk3tC0KlfzsEpWmYj68=
 github.com/hajimehoshi/go-mp3 v0.3.4/go.mod h1:fRtZraRFcWb0pu7ok0LqyFhCUrPeMsGRSVop0eemFmo=
 github.com/hajimehoshi/oto/v2 v2.3.1/go.mod h1:seWLbgHH7AyUMYKfKYT9pg7PhUu9/SisyJvNTT+ASQo=
@@ -79,6 +84,8 @@ golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.34.0 h1:H5Y5sJ2L2JRdyv7ROF1he/lPdvFsd0mJHFw2ThKHxLA=
 golang.org/x/sys v0.34.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
+golang.org/x/sys v0.35.0 h1:vz1N37gP5bs89s7He8XuIYXpyY0+QlsKmzipCbUtyxI=
+golang.org/x/sys v0.35.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
 golang.org/x/text v0.27.0 h1:4fGWRpyh641NLlecmyl4LOe6yDdfaYNrGb2zdfo4JV4=
 golang.org/x/text v0.27.0/go.mod h1:1D28KMCvyooCX9hBiosv5Tz/+YLxj0j7XhWjpSUF7CU=
 golang.org/x/tools v0.35.0 h1:mBffYraMEf7aa0sB+NuKnuCy8qI/9Bughn8dC2Gu5r0=

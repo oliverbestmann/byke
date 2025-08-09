@@ -31,12 +31,20 @@ const (
 	LineJoinRound = vector.LineJoinRound
 )
 
+type FillRule = vector.FillRule
+
+const (
+	FillRuleNonZero = vector.FillRuleNonZero
+	FillRuleEvenOdd = vector.FillRuleEvenOdd
+)
+
 var _ = byke.ValidateComponent[Fill]()
 var _ = byke.ValidateComponent[Stroke]()
 
 type Fill struct {
 	byke.ComparableComponent[Fill]
 	Color     color.Color
+	Rule      vector.FillRule
 	Antialias bool
 }
 
@@ -44,7 +52,7 @@ type Stroke struct {
 	byke.ComparableComponent[Stroke]
 	Color color.Color
 
-	// Width is the stroke width in pixels.
+	// Width is the stroke width in world units.
 	Width float64
 
 	// MiterLimit is the miter limit for LineJoinMiter.
@@ -78,7 +86,8 @@ type Path struct {
 }
 
 func (*Path) RequireComponents() []spoke.ErasedComponent {
-	return commonRenderComponents
+	components := []byke.ErasedComponent{Blend{}}
+	return append(components, commonRenderComponents...)
 }
 
 func (p *Path) inner() *vector.Path {

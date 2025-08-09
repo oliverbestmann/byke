@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"encoding/json"
-	"fmt"
 	"image/color"
 	"unsafe"
 
@@ -93,34 +92,27 @@ func (v viewerGame) Draw(screen *ebiten.Image) {
 		triangles.LineTo(float32(x0), float32(y0))
 	}
 
-	vector.FillPath(screen, &triangles, color.NRGBA{R: 128, G: 255, B: 128, A: 50}, true, vector.FillRuleNonZero)
+	dop := &vector.DrawPathOptions{}
+	dop.ColorScale.ScaleWithColor(color.NRGBA{R: 128, G: 255, B: 128, A: 50})
+	vector.FillPath(screen, &triangles, nil, dop)
 
 	v.drawPolygon(screen, toScreen, v.Outer, color.White)
 
-	var maxW, maxH int
-
 	for _, hole := range v.Holes {
-		h := v.pathOf(hole, toScreen)
-		maxW = max(maxW, h.Bounds().Dx())
-		maxH = max(maxH, h.Bounds().Dy())
-
 		v.drawPolygon(screen, toScreen, hole, color.NRGBA{R: 255, G: 128, B: 0, A: 128})
 	}
 
-	fmt.Println(maxW, maxH)
-
-	vector.StrokePath(screen, &triangles, color.NRGBA{255, 255, 255, 128}, true, &vector.StrokeOptions{
-		Width: 1,
-	})
-
+	dop = &vector.DrawPathOptions{}
+	dop.ColorScale.ScaleWithColor(color.NRGBA{255, 255, 255, 128})
+	vector.StrokePath(screen, &triangles, &vector.StrokeOptions{Width: 1}, dop)
 }
 
 func (v viewerGame) drawPolygon(screen *ebiten.Image, toScreen ebiten.GeoM, points []earcut.Point, color color.Color) {
 	outer := v.pathOf(points, toScreen)
 
-	vector.StrokePath(screen, &outer, color, true, &vector.StrokeOptions{
-		Width: 2,
-	})
+	dop := &vector.DrawPathOptions{}
+	dop.ColorScale.ScaleWithColor(color)
+	vector.StrokePath(screen, &outer, &vector.StrokeOptions{Width: 2}, dop)
 }
 
 func (v viewerGame) pathOf(points []earcut.Point, toScreen ebiten.GeoM) vector.Path {

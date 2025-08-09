@@ -2,10 +2,11 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/query"
-	spoke "github.com/oliverbestmann/byke/spoke"
 	"iter"
 	"reflect"
+
+	"github.com/oliverbestmann/byke/internal/query"
+	spoke "github.com/oliverbestmann/byke/spoke"
 )
 
 type Query[T any] struct {
@@ -18,7 +19,7 @@ func (*Query[T]) init(world *World) SystemParamState {
 
 	parsed, err := q.parse()
 	if err != nil {
-		queryType := reflect.TypeOf(q).Elem()
+		queryType := reflect.TypeFor[T]()
 		panic(fmt.Sprintf("failed to parse query of type %s: %s", queryType, err))
 	}
 

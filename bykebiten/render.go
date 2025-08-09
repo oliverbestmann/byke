@@ -136,6 +136,7 @@ func (*renderTextValue) needsTranslate() bool {
 type renderVectorValue struct {
 	Common renderCommonValues
 	Path   Path
+	Blend  Blend
 	Fill   byke.Option[Fill]
 	Stroke byke.Option[Stroke]
 }
@@ -370,7 +371,12 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 
 			if fill_, ok := item.Fill.Get(); ok {
 				var fill Fill = fill_
-				vector.FillPath(screen, path, fill.Color, fill.Antialias, vector.FillRuleNonZero)
+
+				dop := &vector.DrawPathOptions{}
+				dop.AntiAlias = fill.Antialias
+				dop.Blend = item.Blend.Blend
+				dop.ColorScale.Scale(fill.Color.PremultipliedValues())
+				vector.FillPath(screen, path, &vector.FillOptions{FillRule: fill.Rule}, dop)
 			}
 
 			if stroke_, ok := item.Stroke.Get(); ok {
@@ -380,12 +386,18 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 				origin := gm.VecOf(g.Apply(0, 0))
 				strokeWidth := gm.VecOf(g.Apply(1, 0)).DistanceTo(origin) * stroke.Width
 
-				vector.StrokePath(screen, path, stroke.Color, stroke.Antialias, &vector.StrokeOptions{
+				sop := &vector.StrokeOptions{
 					Width:      float32(strokeWidth),
 					LineCap:    stroke.LineCap,
 					LineJoin:   stroke.LineJoin,
 					MiterLimit: float32(stroke.MiterLimit),
-				})
+				}
+
+				dop := &vector.DrawPathOptions{}
+				dop.AntiAlias = stroke.Antialias
+				dop.Blend = item.Blend.Blend
+				dop.ColorScale.Scale(stroke.Color.PremultipliedValues())
+				vector.StrokePath(screen, path, sop, dop)
 			}
 
 		case *renderMeshValue:
