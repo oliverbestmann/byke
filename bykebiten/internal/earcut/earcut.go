@@ -29,16 +29,22 @@ func EarCut(polygon []Point, holes [][]Point) ([]Point, []uint32) {
 		invSize = calculateInvSize(points)
 	}
 
+	alloc := &nodeAllocator{
+		Expected: len(points) + 2*len(holes),
+	}
+
 	// create a linked Node list
-	outer := linkedList(polygon, true, 0)
+	outer := linkedList(alloc, polygon, true, 0)
 
 	if outer == nil || outer.Next == outer.Prev {
 		return nil, nil
 	}
 
-	outer = eliminateHoles(outer, holes, uint32(len(polygon)))
+	outer = eliminateHoles(alloc, outer, holes, uint32(len(polygon)))
 
-	return points, earcutLinked(outer, nil, invSize, 0)
+	// rough estimate on the amount of indices we'll need
+	triangles := make([]uint32, 0, len(points)*3)
+	return points, earcutLinked(alloc, outer, triangles, invSize, 0)
 }
 
 type invSize struct {
@@ -77,7 +83,7 @@ func calculateInvSize(points []Point) invSize {
 	return invSize
 }
 
-func earcutLinked(ear *Node, triangles []uint32, invSize invSize, pass int) []uint32 {
+func earcutLinked(alloc *nodeAllocator, ear *Node, triangles []uint32, invSize invSize, pass int) []uint32 {
 	if ear == nil {
 		return triangles
 	}
@@ -117,15 +123,15 @@ func earcutLinked(ear *Node, triangles []uint32, invSize invSize, pass int) []ui
 			switch pass {
 			case 0:
 				points := filterPoints(ear, nil)
-				triangles = earcutLinked(points, triangles, invSize, 1)
+				triangles = earcutLinked(alloc, points, triangles, invSize, 1)
 
 			case 1:
 				// if this didn't work, try curing all small self-intersections locally
 				ear, triangles = cureLocalIntersections(filterPoints(ear, nil), triangles)
-				triangles = earcutLinked(ear, triangles, invSize, 2)
+				triangles = earcutLinked(alloc, ear, triangles, invSize, 2)
 
 			case 2:
-				triangles = splitEarcut(ear, triangles, invSize)
+				triangles = splitEarcut(alloc, ear, triangles, invSize)
 			}
 
 			break
@@ -438,7 +444,7 @@ func sign(value float64) int {
 }
 
 // try splitting polygon into two and triangulate them independently
-func splitEarcut(start *Node, triangles []uint32, invSize invSize) []uint32 {
+func splitEarcut(alloc *nodeAllocator, start *Node, triangles []uint32, invSize invSize) []uint32 {
 	// look for a valid diagonal that divides the polygon into two
 	a := start
 
@@ -448,15 +454,15 @@ func splitEarcut(start *Node, triangles []uint32, invSize invSize) []uint32 {
 		for b != a.Prev {
 			if a.Index != b.Index && isValidDiagonal(a, b) {
 				// split the polygon in two by the diagonal
-				c := splitPolygon(a, b)
+				c := splitPolygon(alloc, a, b)
 
 				// filter co-linear points around the cuts
 				a = filterPoints(a, a.Next)
 				c = filterPoints(c, c.Next)
 
 				// run earcut on each half
-				triangles = earcutLinked(a, triangles, invSize, 0)
-				triangles = earcutLinked(c, triangles, invSize, 0)
+				triangles = earcutLinked(alloc, a, triangles, invSize, 0)
+				triangles = earcutLinked(alloc, c, triangles, invSize, 0)
 				return triangles
 			}
 
@@ -526,11 +532,11 @@ func intersectsPolygon(a, b *Node) bool {
 	}
 }
 
-func eliminateHoles(outer *Node, holes [][]Point, indexOffset uint32) *Node {
-	var queue []*Node
+func eliminateHoles(alloc *nodeAllocator, outer *Node, holes [][]Point, indexOffset uint32) *Node {
+	queue := make([]*Node, 0, len(holes))
 
 	for _, hole := range holes {
-		list := linkedList(hole, false, indexOffset)
+		list := linkedList(alloc, hole, false, indexOffset)
 		if list == list.Next {
 			list.Steiner = true
 		}
@@ -545,19 +551,19 @@ func eliminateHoles(outer *Node, holes [][]Point, indexOffset uint32) *Node {
 
 	// process holes from left to right
 	for _, hole := range queue {
-		outer = eliminateHole(hole, outer)
+		outer = eliminateHole(alloc, hole, outer)
 	}
 
 	return outer
 }
 
-func eliminateHole(hole, outer *Node) *Node {
+func eliminateHole(alloc *nodeAllocator, hole, outer *Node) *Node {
 	bridge := findHoleBridge(hole, outer)
 	if bridge == nil {
 		return outer
 	}
 
-	bridgeReverse := splitPolygon(bridge, hole)
+	bridgeReverse := splitPolygon(alloc, bridge, hole)
 
 	// filter collinear points around the cuts
 	filterPoints(bridgeReverse, bridgeReverse.Next)
@@ -791,15 +797,34 @@ func (n *Node) EqualTo(other *Node) bool {
 	return n.Point == other.Point
 }
 
-var bufNodes []Node
+type nodeAllocator struct {
+	Expected int
+	buf      []Node
+}
 
-func createNode[I uint32 | int](idx I, point Point) *Node {
-	if len(bufNodes) == 0 {
-		bufNodes = make([]Node, 1024)
+func (a *nodeAllocator) Alloc() *Node {
+	if len(a.buf) == 0 {
+		count := a.Expected
+
+		if a.buf != nil || count == 0 {
+			// already allocated the expected number of nodes, but now another node
+			// was unexpectedly requested, allocate a small buffer
+			count = 1024
+		}
+
+		a.buf = make([]Node, count)
 	}
 
-	node := &bufNodes[0]
-	bufNodes = bufNodes[1:]
+	node := &a.buf[0]
+	a.buf = a.buf[1:]
+
+	return node
+}
+
+var bufNodes []Node
+
+func createNode[I uint32 | int](a *nodeAllocator, idx I, point Point) *Node {
+	node := a.Alloc()
 
 	node.Point = point
 	node.Index = uint32(idx)
@@ -807,8 +832,8 @@ func createNode[I uint32 | int](idx I, point Point) *Node {
 	return node
 }
 
-func insertNode[I uint32 | int](idx I, point Point, last *Node) *Node {
-	p := createNode(idx, point)
+func insertNode[I uint32 | int](a *nodeAllocator, idx I, point Point, last *Node) *Node {
+	p := createNode(a, idx, point)
 	if last == nil {
 		p.Prev = p
 		p.Next = p
@@ -837,10 +862,10 @@ func removeNode(p *Node) {
 
 // link two polygon vertices with a bridge; if the vertices belong to the same ring, it splits polygon into two;
 // if one belongs to the outer ring and another to a hole, it merges it into a single ring
-func splitPolygon(a, b *Node) *Node {
+func splitPolygon(alloc *nodeAllocator, a, b *Node) *Node {
 
-	a2 := createNode(a.Index, a.Point)
-	b2 := createNode(b.Index, b.Point)
+	a2 := createNode(alloc, a.Index, a.Point)
+	b2 := createNode(alloc, b.Index, b.Point)
 
 	an := a.Next
 	bp := b.Prev
@@ -860,18 +885,18 @@ func splitPolygon(a, b *Node) *Node {
 	return b2
 }
 
-func linkedList(points []Point, clockwise bool, indexOffset uint32) *Node {
+func linkedList(alloc *nodeAllocator, points []Point, clockwise bool, indexOffset uint32) *Node {
 	var last *Node
 
 	isClockwise := signedArea(points) > 0
 
 	if isClockwise == clockwise {
 		for i, point := range points {
-			last = insertNode(uint32(i)+indexOffset, point, last)
+			last = insertNode(alloc, uint32(i)+indexOffset, point, last)
 		}
 	} else {
 		for i := len(points) - 1; i >= 0; i-- {
-			last = insertNode(uint32(i)+indexOffset, points[i], last)
+			last = insertNode(alloc, uint32(i)+indexOffset, points[i], last)
 		}
 	}
 

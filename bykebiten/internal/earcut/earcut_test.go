@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"image/color"
+	"io/fs"
 	"strings"
 	"testing"
 	"unsafe"
@@ -130,6 +131,21 @@ func (v viewerGame) Layout(outsideWidth, outsideHeight int) (screenWidth, screen
 	return outsideWidth, outsideHeight
 }
 
+func BenchmarkEarCut(b *testing.B) {
+	buf, _ := fs.ReadFile(files, "_testdata/water-huge.json")
+
+	var data [][][2]float64
+	_ = json.Unmarshal(buf, &data)
+
+	outer, holes := dataToPoints(data)
+
+	b.ReportAllocs()
+
+	for b.Loop() {
+		_, _ = EarCut(outer, holes)
+	}
+}
+
 func TestEarCut(t *testing.T) {
 	entries, _ := files.ReadDir("_testdata")
 	for _, entry := range entries {
@@ -142,12 +158,7 @@ func TestEarCut(t *testing.T) {
 			err = json.NewDecoder(fp).Decode(&data)
 			require.NoError(t, err)
 
-			outer := pointsOf(data[0])
-
-			var holes [][]Point
-			for _, hole := range data[1:] {
-				holes = append(holes, pointsOf(hole))
-			}
+			outer, holes := dataToPoints(data)
 
 			_, indices := EarCut(outer, holes)
 
@@ -157,6 +168,16 @@ func TestEarCut(t *testing.T) {
 			require.Equal(t, expectedCount, len(indices)/3)
 		})
 	}
+}
+
+func dataToPoints(data [][][2]float64) ([]Point, [][]Point) {
+	outer := pointsOf(data[0])
+
+	var holes [][]Point
+	for _, hole := range data[1:] {
+		holes = append(holes, pointsOf(hole))
+	}
+	return outer, holes
 }
 
 func pointsOf(points [][2]float64) []Point {

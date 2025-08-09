@@ -1,15 +1,14 @@
 package bykebiten
 
 import (
-	"fmt"
 	"math"
-	"unsafe"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/bykebiten/color"
+	"github.com/oliverbestmann/byke/bykebiten/internal/earcut"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
-	"github.com/tchayen/triangolatte"
 )
 
 type Vertex = ebiten.Vertex
@@ -20,13 +19,44 @@ type Mesh struct {
 	Indices  []uint32
 }
 
-func (Mesh) RequireComponents() []spoke.ErasedComponent {
+func (*Mesh) RequireComponents() []spoke.ErasedComponent {
 	components := []spoke.ErasedComponent{
 		Blend{},
 		Filter{},
 	}
 
 	return append(components, commonRenderComponents...)
+}
+
+func (m *Mesh) VertexPosition(idx int) gm.Vec {
+	return vertexToVec(m.Vertices[idx])
+}
+
+func (m *Mesh) VertexUV(idx int) gm.Vec {
+	u := m.Vertices[idx].Custom0
+	v := m.Vertices[idx].Custom1
+	return gm.Vec{X: float64(u), Y: float64(v)}
+}
+
+func (m *Mesh) VertexColor(idx int) color.Color {
+	return color.RGBA(
+		m.Vertices[idx].ColorR,
+		m.Vertices[idx].ColorG,
+		m.Vertices[idx].ColorB,
+		m.Vertices[idx].ColorA,
+	)
+}
+
+func (m *Mesh) VertexCount() int {
+	return len(m.Vertices)
+}
+
+func (m *Mesh) ComputeUV(compute func(point gm.Vec) gm.Vec) {
+	for idx := range m.Vertices {
+		uv := compute(vertexToVec(m.Vertices[idx]))
+		m.Vertices[idx].Custom0 = float32(uv.X)
+		m.Vertices[idx].Custom1 = float32(uv.Y)
+	}
 }
 
 func RegularPolygon(radius float64, sides uint) Mesh {
@@ -79,7 +109,7 @@ func Ellipse(size gm.Vec, resolution uint) Mesh {
 func Rectangle(size gm.Vec) Mesh {
 	hw, hh := size.Mul(0.5).XY()
 
-	vertices := []ebiten.Vertex{
+	vertices := []Vertex{
 		{
 			DstX:    float32(hw),
 			DstY:    float32(hh),
@@ -139,7 +169,7 @@ func ConvexPolygon(points []gm.Vec) Mesh {
 	vertices := make([]Vertex, 0, len(points))
 
 	for _, point := range points {
-		vertices = append(vertices, ebiten.Vertex{
+		vertices = append(vertices, Vertex{
 			DstX:   float32(point.X),
 			DstY:   float32(point.Y),
 			ColorR: 1,
@@ -159,68 +189,20 @@ func ConvexPolygon(points []gm.Vec) Mesh {
 	}
 }
 
+// Polygon creates a Mesh from a (possibly concave) polygon. The polygon might
+// contain holes. A best effort at triangulation is performed.
 func Polygon(polygon []gm.Vec, holes ...[]gm.Vec) Mesh {
-	pointsOf := func(vecs []gm.Vec) []triangolatte.Point {
-		data := unsafe.SliceData(vecs)
-		return unsafe.Slice((*triangolatte.Point)(data), len(vecs))
-	}
+	points, indices := earcut.EarCut(polygon, holes)
 
-	points := pointsOf(polygon)
+	vertices := make([]Vertex, len(points))
+	for idx, point := range points {
+		vertices[idx].DstX = float32(point.X)
+		vertices[idx].DstY = float32(point.Y)
 
-	if len(holes) > 0 {
-		polygons := [][]triangolatte.Point{points}
-
-		for _, hole := range holes {
-			polygons = append(polygons, pointsOf(hole))
-		}
-
-		joined, err := triangolatte.JoinHoles(polygons)
-		if err != nil {
-			panic(fmt.Errorf("joining holes: %w", err))
-		}
-
-		points = joined
-	}
-
-	triangles, err := triangolatte.Polygon(points)
-	if err != nil {
-		panic(fmt.Errorf("triangulate: %w", err))
-	}
-
-	vertices := make([]ebiten.Vertex, 0, len(triangles)/6)
-
-	for idx := 0; idx < len(triangles); idx += 6 {
-		vertices = append(vertices,
-			ebiten.Vertex{
-				DstX:   float32(triangles[idx+0]),
-				DstY:   float32(triangles[idx+1]),
-				ColorR: 1,
-				ColorG: 1,
-				ColorB: 1,
-				ColorA: 1,
-			},
-			ebiten.Vertex{
-				DstX:   float32(triangles[idx+2]),
-				DstY:   float32(triangles[idx+3]),
-				ColorR: 1,
-				ColorG: 1,
-				ColorB: 1,
-				ColorA: 1,
-			},
-			ebiten.Vertex{
-				DstX:   float32(triangles[idx+4]),
-				DstY:   float32(triangles[idx+5]),
-				ColorR: 1,
-				ColorG: 1,
-				ColorB: 1,
-				ColorA: 1,
-			},
-		)
-	}
-
-	indices := make([]uint32, len(vertices))
-	for idx := range len(vertices) {
-		indices[idx] = uint32(idx)
+		vertices[idx].ColorR = 1
+		vertices[idx].ColorG = 1
+		vertices[idx].ColorB = 1
+		vertices[idx].ColorA = 1
 	}
 
 	return Mesh{

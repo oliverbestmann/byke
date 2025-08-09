@@ -60,10 +60,6 @@ func startupSystem(
 	}
 
 	commands.Spawn(
-		// Sprite{
-		// 	Image:      assets.Image("ebiten.png").Await(),
-		// 	CustomSize: Some(gm.VecSplat(100.0)),
-		// },
 		polygon,
 		ColorTint{Color: color.RGBA(1, 1, 1, 0.5)},
 	)

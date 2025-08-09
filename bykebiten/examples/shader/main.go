@@ -60,12 +60,18 @@ func startupSystem(
 		hole = append(hole, vec.Rotated(r))
 	}
 
+	polygon := Polygon(points, hole)
+
+	polygon.ComputeUV(func(point gm.Vec) gm.Vec {
+		return point.Mul(1 / 50.0)
+	})
+
 	commands.Spawn(
 		// Sprite{
 		// 	Image:      assets.Image("ebiten.png").Await(),
 		// 	CustomSize: Some(gm.VecSplat(100.0)),
 		// },
-		Polygon(points, hole),
+		polygon,
 		NewTransform().WithRotation(gm.DegToRad(180)),
 		Shader{Shader: shader},
 		ShaderInput{
