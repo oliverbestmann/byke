@@ -1,3 +1,6 @@
+[![Reference byke](https://pkg.go.dev/badge/github.com/oliverbestmann/byke.svg)](https://pkg.go.dev/github.com/oliverbestmann/byke)
+[![Reference bykebiten](https://pkg.go.dev/badge/github.com/oliverbestmann/byke/bykebiten.svg)](https://pkg.go.dev/github.com/oliverbestmann/byke/bykebiten)
+
 # byke
 
 **byke** is an Entity Component System (ECS) library for Go, inspired by the [Bevy](https://bevy.org/) API.
