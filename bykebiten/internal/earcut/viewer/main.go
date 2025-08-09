@@ -92,9 +92,10 @@ func (v viewerGame) Draw(screen *ebiten.Image) {
 func (v viewerGame) drawPolygon(screen *ebiten.Image, toScreen ebiten.GeoM, points []earcut.Point, color color.Color) {
 	outer := v.pathOf(points, toScreen)
 
-	vector.StrokePath(screen, &outer, color, false, &vector.StrokeOptions{
-		Width: 1,
-	})
+	dop := vector.DrawPathOptions{}
+	dop.ColorScale.ScaleWithColor(color)
+
+	vector.StrokePath(screen, &outer, &vector.StrokeOptions{Width: 1}, &dop)
 }
 
 func (v viewerGame) pathOf(points []earcut.Point, toScreen ebiten.GeoM) vector.Path {
