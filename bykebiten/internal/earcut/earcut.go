@@ -774,14 +774,12 @@ func getLeftmost(start *Node) *Node {
 }
 
 type Node struct {
-	Index uint32
 	Point
-
-	Z uint64
-
 	Prev, Next   *Node
 	PrevZ, NextZ *Node
 
+	Z       uint64
+	Index   uint32
 	Steiner bool
 }
 

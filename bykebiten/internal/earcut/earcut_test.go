@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"image/color"
 	"math/rand/v2"
-	"os"
 	"strings"
 	"testing"
 	"unsafe"
@@ -152,14 +151,6 @@ func TestEarCut(t *testing.T) {
 			}
 
 			_, indices := EarCut(outer, holes)
-
-			{
-				fp, _ := os.Create("/tmp/" + name + "-indices.json")
-				defer fp.Close()
-				enc := json.NewEncoder(fp)
-				enc.SetIndent("", "  ")
-				enc.Encode(indices)
-			}
 
 			expectedCount, ok := expectedTriangles[name]
 			require.True(t, ok)
