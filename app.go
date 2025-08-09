@@ -85,6 +85,13 @@ func (a *App) Run() error {
 	return a.run(a.World())
 }
 
+// MustRun calls Run and panics if Run returns an error.
+func (a *App) MustRun() {
+	if err := a.Run(); err != nil {
+		panic(err)
+	}
+}
+
 // Plugin for an App.
 // Call App.AddPlugin to add a Plugin to an App.
 type Plugin func(app *App)

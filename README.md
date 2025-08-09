@@ -2,24 +2,64 @@
 
 **byke** is an Entity Component System (ECS) library for Go, inspired by the [Bevy](https://bevy.org/) API.
 
-Although still under development, it already includes a wide range of features.
-Documentation and examples will improve in the near feature.
+   Although still under development, it already includes a wide range of features.
+   Documentation and examples will improve in the near feature.
+
+With a background in Bevy, you'll find Byke straightforward.
+The `App` type is the main entry point - just add plugins, resources, and systems.
+
+```golang
+func main() {
+   var app App
+
+   app.AddPlugin(GamePlugin)
+   app.AddSystems(Startup, spawnCamera, spawnWorld)
+   app.AddSystems(Update, Systems(moveObjectsSystem, otherSystem).Chain())
+   app.MustRun()
+}
+```
+
+Components are defined by embedding the zero-sized `Component[T]` type.
+System parameters, such as resources, `Local` or `Query`, are automatically injected.
+Use `Query[T]` for data retrieval. Byke offers standard query filters such as `With`, `Without`, `Changed`, and more.
+
+```golang
+type Velocity struct {
+   Component[Velocity]
+   Linear Vec
+}
+
+func moveObjectsSystem(vt VirtualTime, query Query[struct {
+   Velocity  Velocity
+   Transform *Transform
+}]) {
+   for item := range query.Items() {
+      item.Transform.Translation = item.Transform.Translation.
+         Add(item.Velocity.Linear.Mul(vt.DeltaSecs))
+   }
+}
+```
 
 ### Core Features
 
 * **Schedules and SystemSets**: Organize systems and define execution order.
+   * `Local[T]` local state for systems
+   * `In[T]` to pass a value when invoking a system
 * **Resources**: Inject shared data into systems.
 * **Queries**: Supports filters like `With`, `Without`, `Added`, and `Changed`. Also supports `Option[T]` and
-  `OptionMut[T]`.
+  `OptionMut[T]`. Automatic mapping to struct types.
 * **Events**: Use `EventWriter[E]` and `EventReader[E]` to send and receive events.
+* **Observers**: Support bevy style (Entity-)Observers
 * **States**: Manage application state with `State[S]` and `NextState[S]`.
 
     * Supports `OnEnter(state)` and `OnExit(state)` schedules.
     * Emits `StateTransitionEvent[S]` during transitions.
     * Allows state-scoped entities via `DespawnOnExitState(TitleScreen)`.
-* **Commands**: Spawn/despawn entities and add/remove components.
+* **Commands**: Spawn/despawn entities, trigger observers and add/remove components.
 * **Type Safety**: Avoids the need for type assertions like `value.(MyType)`.
 * **Entity Hierarchies**: Support for parent-child relationships between entities.
+* **Fixed Timestep**: Execute game logic or physics systems with a fixed timestep interval.
+
 
 ### Ebitengine Integration
 

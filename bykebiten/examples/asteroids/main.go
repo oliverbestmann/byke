@@ -344,7 +344,8 @@ func moveObjectsSystem(vt VirtualTime, query Query[struct {
 	Transform *Transform
 }]) {
 	for item := range query.Items() {
-		item.Transform.Translation = item.Transform.Translation.Add(item.Velocity.Linear.Mul(vt.DeltaSecs))
+		item.Transform.Translation = item.Transform.Translation.
+			Add(item.Velocity.Linear.Mul(vt.DeltaSecs))
 	}
 }
 
