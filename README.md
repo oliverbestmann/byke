@@ -56,6 +56,7 @@ func moveObjectsSystem(vt VirtualTime, query Query[struct {
     * Emits `StateTransitionEvent[S]` during transitions.
     * Allows state-scoped entities via `DespawnOnExitState(TitleScreen)`.
 * **Commands**: Spawn/despawn entities, trigger observers and add/remove components.
+* **Change detection**: Components marked as `Comparable` support automatic change detection.
 * **Type Safety**: Avoids the need for type assertions like `value.(MyType)`.
 * **Entity Hierarchies**: Support for parent-child relationships between entities.
 * **Fixed Timestep**: Execute game logic or physics systems with a fixed timestep interval.
