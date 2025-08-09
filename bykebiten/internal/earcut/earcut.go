@@ -1,9 +1,9 @@
 package earcut
 
 import (
-	"fmt"
 	"math"
 	"slices"
+	"strconv"
 
 	"github.com/oliverbestmann/byke/gm"
 )
@@ -38,7 +38,6 @@ func EarCut(polygon []Point, holes [][]Point) ([]Point, []uint32) {
 
 	outer = eliminateHoles(outer, holes, uint32(len(polygon)))
 
-	fmt.Println("OuterNode", outer.Index, "prev=", outer.Prev.Index)
 	return points, earcutLinked(outer, nil, invSize, 0)
 }
 
@@ -100,10 +99,10 @@ func earcutLinked(ear *Node, triangles []uint32, invSize invSize, pass int) []ui
 		}
 
 		if val {
+
 			// cut off the triangle
 			triangles = append(triangles, prev.Index, ear.Index, next.Index)
 
-			fmt.Println("RemoveEar", ear.Index)
 			removeNode(ear)
 
 			ear = next.Next
@@ -115,7 +114,6 @@ func earcutLinked(ear *Node, triangles []uint32, invSize invSize, pass int) []ui
 		ear = next
 
 		if ear == stop {
-
 			switch pass {
 			case 0:
 				points := filterPoints(ear, nil)
@@ -162,12 +160,12 @@ func indexCurve(start *Node, invSize invSize) {
 }
 
 // z-order of a point given coords and inverse of the longer side of data bbox
-func zOrder(point Point, invSize invSize) uint32 {
+func zOrder(point Point, invSize invSize) uint64 {
 	xf, yf := point.XY()
 
 	// coords are transformed into non-negative 15-bit integer range
-	x := int32((xf - invSize.MinX) * invSize.Scale)
-	y := int32((yf - invSize.MinY) * invSize.Scale)
+	x := uint64((xf - invSize.MinX) * invSize.Scale)
+	y := uint64((yf - invSize.MinY) * invSize.Scale)
 
 	x = (x | (x << 8)) & 0x00ff00ff
 	x = (x | (x << 4)) & 0x0f0f0f0f
@@ -179,7 +177,7 @@ func zOrder(point Point, invSize invSize) uint32 {
 	y = (y | (y << 2)) & 0x33333333
 	y = (y | (y << 1)) & 0x55555555
 
-	return uint32(x | (y << 1))
+	return x | (y << 1)
 }
 
 // Simon Tatham's linked list merge sort algorithm
@@ -228,6 +226,7 @@ func sortLinked(list *Node) *Node {
 
 				e.PrevZ = tail
 				tail = e
+
 			}
 
 			p = q
@@ -246,8 +245,6 @@ func sortLinked(list *Node) *Node {
 
 // check whether a polygon node forms a valid ear with adjacent nodes
 func isEar(ear *Node) bool {
-	// fmt.Println("Ear", ear.Index)
-
 	a := ear.Prev
 	b := ear
 	c := ear.Next
@@ -490,8 +487,10 @@ func middleInside(a, b *Node) bool {
 	py := (a.Y + b.Y) / 2
 
 	for {
+		// do not remove the extra float64 casts, they prevent go from emitting fma instructions
+		//goland:noinspection GoRedundantConversion
 		if ((p.Y > py) != (p.Next.Y > py)) && p.Next.Y != p.Y &&
-			(px < (p.Next.X-p.X)*(py-p.Y)/(p.Next.Y-p.Y)+p.X) {
+			(px < (p.Next.X-p.X)*(float64(py)-p.Y)/(p.Next.Y-p.Y)+p.X) {
 
 			inside = !inside
 		}
@@ -532,19 +531,20 @@ func eliminateHoles(outer *Node, holes [][]Point, indexOffset uint32) *Node {
 
 	for _, hole := range holes {
 		list := linkedList(hole, false, indexOffset)
-		list.Steiner = len(hole) == 1
-		queue = append(queue, getLeftmost(list))
+		if list == list.Next {
+			list.Steiner = true
+		}
 
+		queue = append(queue, getLeftmost(list))
 		indexOffset += uint32(len(hole))
 	}
 
-	slices.SortFunc(queue, func(a, b *Node) int {
+	slices.SortStableFunc(queue, func(a, b *Node) int {
 		return sign(compareXYSlope(a, b))
 	})
 
 	// process holes from left to right
 	for _, hole := range queue {
-		fmt.Println("Queue Hole", hole.Index)
 		outer = eliminateHole(hole, outer)
 	}
 
@@ -579,8 +579,7 @@ func filterPoints(start, end *Node) *Node {
 
 	for {
 		var again bool
-
-		if !p.Steiner && (p.EqualTo(p.Next) || clampZero(area(p.Prev.Point, p.Point, p.Next.Point)) == 0) {
+		if !p.Steiner && (p.EqualTo(p.Next) || area(p.Prev.Point, p.Point, p.Next.Point) == 0) {
 			removeNode(p)
 			end = p.Prev
 			p = p.Prev
@@ -668,6 +667,7 @@ func findHoleBridge(hole, outer *Node) *Node {
 
 				m = p
 				tanMin = tan
+
 			}
 		}
 
@@ -701,16 +701,9 @@ func pointInTriangleExceptFirst(a, b, c, p Point) bool {
 
 // signed area of a triangle
 func area(p, q, r Point) float64 {
-	return (q.Y-p.Y)*(r.X-q.X) - (q.X-p.X)*(r.Y-q.Y)
-}
-
-func clampZero(value float64) float64 {
-	if math.Abs(value) < 1e-9 {
-		// needed for issue142, maybe different floating point handling?
-		value = 0
-	}
-
-	return value
+	// do not remove the extra float64 casts, they prevent go from emitting fma instructions
+	//goland:noinspection GoRedundantConversion
+	return float64((q.Y-p.Y)*(r.X-q.X)) - float64((q.X-p.X)*(r.Y-q.Y))
 }
 
 // check if a polygon diagonal is locally inside the polygon
@@ -753,7 +746,10 @@ func signedArea(points []Point) float64 {
 
 	for i := 0; i < len(points); i++ {
 		j := (i - 1 + len(points)) % len(points)
-		sum += (points[j].X - points[i].X) * (points[i].Y + points[j].Y)
+
+		// do not remove the extra float64 casts, they prevent go from emitting fma instructions
+		//goland:noinspection GoRedundantConversion
+		sum += float64((points[j].X - points[i].X) * (points[i].Y + points[j].Y))
 	}
 
 	return sum
@@ -778,23 +774,23 @@ func getLeftmost(start *Node) *Node {
 }
 
 type Node struct {
+	Index uint32
 	Point
-	Z uint32
+
+	Z uint64
 
 	Prev, Next   *Node
 	PrevZ, NextZ *Node
 
-	Index   uint32
 	Steiner bool
+}
+
+func (n *Node) String() string {
+	return strconv.Itoa(int(n.Index))
 }
 
 func (n *Node) EqualTo(other *Node) bool {
 	return n.Point == other.Point
-}
-
-func (n *Node) SetNext(next *Node) {
-	n.Next = next
-	next.Prev = n
 }
 
 var bufNodes []Node
@@ -844,18 +840,24 @@ func removeNode(p *Node) {
 // link two polygon vertices with a bridge; if the vertices belong to the same ring, it splits polygon into two;
 // if one belongs to the outer ring and another to a hole, it merges it into a single ring
 func splitPolygon(a, b *Node) *Node {
-	fmt.Println("Split at", a.Index, b.Index)
+
 	a2 := createNode(a.Index, a.Point)
 	b2 := createNode(b.Index, b.Point)
 
 	an := a.Next
 	bp := b.Prev
 
-	a.SetNext(b)
+	a.Next = b
+	b.Prev = a
 
-	a2.SetNext(an)
-	b2.SetNext(a2)
-	bp.SetNext(b2)
+	a2.Next = an
+	an.Prev = a2
+
+	b2.Next = a2
+	a2.Prev = b2
+
+	bp.Next = b2
+	b2.Prev = bp
 
 	return b2
 }

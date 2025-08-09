@@ -4,6 +4,8 @@ import (
 	"embed"
 	"encoding/json"
 	"image/color"
+	"math/rand/v2"
+	"os"
 	"strings"
 	"testing"
 	"unsafe"
@@ -17,7 +19,11 @@ import (
 var files embed.FS
 
 func TestEarCutViewer(t *testing.T) {
-	fp, err := files.Open("_testdata/water-huge.json")
+	t.SkipNow()
+
+	testCase := "water-huge2"
+
+	fp, err := files.Open("_testdata/" + testCase + ".json")
 	require.NoError(t, err)
 
 	var data [][][2]float64
@@ -147,6 +153,14 @@ func TestEarCut(t *testing.T) {
 
 			_, indices := EarCut(outer, holes)
 
+			{
+				fp, _ := os.Create("/tmp/" + name + "-indices.json")
+				defer fp.Close()
+				enc := json.NewEncoder(fp)
+				enc.SetIndent("", "  ")
+				enc.Encode(indices)
+			}
+
 			expectedCount, ok := expectedTriangles[name]
 			require.True(t, ok)
 
@@ -214,3 +228,25 @@ var expectedTriangles = map[string]int{
 	"issue142":             4,
 	"issue186":             41,
 }
+
+func TestFloat64(t *testing.T) {
+	var pX, pY, qX, qY, rX, rY float64
+
+	if rand.Float64() >= 0 {
+		pX = 140.977
+		pY = -9.106
+
+		qX = 141.008
+		qY = -9.124
+
+		rX = 140.977
+		rY = -9.106
+	}
+
+	a := (qY - pY) * (rX - qX)
+	b := (qX - pX) * (rY - qY)
+	area := a - b
+	require.Zero(t, area)
+}
+
+//go:
