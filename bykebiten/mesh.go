@@ -211,13 +211,37 @@ func Polygon(polygon []gm.Vec, holes ...[]gm.Vec) Mesh {
 	}
 }
 
+// UnionDisjoint merges disjoint meshes into one. The meshes must not
+// overlap for rendering not to break.
+func UnionDisjoint(meshes ...Mesh) Mesh {
+	var vertexCount, indexCount int
+	for _, mesh := range meshes {
+		vertexCount += len(mesh.Vertices)
+		indexCount += len(mesh.Indices)
+	}
+
+	vertices := make([]Vertex, 0, vertexCount)
+	indices := make([]uint32, 0, indexCount)
+
+	for _, mesh := range meshes {
+		offset := uint32(len(mesh.Vertices))
+		vertices = append(vertices, mesh.Vertices...)
+
+		for _, idx := range mesh.Indices {
+			indices = append(indices, idx+offset)
+		}
+	}
+
+	return Mesh{Vertices: vertices, Indices: indices}
+}
+
 func computeMeshSizeSystem(
 	query byke.Query[struct {
-		_ byke.Changed[Mesh]
+	_ byke.Changed[Mesh]
 
-		Mesh Mesh
-		BBox *BBox
-	}],
+	Mesh Mesh
+	BBox *BBox
+}],
 ) {
 	for item := range query.Items() {
 		vertices := item.Mesh.Vertices
