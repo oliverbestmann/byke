@@ -1,8 +1,9 @@
 package byke
 
 import (
-	"github.com/oliverbestmann/byke/spoke"
 	"slices"
+
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 var _ = ValidateComponent[Children]()

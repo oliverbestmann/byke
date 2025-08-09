@@ -1,9 +1,10 @@
 package byke
 
 import (
-	"github.com/oliverbestmann/byke/spoke"
 	"iter"
 	"reflect"
+
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 type RemovedComponents[C IsComponent[C]] struct {

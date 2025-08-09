@@ -1,11 +1,12 @@
 package main
 
 import (
+	"time"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	. "github.com/oliverbestmann/byke/gm"
-	"time"
 )
 
 var _ = ValidateComponent[Ducky]()

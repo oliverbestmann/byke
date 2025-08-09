@@ -3,12 +3,13 @@ package spoke
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/set"
-	"github.com/oliverbestmann/byke/internal/typedpool"
 	"hash/maphash"
 	"slices"
 	"strings"
 	"unsafe"
+
+	"github.com/oliverbestmann/byke/internal/set"
+	"github.com/oliverbestmann/byke/internal/typedpool"
 )
 
 type ArchetypeId uint64

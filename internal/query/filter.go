@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/oliverbestmann/byke/internal/refl"
-	spoke "github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 type Filter interface {

@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/oliverbestmann/byke/internal/query"
-	spoke "github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 type Query[T any] struct {

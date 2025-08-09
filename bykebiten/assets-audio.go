@@ -3,9 +3,10 @@ package bykebiten
 import (
 	"bytes"
 	"fmt"
-	"github.com/oliverbestmann/byke/bykebiten/audio"
 	"io"
 	"time"
+
+	"github.com/oliverbestmann/byke/bykebiten/audio"
 )
 
 var AutoDecodeThreshold = 20 * time.Second

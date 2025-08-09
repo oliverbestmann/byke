@@ -1,10 +1,11 @@
 package bykebiten
 
 import (
+	"math"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
-	"math"
 )
 
 var _ = byke.ValidateComponent[Microphone]()

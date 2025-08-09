@@ -2,9 +2,10 @@ package bykebiten
 
 import (
 	"fmt"
-	"github.com/hajimehoshi/ebiten/v2"
 	"image"
 	"io"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type ImageLoader struct{}

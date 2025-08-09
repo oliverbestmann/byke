@@ -3,8 +3,9 @@ package assets
 import (
 	"bytes"
 	_ "embed"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"sync"
+
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
 //go:embed FiraMono-subset.ttf

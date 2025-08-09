@@ -2,9 +2,10 @@ package refl
 
 import (
 	"fmt"
-	spoke "github.com/oliverbestmann/byke/spoke"
 	"iter"
 	"reflect"
+
+	spoke "github.com/oliverbestmann/byke/spoke"
 )
 
 func ComponentTypeOf(ty reflect.Type) *spoke.ComponentType {

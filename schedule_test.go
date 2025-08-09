@@ -2,9 +2,10 @@ package byke
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func systemIdsOf(systems ...AnySystem) []SystemId {

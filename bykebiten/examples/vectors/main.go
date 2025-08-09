@@ -3,13 +3,14 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"math"
+	"math/rand/v2"
+
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	. "github.com/oliverbestmann/byke/gm"
 	"github.com/pkg/profile"
-	"math"
-	"math/rand/v2"
 )
 
 func main() {

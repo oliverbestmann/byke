@@ -2,10 +2,11 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/set"
 	"reflect"
 	"slices"
 	"unsafe"
+
+	"github.com/oliverbestmann/byke/internal/set"
 )
 
 // SystemId uniquely identifies a system.

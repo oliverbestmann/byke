@@ -2,11 +2,12 @@ package query
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/spoke"
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/oliverbestmann/byke/spoke"
+	"github.com/stretchr/testify/require"
 )
 
 type Position struct {

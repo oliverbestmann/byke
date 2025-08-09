@@ -1,9 +1,10 @@
 package gm
 
 import (
-	"github.com/stretchr/testify/require"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMat_Inverse(t *testing.T) {

@@ -1,9 +1,10 @@
 package bykebiten
 
 import (
+	"slices"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
-	"slices"
 )
 
 var _ = ValidateComponent[PickingCamera]()

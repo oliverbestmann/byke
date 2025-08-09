@@ -3,7 +3,6 @@ package bykebiten
 import (
 	"bytes"
 	"fmt"
-	"github.com/hajimehoshi/ebiten/v2"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type LoadAssetSettings interface {

@@ -1,8 +1,9 @@
 package byke
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // an event that indicates an explosion

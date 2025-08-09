@@ -1,8 +1,9 @@
 package byke
 
 import (
-	"github.com/oliverbestmann/byke/spoke"
 	"reflect"
+
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 type Command interface {

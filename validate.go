@@ -2,8 +2,9 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/spoke"
 	"reflect"
+
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 // ValidateComponent should be called to verify that the IsComponent interface is correctly implemented.

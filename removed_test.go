@@ -1,9 +1,10 @@
 package byke
 
 import (
-	"github.com/stretchr/testify/require"
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRemovedComponents(t *testing.T) {

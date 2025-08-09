@@ -4,12 +4,13 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
+	"image"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	. "github.com/oliverbestmann/byke/gm"
-	"image"
 )
 
 //go:embed assets/*

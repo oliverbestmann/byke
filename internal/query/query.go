@@ -2,11 +2,12 @@ package query
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/refl"
-	spoke "github.com/oliverbestmann/byke/spoke"
 	"math"
 	"reflect"
 	"unsafe"
+
+	"github.com/oliverbestmann/byke/internal/refl"
+	spoke "github.com/oliverbestmann/byke/spoke"
 )
 
 type ParsedQuery struct {

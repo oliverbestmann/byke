@@ -3,13 +3,14 @@ package byke
 import (
 	"errors"
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/refl"
-	"github.com/oliverbestmann/byke/internal/typedpool"
-	"github.com/oliverbestmann/byke/spoke"
 	"log/slog"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/oliverbestmann/byke/internal/refl"
+	"github.com/oliverbestmann/byke/internal/typedpool"
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 var valueSlices = typedpool.New[[]reflect.Value]()

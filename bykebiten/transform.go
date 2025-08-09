@@ -1,10 +1,11 @@
 package bykebiten
 
 import (
+	"log/slog"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
-	"log/slog"
 )
 
 var _ = byke.ValidateComponent[Transform]()

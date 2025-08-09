@@ -3,9 +3,10 @@ package byke
 import (
 	"errors"
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/set"
 	"iter"
 	"slices"
+
+	"github.com/oliverbestmann/byke/internal/set"
 )
 
 type schedule struct {

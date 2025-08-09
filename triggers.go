@@ -2,9 +2,10 @@ package byke
 
 import (
 	"fmt"
-	"github.com/oliverbestmann/byke/internal/refl"
 	"reflect"
 	"slices"
+
+	"github.com/oliverbestmann/byke/internal/refl"
 )
 
 type On[E any] struct {
