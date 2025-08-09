@@ -45,7 +45,7 @@ type Assets struct {
 func makeAssets(fs fs.FS, loaders ...AssetLoader) Assets {
 	assets := Assets{
 		fs:      fs,
-		loaders: make(map[string]AssetLoader, 8),
+		loaders: make(map[string]AssetLoader, 32),
 		generic: &assetCache[any]{},
 		bytes:   &assetCache[[]byte]{},
 	}
@@ -113,6 +113,10 @@ func (a *Assets) Image(path string) AsyncAsset[*ebiten.Image] {
 
 func (a *Assets) Audio(path string) AsyncAsset[*AudioSource] {
 	return asTypedAsyncAsset[*AudioSource](a.Load(path))
+}
+
+func (a *Assets) Shader(path string) AsyncAsset[Shader] {
+	return asTypedAsyncAsset[Shader](a.Load(path))
 }
 
 func (a *Assets) StartCount() int {

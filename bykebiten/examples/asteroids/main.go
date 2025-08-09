@@ -257,10 +257,10 @@ func checkGroundCollisionSystem(
 	commands *Commands,
 	terrain Terrain,
 	query Query[struct {
-	EntityId
-	Transform Transform
-	Collider  Collider
-}],
+		EntityId
+		Transform Transform
+		Collider  Collider
+	}],
 ) {
 	for item := range query.Items() {
 		tr := item.Transform.AsAffine()
@@ -279,16 +279,16 @@ func checkGroundCollisionSystem(
 
 func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 	ship Single[struct {
-	_ With[SpaceShip]
-	EntityId
-	Transform *Transform
-	Velocity  *Velocity
-}],
+		_ With[SpaceShip]
+		EntityId
+		Transform *Transform
+		Velocity  *Velocity
+	}],
 	plume Single[struct {
-	_          With[Plume]
-	Fill       *Fill
-	Visibility *Visibility
-}],
+		_          With[Plume]
+		Fill       *Fill
+		Visibility *Visibility
+	}],
 ) {
 	s := &ship.Value
 	p := &plume.Value
@@ -352,14 +352,14 @@ func moveObjectsSystem(vt VirtualTime, query Query[struct {
 func moveCameraTargetSystem(
 	vt VirtualTime,
 	cameraTarget Single[struct {
-	_         With[CameraTarget]
-	Transform *Transform
-}],
+		_         With[CameraTarget]
+		Transform *Transform
+	}],
 	ship Single[struct {
-	_         With[SpaceShip]
-	Transform Transform
-	Velocity  Velocity
-}],
+		_         With[SpaceShip]
+		Transform Transform
+		Velocity  Velocity
+	}],
 ) {
 	posShip := ship.Value.Transform.Translation
 
@@ -383,13 +383,13 @@ func moveCameraTargetSystem(
 func moveCameraSystem(
 	vt VirtualTime,
 	camera Single[struct {
-	_         With[Camera]
-	Transform *Transform
-}],
+		_         With[Camera]
+		Transform *Transform
+	}],
 	target Single[struct {
-	_         With[CameraTarget]
-	Transform Transform
-}],
+		_         With[CameraTarget]
+		Transform Transform
+	}],
 ) {
 	posTarget := target.Value.Transform.Translation
 
@@ -511,10 +511,10 @@ func fireMissileSystem(commands *Commands, assets *Assets, param In[FireMissileI
 
 func alignWithVelocity(
 	query Query[struct {
-	_         With[AlignWithVelocity]
-	Velocity  Velocity
-	Transform *Transform
-}],
+		_         With[AlignWithVelocity]
+		Velocity  Velocity
+		Transform *Transform
+	}],
 ) {
 	for item := range query.Items() {
 		item.Transform.Rotation = item.Velocity.Linear.Angle()
@@ -531,9 +531,9 @@ func despawnWithDelaySystem(
 	commands *Commands,
 	vt VirtualTime,
 	query Query[struct {
-	EntityId
-	DespawnWithDelay *DespawnWithDelay
-}],
+		EntityId
+		DespawnWithDelay *DespawnWithDelay
+	}],
 ) {
 	for item := range query.Items() {
 		timer := &item.DespawnWithDelay.Timer
@@ -547,10 +547,10 @@ func spawnSmokeSystem(
 	commands *Commands,
 	vt VirtualTime,
 	query Query[struct {
-	Transform  Transform
-	SpawnSmoke *SmokeEmitter
-	Velocity   Option[Velocity]
-}],
+		Transform  Transform
+		SpawnSmoke *SmokeEmitter
+		Velocity   Option[Velocity]
+	}],
 ) {
 	for item := range query.Items() {
 		item.SpawnSmoke.Timer.Tick(vt.Delta)
