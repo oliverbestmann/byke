@@ -1,0 +1,25 @@
+//kage:unit pixels
+
+package main
+
+var BlurStart float
+var Inner vec4
+var Outer vec4
+
+func Fragment(dp vec4, src vec2, color vec4, uv vec4) vec4 {
+	pos := uv.xy*2 - 1
+
+	dist := length(pos)
+	if dist > 1.0 {
+		discard()
+	}
+
+	haloAlpha := 1.0 - smoothstep(BlurStart, 1.0, dist)
+	res := Outer.rgba * haloAlpha * 0.1
+
+	if dist < BlurStart {
+		res += vec4(mix(Inner.rgb, Outer.rgb, dist), 1.0)
+	}
+
+	return res
+}

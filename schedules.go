@@ -69,6 +69,7 @@ func configureSchedules(app *App) {
 	app.AddSystems(Main, System(updateVirtualTime, runMainSchedule).Chain())
 	app.AddSystems(RunFixedMainLoop, runFixedMainLoopSystem)
 	app.AddSystems(FixedMain, runFixedMainScheduleSystem)
+	app.AddSystems(PostUpdate, despawnWithDelaySystem)
 }
 
 func runMainSchedule(world *World, initialized *Local[bool]) {

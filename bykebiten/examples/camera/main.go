@@ -101,7 +101,7 @@ func startupSystem(commands *Commands) {
 		},
 		SpawnChild(
 			Text{Text: "-50"},
-			NewTransform().WithScale(VecSplat(0.2)).WithTranslation(Vec{Y: 3}),
+			NewTransform().WithScale(VecSplat(0.2).XY()).WithTranslation(0, 3),
 		),
 	)
 
@@ -114,7 +114,7 @@ func startupSystem(commands *Commands) {
 		},
 		SpawnChild(
 			Text{Text: "+50"},
-			NewTransform().WithScale(VecSplat(0.2)).WithTranslation(Vec{Y: 3}),
+			NewTransform().WithScale(VecSplat(0.2).XY()).WithTranslation(0, 3),
 		),
 	)
 

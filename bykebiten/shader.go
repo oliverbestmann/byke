@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/bykebiten/color"
 	"github.com/oliverbestmann/byke/gm"
 )
 
@@ -94,6 +95,10 @@ func toUniformValue(value any) any {
 	case []gm.Mat:
 		ptrToValues := unsafe.SliceData(value)
 		return unsafe.Slice((*float64)(unsafe.Pointer(ptrToValues)), len(value)*4)
+
+	case color.Color:
+		r, g, b, a := value.PremultipliedValues()
+		return [4]float32{r, g, b, a}
 
 	default:
 		return value

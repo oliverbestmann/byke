@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"math"
-	"math/rand/v2"
 )
 
 type ScalarTypes interface {
@@ -24,7 +23,7 @@ type IVec = VecType[int]
 type IVec32 = VecType[int32]
 
 type Scalar interface {
-	int | int32 | int64 | float32 | float64
+	~int | ~int32 | ~int64 | ~float32 | ~float64
 }
 
 // VecOf returns a new vector for the given values x and y.
@@ -35,20 +34,6 @@ func VecOf[S Scalar](x, y S) VecType[S] {
 // VecSplat returns a new Vec with both values set to value.
 func VecSplat[S Scalar](value S) VecType[S] {
 	return VecType[S]{X: value, Y: value}
-}
-
-// RandomVec returns a vector uniformly sampled from within the unit circle.
-func RandomVec[S Scalar]() VecType[S] {
-	for {
-		v := VecType[S]{
-			X: S(rand.Float64()*2 - 1),
-			Y: S(rand.Float64()*2 - 1),
-		}
-
-		if v.LengthSqr() <= 1 {
-			return v
-		}
-	}
 }
 
 type VecType[S Scalar] struct {
@@ -156,6 +141,12 @@ func (v VecType[S]) ToImagePoint() image.Point {
 // Angle returns the angle the vector is pointing at
 func (v VecType[S]) Angle() Rad {
 	return Rad(math.Atan2(float64(v.Y), float64(v.X)))
+}
+
+// AngleTo returns the angle of the vector connecting the current
+// vector and the target.
+func (v VecType[S]) AngleTo(target VecType[S]) Rad {
+	return target.Sub(v).Angle()
 }
 
 // Rotated rotates the

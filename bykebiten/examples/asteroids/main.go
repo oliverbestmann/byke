@@ -50,7 +50,7 @@ func main() {
 	app.AddSystems(Update, System(handleSpaceshipInput).InSet(InputSystems))
 	app.AddSystems(Update, System(spawnSmokeSystem).InSet(GameSystems))
 	app.AddSystems(Update, System(applyGravitySystem, moveObjectsSystem, checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
-	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain(), alignWithVelocity, despawnWithDelaySystem)
+	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain(), alignWithVelocity)
 
 	app.World().AddObserver(NewObserver(spawnExplosionSystem))
 
@@ -68,7 +68,6 @@ type Gravity Vec
 var _ = ValidateComponent[SpaceShip]()
 var _ = ValidateComponent[Plume]()
 var _ = ValidateComponent[Missile]()
-var _ = ValidateComponent[DespawnWithDelay]()
 var _ = ValidateComponent[AlignWithVelocity]()
 var _ = ValidateComponent[Collider]()
 var _ = ValidateComponent[SmokeEmitter]()
@@ -89,11 +88,6 @@ type Velocity struct {
 
 type Missile struct {
 	Component[Missile]
-}
-
-type DespawnWithDelay struct {
-	Component[DespawnWithDelay]
-	Timer Timer
 }
 
 type AlignWithVelocity struct {
@@ -122,7 +116,7 @@ type TerrainContact struct {
 
 func setupCamera(commands *Commands) {
 	commands.Spawn(
-		TransformFromXY(0, 300).WithScale(Vec{X: -1, Y: -1}),
+		TransformFromXY(0, 300).WithScale(-1, -1),
 		Camera{},
 
 		// listen left and right of the camera
@@ -518,28 +512,6 @@ func alignWithVelocity(
 ) {
 	for item := range query.Items() {
 		item.Transform.Rotation = item.Velocity.Linear.Angle()
-	}
-}
-
-func DespawnAfter(duration time.Duration) DespawnWithDelay {
-	return DespawnWithDelay{
-		Timer: NewTimer(duration, TimerModeOnce),
-	}
-}
-
-func despawnWithDelaySystem(
-	commands *Commands,
-	vt VirtualTime,
-	query Query[struct {
-		EntityId
-		DespawnWithDelay *DespawnWithDelay
-	}],
-) {
-	for item := range query.Items() {
-		timer := &item.DespawnWithDelay.Timer
-		if timer.Tick(vt.Delta).JustFinished() || timer.Finished() {
-			commands.Entity(item.EntityId).Despawn()
-		}
 	}
 }
 

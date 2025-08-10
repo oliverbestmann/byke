@@ -2,6 +2,7 @@ package bykebiten
 
 import (
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/spoke"
 )
 
 var _ = byke.ValidateComponent[Visibility]()
@@ -20,6 +21,10 @@ var Invisible = Visibility{value: visibilityInvisible}
 type Visibility struct {
 	byke.ComparableComponent[Visibility]
 	value visibility
+}
+
+func (*Visibility) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{ComputedVisibility{}}
 }
 
 func (v *Visibility) Compute(parentVisibility ComputedVisibility) ComputedVisibility {

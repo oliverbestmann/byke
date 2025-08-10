@@ -29,6 +29,10 @@ type Layer struct {
 	Z float64
 }
 
+func LayerOf(z float64) Layer {
+	return Layer{Z: z}
+}
+
 type Filter struct {
 	byke.Component[Filter]
 	ebiten.Filter

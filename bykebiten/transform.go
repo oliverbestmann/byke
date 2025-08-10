@@ -31,8 +31,9 @@ func TransformFromXY(x, y float64) Transform {
 	}
 }
 
-func (t Transform) WithTranslation(translation gm.Vec) Transform {
-	t.Translation = translation
+func (t Transform) WithTranslation(x, y float64) Transform {
+	t.Translation.X = x
+	t.Translation.Y = y
 	return t
 }
 
@@ -41,8 +42,9 @@ func (t Transform) WithRotation(rotation gm.Rad) Transform {
 	return t
 }
 
-func (t Transform) WithScale(scale gm.Vec) Transform {
-	t.Scale = scale
+func (t Transform) WithScale(x, y float64) Transform {
+	t.Scale.X = x
+	t.Scale.Y = y
 	return t
 }
 

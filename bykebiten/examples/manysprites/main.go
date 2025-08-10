@@ -90,7 +90,7 @@ func createSprites(commands *Commands, assets *Assets) {
 		velAngular := Rad(rand.Float64() - 0.5)
 
 		commands.Spawn(
-			TransformFromXY(posX, posY).WithScale(VecSplat(32.0/256.0)),
+			TransformFromXY(posX, posY).WithScale(VecSplat(32.0/256.0).XY()),
 			Velocity{Linear: Vec{X: velX, Y: velY}, Angular: velAngular},
 			Sprite{Image: image},
 			ColorTint{Color: color.RGBA(1.0, 1.0, 1.0, 0.25)},

@@ -34,7 +34,7 @@ func button(pos gm.Vec, text string) ErasedComponent {
 	return BundleOf(
 		UiCamera,
 
-		NewTransform().WithTranslation(pos),
+		TransformFromXY(pos.XY()),
 
 		buttonShape,
 

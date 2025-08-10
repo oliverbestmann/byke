@@ -48,42 +48,42 @@ func startupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 100}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 100, Y: 100}.XY()),
 		Marker{},
 		Sprite{Image: rectImage},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 200, Y: 100}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 200, Y: 100}.XY()),
 		Marker{},
 		Sprite{Image: rectImage},
 		AnchorCenter,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 100}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 300, Y: 100}.XY()),
 		Marker{},
 		Sprite{Image: rectImage},
 		AnchorBottomRight,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 200}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 100, Y: 200}.XY()),
 		Marker{},
 		Sprite{Image: rectImage, FlipX: true},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 200, Y: 200}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 200, Y: 200}.XY()),
 		Marker{},
 		Sprite{Image: rectImage, FlipX: true},
 		AnchorCenter,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 200}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 300, Y: 200}.XY()),
 		Marker{},
 		Sprite{Image: rectImage, FlipX: true},
 		AnchorBottomRight,
@@ -92,21 +92,21 @@ func startupSystem(commands *Commands, assets *Assets) {
 	// with custom size
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 100, Y: 300}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 100, Y: 300}.XY()),
 		Marker{},
 		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 300, Y: 300}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 300, Y: 300}.XY()),
 		Marker{},
 		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
 		AnchorCenter,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScale(VecSplat(2.0)).WithTranslation(Vec{X: 500, Y: 300}),
+		NewTransform().WithScale(VecSplat(2.0).XY()).WithTranslation(Vec{X: 500, Y: 300}.XY()),
 		Marker{},
 		Sprite{Image: rectImage, FlipX: true, CustomSize: Some(VecSplat(64.0))},
 		AnchorBottomRight,
