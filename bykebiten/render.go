@@ -5,6 +5,7 @@ import (
 	"image"
 	"slices"
 	"sync"
+	"unsafe"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -99,8 +100,13 @@ type renderCommonValues struct {
 }
 
 type hasCommonValues interface {
+	sortId() int
 	commonValues() *renderCommonValues
 	needsTranslate() bool
+}
+
+type compareTo interface {
+	compareTo(other hasCommonValues) int
 }
 
 type renderSpriteValue struct {
@@ -122,6 +128,10 @@ func (*renderSpriteValue) needsTranslate() bool {
 	return true
 }
 
+func (*renderSpriteValue) sortId() int {
+	return 1
+}
+
 type renderTextValue struct {
 	Common renderCommonValues
 	Text   Text
@@ -136,6 +146,10 @@ func (r *renderTextValue) commonValues() *renderCommonValues {
 
 func (*renderTextValue) needsTranslate() bool {
 	return true
+}
+
+func (*renderTextValue) sortId() int {
+	return 2
 }
 
 type renderVectorValue struct {
@@ -154,6 +168,10 @@ func (*renderVectorValue) needsTranslate() bool {
 	return false
 }
 
+func (*renderVectorValue) sortId() int {
+	return 3
+}
+
 type renderMeshValue struct {
 	Common       renderCommonValues
 	Mesh         Mesh
@@ -168,6 +186,31 @@ func (r *renderMeshValue) commonValues() *renderCommonValues {
 
 func (*renderMeshValue) needsTranslate() bool {
 	return false
+}
+
+func (*renderMeshValue) sortId() int {
+	return 4
+}
+
+func (m *renderMeshValue) compareTo(other hasCommonValues) int {
+	meshOther := other.(*renderMeshValue)
+
+	lhsShader := m.Shader.OrZero().Shader
+	rhsShader := meshOther.Shader.OrZero().Shader
+
+	lhsValue := uintptr(unsafe.Pointer(lhsShader))
+	rhsValue := uintptr(unsafe.Pointer(rhsShader))
+
+	switch {
+	case lhsValue < rhsValue:
+		return -1
+
+	case lhsValue > rhsValue:
+		return 1
+
+	default:
+		return 0
+	}
 }
 
 type renderCache struct {
@@ -232,8 +275,21 @@ func renderSystem(
 	items := c.Items()
 
 	// sort sprites by layer
-	slices.SortFunc(items, func(a, b hasCommonValues) int {
-		return compareZ(a.commonValues(), b.commonValues())
+	slices.SortStableFunc(items, func(a, b hasCommonValues) int {
+		if v := compareZ(a.commonValues(), b.commonValues()); v != 0 {
+			return v
+		}
+
+		// for same z value, sort by type first
+		if v := a.sortId() - b.sortId(); v != 0 {
+			return v
+		}
+
+		if a, ok := a.(compareTo); ok {
+			return a.compareTo(b)
+		}
+
+		return 0
 	})
 
 	// sort cameras

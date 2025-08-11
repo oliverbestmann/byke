@@ -199,10 +199,11 @@ func renderTimingsSystem(
 }
 
 type WindowConfig struct {
-	Title         string
-	Width         int
-	Height        int
-	DisableResize bool
+	Title          string
+	Width          int
+	Height         int
+	DisableResize  bool
+	SingleThreaded bool
 }
 
 func runWorld(world *byke.World) error {
@@ -217,7 +218,7 @@ func runWorld(world *byke.World) error {
 	}
 
 	var options ebiten.RunGameOptions
-	options.SingleThread = true
+	options.SingleThread = win.SingleThreaded
 
 	theGame, _ := byke.ResourceOf[game](world)
 	return ebiten.RunGameWithOptions(theGame, &options)

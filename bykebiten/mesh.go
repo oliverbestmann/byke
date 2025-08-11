@@ -236,11 +236,11 @@ func UnionDisjoint(meshes ...Mesh) Mesh {
 
 func computeMeshSizeSystem(
 	query byke.Query[struct {
-	_ byke.Changed[Mesh]
+		_ byke.Changed[Mesh]
 
-	Mesh Mesh
-	BBox *BBox
-}],
+		Mesh Mesh
+		BBox *BBox
+	}],
 ) {
 	for item := range query.Items() {
 		vertices := item.Mesh.Vertices
