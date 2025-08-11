@@ -20,13 +20,17 @@ func emitterSystem(
 ) {
 	for item := range emitters.Items() {
 		e := item.Emitter
-		if e.Disabled {
-			continue
-		}
 
 		if !e.previousInitialized {
 			e.previous = item.Transform.Translation
 			e.previousInitialized = true
+		}
+
+		previousTranslation := e.previous
+		e.previous = item.Transform.Translation
+
+		if e.Disabled {
+			continue
 		}
 
 		item.Emitter.spawnAcc += jitterValue(e.ParticlesPerSecond, e.ParticlesPerSecondJitter) * vt.Scale
@@ -68,9 +72,9 @@ func emitterSystem(
 			}
 
 			// interpolate along the path moved between the frame
-			pos := item.Transform.Translation.Sub(e.previous).
+			pos := item.Transform.Translation.Sub(previousTranslation).
 				Mul(gm.RandomIn(0.0, 1.0)).
-				Add(e.previous).
+				Add(previousTranslation).
 				Add(gm.RandomVec[float64]().Mul(item.Emitter.Radius))
 
 			rot := jitterValue(e.Rotation, e.RotationJitter)
@@ -86,8 +90,6 @@ func emitterSystem(
 				item.Layer.OrZero(),
 			)
 		}
-
-		e.previous = item.Transform.Translation
 	}
 }
 

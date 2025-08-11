@@ -68,7 +68,7 @@ func spawnSunSystem(commands *Commands, assets *Assets) {
 }
 
 func spawnPlayerSystem(commands *Commands) {
-	thrustColor := color.RGBA(1, 0.7, 0, 1)
+	thrustColor := color.RGBA(2, 1.4, 0, 1)
 
 	meshes := [3]Mesh{
 		RegularPolygon(1, 3),
@@ -137,15 +137,15 @@ func movePlayerSystem(
 	vt VirtualTime,
 	keys Keys,
 	playerQuery Query[struct {
-		Player    *Player
-		Transform *Transform
-		Emitter   *partycle.Emitter
-	}],
+	Player    *Player
+	Transform *Transform
+	Emitter   *partycle.Emitter
+}],
 	cameraQuery Query[struct {
-		_          With[Camera]
-		Transform  *Transform
-		Projection *OrthographicProjection
-	}],
+	_          With[Camera]
+	Transform  *Transform
+	Projection *OrthographicProjection
+}],
 
 ) {
 	player, ok := playerQuery.Single()
@@ -193,14 +193,14 @@ func hitObstacleSystem(
 	commands *Commands,
 
 	player Single[struct {
-		_         With[Player]
-		Transform Transform
-	}],
+	_         With[Player]
+	Transform Transform
+}],
 	obstacles Query[struct {
-		EntityId
-		Obstacle  Obstacle
-		Transform Transform
-	}],
+	EntityId
+	Obstacle  Obstacle
+	Transform Transform
+}],
 ) {
 	p := player.Value
 
