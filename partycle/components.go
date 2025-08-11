@@ -107,7 +107,7 @@ func (c Curve[T]) ValueAt(t float64) T {
 	for idx := 0; idx < len(c.Values)-1; idx++ {
 		lhs := c.Values[idx]
 		rhs := c.Values[idx+1]
-		if t <= rhs.Time {
+		if t >= rhs.Time {
 			continue
 		}
 

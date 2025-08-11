@@ -67,8 +67,8 @@ func spawnSunSystem(commands *Commands, assets *Assets) {
 	)
 }
 
-func spawnPlayerSystem(commands *Commands) {
-	thrustColor := color.RGBA(2, 1.4, 0, 1)
+func spawnPlayerSystem(commands *Commands, assets Assets) {
+	thrustColor := color.PreRGBA(1, 0.7, 0, 0)
 
 	meshes := [3]Mesh{
 		RegularPolygon(1, 3),
@@ -91,11 +91,15 @@ func spawnPlayerSystem(commands *Commands) {
 			ParticleLifetime:         400 * time.Millisecond,
 			ParticleLifetimeJitter:   200 * time.Millisecond,
 			ScaleCurve:               partycle.EquidistantCurve(partycle.LerpVec, VecSplat(0.1), VecSplat(0.25), VecSplat(1.0)),
-			ColorCurve:               partycle.EquidistantCurve(partycle.LerpColor, thrustColor, thrustColor.WithAlpha(0.25), thrustColor.WithAlpha(0.0)),
+			ColorCurve:               partycle.EquidistantCurve(partycle.LerpColor, thrustColor, thrustColor.ScaleAlpha(0.25), thrustColor.ScaleAlpha(0.0)),
 			Radius:                   0.25,
 
 			// get a random mesh
-			Visual: func() ErasedComponent { return meshes[rand.IntN(len(meshes))] },
+			Visual: func() ErasedComponent {
+				return BundleOf(
+					meshes[rand.IntN(len(meshes))],
+				)
+			},
 		},
 
 		SpawnChild(
@@ -134,23 +138,29 @@ func spawnObstaclesSystem(commands *Commands) {
 }
 
 func movePlayerSystem(
-	vt VirtualTime,
+	vt *VirtualTime,
 	keys Keys,
 	playerQuery Query[struct {
-	Player    *Player
-	Transform *Transform
-	Emitter   *partycle.Emitter
-}],
+		Player    *Player
+		Transform *Transform
+		Emitter   *partycle.Emitter
+	}],
 	cameraQuery Query[struct {
-	_          With[Camera]
-	Transform  *Transform
-	Projection *OrthographicProjection
-}],
+		_          With[Camera]
+		Transform  *Transform
+		Projection *OrthographicProjection
+	}],
 
 ) {
 	player, ok := playerQuery.Single()
 	if !ok {
 		return
+	}
+
+	if keys.IsPressed(ebiten.KeyP) {
+		vt.Scale = 0
+	} else {
+		vt.Scale = 1
 	}
 
 	camera, _ := cameraQuery.Single()
@@ -193,14 +203,14 @@ func hitObstacleSystem(
 	commands *Commands,
 
 	player Single[struct {
-	_         With[Player]
-	Transform Transform
-}],
+		_         With[Player]
+		Transform Transform
+	}],
 	obstacles Query[struct {
-	EntityId
-	Obstacle  Obstacle
-	Transform Transform
-}],
+		EntityId
+		Obstacle  Obstacle
+		Transform Transform
+	}],
 ) {
 	p := player.Value
 

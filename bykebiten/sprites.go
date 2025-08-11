@@ -124,8 +124,10 @@ func computeSpriteSizeSystem(
 
 		if tiles, ok := item.Tiles.Get(); ok {
 			sourceSize = gm.Vec{X: float64(tiles.Width), Y: float64(tiles.Height)}
-		} else {
+		} else if item.Sprite.Image != nil {
 			sourceSize = imageSizeOf(item.Sprite.Image)
+		} else {
+			sourceSize = gm.VecOne
 		}
 
 		if item.Sprite.CustomSize.IsSet {

@@ -1,6 +1,7 @@
 package bykebiten
 
 import (
+	"fmt"
 	"image"
 	"slices"
 	"sync"
@@ -157,7 +158,6 @@ type renderMeshValue struct {
 	Common       renderCommonValues
 	Mesh         Mesh
 	Blend        Blend
-	Filter       Filter
 	Shader       byke.Option[Shader]
 	ShaderInputs byke.Option[ShaderInput]
 }
@@ -179,6 +179,8 @@ type renderCache struct {
 	Meshes  []renderMeshValue
 
 	TempPath vector.Path
+
+	MeshShader *ebiten.Shader
 
 	// scratch space for vertex transformations
 	vertexCache []ebiten.Vertex
@@ -203,6 +205,15 @@ func renderSystem(
 	cache *byke.Local[renderCache],
 ) {
 	c := &cache.Value
+
+	if c.MeshShader == nil {
+		shader, err := ebiten.NewShader([]byte(meshShader))
+		if err != nil {
+			panic(fmt.Errorf("compile mesh shader: %w", err))
+		}
+
+		c.MeshShader = shader
+	}
 
 	defer func() {
 		clear(c.Sprites)
@@ -319,7 +330,7 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 
 		// apply color
 		var colorScale ebiten.ColorScale
-		colorScale.Scale(common.ColorTint.PremultipliedValues())
+		colorScale.Scale(common.ColorTint.Values())
 
 		switch item := item.(type) {
 		case *renderSpriteValue:
@@ -329,6 +340,10 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 
 				idx := item.TileIndex.OrZero().Index
 				image = tileCache.Tiles[idx%len(tileCache.Tiles)]
+			}
+
+			if image == nil {
+				image = whiteImage()
 			}
 
 			if shader_, ok := item.Shader.Get(); ok {
@@ -379,7 +394,7 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 				dop := &vector.DrawPathOptions{}
 				dop.AntiAlias = fill.Antialias
 				dop.Blend = item.Blend.Blend
-				dop.ColorScale.Scale(fill.Color.PremultipliedValues())
+				dop.ColorScale.Scale(fill.Color.Values())
 				vector.FillPath(screen, path, &vector.FillOptions{FillRule: fill.Rule}, dop)
 			}
 
@@ -400,7 +415,7 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 				dop := &vector.DrawPathOptions{}
 				dop.AntiAlias = stroke.Antialias
 				dop.Blend = item.Blend.Blend
-				dop.ColorScale.Scale(stroke.Color.PremultipliedValues())
+				dop.ColorScale.Scale(stroke.Color.Values())
 				vector.StrokePath(screen, path, sop, dop)
 			}
 
@@ -408,22 +423,19 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			colorTint := item.Common.ColorTint.Color
 			vertices := transformVertices(item.Mesh.Vertices, g, colorTint)
 
+			shader := c.MeshShader
+			var inputs ShaderInput
+
 			if shader_, ok := item.Shader.Get(); ok {
-				var shader *ebiten.Shader = shader_.Shader
-				var inputs ShaderInput = item.ShaderInputs.OrZero()
-
-				screen.DrawTrianglesShader32(vertices, item.Mesh.Indices, shader, &ebiten.DrawTrianglesShaderOptions{
-					Blend:    item.Blend.Blend,
-					Uniforms: inputs.Uniforms,
-					Images:   inputs.Images,
-				})
-
-			} else {
-				screen.DrawTriangles32(vertices, item.Mesh.Indices, whiteImage(), &ebiten.DrawTrianglesOptions{
-					Blend:  item.Blend.Blend,
-					Filter: item.Filter.Filter,
-				})
+				shader = shader_.Shader
+				inputs = item.ShaderInputs.OrZero()
 			}
+
+			screen.DrawTrianglesShader32(vertices, item.Mesh.Indices, shader, &ebiten.DrawTrianglesShaderOptions{
+				Blend:    item.Blend.Blend,
+				Uniforms: inputs.Uniforms,
+				Images:   inputs.Images,
+			})
 		}
 	}
 }
@@ -509,8 +521,8 @@ func transformVertices(vertices []Vertex, g ebiten.GeoM, tint color.Color) []ebi
 
 	}
 
-	if !tint.IsIdentity() {
-		r, g, b, a := tint.PremultipliedValues()
+	if !tint.IsWhite() {
+		r, g, b, a := tint.Values()
 
 		for idx := range scratchVertices {
 			scratchVertices[idx].ColorR *= r
@@ -522,3 +534,11 @@ func transformVertices(vertices []Vertex, g ebiten.GeoM, tint color.Color) []ebi
 
 	return scratchVertices
 }
+
+const meshShader = `
+package main
+
+func Fragment(dp vec4, src vec2, color vec4) vec4 {
+	return color
+}
+`

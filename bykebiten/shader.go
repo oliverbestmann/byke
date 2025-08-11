@@ -97,7 +97,7 @@ func toUniformValue(value any) any {
 		return unsafe.Slice((*float64)(unsafe.Pointer(ptrToValues)), len(value)*4)
 
 	case color.Color:
-		r, g, b, a := value.PremultipliedValues()
+		r, g, b, a := value.Values()
 		return [4]float32{r, g, b, a}
 
 	default:
