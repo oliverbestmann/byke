@@ -19,8 +19,8 @@ func RandomAngle() Rad {
 func RandomVec[S Scalar]() VecType[S] {
 	for {
 		v := VecType[S]{
-			X: S(RandomIn(-1, 1)),
-			Y: S(RandomIn(-1, 1)),
+			X: RandomIn(S(-1), S(1)),
+			Y: RandomIn(S(-1), S(1)),
 		}
 
 		if v.LengthSqr() <= 1 {

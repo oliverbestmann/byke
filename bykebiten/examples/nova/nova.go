@@ -11,6 +11,7 @@ import (
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	. "github.com/oliverbestmann/byke/gm"
+	"github.com/oliverbestmann/byke/partycle"
 )
 
 const SunRadius = 200.0
@@ -22,10 +23,10 @@ func main() {
 	var app App
 	app.InsertResource(MakeAssetFS(assets))
 	app.AddPlugin(GamePlugin)
+	app.AddPlugin(partycle.Partycle)
 
 	app.AddSystems(Startup, spawnCameraSystem, spawnSunSystem, spawnPlayerSystem, spawnObstaclesSystem)
 	app.AddSystems(Update, System(movePlayerSystem, hitObstacleSystem).Chain())
-	app.AddSystems(Update, System(emitThrustSystem).RunIf(TimerJustFinished(NewTimerWithFrequency(50))))
 
 	app.MustRun()
 }
@@ -33,7 +34,6 @@ func main() {
 type Player struct {
 	Component[Player]
 	DecentVelocity float64
-	Thrust         bool
 }
 
 type Obstacle struct {
@@ -68,11 +68,35 @@ func spawnSunSystem(commands *Commands, assets *Assets) {
 }
 
 func spawnPlayerSystem(commands *Commands) {
+	thrustColor := color.RGBA(1, 0.7, 0, 1)
+
+	meshes := [3]Mesh{
+		RegularPolygon(1, 3),
+		RegularPolygon(1, 4),
+		RegularPolygon(1, 5),
+	}
+
 	commands.Spawn(
 		Player{},
 		TransformFromXY(SunRadius*1.1, 0),
 
 		Visible,
+
+		partycle.Emitter{
+			ParticlesPerSecond:       100,
+			ParticlesPerSecondJitter: 10,
+			LinearVelocityJitter:     VecSplat(5.0),
+			AngularVelocityJitter:    math.Pi,
+			RotationJitter:           math.Pi,
+			ParticleLifetime:         400 * time.Millisecond,
+			ParticleLifetimeJitter:   200 * time.Millisecond,
+			ScaleCurve:               partycle.EquidistantCurve(partycle.LerpVec, VecSplat(0.1), VecSplat(0.25), VecSplat(1.0)),
+			ColorCurve:               partycle.EquidistantCurve(partycle.LerpColor, thrustColor, thrustColor.WithAlpha(0.25), thrustColor.WithAlpha(0.0)),
+			Radius:                   0.25,
+
+			// get a random mesh
+			Visual: func() ErasedComponent { return meshes[rand.IntN(len(meshes))] },
+		},
 
 		SpawnChild(
 			LayerOf(9),
@@ -113,14 +137,15 @@ func movePlayerSystem(
 	vt VirtualTime,
 	keys Keys,
 	playerQuery Query[struct {
-	Player    *Player
-	Transform *Transform
-}],
+		Player    *Player
+		Transform *Transform
+		Emitter   *partycle.Emitter
+	}],
 	cameraQuery Query[struct {
-	_          With[Camera]
-	Transform  *Transform
-	Projection *OrthographicProjection
-}],
+		_          With[Camera]
+		Transform  *Transform
+		Projection *OrthographicProjection
+	}],
 
 ) {
 	player, ok := playerQuery.Single()
@@ -136,11 +161,13 @@ func movePlayerSystem(
 	player.Player.DecentVelocity += 10 * vt.DeltaSecs
 
 	// TODO move into player input/control system
-	// player input
-	player.Player.Thrust = keys.IsPressed(ebiten.KeySpace)
-	if player.Player.Thrust {
+	thrust := keys.IsPressed(ebiten.KeySpace)
+
+	if thrust {
 		player.Player.DecentVelocity -= 30 * vt.DeltaSecs
 	}
+
+	player.Emitter.Disabled = !thrust
 
 	dist := pos.Length() - player.Player.DecentVelocity*vt.DeltaSecs
 	if dist < SunRadius {
@@ -156,39 +183,24 @@ func movePlayerSystem(
 	player.Transform.Translation = posNew
 	player.Transform.Rotation = pos.AngleTo(posNew)
 
+	player.Emitter.LinearVelocity = posNew.Sub(pos).Mul(1 / vt.DeltaSecs).Mul(-0.25)
+
 	// TODO move into camera follow system
 	camera.Transform.Translation = posNew
-}
-
-func emitThrustSystem(commands *Commands, player Single[struct {
-	Player    Player
-	Transform Transform
-}]) {
-	p := player.Value
-	if !p.Player.Thrust {
-		return
-	}
-
-	commands.Spawn(
-		Rectangle(Vec{X: 0.5, Y: 0.5}.Mul(RandomIn(1.0, 2))),
-		DespawnAfter(time.Duration(RandomIn(150, 200))*time.Millisecond),
-		ColorTint{Color: color.White.WithAlpha(0.5)},
-		p.Transform.WithRotation(Rad(rand.Float64())*2*math.Pi),
-	)
 }
 
 func hitObstacleSystem(
 	commands *Commands,
 
 	player Single[struct {
-	_         With[Player]
-	Transform Transform
-}],
+		_         With[Player]
+		Transform Transform
+	}],
 	obstacles Query[struct {
-	EntityId
-	Obstacle  Obstacle
-	Transform Transform
-}],
+		EntityId
+		Obstacle  Obstacle
+		Transform Transform
+	}],
 ) {
 	p := player.Value
 
