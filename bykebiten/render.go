@@ -1,7 +1,6 @@
 package bykebiten
 
 import (
-	"fmt"
 	"image"
 	"slices"
 	"sync"
@@ -249,15 +248,6 @@ func renderSystem(
 ) {
 	c := &cache.Value
 
-	if c.MeshShader == nil {
-		shader, err := ebiten.NewShader([]byte(meshShader))
-		if err != nil {
-			panic(fmt.Errorf("compile mesh shader: %w", err))
-		}
-
-		c.MeshShader = shader
-	}
-
 	defer func() {
 		clear(c.Sprites)
 		clear(c.Texts)
@@ -479,19 +469,26 @@ func renderItems(c *renderCache, screen *ebiten.Image, camera cameraValue, items
 			colorTint := item.Common.ColorTint.Color
 			vertices := transformVertices(item.Mesh.Vertices, g, colorTint)
 
-			shader := c.MeshShader
-			var inputs ShaderInput
+			var shader *ebiten.Shader
 
 			if shader_, ok := item.Shader.Get(); ok {
 				shader = shader_.Shader
-				inputs = item.ShaderInputs.OrZero()
 			}
 
-			screen.DrawTrianglesShader32(vertices, item.Mesh.Indices, shader, &ebiten.DrawTrianglesShaderOptions{
-				Blend:    item.Blend.Blend,
-				Uniforms: inputs.Uniforms,
-				Images:   inputs.Images,
-			})
+			if shader != nil {
+				var inputs ShaderInput = item.ShaderInputs.OrZero()
+
+				screen.DrawTrianglesShader32(vertices, item.Mesh.Indices, shader, &ebiten.DrawTrianglesShaderOptions{
+					Blend:    item.Blend.Blend,
+					Uniforms: inputs.Uniforms,
+					Images:   inputs.Images,
+				})
+			} else {
+				screen.DrawTriangles32(vertices, item.Mesh.Indices, whiteImage(), &ebiten.DrawTrianglesOptions{
+					Blend:          item.Blend.Blend,
+					ColorScaleMode: ebiten.ColorScaleModePremultipliedAlpha,
+				})
+			}
 		}
 	}
 }
@@ -590,11 +587,3 @@ func transformVertices(vertices []Vertex, g ebiten.GeoM, tint color.Color) []ebi
 
 	return scratchVertices
 }
-
-const meshShader = `
-package main
-
-func Fragment(dp vec4, src vec2, color vec4) vec4 {
-	return color
-}
-`
