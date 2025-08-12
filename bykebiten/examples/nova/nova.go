@@ -83,7 +83,7 @@ func spawnPlayerSystem(commands *Commands, assets Assets) {
 		Visible,
 
 		partycle.Emitter{
-			ParticlesPerSecond:       100,
+			ParticlesPerSecond:       20,
 			ParticlesPerSecondJitter: 10,
 			LinearVelocityJitter:     VecSplat(5.0),
 			AngularVelocityJitter:    math.Pi,
@@ -141,15 +141,15 @@ func movePlayerSystem(
 	vt *VirtualTime,
 	keys Keys,
 	playerQuery Query[struct {
-		Player    *Player
-		Transform *Transform
-		Emitter   *partycle.Emitter
-	}],
+	Player    *Player
+	Transform *Transform
+	Emitter   *partycle.Emitter
+}],
 	cameraQuery Query[struct {
-		_          With[Camera]
-		Transform  *Transform
-		Projection *OrthographicProjection
-	}],
+	_          With[Camera]
+	Transform  *Transform
+	Projection *OrthographicProjection
+}],
 
 ) {
 	player, ok := playerQuery.Single()
@@ -203,14 +203,14 @@ func hitObstacleSystem(
 	commands *Commands,
 
 	player Single[struct {
-		_         With[Player]
-		Transform Transform
-	}],
+	_         With[Player]
+	Transform Transform
+}],
 	obstacles Query[struct {
-		EntityId
-		Obstacle  Obstacle
-		Transform Transform
-	}],
+	EntityId
+	Obstacle  Obstacle
+	Transform Transform
+}],
 ) {
 	p := player.Value
 
