@@ -66,7 +66,7 @@ type ColorTint struct {
 	color.Color
 }
 
-type screenRenderTarget struct {
+type DefaultRenderTarget struct {
 	Image *ebiten.Image
 }
 
@@ -238,7 +238,7 @@ type cameraValue struct {
 }
 
 func renderSystem(
-	screen screenRenderTarget,
+	screen DefaultRenderTarget,
 	camerasQuery byke.Query[cameraValue],
 	spritesQuery byke.Query[renderSpriteValue],
 	textsQuery byke.Query[renderTextValue],

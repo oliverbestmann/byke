@@ -12,6 +12,8 @@ import (
 	. "github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/bykebiten/color"
 	. "github.com/oliverbestmann/byke/gm"
+	"github.com/oliverbestmann/byke/partycle"
+	"github.com/oliverbestmann/byke/physics"
 	"github.com/pkg/profile"
 )
 
@@ -40,6 +42,8 @@ func main() {
 	app.ConfigureSystemSets(Update, GameSystems.Before(PhysicsSystems))
 
 	app.AddPlugin(GamePlugin)
+	app.AddPlugin(physics.Plugin)
+	app.AddPlugin(partycle.Plugin)
 
 	app.InsertResource(GlobalVolume{Volume: 0.1})
 	app.InsertResource(GlobalSpatialScale{Scale: VecSplat(1 / 500.0)})
@@ -49,8 +53,8 @@ func main() {
 	app.AddSystems(Startup, setupCamera, spawnSpaceShipSystem, spawnTerrainSystem)
 	app.AddSystems(Update, System(handleSpaceshipInput).InSet(InputSystems))
 	app.AddSystems(Update, System(spawnSmokeSystem).InSet(GameSystems))
-	app.AddSystems(Update, System(applyGravitySystem, moveObjectsSystem, checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
-	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain(), alignWithVelocity)
+	app.AddSystems(Update, System(checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
+	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain())
 
 	app.World().AddObserver(NewObserver(spawnExplosionSystem))
 
@@ -68,8 +72,6 @@ type Gravity Vec
 var _ = ValidateComponent[SpaceShip]()
 var _ = ValidateComponent[Plume]()
 var _ = ValidateComponent[Missile]()
-var _ = ValidateComponent[AlignWithVelocity]()
-var _ = ValidateComponent[Collider]()
 var _ = ValidateComponent[SmokeEmitter]()
 var _ = ValidateComponent[CameraTarget]()
 
@@ -81,22 +83,8 @@ type Plume struct {
 	Component[Plume]
 }
 
-type Velocity struct {
-	Component[Velocity]
-	Linear Vec
-}
-
 type Missile struct {
 	Component[Missile]
-}
-
-type AlignWithVelocity struct {
-	Component[AlignWithVelocity]
-}
-
-type Collider struct {
-	Component[Collider]
-	Points []Vec
 }
 
 type SmokeEmitter struct {
@@ -166,8 +154,12 @@ func spawnSpaceShipSystem(commands *Commands) {
 		Spawn(
 			SpaceShip{},
 			TransformFromXY(0, 300),
-			Velocity{},
-			Collider{Points: shipCorners},
+			physics.RigidBodyKinematic,
+			physics.Collider{
+				Shape: physics.PolygonShape{
+					Points: shipCorners,
+				},
+			},
 			spaceShipShape,
 
 			Fill{Color: color.Black},
@@ -245,6 +237,25 @@ func spawnTerrainSystem(commands *Commands) {
 			Antialias: true,
 		},
 	)
+
+	// spawn one collider per segment
+	for idx := 0; idx < len(height)-1; idx++ {
+		points := []Vec{
+			height[idx],
+			height[idx+1],
+			{X: height[idx+1].X, Y: 0},
+			{X: height[idx].X, Y: 0},
+		}
+
+		commands.Spawn(
+			physics.RigidBodyStatic,
+			physics.Collider{
+				Shape: physics.PolygonShape{
+					Points: points,
+				},
+			},
+		)
+	}
 }
 
 func checkGroundCollisionSystem(
@@ -253,22 +264,23 @@ func checkGroundCollisionSystem(
 	query Query[struct {
 		EntityId
 		Transform Transform
-		Collider  Collider
+		Collider  physics.Collider
 	}],
 ) {
-	for item := range query.Items() {
-		tr := item.Transform.AsAffine()
-
-		for _, point := range item.Collider.Points {
-			point = tr.Transform(point)
-
-			above := terrain.IsAboveGround(point)
-			if !above {
-				commands.Entity(item.EntityId).Trigger(TerrainContact{Position: point})
-				break
-			}
-		}
-	}
+	// TODO
+	//	for item := range query.Items() {
+	//		tr := item.Transform.AsAffine()
+	//
+	//		for _, point := range item.Collider.Points {
+	//			point = tr.Transform(point)
+	//
+	//			above := terrain.IsAboveGround(point)
+	//			if !above {
+	//				commands.Entity(item.EntityId).Trigger(TerrainContact{Position: point})
+	//				break
+	//			}
+	//		}
+	//	}
 }
 
 func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
@@ -276,7 +288,7 @@ func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 		_ With[SpaceShip]
 		EntityId
 		Transform *Transform
-		Velocity  *Velocity
+		Velocity  *physics.Velocity
 	}],
 	plume Single[struct {
 		_          With[Plume]
@@ -300,15 +312,26 @@ func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 		s.Velocity.Linear = s.Velocity.Linear.Add(delta.Mul(vt.DeltaSecs))
 		p.Visibility.SetVisible()
 
-		commands.Entity(s.EntityId).Update(InsertComponent(SmokeEmitter{
-			Offset:   Vec{X: -10},
-			Velocity: Vec{X: -100},
-			Timer:    NewTimerWithFrequency(100),
+		circle := Circle(0.1, 12)
+		commands.Entity(s.EntityId).Update(InsertComponent(partycle.Emitter{
+			ParticlesPerSecond:       70,
+			ParticlesPerSecondJitter: 30,
+			LinearVelocity:           Vec{X: -100},
+			LinearVelocityJitter:     Vec{X: 20},
+			AngularVelocityJitter:    math.Pi * 1,
+			RotationJitter:           math.Pi * 2,
+			DampeningLinear:          1,
+			DampeningAngular:         1,
+			ParticleLifetime:         200 * time.Millisecond,
+			ParticleLifetimeJitter:   40 * time.Millisecond,
+			Visual: func() ErasedComponent {
+				return circle
+			},
 		}))
 	} else {
 		p.Visibility.SetInvisible()
 
-		commands.Entity(s.EntityId).Update(RemoveComponent[SmokeEmitter]())
+		commands.Entity(s.EntityId).Update(RemoveComponent[partycle.Emitter]())
 	}
 
 	// Maybe limit maximum velocity?
@@ -320,26 +343,9 @@ func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 		velocity := RotationMat(s.Transform.Rotation).Transform(Vec{X: 500})
 
 		commands.Queue(FireMissile(
-			s.Transform.Translation.Add(velocity.Normalized().Mul(10)),
+			s.Transform.Translation.Add(velocity.Normalized().Mul(20)),
 			s.Velocity.Linear.Add(velocity),
 		))
-	}
-}
-
-func applyGravitySystem(vt VirtualTime, gravity Gravity, query Query[*Velocity]) {
-	gravityScaled := Vec(gravity).Mul(vt.DeltaSecs)
-	for velocity := range query.Items() {
-		velocity.Linear = velocity.Linear.Add(gravityScaled)
-	}
-}
-
-func moveObjectsSystem(vt VirtualTime, query Query[struct {
-	Velocity  Velocity
-	Transform *Transform
-}]) {
-	for item := range query.Items() {
-		item.Transform.Translation = item.Transform.Translation.
-			Add(item.Velocity.Linear.Mul(vt.DeltaSecs))
 	}
 }
 
@@ -352,7 +358,7 @@ func moveCameraTargetSystem(
 	ship Single[struct {
 		_         With[SpaceShip]
 		Transform Transform
-		Velocity  Velocity
+		Velocity  physics.Velocity
 	}],
 ) {
 	posShip := ship.Value.Transform.Translation
@@ -484,9 +490,15 @@ func fireMissileSystem(commands *Commands, assets *Assets, param In[FireMissileI
 		Spawn(
 			TransformFromXY(p.Start.XY()).WithRotation(p.Velocity.Angle()),
 			Missile{},
-			Collider{Points: []Vec{{X: -5}, {X: 5}}},
-			AlignWithVelocity{},
-			Velocity{Linear: p.Velocity},
+			physics.Collider{
+				Shape: physics.SegmentShape{
+					A:      Vec{X: -5},
+					B:      Vec{X: 5},
+					Radius: 1,
+				},
+			},
+			physics.RigidBodyDynamic,
+			physics.Velocity{Linear: p.Velocity},
 			missile,
 			Stroke{Width: 2, Color: color.White, Antialias: true},
 			DespawnAfter(10*time.Second),
@@ -503,25 +515,13 @@ func fireMissileSystem(commands *Commands, assets *Assets, param In[FireMissileI
 	)
 }
 
-func alignWithVelocity(
-	query Query[struct {
-		_         With[AlignWithVelocity]
-		Velocity  Velocity
-		Transform *Transform
-	}],
-) {
-	for item := range query.Items() {
-		item.Transform.Rotation = item.Velocity.Linear.Angle()
-	}
-}
-
 func spawnSmokeSystem(
 	commands *Commands,
 	vt VirtualTime,
 	query Query[struct {
 		Transform  Transform
 		SpawnSmoke *SmokeEmitter
-		Velocity   Option[Velocity]
+		Velocity   Option[physics.Velocity]
 	}],
 ) {
 	for item := range query.Items() {
@@ -555,7 +555,7 @@ func spawnSmokeSystem(
 				Fill{Color: color.RGBA(1, 1, 1, 0.2)},
 				TransformFromXY(pos.XY()),
 				DespawnAfter(lifetime),
-				Velocity{Linear: velocity},
+				physics.Velocity{Linear: velocity},
 			)
 		}
 	}

@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.13.0.20250809091923-4f9cc042aa1a
+	github.com/jakecoffman/cp/v2 v2.1.0
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.10.0
 )

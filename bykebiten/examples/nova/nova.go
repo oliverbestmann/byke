@@ -23,7 +23,7 @@ func main() {
 	var app App
 	app.InsertResource(MakeAssetFS(assets))
 	app.AddPlugin(GamePlugin)
-	app.AddPlugin(partycle.Partycle)
+	app.AddPlugin(partycle.Plugin)
 
 	app.AddSystems(Startup, spawnCameraSystem, spawnSunSystem, spawnPlayerSystem, spawnObstaclesSystem)
 	app.AddSystems(Update, System(movePlayerSystem, hitObstacleSystem).Chain())
@@ -141,15 +141,15 @@ func movePlayerSystem(
 	vt *VirtualTime,
 	keys Keys,
 	playerQuery Query[struct {
-	Player    *Player
-	Transform *Transform
-	Emitter   *partycle.Emitter
-}],
+		Player    *Player
+		Transform *Transform
+		Emitter   *partycle.Emitter
+	}],
 	cameraQuery Query[struct {
-	_          With[Camera]
-	Transform  *Transform
-	Projection *OrthographicProjection
-}],
+		_          With[Camera]
+		Transform  *Transform
+		Projection *OrthographicProjection
+	}],
 
 ) {
 	player, ok := playerQuery.Single()
@@ -203,14 +203,14 @@ func hitObstacleSystem(
 	commands *Commands,
 
 	player Single[struct {
-	_         With[Player]
-	Transform Transform
-}],
+		_         With[Player]
+		Transform Transform
+	}],
 	obstacles Query[struct {
-	EntityId
-	Obstacle  Obstacle
-	Transform Transform
-}],
+		EntityId
+		Obstacle  Obstacle
+		Transform Transform
+	}],
 ) {
 	p := player.Value
 
