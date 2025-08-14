@@ -193,7 +193,7 @@ func movePlayerSystem(
 	player.Transform.Translation = posNew
 	player.Transform.Rotation = pos.AngleTo(posNew)
 
-	player.Emitter.LinearVelocity = posNew.Sub(pos).Mul(1 / vt.DeltaSecs).Mul(-0.25)
+	player.Emitter.LinearVelocity = Vec{X: -100}
 
 	// TODO move into camera follow system
 	camera.Transform.Translation = posNew

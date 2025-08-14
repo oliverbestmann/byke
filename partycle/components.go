@@ -8,6 +8,9 @@ import (
 	"github.com/oliverbestmann/byke/gm"
 )
 
+var _ = byke.ValidateComponent[Particle]()
+var _ = byke.ValidateComponent[Emitter]()
+
 type Particle struct {
 	byke.Component[Particle]
 
@@ -23,6 +26,8 @@ type Particle struct {
 	AngularDampening float64
 
 	ColorCurve Curve[color.Color]
+
+	BaseScale  gm.Vec
 	ScaleCurve Curve[gm.Vec]
 }
 
@@ -58,7 +63,11 @@ type Emitter struct {
 	// defaults to constant white
 	ColorCurve Curve[color.Color]
 
-	// defaults to constant 1
+	// Constant scale
+	Scale       gm.Vec
+	ScaleJitter float64
+
+	// Dynamic scale, defaults to constant 1
 	ScaleCurve Curve[gm.Vec]
 
 	// Positive radius makes the Emitter a circle

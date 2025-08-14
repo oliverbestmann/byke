@@ -272,16 +272,17 @@ func pauseSystem(vt *VirtualTime, keys Keys) {
 
 func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 	ship Single[struct {
-		_ With[SpaceShip]
-		EntityId
-		Transform *Transform
-		Velocity  *physics.Velocity
-	}],
+	_ With[SpaceShip]
+	EntityId
+	Transform *Transform
+	Velocity  *physics.Velocity
+	Emitter   OptionMut[partycle.Emitter]
+}],
 	plume Single[struct {
-		_          With[Plume]
-		Fill       *Fill
-		Visibility *Visibility
-	}],
+	_          With[Plume]
+	Fill       *Fill
+	Visibility *Visibility
+}],
 ) {
 	s := &ship.Value
 	p := &plume.Value
@@ -299,22 +300,31 @@ func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 		s.Velocity.Linear = s.Velocity.Linear.Add(delta.Mul(vt.DeltaSecs))
 		p.Visibility.SetVisible()
 
-		circle := Circle(0.1, 12)
-		commands.Entity(s.EntityId).Update(InsertComponent(partycle.Emitter{
-			ParticlesPerSecond:       70,
-			ParticlesPerSecondJitter: 30,
-			LinearVelocity:           Vec{X: -100},
-			LinearVelocityJitter:     Vec{X: 20},
-			AngularVelocityJitter:    math.Pi * 1,
-			RotationJitter:           math.Pi * 2,
-			DampeningLinear:          1,
-			DampeningAngular:         1,
-			ParticleLifetime:         200 * time.Millisecond,
-			ParticleLifetimeJitter:   40 * time.Millisecond,
-			Visual: func() ErasedComponent {
-				return circle
-			},
-		}))
+		if emitter, ok := s.Emitter.Get(); ok {
+			inv := s.Transform.AsAffine().Inverse()
+			f := s.Transform.Forward().Mul(-100)
+			emitter.LinearVelocity = inv.TransformVec(s.Velocity.Linear.Add(f))
+		} else {
+			circle := Circle(1, 12)
+			commands.Entity(s.EntityId).Update(InsertComponent(partycle.Emitter{
+				Radius:                   2.0,
+				ParticlesPerSecond:       50,
+				ParticlesPerSecondJitter: 20,
+				LinearVelocity:           Vec{X: -200},
+				// LinearVelocityJitter:     Vec{X: 20},
+				AngularVelocityJitter:  math.Pi * 1,
+				RotationJitter:         math.Pi * 2,
+				ParticleLifetime:       500 * time.Millisecond,
+				ParticleLifetimeJitter: 100 * time.Millisecond,
+				ScaleCurve:             partycle.EquidistantCurve(partycle.LerpVec, VecSplat(1.0), VecSplat(1.25)),
+				Scale:                  VecSplat(7.0),
+				ScaleJitter:            3.0,
+				ColorCurve:             partycle.EquidistantCurve(partycle.LerpColor, color.PreRGBA(0.2, 0.2, 0.2, 0), color.Transparent),
+				Visual: func() ErasedComponent {
+					return BundleOf(circle, Layer{Z: -1.0})
+				},
+			}))
+		}
 	} else {
 		p.Visibility.SetInvisible()
 
@@ -344,14 +354,14 @@ func applyGravityToShipSystem(
 func moveCameraTargetSystem(
 	vt VirtualTime,
 	cameraTarget Single[struct {
-		_         With[CameraTarget]
-		Transform *Transform
-	}],
+	_         With[CameraTarget]
+	Transform *Transform
+}],
 	ship Single[struct {
-		_         With[SpaceShip]
-		Transform Transform
-		Velocity  physics.Velocity
-	}],
+	_         With[SpaceShip]
+	Transform Transform
+	Velocity  physics.Velocity
+}],
 ) {
 	posShip := ship.Value.Transform.Translation
 
@@ -375,13 +385,13 @@ func moveCameraTargetSystem(
 func moveCameraSystem(
 	vt VirtualTime,
 	camera Single[struct {
-		_         With[Camera]
-		Transform *Transform
-	}],
+	_         With[Camera]
+	Transform *Transform
+}],
 	target Single[struct {
-		_         With[CameraTarget]
-		Transform Transform
-	}],
+	_         With[CameraTarget]
+	Transform Transform
+}],
 ) {
 	posTarget := target.Value.Transform.Translation
 
@@ -516,10 +526,10 @@ func spawnSmokeSystem(
 	commands *Commands,
 	vt VirtualTime,
 	query Query[struct {
-		Transform  Transform
-		SpawnSmoke *SmokeEmitter
-		Velocity   Option[physics.Velocity]
-	}],
+	Transform  Transform
+	SpawnSmoke *SmokeEmitter
+	Velocity   Option[physics.Velocity]
+}],
 ) {
 	for item := range query.Items() {
 		item.SpawnSmoke.Timer.Tick(vt.Delta)

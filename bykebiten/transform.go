@@ -61,6 +61,10 @@ func (Transform) RequireComponents() []spoke.ErasedComponent {
 	}
 }
 
+func (t Transform) Forward() gm.Vec {
+	return t.AsAffine().TransformVec(gm.Vec{X: 1})
+}
+
 type GlobalTransform struct {
 	byke.ComparableComponent[GlobalTransform]
 	Translation gm.Vec

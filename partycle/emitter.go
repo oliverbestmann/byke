@@ -33,26 +33,32 @@ func emitterSystem(
 			continue
 		}
 
-		item.Emitter.spawnAcc += jitterValue(e.ParticlesPerSecond, e.ParticlesPerSecondJitter) * vt.Scale
+		e.spawnAcc += jitterValue(e.ParticlesPerSecond, e.ParticlesPerSecondJitter) * vt.DeltaSecs
 
 		var visuals byke.ErasedComponent = &particleMesh
 
-		for item.Emitter.spawnAcc > 1 {
-			item.Emitter.spawnAcc -= 1
+		for e.spawnAcc > 1 {
+			e.spawnAcc -= 1
 
 			lifetime := jitterValue(e.ParticleLifetime, e.ParticleLifetimeJitter)
 			if lifetime <= 0 {
 				continue
 			}
 
+			affine := item.Transform.AsAffine()
+
+			baseScaleJitter := jitterValue(0, e.ScaleJitter)
+			baseScale := gm.Vec{X: e.Scale.X + baseScaleJitter, Y: e.Scale.Y + baseScaleJitter}
+
 			particle := Particle{
 				Lifetime:            byke.NewTimer(lifetime, byke.TimerModeOnce),
-				LinearVelocity:      jitterVec(e.LinearVelocity, e.LinearVelocityJitter),
-				LinearAcceleration:  jitterVec(e.LinearAcceleration, e.LinearAccelerationJitter),
+				LinearVelocity:      affine.TransformVec(jitterVec(e.LinearVelocity, e.LinearVelocityJitter)),
+				LinearAcceleration:  affine.TransformVec(jitterVec(e.LinearAcceleration, e.LinearAccelerationJitter)),
 				LinearDampening:     jitterValue(e.DampeningLinear, e.DampeningLinearJitter),
 				AngularVelocity:     jitterValue(e.AngularVelocity, e.AngularVelocityJitter),
 				AngularAcceleration: jitterValue(e.AngularAcceleration, e.AngularAccelerationJitter),
 				AngularDampening:    jitterValue(e.DampeningAngular, e.DampeningAngularJitter),
+				BaseScale:           baseScale,
 			}
 
 			if e.ColorCurve.HasValues() {

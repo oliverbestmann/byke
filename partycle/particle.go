@@ -39,7 +39,7 @@ func particleSystem(
 		tr := item.Transform
 		tr.Rotation += p.AngularVelocity * gm.Rad(vt.DeltaSecs)
 		tr.Translation = tr.Translation.Add(p.LinearVelocity.Mul(vt.DeltaSecs))
-		tr.Scale = p.ScaleCurve.ValueAt(p.Lifetime.Fraction())
+		tr.Scale = p.BaseScale.MulEach(p.ScaleCurve.ValueAt(p.Lifetime.Fraction()))
 
 		if color, ok := item.Color.Get(); ok {
 			color.Color = p.ColorCurve.ValueAt(p.Lifetime.Fraction())
