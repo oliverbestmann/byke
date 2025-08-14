@@ -34,12 +34,10 @@ func main() {
 
 	var InputSystems = &SystemSet{}
 	var GameSystems = &SystemSet{}
-	var PhysicsSystems = &SystemSet{}
 
 	app.InsertResource(MakeAssetFS(assets))
 
 	app.ConfigureSystemSets(Update, InputSystems.Before(GameSystems))
-	app.ConfigureSystemSets(Update, GameSystems.Before(PhysicsSystems))
 
 	app.AddPlugin(GamePlugin)
 	app.AddPlugin(physics.Plugin)
@@ -48,12 +46,11 @@ func main() {
 	app.InsertResource(GlobalVolume{Volume: 0.1})
 	app.InsertResource(GlobalSpatialScale{Scale: VecSplat(1 / 500.0)})
 
-	app.InsertResource(Gravity(Vec{Y: -9.81}))
-
 	app.AddSystems(Startup, setupCamera, spawnSpaceShipSystem, spawnTerrainSystem)
+	app.AddSystems(PreUpdate, pauseSystem)
+	app.AddSystems(FixedUpdate, applyGravityToShipSystem)
 	app.AddSystems(Update, System(handleSpaceshipInput).InSet(InputSystems))
 	app.AddSystems(Update, System(spawnSmokeSystem).InSet(GameSystems))
-	app.AddSystems(Update, System(checkGroundCollisionSystem).Chain().InSet(PhysicsSystems))
 	app.AddSystems(PostUpdate, System(moveCameraTargetSystem, moveCameraSystem).Chain())
 
 	app.World().AddObserver(NewObserver(spawnExplosionSystem))
@@ -66,8 +63,6 @@ func main() {
 
 	fmt.Println(app.Run())
 }
-
-type Gravity Vec
 
 var _ = ValidateComponent[SpaceShip]()
 var _ = ValidateComponent[Plume]()
@@ -160,7 +155,10 @@ func spawnSpaceShipSystem(commands *Commands) {
 					Points: shipCorners,
 				},
 			},
+
 			spaceShipShape,
+			physics.Sensor{},
+			physics.CollisionEventsEnabled{},
 
 			Fill{Color: color.Black},
 
@@ -182,6 +180,10 @@ func spawnSpaceShipSystem(commands *Commands) {
 			),
 		).
 		Observe(func(trigger On[TerrainContact], commands *Commands) {
+			commands.Entity(trigger.Target).Despawn()
+			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 50})
+		}).
+		Observe(func(trigger On[physics.OnCollisionStarted], commands *Commands) {
 			commands.Entity(trigger.Target).Despawn()
 			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 50})
 		})
@@ -258,29 +260,14 @@ func spawnTerrainSystem(commands *Commands) {
 	}
 }
 
-func checkGroundCollisionSystem(
-	commands *Commands,
-	terrain Terrain,
-	query Query[struct {
-		EntityId
-		Transform Transform
-		Collider  physics.Collider
-	}],
-) {
-	// TODO
-	//	for item := range query.Items() {
-	//		tr := item.Transform.AsAffine()
-	//
-	//		for _, point := range item.Collider.Points {
-	//			point = tr.Transform(point)
-	//
-	//			above := terrain.IsAboveGround(point)
-	//			if !above {
-	//				commands.Entity(item.EntityId).Trigger(TerrainContact{Position: point})
-	//				break
-	//			}
-	//		}
-	//	}
+func pauseSystem(vt *VirtualTime, keys Keys) {
+	if keys.IsJustPressed(ebiten.KeyP) {
+		if vt.Scale == 0 {
+			vt.Scale = 1
+		} else {
+			vt.Scale = 0
+		}
+	}
 }
 
 func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
@@ -334,18 +321,23 @@ func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 		commands.Entity(s.EntityId).Update(RemoveComponent[partycle.Emitter]())
 	}
 
-	// Maybe limit maximum velocity?
-	// if l := s.Velocity.Linear.Length(); l > 300 {
-	// 	s.Velocity.Linear = s.Velocity.Linear.Mul(300 / l)
-	// }
-
 	if keys.IsJustPressed(ebiten.KeySpace) {
 		velocity := RotationMat(s.Transform.Rotation).Transform(Vec{X: 500})
 
 		commands.Queue(FireMissile(
-			s.Transform.Translation.Add(velocity.Normalized().Mul(20)),
+			s.Transform.Translation.Add(velocity.Normalized().Mul(25)),
 			s.Velocity.Linear.Add(velocity),
 		))
+	}
+}
+
+func applyGravityToShipSystem(
+	vt VirtualTime,
+	gravity physics.Gravity,
+	velocities Query[*physics.Velocity],
+) {
+	for vel := range velocities.Items() {
+		vel.Linear = vel.Linear.Add(gravity.Value.Mul(vt.DeltaSecs))
 	}
 }
 
@@ -494,17 +486,22 @@ func fireMissileSystem(commands *Commands, assets *Assets, param In[FireMissileI
 				Shape: physics.SegmentShape{
 					A:      Vec{X: -5},
 					B:      Vec{X: 5},
-					Radius: 1,
+					Radius: 3,
 				},
 			},
 			physics.RigidBodyDynamic,
 			physics.Velocity{Linear: p.Velocity},
+			physics.CollisionEventsEnabled{},
 			missile,
 			Stroke{Width: 2, Color: color.White, Antialias: true},
 			DespawnAfter(10*time.Second),
 			SmokeEmitter{Offset: Vec{X: -5}, Velocity: Vec{X: -1}.Mul(p.Velocity.Length() * 0.8), Timer: NewTimerWithFrequency(100.0)},
 		).
 		Observe(func(trigger On[TerrainContact], commands *Commands) {
+			commands.Entity(trigger.Target).Despawn()
+			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 20})
+		}).
+		Observe(func(trigger On[physics.OnCollisionStarted], commands *Commands) {
 			commands.Entity(trigger.Target).Despawn()
 			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 20})
 		})

@@ -66,14 +66,33 @@ func (d debugImage) DrawSegment(a, b cp.Vector, fill cp.FColor, data interface{}
 }
 
 func (d debugImage) DrawFatSegment(a, b cp.Vector, radius float64, outline, fill cp.FColor, data interface{}) {
+	if radius < 0.01 {
+		d.DrawSegment(a, b, outline, data)
+		return
+	}
+
+	r := gm.Vec(a).Sub(gm.Vec(b)).Normalized().Rotated(gm.DegToRad(90)).Mul(radius)
+	r = d.Transform.TransformVec(r)
+
+	radius = r.Length()
+
 	ta := d.Transform.Transform(gm.Vec(a))
 	tb := d.Transform.Transform(gm.Vec(b))
 
-	// TODO make it fat
+	c0 := ta.Sub(r)
+	c1 := tb.Sub(r)
+	c2 := tb.Add(r)
+	c3 := ta.Add(r)
+
 	var p vector.Path
-	p.LineTo(float32(ta.X), float32(ta.Y))
-	p.LineTo(float32(tb.X), float32(tb.Y))
-	d.draw(p, fill, cp.FColor{})
+	p.MoveTo(float32(c0.X), float32(c0.Y))
+	p.LineTo(float32(c1.X), float32(c1.Y))
+	p.Arc(float32(tb.X), float32(tb.Y), float32(radius), float32(r.Angle()), float32(r.Angle()+math.Pi), vector.Clockwise)
+	p.LineTo(float32(c2.X), float32(c2.Y))
+	p.LineTo(float32(c3.X), float32(c3.Y))
+	p.Arc(float32(ta.X), float32(ta.Y), float32(radius), float32(r.Angle()), float32(r.Angle()+math.Pi), vector.CounterClockwise)
+
+	d.draw(p, outline, fill)
 }
 
 func (d debugImage) DrawPolygon(count int, verts []cp.Vector, radius float64, outline, fill cp.FColor, data interface{}) {
@@ -92,11 +111,11 @@ func (d debugImage) Flags() uint {
 }
 
 func (d debugImage) OutlineColor() cp.FColor {
-	return cp.FColor{R: 1, G: 1, B: 1, A: 1}
+	return cp.FColor{G: 1, A: 1}
 }
 
 func (d debugImage) ShapeColor(shape *cp.Shape, data interface{}) cp.FColor {
-	return cp.FColor{G: 1, A: 1}
+	return cp.FColor{G: 1, A: 0.5}
 }
 
 func (d debugImage) ConstraintColor() cp.FColor {

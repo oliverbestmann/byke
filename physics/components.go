@@ -1,6 +1,8 @@
 package physics
 
 import (
+	"math"
+
 	"github.com/jakecoffman/cp/v2"
 	"github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/gm"
@@ -42,6 +44,10 @@ func (Collider) RequireComponents() []spoke.ErasedComponent {
 		ColliderDensity{Value: 1},
 		ColliderElasticity{Value: 0},
 		ColliderFriction{Value: 0.5},
+		ShapeFilter{
+			Mask:       math.MaxUint,
+			Categories: 1,
+		},
 	}
 }
 
@@ -60,8 +66,26 @@ type ColliderFriction struct {
 	Value float64
 }
 
+type ShapeFilter struct {
+	byke.ComparableComponent[ShapeFilter]
+
+	// Two objects with the same non-zero group value do not collide.
+	// This is generally used to group objects in a composite object together to disable self collisions.
+	Group uint
+	// A bitmask of user definable categories that this object belongs to.
+	// The category/mask combinations of both objects in a collision must agree for a collision to occur.
+	Categories uint
+	// A bitmask of user definable category types that this object object collides with.
+	// The category/mask combinations of both objects in a collision must agree for a collision to occur.
+	Mask uint
+}
+
 type Sensor struct {
 	byke.ImmutableComponent[Sensor]
+}
+
+type CollisionEventsEnabled struct {
+	byke.ImmutableComponent[CollisionEventsEnabled]
 }
 
 type Body struct {
