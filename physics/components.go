@@ -3,7 +3,7 @@ package physics
 import (
 	"math"
 
-	"github.com/jakecoffman/cp/v2"
+	b2 "github.com/oliverbestmann/box2d-go"
 	"github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/gm"
 	"github.com/oliverbestmann/byke/spoke"
@@ -17,12 +17,9 @@ type Velocity struct {
 
 type Mass struct {
 	byke.ComparableComponent[Mass]
-	Value float64
-}
-
-type Moment struct {
-	byke.ComparableComponent[Moment]
-	Value float64
+	Mass              float64
+	RotationalInertia float64
+	Center            Vec
 }
 
 type ExternalForces struct {
@@ -36,7 +33,7 @@ type Collider struct {
 	Shape ToShape
 
 	// the actual collider cp.Shape
-	shape *cp.Shape
+	shape b2.Shape
 }
 
 func (Collider) RequireComponents() []spoke.ErasedComponent {
@@ -71,13 +68,13 @@ type ShapeFilter struct {
 
 	// Two objects with the same non-zero group value do not collide.
 	// This is generally used to group objects in a composite object together to disable self collisions.
-	Group uint
+	Group int32
 	// A bitmask of user definable categories that this object belongs to.
 	// The category/mask combinations of both objects in a collision must agree for a collision to occur.
-	Categories uint
+	Categories uint64
 	// A bitmask of user definable category types that this object object collides with.
 	// The category/mask combinations of both objects in a collision must agree for a collision to occur.
-	Mask uint
+	Mask uint64
 }
 
 type Sensor struct {
@@ -92,7 +89,7 @@ type Body struct {
 	byke.Component[Body]
 	dynamic, static, kinematic bool
 
-	body *cp.Body
+	body b2.Body
 }
 
 func (Body) RequireComponents() []spoke.ErasedComponent {

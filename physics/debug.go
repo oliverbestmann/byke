@@ -12,7 +12,7 @@ import (
 )
 
 func debugSystem(
-	space cpSpace,
+	space b2World,
 	renderTarget bykebiten.DefaultRenderTarget,
 	screenSize bykebiten.ScreenSize,
 	cameraQuery byke.Query[struct {
@@ -20,11 +20,9 @@ func debugSystem(
 		Transform  bykebiten.GlobalTransform
 	}],
 ) {
-	item, _ := cameraQuery.Single()
-
-	tr := bykebiten.CalculateWorldToScreenTransform(item.Projection, item.Transform, screenSize.Vec)
-
-	cp.DrawSpace(space.Space, debugImage{Image: renderTarget.Image, Transform: tr})
+	// item, _ := cameraQuery.Single()
+	// tr := bykebiten.CalculateWorldToScreenTransform(item.Projection, item.Transform, screenSize.Vec)
+	// cp.DrawSpace(space.Space, debugImage{Image: renderTarget.Image, Transform: tr})
 }
 
 type debugImage struct {

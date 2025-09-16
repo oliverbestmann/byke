@@ -272,17 +272,17 @@ func pauseSystem(vt *VirtualTime, keys Keys) {
 
 func handleSpaceshipInput(commands *Commands, keys Keys, vt VirtualTime,
 	ship Single[struct {
-	_ With[SpaceShip]
-	EntityId
-	Transform *Transform
-	Velocity  *physics.Velocity
-	Emitter   OptionMut[partycle.Emitter]
-}],
+		_ With[SpaceShip]
+		EntityId
+		Transform *Transform
+		Velocity  *physics.Velocity
+		Emitter   OptionMut[partycle.Emitter]
+	}],
 	plume Single[struct {
-	_          With[Plume]
-	Fill       *Fill
-	Visibility *Visibility
-}],
+		_          With[Plume]
+		Fill       *Fill
+		Visibility *Visibility
+	}],
 ) {
 	s := &ship.Value
 	p := &plume.Value
@@ -354,14 +354,14 @@ func applyGravityToShipSystem(
 func moveCameraTargetSystem(
 	vt VirtualTime,
 	cameraTarget Single[struct {
-	_         With[CameraTarget]
-	Transform *Transform
-}],
+		_         With[CameraTarget]
+		Transform *Transform
+	}],
 	ship Single[struct {
-	_         With[SpaceShip]
-	Transform Transform
-	Velocity  physics.Velocity
-}],
+		_         With[SpaceShip]
+		Transform Transform
+		Velocity  physics.Velocity
+	}],
 ) {
 	posShip := ship.Value.Transform.Translation
 
@@ -385,13 +385,13 @@ func moveCameraTargetSystem(
 func moveCameraSystem(
 	vt VirtualTime,
 	camera Single[struct {
-	_         With[Camera]
-	Transform *Transform
-}],
+		_         With[Camera]
+		Transform *Transform
+	}],
 	target Single[struct {
-	_         With[CameraTarget]
-	Transform Transform
-}],
+		_         With[CameraTarget]
+		Transform Transform
+	}],
 ) {
 	posTarget := target.Value.Transform.Translation
 
@@ -526,10 +526,10 @@ func spawnSmokeSystem(
 	commands *Commands,
 	vt VirtualTime,
 	query Query[struct {
-	Transform  Transform
-	SpawnSmoke *SmokeEmitter
-	Velocity   Option[physics.Velocity]
-}],
+		Transform  Transform
+		SpawnSmoke *SmokeEmitter
+		Velocity   Option[physics.Velocity]
+	}],
 ) {
 	for item := range query.Items() {
 		item.SpawnSmoke.Timer.Tick(vt.Delta)

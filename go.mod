@@ -5,6 +5,7 @@ go 1.24
 require (
 	github.com/hajimehoshi/ebiten/v2 v2.9.0-alpha.14.0.20250814083937-e05aadc6ab64
 	github.com/jakecoffman/cp/v2 v2.1.0
+	github.com/oliverbestmann/box2d-go v0.1.1
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.10.0
 )
