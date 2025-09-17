@@ -7,7 +7,6 @@ import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/gm"
-	"github.com/oliverbestmann/byke/internal/query"
 )
 
 type Gravity struct {
@@ -49,8 +48,10 @@ func Plugin(app *byke.App) {
 		Bodies: map[byke.EntityId]b2.Body{},
 	})
 
-	app.AddEvent(byke.EventType[CollisionStarted]())
-	app.AddEvent(byke.EventType[CollisionEnded]())
+	app.AddEvent(byke.EventType[ContactStarted]())
+	app.AddEvent(byke.EventType[ContactEnded]())
+	app.AddEvent(byke.EventType[SensorStarted]())
+	app.AddEvent(byke.EventType[SensorEnded]())
 
 	app.AddSystems(byke.FixedUpdate, byke.System(
 		makeBodySystem,
@@ -58,141 +59,24 @@ func Plugin(app *byke.App) {
 		updateSpaceSystem,
 		postStepRemoveSystem,
 		postStepSyncSystem,
+		emitCollisionEventsSystem,
+		emitSensorEventsSystem,
 	).Chain())
 
 	app.AddSystems(byke.PostRender, debugSystem)
-
-	/*
-		handler := world.NewWildcardCollisionHandler(0)
-
-		handler.BeginFunc = func(arb *cp.Arbiter, space *cp.Space, userData interface{}) bool {
-			a, b := arb.Bodies()
-
-			entityA := a.UserData.(byke.EntityId)
-			entityB := b.UserData.(byke.EntityId)
-			if entityB >= entityA {
-				return true
-			}
-
-			contactSet := arb.ContactPointSet()
-
-			app.World().RunSystemWithInValue(handleCollisionStarted, CollisionStarted{
-				A: entityA,
-				B: entityB,
-				// Arbiter:  arb,
-				Normal:   gm.Vec(contactSet.Normal),
-				Position: gm.Vec(contactSet.Points[0].PointA),
-			})
-
-			return true
-		}
-
-		handler.SeparateFunc = func(arb *cp.Arbiter, space *cp.Space, userData interface{}) {
-			a, b := arb.Bodies()
-
-			entityA := a.UserData.(byke.EntityId)
-			entityB := b.UserData.(byke.EntityId)
-			if entityB >= entityA {
-				return
-			}
-
-			contactSet := arb.ContactPointSet()
-
-			app.World().RunSystemWithInValue(handleCollisionEnded, CollisionEnded{
-				A: entityA,
-				B: entityB,
-				// Arbiter:  arb,
-				Normal:   gm.Vec(contactSet.Normal),
-				Position: gm.Vec(contactSet.Points[0].PointA),
-			})
-
-			return
-		}
-	*/
-}
-
-func handleCollisionStarted(
-	commands *byke.Commands,
-	params byke.In[CollisionStarted],
-	events *byke.EventWriter[CollisionStarted],
-	hasMarkerQuery byke.Query[query.With[CollisionEventsEnabled]],
-) {
-	ev := params.Value
-
-	_, ok1 := hasMarkerQuery.Get(ev.A)
-	_, ok2 := hasMarkerQuery.Get(ev.B)
-
-	if !ok1 && !ok2 {
-		return
-	}
-
-	events.Write(ev)
-
-	if ok1 {
-		commands.Entity(ev.A).Trigger(OnCollisionStarted{
-			Other: ev.B,
-			// Arbiter:  ev.Arbiter,
-			Normal:   ev.Normal,
-			Position: ev.Position,
-		})
-	}
-
-	if ok2 {
-		commands.Entity(ev.B).Trigger(OnCollisionStarted{
-			Other: ev.A,
-			// Arbiter:  ev.Arbiter,
-			Normal:   ev.Normal,
-			Position: ev.Position,
-		})
-	}
-}
-
-func handleCollisionEnded(
-	commands *byke.Commands,
-	params byke.In[CollisionEnded],
-	events *byke.EventWriter[CollisionEnded],
-	hasMarkerQuery byke.Query[query.With[CollisionEventsEnabled]],
-) {
-	ev := params.Value
-
-	_, ok1 := hasMarkerQuery.Get(ev.A)
-	_, ok2 := hasMarkerQuery.Get(ev.B)
-
-	if !ok1 && !ok2 {
-		return
-	}
-
-	events.Write(ev)
-
-	if ok1 {
-		commands.Entity(ev.A).Trigger(OnCollisionEnded{
-			Other: ev.B,
-			// Arbiter:  ev.Arbiter,
-			Normal:   ev.Normal,
-			Position: ev.Position,
-		})
-	}
-
-	if ok2 {
-		commands.Entity(ev.B).Trigger(OnCollisionEnded{
-			Other: ev.A,
-			// Arbiter:  ev.Arbiter,
-			Normal:   ev.Normal,
-			Position: ev.Position,
-		})
-	}
 }
 
 func makeBodySystem(
 	world b2World,
 	index *entityIndex,
 	bodiesQuery byke.Query[struct {
-		_ byke.Added[Body]
+	_ byke.Added[Body]
 
-		byke.EntityId
-		Body     *Body
-		Collider *Collider
-	}],
+	byke.EntityId
+	Body     *Body
+	Collider *Collider
+	IsSensor byke.Has[Sensor]
+}],
 ) {
 	for item := range bodiesQuery.Items() {
 		var userData uintptr = uintptr(item.EntityId)
@@ -214,17 +98,22 @@ func makeBodySystem(
 
 		shapeDef := b2.DefaultShapeDef()
 		shapeDef.UserData = userData
+		shapeDef.IsSensor = b2bool(item.IsSensor.Exists())
 		shape := item.Collider.Shape.MakeShape(body, shapeDef)
 
 		item.Body.body = body
 		item.Collider.shape = shape
 
-		if body, ok := index.Bodies[item.EntityId]; ok {
-			body.DestroyBody()
+		if shape, ok := index.Shapes[item.EntityId]; ok {
+			if shape.IsValid() != 0 {
+				shape.DestroyShape(1)
+			}
 		}
 
-		if shape, ok := index.Shapes[item.EntityId]; ok {
-			shape.DestroyShape(1)
+		if body, ok := index.Bodies[item.EntityId]; ok {
+			if body.IsValid() != 0 {
+				body.DestroyBody()
+			}
 		}
 
 		// keep a reverse mapping so we can cleanup on entity despawn
@@ -250,23 +139,28 @@ func preStepSyncResourcesSystem(
 
 func preStepSyncShapesSystem(
 	shapesQuery byke.Query[struct {
-		_ byke.OrStruct[struct {
-			_ byke.Changed[ColliderFriction]
-			_ byke.Changed[ColliderElasticity]
-			_ byke.Changed[ColliderDensity]
-			_ byke.Changed[ShapeFilter]
-			_ byke.Added[Sensor]
-		}]
+	_ byke.OrStruct[struct {
+		_ byke.Changed[ColliderFriction]
+		_ byke.Changed[ColliderElasticity]
+		_ byke.Changed[ColliderDensity]
+		_ byke.Changed[ShapeFilter]
+		_ byke.Added[ContactEventsEnabled]
+		_ byke.Added[SensorEventsEnabled]
+	}]
 
-		Collider           *Collider
-		ColliderFriction   ColliderFriction
-		ColliderElasticity ColliderElasticity
-		ColliderDensity    ColliderDensity
-		ShapeFilter        ShapeFilter
-		IsSensor           byke.Has[Sensor]
-	}],
+	Collider           *Collider
+	ColliderFriction   ColliderFriction
+	ColliderElasticity ColliderElasticity
+	ColliderDensity    ColliderDensity
+	ShapeFilter        ShapeFilter
 
-	removedSensors byke.RemovedComponents[Sensor],
+	IsSensor             byke.Has[Sensor]
+	ContactEventsEnabled byke.Has[ContactEventsEnabled]
+	SensorEventsEnabled  byke.Has[SensorEventsEnabled]
+}],
+
+	removedContactEventsEnabled byke.RemovedComponents[ContactEventsEnabled],
+	removedSensorEventsEnabled byke.RemovedComponents[SensorEventsEnabled],
 ) {
 	for item := range shapesQuery.Items() {
 		shape := item.Collider.shape
@@ -283,10 +177,17 @@ func preStepSyncShapesSystem(
 			shape.SetFriction(float32(item.ColliderFriction.Value))
 		}
 
-		// TODO
-		// if (shape.IsSensor() != 0) != item.IsSensor.Exists() {
-		// 	shape.IsSensor(item.IsSensor.Exists())
-		// }
+		if (shape.IsSensor() != 0) != item.IsSensor.Exists() {
+			// TODO recreate shape as (non) sensor
+		}
+
+		if (shape.AreContactEventsEnabled() != 0) != item.ContactEventsEnabled.Exists() {
+			shape.EnableContactEvents(b2bool(item.ContactEventsEnabled.Exists()))
+		}
+
+		if (shape.AreSensorEventsEnabled() != 0) != item.SensorEventsEnabled.Exists() {
+			shape.EnableSensorEvents(b2bool(item.SensorEventsEnabled.Exists()))
+		}
 
 		var filter b2.Filter
 		filter.GroupIndex = item.ShapeFilter.Group
@@ -298,25 +199,34 @@ func preStepSyncShapesSystem(
 		}
 	}
 
-	for entityId := range removedSensors.Read() {
-		_, ok := shapesQuery.Get(entityId)
-		if !ok {
+	for entityId := range removedSensorEventsEnabled.Read() {
+		shape, ok := shapesQuery.Get(entityId)
+		if !ok || shape.Collider.shape.IsSensor() == 0 {
 			continue
 		}
 
-		// TODO
-		//shape.Collider.shape.SetSensor(false)
+		// TODO recreate shape as non-sensor
+		shape.Collider.shape.EnableSensorEvents(0)
+	}
+
+	for entityId := range removedContactEventsEnabled.Read() {
+		shape, ok := shapesQuery.Get(entityId)
+		if !ok || shape.Collider.shape.AreContactEventsEnabled() == 0 {
+			continue
+		}
+
+		shape.Collider.shape.EnableContactEvents(0)
 	}
 }
 
 func preStepSyncBodiesSystem(
 	bodiesQuery byke.Query[struct {
-		Body      *Body
-		Velocity  Velocity
-		Transform bykebiten.GlobalTransform
-		Mass      byke.Option[Mass]
-		Forces    ExternalForces
-	}],
+	Body      *Body
+	Velocity  Velocity
+	Transform bykebiten.GlobalTransform
+	Mass      byke.Option[Mass]
+	Forces    ExternalForces
+}],
 ) {
 	for item := range bodiesQuery.Items() {
 		body := item.Body.body
@@ -369,10 +279,10 @@ func updateSpaceSystem(t byke.FixedTime, world b2World, steps Stepping) {
 func postStepSyncSystem(
 	world b2World,
 	bodiesQuery byke.Query[struct {
-		Body      *Body
-		Velocity  *Velocity
-		Transform *bykebiten.Transform
-	}],
+	Body      *Body
+	Velocity  *Velocity
+	Transform *bykebiten.Transform
+}],
 ) {
 	events := world.GetBodyEvents()
 	for _, event := range events.MoveEvents {
@@ -392,6 +302,185 @@ func postStepSyncSystem(
 	}
 }
 
+func emitCollisionEventsSystem(
+	commands *byke.Commands,
+	world b2World,
+	writerStarted *byke.EventWriter[ContactStarted],
+	writerEnded *byke.EventWriter[ContactEnded],
+	hasMarkerQuery byke.Query[byke.With[ContactEventsEnabled]],
+) {
+	events := world.GetContactEvents()
+
+	for _, event := range events.BeginEvents {
+		shapeA := b2.Shape{Id: event.ShapeIdA}
+		shapeB := b2.Shape{Id: event.ShapeIdB}
+		if shapeA.IsValid() == 0 || shapeB.IsValid() == 0 {
+			continue
+		}
+
+		idA := byke.EntityId(shapeA.GetUserData())
+		idB := byke.EntityId(shapeB.GetUserData())
+
+		_, ok1 := hasMarkerQuery.Get(idA)
+		_, ok2 := hasMarkerQuery.Get(idB)
+
+		if !ok1 && !ok2 {
+			continue
+		}
+
+		ev := ContactStarted{
+			A:        idA,
+			B:        idB,
+			Position: toVec(event.Manifold.Points[0].Point),
+			Normal:   toVec(event.Manifold.Normal),
+		}
+
+		writerStarted.Write(ev)
+
+		if ok1 {
+			commands.Entity(ev.A).Trigger(OnContactStarted{
+				Other:    ev.B,
+				Normal:   ev.Normal,
+				Position: ev.Position,
+			})
+		}
+
+		if ok2 {
+			commands.Entity(ev.B).Trigger(OnContactStarted{
+				Other:    ev.A,
+				Normal:   ev.Normal,
+				Position: ev.Position,
+			})
+		}
+	}
+
+	for _, event := range events.EndEvents {
+		shapeA := b2.Shape{Id: event.ShapeIdA}
+		shapeB := b2.Shape{Id: event.ShapeIdB}
+		if shapeA.IsValid() == 0 || shapeB.IsValid() == 0 {
+			continue
+		}
+
+		idA := byke.EntityId(shapeA.GetUserData())
+		idB := byke.EntityId(shapeB.GetUserData())
+
+		_, ok1 := hasMarkerQuery.Get(idA)
+		_, ok2 := hasMarkerQuery.Get(idB)
+
+		if !ok1 && !ok2 {
+			continue
+		}
+
+		ev := ContactEnded{
+			A: idA,
+			B: idB,
+		}
+
+		writerEnded.Write(ev)
+
+		if ok1 {
+			commands.Entity(ev.A).Trigger(OnContactEnded{
+				Other: ev.B,
+			})
+		}
+
+		if ok2 {
+			commands.Entity(ev.B).Trigger(OnContactEnded{
+				Other: ev.A,
+			})
+		}
+	}
+}
+
+func emitSensorEventsSystem(
+	commands *byke.Commands,
+	world b2World,
+	writerStarted *byke.EventWriter[SensorStarted],
+	writerEnded *byke.EventWriter[SensorEnded],
+	hasMarkerQuery byke.Query[byke.With[SensorEventsEnabled]],
+) {
+	events := world.GetSensorEvents()
+
+	for _, event := range events.BeginEvents {
+		shapeA := b2.Shape{Id: event.SensorShapeId}
+		shapeB := b2.Shape{Id: event.VisitorShapeId}
+		if shapeA.IsValid() == 0 || shapeB.IsValid() == 0 {
+			continue
+		}
+
+		idA := byke.EntityId(shapeA.GetUserData())
+		idB := byke.EntityId(shapeB.GetUserData())
+
+		_, ok1 := hasMarkerQuery.Get(idA)
+		_, ok2 := hasMarkerQuery.Get(idB)
+
+		if !ok1 && !ok2 {
+			continue
+		}
+
+		bBBox := shapeB.GetAABB()
+		bCenter := toVec(bBBox.LowerBound).Add(toVec(bBBox.UpperBound)).Mul(0.5)
+		ev := SensorStarted{
+			A:        idA,
+			B:        idB,
+			Position: toVec(shapeA.GetClosestPoint(b2VecOf(bCenter))),
+		}
+
+		writerStarted.Write(ev)
+
+		if ok1 {
+			commands.Entity(ev.A).Trigger(OnSensorStarted{
+				Other:    ev.B,
+				Position: ev.Position,
+			})
+		}
+
+		if ok2 {
+			commands.Entity(ev.B).Trigger(OnSensorStarted{
+				Other:    ev.A,
+				Position: ev.Position,
+			})
+		}
+	}
+
+	for _, event := range events.EndEvents {
+		shapeA := b2.Shape{Id: event.SensorShapeId}
+		shapeB := b2.Shape{Id: event.VisitorShapeId}
+		if shapeA.IsValid() == 0 || shapeB.IsValid() == 0 {
+			continue
+		}
+
+		idA := byke.EntityId(shapeA.GetUserData())
+		idB := byke.EntityId(shapeB.GetUserData())
+
+		_, ok1 := hasMarkerQuery.Get(idA)
+		_, ok2 := hasMarkerQuery.Get(idB)
+
+		if !ok1 && !ok2 {
+			continue
+		}
+
+		ev := SensorEnded{
+			A: idA,
+			B: idB,
+		}
+
+		writerEnded.Write(ev)
+
+		if ok1 {
+			commands.Entity(ev.A).Trigger(OnSensorEnded{
+				Other: ev.B,
+			})
+		}
+
+		if ok2 {
+			commands.Entity(ev.B).Trigger(OnSensorEnded{
+				Other: ev.A,
+			})
+		}
+	}
+}
+
 type entityIndex struct {
 	Shapes map[byke.EntityId]b2.Shape
 	Bodies map[byke.EntityId]b2.Body
@@ -402,6 +491,16 @@ func postStepRemoveSystem(
 	removedBodies byke.RemovedComponents[Body],
 	removedColliders byke.RemovedComponents[Collider],
 ) {
+	for entityId := range removedColliders.Read() {
+		shape, ok := index.Shapes[entityId]
+		if !ok {
+			continue
+		}
+
+		delete(index.Shapes, entityId)
+		shape.DestroyShape(1)
+	}
+
 	for entityId := range removedBodies.Read() {
 		body, ok := index.Bodies[entityId]
 		if !ok {
@@ -411,16 +510,6 @@ func postStepRemoveSystem(
 		delete(index.Bodies, entityId)
 
 		body.DestroyBody()
-	}
-
-	for entityId := range removedColliders.Read() {
-		shape, ok := index.Shapes[entityId]
-		if !ok {
-			continue
-		}
-
-		delete(index.Shapes, entityId)
-		shape.DestroyShape(1)
 	}
 }
 
@@ -434,5 +523,13 @@ func toVec(v b2.Vec2) gm.Vec {
 	return gm.Vec{
 		X: float64(v.X),
 		Y: float64(v.Y),
+	}
+}
+
+func b2bool(v bool) uint8 {
+	if v {
+		return 1
+	} else {
+		return 0
 	}
 }

@@ -5,34 +5,41 @@ import (
 	"github.com/oliverbestmann/byke/gm"
 )
 
-type CollisionStarted struct {
+type ContactStarted struct {
+	A, B     byke.EntityId
+	Position gm.Vec
+	Normal   gm.Vec
+}
+
+type ContactEnded struct {
 	A, B byke.EntityId
-	// Arbiter *cp.Arbiter
+}
 
+type OnContactStarted struct {
+	Other    byke.EntityId
 	Position gm.Vec
 	Normal   gm.Vec
 }
 
-type CollisionEnded struct {
+type OnContactEnded struct {
+	Other byke.EntityId
+}
+
+type SensorStarted struct {
+	A, B     byke.EntityId
+	Position gm.Vec
+}
+
+type SensorEnded struct {
 	A, B byke.EntityId
-	// Arbiter *cp.Arbiter
-
-	Position gm.Vec
-	Normal   gm.Vec
 }
 
-type OnCollisionStarted struct {
-	Other byke.EntityId
-	// Arbiter *cp.Arbiter
-
+type OnSensorStarted struct {
+	Other    byke.EntityId
 	Position gm.Vec
-	Normal   gm.Vec
 }
 
-type OnCollisionEnded struct {
-	Other byke.EntityId
-	// Arbiter *cp.Arbiter
-
+type OnSensorEnded struct {
+	Other    byke.EntityId
 	Position gm.Vec
-	Normal   gm.Vec
 }

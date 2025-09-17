@@ -4,15 +4,16 @@ import (
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/jakecoffman/cp/v2"
+	b2 "github.com/oliverbestmann/box2d-go"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/bykebiten"
 	"github.com/oliverbestmann/byke/gm"
 )
 
 func debugSystem(
-	space b2World,
+	world b2World,
 	renderTarget bykebiten.DefaultRenderTarget,
 	screenSize bykebiten.ScreenSize,
 	cameraQuery byke.Query[struct {
@@ -20,110 +21,142 @@ func debugSystem(
 		Transform  bykebiten.GlobalTransform
 	}],
 ) {
-	// item, _ := cameraQuery.Single()
-	// tr := bykebiten.CalculateWorldToScreenTransform(item.Projection, item.Transform, screenSize.Vec)
-	// cp.DrawSpace(space.Space, debugImage{Image: renderTarget.Image, Transform: tr})
-}
+	screen := renderTarget.Image
 
-type debugImage struct {
-	Image     *ebiten.Image
-	Transform gm.Affine
-}
+	item, _ := cameraQuery.Single()
+	toScreen := bykebiten.CalculateWorldToScreenTransform(item.Projection, item.Transform, screenSize.Vec)
 
-func (d debugImage) draw(p vector.Path, outline cp.FColor, fill cp.FColor) {
-	dpo := &vector.DrawPathOptions{}
-	dpo.ColorScale.Scale(fill.R*fill.A, fill.G*fill.A, fill.B*fill.A, fill.A)
-	vector.FillPath(d.Image, &p, &vector.FillOptions{}, dpo)
+	var draw b2.DebugDraw
 
-	*dpo = vector.DrawPathOptions{}
-	dpo.ColorScale.Scale(outline.R*outline.A, outline.G*outline.A, outline.B*outline.A, outline.A)
-	vector.StrokePath(d.Image, &p, &vector.StrokeOptions{Width: 1}, dpo)
+	draw.DrawJoints = true
+	draw.DrawShapes = true
+	draw.DrawJointExtras = false
+	draw.DrawBounds = true
+	draw.DrawMass = false
+	draw.DrawBodyNames = false
+	draw.DrawGraphColors = false
+	draw.DrawContacts = false
+	draw.DrawContactNormals = true
+	draw.DrawContactImpulses = true
+	draw.DrawContactFeatures = false
+	draw.DrawFrictionImpulses = false
+	draw.DrawIslands = false
 
-}
+	draw.DrawSegment = func(p1 b2.Vec2, p2 b2.Vec2, color b2.HexColor) {
+		x1, y1 := toScreen.Transform(gm.VecOf(float64(p1.X), float64(p1.Y))).XY()
+		x2, y2 := toScreen.Transform(gm.VecOf(float64(p2.X), float64(p2.Y))).XY()
 
-func (d debugImage) DrawCircle(pos cp.Vector, angle, radius float64, outline, fill cp.FColor, data interface{}) {
-	tpos := d.Transform.Transform(gm.Vec(pos))
-	radius = d.Transform.TransformVec(gm.Vec{X: radius}).Length()
+		var p vector.Path
+		p.MoveTo(float32(x1), float32(y1))
+		p.LineTo(float32(x2), float32(y2))
 
-	var p vector.Path
-	p.Arc(float32(tpos.X), float32(tpos.Y), float32(radius), 0, math.Pi*2, vector.Clockwise)
-	p.MoveTo(float32(tpos.X), float32(tpos.Y))
-	p.LineTo(float32(math.Cos(angle)*10), float32(-math.Sin(angle)*10))
-
-	d.draw(p, outline, fill)
-}
-
-func (d debugImage) DrawSegment(a, b cp.Vector, fill cp.FColor, data interface{}) {
-	ta := d.Transform.Transform(gm.Vec(a))
-	tb := d.Transform.Transform(gm.Vec(b))
-
-	var p vector.Path
-	p.LineTo(float32(ta.X), float32(ta.Y))
-	p.LineTo(float32(tb.X), float32(tb.Y))
-	d.draw(p, fill, cp.FColor{})
-}
-
-func (d debugImage) DrawFatSegment(a, b cp.Vector, radius float64, outline, fill cp.FColor, data interface{}) {
-	if radius < 0.01 {
-		d.DrawSegment(a, b, outline, data)
-		return
+		dop := vector.DrawPathOptions{ColorScale: toColorScale(color)}
+		vector.StrokePath(screen, &p, &vector.StrokeOptions{Width: 1}, &dop)
 	}
 
-	r := gm.Vec(a).Sub(gm.Vec(b)).Normalized().Rotated(gm.DegToRad(90)).Mul(radius)
-	r = d.Transform.TransformVec(r)
+	draw.DrawPolygon = func(vertices []b2.Vec2, color b2.HexColor) {
+		var p vector.Path
 
-	radius = r.Length()
+		for _, v := range vertices {
+			x, y := toScreen.Transform(gm.VecOf(float64(v.X), float64(v.Y))).XY()
+			p.LineTo(float32(x), float32(y))
+		}
+		p.Close()
 
-	ta := d.Transform.Transform(gm.Vec(a))
-	tb := d.Transform.Transform(gm.Vec(b))
-
-	c0 := ta.Sub(r)
-	c1 := tb.Sub(r)
-	c2 := tb.Add(r)
-	c3 := ta.Add(r)
-
-	var p vector.Path
-	p.MoveTo(float32(c0.X), float32(c0.Y))
-	p.LineTo(float32(c1.X), float32(c1.Y))
-	p.Arc(float32(tb.X), float32(tb.Y), float32(radius), float32(r.Angle()), float32(r.Angle()+math.Pi), vector.Clockwise)
-	p.LineTo(float32(c2.X), float32(c2.Y))
-	p.LineTo(float32(c3.X), float32(c3.Y))
-	p.Arc(float32(ta.X), float32(ta.Y), float32(radius), float32(r.Angle()), float32(r.Angle()+math.Pi), vector.CounterClockwise)
-
-	d.draw(p, outline, fill)
-}
-
-func (d debugImage) DrawPolygon(count int, verts []cp.Vector, radius float64, outline, fill cp.FColor, data interface{}) {
-	for idx := range count - 1 {
-		a, b := verts[idx], verts[idx+1]
-		d.DrawFatSegment(a, b, radius, outline, fill, data)
+		dop := vector.DrawPathOptions{ColorScale: toColorScale(color)}
+		vector.StrokePath(screen, &p, &vector.StrokeOptions{Width: 1}, &dop)
 	}
+
+	draw.DrawSolidPolygon = func(tr b2.Transform, vertices []b2.Vec2, radius float32, color b2.HexColor) {
+		g := gm.IdentityAffine()
+		g = g.Translate(gm.VecOf(float64(tr.P.X), float64(tr.P.Y)))
+		g = g.Rotate(gm.Rad(tr.Q.Angle()))
+		g = toScreen.Mul(g)
+
+		var p vector.Path
+
+		for _, v := range vertices {
+			x, y := g.Transform(gm.VecOf(float64(v.X), float64(v.Y))).XY()
+			p.LineTo(float32(x), float32(y))
+		}
+
+		p.Close()
+
+		dop := vector.DrawPathOptions{ColorScale: toColorScale(color)}
+		vector.FillPath(screen, &p, nil, &dop)
+	}
+
+	draw.DrawCircle = func(center b2.Vec2, radius float32, color b2.HexColor) {
+		x, y := toScreen.Transform(gm.VecOf(float64(center.X), float64(center.Y))).XY()
+		r := toScreen.Matrix.Transform(gm.VecOf(float64(radius), 0)).X
+
+		var p vector.Path
+		p.Arc(float32(x), float32(y), float32(r), 0, 2*math.Pi, vector.Clockwise)
+
+		dop := vector.DrawPathOptions{ColorScale: toColorScale(color)}
+		vector.StrokePath(screen, &p, &vector.StrokeOptions{Width: 1}, &dop)
+	}
+
+	draw.DrawSolidCircle = func(tr b2.Transform, radius float32, color b2.HexColor) {
+		g := gm.IdentityAffine()
+		g.Rotate(gm.Rad(tr.Q.Angle()))
+		g.Translate(gm.VecOf(float64(tr.P.X), float64(tr.P.Y)))
+		g = g.Mul(toScreen)
+
+		x, y := g.Transform(gm.VecOf(float64(0), 0)).XY()
+		r := g.Matrix.Transform(gm.VecOf(float64(radius), 0)).X
+
+		var p vector.Path
+		p.Arc(float32(x), float32(y), float32(r), 0, 2*math.Pi, vector.Clockwise)
+
+		dop := vector.DrawPathOptions{ColorScale: toColorScale(color)}
+		vector.FillPath(screen, &p, nil, &dop)
+	}
+
+	draw.DrawSolidCapsule = func(p1 b2.Vec2, p2 b2.Vec2, radius float32, color b2.HexColor) {
+		draw.DrawSegment(p1, p2, color)
+		draw.DrawCircle(p1, radius, color)
+		draw.DrawCircle(p2, radius, color)
+	}
+
+	draw.DrawTransform = func(transform b2.Transform) {
+		x, y := toScreen.Transform(gm.VecOf(float64(transform.P.X), float64(transform.P.Y))).XY()
+
+		var p vector.Path
+		p.MoveTo(float32(x), float32(y))
+		p.LineTo(float32(x)+transform.Q.C*16, float32(x)+transform.Q.S*16)
+
+		p.MoveTo(float32(x), float32(y))
+		p.LineTo(float32(x)+-transform.Q.S*16, float32(x)+transform.Q.C*16)
+
+		dop := vector.DrawPathOptions{ColorScale: toColorScale(0x00ff00)}
+		vector.FillPath(screen, &p, nil, &dop)
+	}
+
+	draw.DrawPoint = func(c b2.Vec2, size float32, color b2.HexColor) {
+		x, y := toScreen.Transform(gm.VecOf(float64(c.X), float64(c.Y))).XY()
+
+		var p vector.Path
+		p.Arc(float32(x), float32(y), size, 0, 2*math.Pi, vector.Clockwise)
+
+		dop := vector.DrawPathOptions{ColorScale: toColorScale(color)}
+		vector.FillPath(screen, &p, nil, &dop)
+	}
+
+	draw.DrawString = func(p b2.Vec2, s string, color b2.HexColor) {
+		x, y := toScreen.Transform(gm.VecOf(float64(p.X), float64(p.Y))).XY()
+		ebitenutil.DebugPrintAt(screen, s, int(x), int(y))
+	}
+
+	world.Draw(draw)
 }
 
-func (d debugImage) DrawDot(size float64, pos cp.Vector, fill cp.FColor, data interface{}) {
-	d.DrawCircle(pos, 0, size/2, fill, fill, data)
-}
+func toColorScale(h b2.HexColor) ebiten.ColorScale {
+	r := float32((h>>16)&0xff) / 255.0
+	g := float32((h>>8)&0xff) / 255.0
+	b := float32((h>>0)&0xff) / 255.0
 
-func (d debugImage) Flags() uint {
-	return 0
-}
-
-func (d debugImage) OutlineColor() cp.FColor {
-	return cp.FColor{G: 1, A: 1}
-}
-
-func (d debugImage) ShapeColor(shape *cp.Shape, data interface{}) cp.FColor {
-	return cp.FColor{G: 1, A: 0.5}
-}
-
-func (d debugImage) ConstraintColor() cp.FColor {
-	return cp.FColor{R: 1, G: 0.75, A: 1}
-}
-
-func (d debugImage) CollisionPointColor() cp.FColor {
-	return cp.FColor{R: 1, A: 1}
-}
-
-func (d debugImage) Data() interface{} {
-	return nil
+	var c ebiten.ColorScale
+	c.Scale(r, g, b, 1)
+	return c
 }

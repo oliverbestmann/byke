@@ -81,8 +81,12 @@ type Sensor struct {
 	byke.ImmutableComponent[Sensor]
 }
 
-type CollisionEventsEnabled struct {
-	byke.ImmutableComponent[CollisionEventsEnabled]
+type ContactEventsEnabled struct {
+	byke.ImmutableComponent[ContactEventsEnabled]
+}
+
+type SensorEventsEnabled struct {
+	byke.ImmutableComponent[SensorEventsEnabled]
 }
 
 type Body struct {

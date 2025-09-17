@@ -93,10 +93,6 @@ type CameraTarget struct {
 	ImmutableComponent[CameraTarget]
 }
 
-type TerrainContact struct {
-	Position Vec
-}
-
 func setupCamera(commands *Commands) {
 	commands.Spawn(
 		TransformFromXY(0, 300).WithScale(-1, -1),
@@ -158,7 +154,7 @@ func spawnSpaceShipSystem(commands *Commands) {
 
 			spaceShipShape,
 			physics.Sensor{},
-			physics.CollisionEventsEnabled{},
+			physics.SensorEventsEnabled{},
 
 			Fill{Color: color.Black},
 
@@ -179,11 +175,7 @@ func spawnSpaceShipSystem(commands *Commands) {
 				},
 			),
 		).
-		Observe(func(trigger On[TerrainContact], commands *Commands) {
-			commands.Entity(trigger.Target).Despawn()
-			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 50})
-		}).
-		Observe(func(trigger On[physics.OnCollisionStarted], commands *Commands) {
+		Observe(func(trigger On[physics.OnSensorStarted], commands *Commands) {
 			commands.Entity(trigger.Target).Despawn()
 			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 50})
 		})
@@ -251,6 +243,7 @@ func spawnTerrainSystem(commands *Commands) {
 
 		commands.Spawn(
 			physics.RigidBodyStatic,
+			physics.SensorEventsEnabled{},
 			physics.Collider{
 				Shape: physics.PolygonShape{
 					Points: points,
@@ -501,17 +494,13 @@ func fireMissileSystem(commands *Commands, assets *Assets, param In[FireMissileI
 			},
 			physics.RigidBodyDynamic,
 			physics.Velocity{Linear: p.Velocity},
-			physics.CollisionEventsEnabled{},
+			physics.ContactEventsEnabled{},
 			missile,
 			Stroke{Width: 2, Color: color.White, Antialias: true},
 			DespawnAfter(10*time.Second),
 			SmokeEmitter{Offset: Vec{X: -5}, Velocity: Vec{X: -1}.Mul(p.Velocity.Length() * 0.8), Timer: NewTimerWithFrequency(100.0)},
 		).
-		Observe(func(trigger On[TerrainContact], commands *Commands) {
-			commands.Entity(trigger.Target).Despawn()
-			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 20})
-		}).
-		Observe(func(trigger On[physics.OnCollisionStarted], commands *Commands) {
+		Observe(func(trigger On[physics.OnContactStarted], commands *Commands) {
 			commands.Entity(trigger.Target).Despawn()
 			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 20})
 		})
