@@ -175,8 +175,8 @@ func spawnSpaceShipSystem(commands *Commands) {
 				},
 			),
 		).
-		Observe(func(trigger On[physics.OnSensorStarted], commands *Commands) {
-			commands.Entity(trigger.Target).Despawn()
+		Observe(func(trigger On[physics.SensorStarted], commands *Commands) {
+			commands.Entity(trigger.Event.TargetEntityId()).Despawn()
 			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 50})
 		})
 }
@@ -500,8 +500,8 @@ func fireMissileSystem(commands *Commands, assets *Assets, param In[FireMissileI
 			DespawnAfter(10*time.Second),
 			SmokeEmitter{Offset: Vec{X: -5}, Velocity: Vec{X: -1}.Mul(p.Velocity.Length() * 0.8), Timer: NewTimerWithFrequency(100.0)},
 		).
-		Observe(func(trigger On[physics.OnContactStarted], commands *Commands) {
-			commands.Entity(trigger.Target).Despawn()
+		Observe(func(trigger On[physics.ContactStarted], commands *Commands) {
+			commands.Entity(trigger.Event.TargetEntityId()).Despawn()
 			commands.Trigger(Explode{Position: trigger.Event.Position, Radius: 20})
 		})
 

@@ -7,7 +7,10 @@ import (
 )
 
 // an event that indicates an explosion
-type Explode string
+type Explode struct {
+	EventTarget
+	Value string
+}
 
 type Object struct {
 	Component[Object]
@@ -20,7 +23,7 @@ func TestTriggers(t *testing.T) {
 
 	explodeSystem := func(trigger On[Explode], commands *Commands) {
 		observedTrigger = trigger
-		commands.Entity(trigger.Target).Despawn()
+		commands.Entity(trigger.Event.TargetEntityId()).Despawn()
 	}
 
 	var id EntityId
@@ -30,13 +33,14 @@ func TestTriggers(t *testing.T) {
 
 	require.Zero(t, observedTrigger)
 
+	ev := Explode{EventTarget: EventTarget(id), Value: "Boom"}
 	w.RunSystem(func(commands *Commands) {
-		commands.Entity(id).Trigger(Explode("Boom"))
+		commands.Trigger(ev)
 	})
 
 	require.NotZero(t, observedTrigger)
-	require.Equal(t, id, observedTrigger.Target)
-	require.Equal(t, Explode("Boom"), observedTrigger.Event)
+	require.Equal(t, id, observedTrigger.Event.TargetEntityId())
+	require.Equal(t, ev, observedTrigger.Event)
 
 	w.RunSystem(func(q Query[EntityId]) {
 		_, exists := q.Get(id)

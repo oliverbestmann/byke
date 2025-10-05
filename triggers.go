@@ -8,9 +8,8 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 )
 
-type On[E any] struct {
-	Target EntityId
-	Event  E
+type On[E Event] struct {
+	Event E
 }
 
 func (On[E]) init(*World) SystemParamState {
@@ -24,23 +23,22 @@ func (On[E]) eventType() reflect.Type {
 	return reflect.TypeFor[E]()
 }
 
-func (On[E]) isTrigger(isTriggerComponent) {}
+func (On[E]) isOn(isOn) {}
 
 // new creates a new value of this type and returns it
-func (On[E]) new(target EntityId, event any) isTriggerComponent {
+func (On[E]) new(event Event) isOn {
 	return On[E]{
-		Target: target,
-		Event:  event.(E),
+		Event: event.(E),
 	}
 }
 
 type onSystemParamState struct {
 	onType    reflect.Type
-	makeValue func(target EntityId, event any) isTriggerComponent
+	makeValue func(event Event) isOn
 }
 
 func (o onSystemParamState) getValue(sc systemContext) (reflect.Value, error) {
-	return reflect.ValueOf(o.makeValue(sc.Trigger.TargetId, sc.Trigger.EventValue)), nil
+	return reflect.ValueOf(o.makeValue(sc.Trigger.EventValue)), nil
 }
 
 func (o onSystemParamState) cleanupValue() {}
@@ -49,13 +47,13 @@ func (o onSystemParamState) valueType() reflect.Type {
 	return o.onType
 }
 
-type isTriggerComponent interface {
-	isTrigger(isTriggerComponent)
-	new(target EntityId, event any) isTriggerComponent
+type isOn interface {
+	isOn(isOn)
+	new(event Event) isOn
 	eventType() reflect.Type
 }
 
-var _ isTriggerComponent = On[bool]{}
+var _ isOn = On[bool]{}
 
 type Observer struct {
 	Component[Observer]
@@ -78,11 +76,11 @@ func NewObserver(fn any) Observer {
 	}
 
 	triggerType := funcType.In(0)
-	if triggerType.Kind() != reflect.Struct || !refl.ImplementsInterfaceDirectly[isTriggerComponent](triggerType) {
+	if triggerType.Kind() != reflect.Struct || !refl.ImplementsInterfaceDirectly[isOn](triggerType) {
 		panic(fmt.Sprintf("Observers first parameter must be of type On[Message], got %s", triggerType))
 	}
 
-	triggerValue := reflect.New(triggerType).Elem().Interface().(isTriggerComponent)
+	triggerValue := reflect.New(triggerType).Elem().Interface().(isOn)
 
 	return Observer{
 		eventType: triggerValue.eventType(),

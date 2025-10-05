@@ -1,6 +1,7 @@
 package byke
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/oliverbestmann/byke/spoke"
@@ -83,7 +84,6 @@ func (c *Commands) RunSystemWith(system AnySystem, inValue any) *Commands {
 
 func (c *Commands) Trigger(eventValue any) *Commands {
 	return c.Queue(triggerCommand{
-		EntityId:   NoEntityId,
 		EventValue: eventValue,
 	})
 }
@@ -117,19 +117,22 @@ func (e EntityCommands) Despawn() {
 	e.commands.queue = append(e.commands.queue, despawnCommand{e.entityId})
 }
 
+// Trigger triggers the given EntityEvent.
+// TODO This should take a "func(EventId) EntityEvent" parameter to match bevy api
+func (e EntityCommands) Trigger(eventValue EntityEvent) *Commands {
+	if eventValue.TargetEntityId() != e.entityId {
+		panic(fmt.Sprintf("EntityId %q missmatch with event: %q", e.entityId, eventValue.TargetEntityId()))
+	}
+
+	return e.commands.Queue(triggerCommand{
+		EventValue: eventValue,
+	})
+}
+
 func (e EntityCommands) Observe(system AnySystem) EntityCommands {
 	e.commands.Queue(observeCommand{
 		EntityId: e.entityId,
 		System:   system,
-	})
-
-	return e
-}
-
-func (e EntityCommands) Trigger(eventValue any) EntityCommands {
-	e.commands.Queue(triggerCommand{
-		EntityId:   e.entityId,
-		EventValue: eventValue,
 	})
 
 	return e
@@ -227,12 +230,11 @@ func (c observeCommand) Apply(world *World) {
 }
 
 type triggerCommand struct {
-	EntityId   EntityId
-	EventValue any
+	EventValue Event
 }
 
 func (c triggerCommand) Apply(world *World) {
-	world.TriggerObserver(c.EntityId, c.EventValue)
+	world.TriggerObserver(c.EventValue)
 }
 
 type removeComponentEntityCommand spoke.ComponentType

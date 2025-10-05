@@ -16,8 +16,7 @@ import (
 var valueSlices = typedpool.New[[]reflect.Value]()
 
 type systemTrigger struct {
-	TargetId   EntityId
-	EventValue any
+	EventValue Event
 }
 
 type systemContext struct {

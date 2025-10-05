@@ -25,11 +25,29 @@ func (Interactable) RequireComponents() []ErasedComponent {
 	}
 }
 
-type Clicked struct{}
+type Clicked struct {
+	EntityId EntityId
+}
 
-type PointerOver struct{}
+func (c Clicked) TargetEntityId() EntityId {
+	return c.EntityId
+}
 
-type PointerOut struct{}
+type PointerOver struct {
+	EntityId EntityId
+}
+
+func (c PointerOver) TargetEntityId() EntityId {
+	return c.EntityId
+}
+
+type PointerOut struct {
+	EntityId EntityId
+}
+
+func (c PointerOut) TargetEntityId() EntityId {
+	return c.EntityId
+}
 
 type InteractionState struct {
 	ImmutableComponent[InteractionState]
@@ -114,7 +132,7 @@ func interactionSystem(
 			if item.InteractionState == InteractionStateHover {
 				commands.Entity(item.EntityId).
 					Update(InsertComponent(InteractionStateNone)).
-					Trigger(PointerOut{})
+					Trigger(PointerOut{EntityId: item.EntityId})
 			}
 
 			continue
@@ -123,7 +141,7 @@ func interactionSystem(
 		if item.InteractionState != InteractionStateHover {
 			commands.Entity(item.EntityId).
 				Update(InsertComponent(InteractionStateHover)).
-				Trigger(PointerOver{})
+				Trigger(PointerOver{EntityId: item.EntityId})
 		}
 
 		// check if we have just clicked
@@ -131,7 +149,7 @@ func interactionSystem(
 
 		if justClicked {
 			// trigger the Clicked event
-			commands.Entity(item.EntityId).Trigger(Clicked{})
+			commands.Entity(item.EntityId).Trigger(Clicked{EntityId: item.EntityId})
 		}
 	}
 }

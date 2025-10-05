@@ -48,10 +48,10 @@ func Plugin(app *byke.App) {
 		Bodies: map[byke.EntityId]b2.Body{},
 	})
 
-	app.AddMessage(byke.MessageType[ContactStarted]())
-	app.AddMessage(byke.MessageType[ContactEnded]())
-	app.AddMessage(byke.MessageType[SensorStarted]())
-	app.AddMessage(byke.MessageType[SensorEnded]())
+	app.AddMessage(byke.MessageType[ContactStartedMessage]())
+	app.AddMessage(byke.MessageType[ContactEndedMessage]())
+	app.AddMessage(byke.MessageType[SensorStartedMessage]())
+	app.AddMessage(byke.MessageType[SensorEndedMessage]())
 
 	app.AddSystems(byke.FixedUpdate, byke.System(
 		makeBodySystem,
@@ -70,13 +70,13 @@ func makeBodySystem(
 	world b2World,
 	index *entityIndex,
 	bodiesQuery byke.Query[struct {
-	_ byke.Added[Body]
+		_ byke.Added[Body]
 
-	byke.EntityId
-	Body     *Body
-	Collider *Collider
-	IsSensor byke.Has[Sensor]
-}],
+		byke.EntityId
+		Body     *Body
+		Collider *Collider
+		IsSensor byke.Has[Sensor]
+	}],
 ) {
 	for item := range bodiesQuery.Items() {
 		var userData uintptr = uintptr(item.EntityId)
@@ -139,25 +139,25 @@ func preStepSyncResourcesSystem(
 
 func preStepSyncShapesSystem(
 	shapesQuery byke.Query[struct {
-	_ byke.OrStruct[struct {
-		_ byke.Changed[ColliderFriction]
-		_ byke.Changed[ColliderElasticity]
-		_ byke.Changed[ColliderDensity]
-		_ byke.Changed[ShapeFilter]
-		_ byke.Added[ContactEventsEnabled]
-		_ byke.Added[SensorEventsEnabled]
-	}]
+		_ byke.OrStruct[struct {
+			_ byke.Changed[ColliderFriction]
+			_ byke.Changed[ColliderElasticity]
+			_ byke.Changed[ColliderDensity]
+			_ byke.Changed[ShapeFilter]
+			_ byke.Added[ContactEventsEnabled]
+			_ byke.Added[SensorEventsEnabled]
+		}]
 
-	Collider           *Collider
-	ColliderFriction   ColliderFriction
-	ColliderElasticity ColliderElasticity
-	ColliderDensity    ColliderDensity
-	ShapeFilter        ShapeFilter
+		Collider           *Collider
+		ColliderFriction   ColliderFriction
+		ColliderElasticity ColliderElasticity
+		ColliderDensity    ColliderDensity
+		ShapeFilter        ShapeFilter
 
-	IsSensor             byke.Has[Sensor]
-	ContactEventsEnabled byke.Has[ContactEventsEnabled]
-	SensorEventsEnabled  byke.Has[SensorEventsEnabled]
-}],
+		IsSensor             byke.Has[Sensor]
+		ContactEventsEnabled byke.Has[ContactEventsEnabled]
+		SensorEventsEnabled  byke.Has[SensorEventsEnabled]
+	}],
 
 	removedContactEventsEnabled byke.RemovedComponents[ContactEventsEnabled],
 	removedSensorEventsEnabled byke.RemovedComponents[SensorEventsEnabled],
@@ -221,12 +221,12 @@ func preStepSyncShapesSystem(
 
 func preStepSyncBodiesSystem(
 	bodiesQuery byke.Query[struct {
-	Body      *Body
-	Velocity  Velocity
-	Transform bykebiten.GlobalTransform
-	Mass      byke.Option[Mass]
-	Forces    ExternalForces
-}],
+		Body      *Body
+		Velocity  Velocity
+		Transform bykebiten.GlobalTransform
+		Mass      byke.Option[Mass]
+		Forces    ExternalForces
+	}],
 ) {
 	for item := range bodiesQuery.Items() {
 		body := item.Body.body
@@ -279,10 +279,10 @@ func updateSpaceSystem(t byke.FixedTime, world b2World, steps Stepping) {
 func postStepSyncSystem(
 	world b2World,
 	bodiesQuery byke.Query[struct {
-	Body      *Body
-	Velocity  *Velocity
-	Transform *bykebiten.Transform
-}],
+		Body      *Body
+		Velocity  *Velocity
+		Transform *bykebiten.Transform
+	}],
 ) {
 	events := world.GetBodyEvents()
 	for _, event := range events.MoveEvents {
@@ -305,8 +305,8 @@ func postStepSyncSystem(
 func emitCollisionEventsSystem(
 	commands *byke.Commands,
 	world b2World,
-	writerStarted *byke.MessageWriter[ContactStarted],
-	writerEnded *byke.MessageWriter[ContactEnded],
+	writerStarted *byke.MessageWriter[ContactStartedMessage],
+	writerEnded *byke.MessageWriter[ContactEndedMessage],
 	hasMarkerQuery byke.Query[byke.With[ContactEventsEnabled]],
 ) {
 	events := world.GetContactEvents()
@@ -328,7 +328,7 @@ func emitCollisionEventsSystem(
 			continue
 		}
 
-		ev := ContactStarted{
+		ev := ContactStartedMessage{
 			A:        idA,
 			B:        idB,
 			Position: toVec(event.Manifold.Points[0].Point),
@@ -338,18 +338,20 @@ func emitCollisionEventsSystem(
 		writerStarted.Write(ev)
 
 		if ok1 {
-			commands.Entity(ev.A).Trigger(OnContactStarted{
-				Other:    ev.B,
-				Normal:   ev.Normal,
-				Position: ev.Position,
+			commands.Entity(ev.A).Trigger(ContactStarted{
+				EventTarget: byke.EventTarget(ev.A),
+				Other:       ev.B,
+				Normal:      ev.Normal,
+				Position:    ev.Position,
 			})
 		}
 
 		if ok2 {
-			commands.Entity(ev.B).Trigger(OnContactStarted{
-				Other:    ev.A,
-				Normal:   ev.Normal,
-				Position: ev.Position,
+			commands.Entity(ev.B).Trigger(ContactStarted{
+				EventTarget: byke.EventTarget(ev.B),
+				Other:       ev.A,
+				Normal:      ev.Normal,
+				Position:    ev.Position,
 			})
 		}
 	}
@@ -371,7 +373,7 @@ func emitCollisionEventsSystem(
 			continue
 		}
 
-		ev := ContactEnded{
+		ev := ContactEndedMessage{
 			A: idA,
 			B: idB,
 		}
@@ -379,14 +381,16 @@ func emitCollisionEventsSystem(
 		writerEnded.Write(ev)
 
 		if ok1 {
-			commands.Entity(ev.A).Trigger(OnContactEnded{
-				Other: ev.B,
+			commands.Entity(ev.A).Trigger(ContactEnded{
+				EventTarget: byke.EventTarget(ev.A),
+				Other:       ev.B,
 			})
 		}
 
 		if ok2 {
-			commands.Entity(ev.B).Trigger(OnContactEnded{
-				Other: ev.A,
+			commands.Entity(ev.B).Trigger(ContactEnded{
+				EventTarget: byke.EventTarget(ev.B),
+				Other:       ev.A,
 			})
 		}
 	}
@@ -395,8 +399,8 @@ func emitCollisionEventsSystem(
 func emitSensorEventsSystem(
 	commands *byke.Commands,
 	world b2World,
-	writerStarted *byke.MessageWriter[SensorStarted],
-	writerEnded *byke.MessageWriter[SensorEnded],
+	writerStarted *byke.MessageWriter[SensorStartedMessage],
+	writerEnded *byke.MessageWriter[SensorEndedMessage],
 	hasMarkerQuery byke.Query[byke.With[SensorEventsEnabled]],
 ) {
 	events := world.GetSensorEvents()
@@ -420,7 +424,7 @@ func emitSensorEventsSystem(
 
 		bBBox := shapeB.GetAABB()
 		bCenter := toVec(bBBox.LowerBound).Add(toVec(bBBox.UpperBound)).Mul(0.5)
-		ev := SensorStarted{
+		ev := SensorStartedMessage{
 			A:        idA,
 			B:        idB,
 			Position: toVec(shapeA.GetClosestPoint(b2VecOf(bCenter))),
@@ -429,16 +433,18 @@ func emitSensorEventsSystem(
 		writerStarted.Write(ev)
 
 		if ok1 {
-			commands.Entity(ev.A).Trigger(OnSensorStarted{
-				Other:    ev.B,
-				Position: ev.Position,
+			commands.Entity(ev.A).Trigger(SensorStarted{
+				EventTarget: byke.EventTarget(ev.A),
+				Other:       ev.B,
+				Position:    ev.Position,
 			})
 		}
 
 		if ok2 {
-			commands.Entity(ev.B).Trigger(OnSensorStarted{
-				Other:    ev.A,
-				Position: ev.Position,
+			commands.Entity(ev.B).Trigger(SensorStarted{
+				EventTarget: byke.EventTarget(ev.B),
+				Other:       ev.A,
+				Position:    ev.Position,
 			})
 		}
 	}
@@ -460,7 +466,7 @@ func emitSensorEventsSystem(
 			continue
 		}
 
-		ev := SensorEnded{
+		ev := SensorEndedMessage{
 			A: idA,
 			B: idB,
 		}
@@ -469,13 +475,15 @@ func emitSensorEventsSystem(
 
 		if ok1 {
 			commands.Entity(ev.A).Trigger(OnSensorEnded{
-				Other: ev.B,
+				EventTarget: byke.EventTarget(ev.A),
+				Other:       ev.B,
 			})
 		}
 
 		if ok2 {
 			commands.Entity(ev.B).Trigger(OnSensorEnded{
-				Other: ev.A,
+				EventTarget: byke.EventTarget(ev.B),
+				Other:       ev.A,
 			})
 		}
 	}

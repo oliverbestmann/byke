@@ -185,13 +185,12 @@ func (w *World) AddObserver(observer Observer) EntityId {
 // given event value.
 //
 // TODO observer event propagation is not yet implemented.
-func (w *World) TriggerObserver(targetId EntityId, eventValue any) {
+func (w *World) TriggerObserver(eventValue Event) {
 	// get the event type first
 	eventType := reflect.TypeOf(eventValue)
 
 	w.RunSystemWithInValue(triggerObserverSystem, triggerObserverIn{
 		ObserverType: eventType,
-		TargetId:     targetId,
 		EventValue:   eventValue,
 	})
 }
@@ -481,8 +480,7 @@ func (w *World) recheckComponents(query *spoke.CachedQuery, componentTypes []*sp
 
 type triggerObserverIn struct {
 	ObserverType reflect.Type
-	TargetId     EntityId
-	EventValue   any
+	EventValue   Event
 }
 
 func triggerObserverSystem(
@@ -492,23 +490,29 @@ func triggerObserverSystem(
 ) {
 	params := &in.Value
 
+	targetId := NoEntityId
+	if params.EventValue != nil {
+		if ev, ok := params.EventValue.(EntityEvent); ok {
+			targetId = ev.TargetEntityId()
+		}
+	}
+
 	for observer := range observers.Items() {
 		if !observer.ObservesType(params.ObserverType) {
 			continue
 		}
 
-		if params.TargetId == NoEntityId && observer.IsScoped() {
+		if targetId == NoEntityId && observer.IsScoped() {
 			continue
 		}
 
-		if params.TargetId != NoEntityId && !observer.Observes(params.TargetId) {
+		if targetId != NoEntityId && !observer.Observes(targetId) {
 			continue
 		}
 
 		// we found a match, trigger the observer
 		w.runSystem(observer.system, systemContext{
 			Trigger: systemTrigger{
-				TargetId:   params.TargetId,
 				EventValue: params.EventValue,
 			},
 		})
