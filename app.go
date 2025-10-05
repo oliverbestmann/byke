@@ -57,10 +57,10 @@ func (a *App) InitState(newState stateType) {
 	newState.configureStateIn(a)
 }
 
-// AddEvent configures a new event in the World.
-// Use EventType to acquire a value implementing eventType.
-func (a *App) AddEvent(newEvent eventType) {
-	newEvent.configureEventIn(a)
+// AddMessage configures a new event in the World.
+// Use MessageType to acquire a value implementing AddMessageType.
+func (a *App) AddMessage(newEvent AddMessageType) {
+	newEvent.configureMessageIn(a)
 }
 
 // RunWorld configures the function that is executed in Run.
@@ -103,7 +103,7 @@ type stateType interface {
 	configureStateIn(app *App)
 }
 
-// eventType is a type erased interface implemented by EventType.
-type eventType interface {
-	configureEventIn(app *App)
+// AddMessageType is a type erased interface implemented by MessageType.
+type AddMessageType interface {
+	configureMessageIn(app *App)
 }

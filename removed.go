@@ -8,7 +8,7 @@ import (
 )
 
 type RemovedComponents[C IsComponent[C]] struct {
-	reader *EventReader[removedComponentEvent[C]]
+	reader *MessageReader[removedComponentEvent[C]]
 }
 
 func (c RemovedComponents[C]) Read() iter.Seq[EntityId] {
@@ -21,8 +21,8 @@ func (c RemovedComponents[C]) Read() iter.Seq[EntityId] {
 	}
 }
 
-func (RemovedComponents[C]) addToWorld(w *World) *Events[removedComponentEvent[C]] {
-	if events, exists := ResourceOf[Events[removedComponentEvent[C]]](w); exists {
+func (RemovedComponents[C]) addToWorld(w *World) *Messages[removedComponentEvent[C]] {
+	if events, exists := ResourceOf[Messages[removedComponentEvent[C]]](w); exists {
 		return events
 	}
 
@@ -35,10 +35,10 @@ func (RemovedComponents[C]) addToWorld(w *World) *Events[removedComponentEvent[C
 		registry, _ = ResourceOf[removedComponentsRegistry](w)
 	}
 
-	w.InsertResource(Events[removedComponentEvent[C]]{})
-	w.AddSystems(Last, updateEventsSystem[removedComponentEvent[C]])
+	w.InsertResource(Messages[removedComponentEvent[C]]{})
+	w.AddSystems(Last, updateMessagesSystem[removedComponentEvent[C]])
 
-	events, _ := ResourceOf[Events[removedComponentEvent[C]]](w)
+	events, _ := ResourceOf[Messages[removedComponentEvent[C]]](w)
 
 	componentType := spoke.ComponentTypeOf[C]()
 

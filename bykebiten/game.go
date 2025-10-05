@@ -57,7 +57,7 @@ func GamePlugin(app *byke.App) {
 		ShaderAssetLoader{},
 	))
 
-	app.AddEvent(byke.EventType[AppExit]())
+	app.AddMessage(byke.MessageType[AppExit]())
 
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 
@@ -275,7 +275,7 @@ func updateMouseCursorSystem(cursor *MouseCursor) {
 	cursor.Y = float64(y)
 }
 
-func readAppExitEventsSystem(events *byke.EventReader[AppExit], game *game) {
+func readAppExitEventsSystem(events *byke.MessageReader[AppExit], game *game) {
 	for _, ev := range events.Read() {
 		game.appExit = ev.error
 	}

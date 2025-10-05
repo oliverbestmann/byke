@@ -32,7 +32,7 @@ func main() {
 	app.AddSystems(Startup, createVectors)
 	app.AddSystems(Update, System(avoidCursorSystem, movementSystem, wrapScreenSystem).Chain())
 
-	// app.AddSystems(Update, func(vt VirtualTime, exit *EventWriter[AppExit]) {
+	// app.AddSystems(Update, func(vt VirtualTime, exit *MessageWriter[AppExit]) {
 	// 	if vt.Elapsed > 5*time.Second {
 	// 		exit.Write(AppExitSuccess)
 	// 	}

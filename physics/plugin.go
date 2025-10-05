@@ -48,10 +48,10 @@ func Plugin(app *byke.App) {
 		Bodies: map[byke.EntityId]b2.Body{},
 	})
 
-	app.AddEvent(byke.EventType[ContactStarted]())
-	app.AddEvent(byke.EventType[ContactEnded]())
-	app.AddEvent(byke.EventType[SensorStarted]())
-	app.AddEvent(byke.EventType[SensorEnded]())
+	app.AddMessage(byke.MessageType[ContactStarted]())
+	app.AddMessage(byke.MessageType[ContactEnded]())
+	app.AddMessage(byke.MessageType[SensorStarted]())
+	app.AddMessage(byke.MessageType[SensorEnded]())
 
 	app.AddSystems(byke.FixedUpdate, byke.System(
 		makeBodySystem,
@@ -70,13 +70,13 @@ func makeBodySystem(
 	world b2World,
 	index *entityIndex,
 	bodiesQuery byke.Query[struct {
-		_ byke.Added[Body]
+	_ byke.Added[Body]
 
-		byke.EntityId
-		Body     *Body
-		Collider *Collider
-		IsSensor byke.Has[Sensor]
-	}],
+	byke.EntityId
+	Body     *Body
+	Collider *Collider
+	IsSensor byke.Has[Sensor]
+}],
 ) {
 	for item := range bodiesQuery.Items() {
 		var userData uintptr = uintptr(item.EntityId)
@@ -139,25 +139,25 @@ func preStepSyncResourcesSystem(
 
 func preStepSyncShapesSystem(
 	shapesQuery byke.Query[struct {
-		_ byke.OrStruct[struct {
-			_ byke.Changed[ColliderFriction]
-			_ byke.Changed[ColliderElasticity]
-			_ byke.Changed[ColliderDensity]
-			_ byke.Changed[ShapeFilter]
-			_ byke.Added[ContactEventsEnabled]
-			_ byke.Added[SensorEventsEnabled]
-		}]
+	_ byke.OrStruct[struct {
+		_ byke.Changed[ColliderFriction]
+		_ byke.Changed[ColliderElasticity]
+		_ byke.Changed[ColliderDensity]
+		_ byke.Changed[ShapeFilter]
+		_ byke.Added[ContactEventsEnabled]
+		_ byke.Added[SensorEventsEnabled]
+	}]
 
-		Collider           *Collider
-		ColliderFriction   ColliderFriction
-		ColliderElasticity ColliderElasticity
-		ColliderDensity    ColliderDensity
-		ShapeFilter        ShapeFilter
+	Collider           *Collider
+	ColliderFriction   ColliderFriction
+	ColliderElasticity ColliderElasticity
+	ColliderDensity    ColliderDensity
+	ShapeFilter        ShapeFilter
 
-		IsSensor             byke.Has[Sensor]
-		ContactEventsEnabled byke.Has[ContactEventsEnabled]
-		SensorEventsEnabled  byke.Has[SensorEventsEnabled]
-	}],
+	IsSensor             byke.Has[Sensor]
+	ContactEventsEnabled byke.Has[ContactEventsEnabled]
+	SensorEventsEnabled  byke.Has[SensorEventsEnabled]
+}],
 
 	removedContactEventsEnabled byke.RemovedComponents[ContactEventsEnabled],
 	removedSensorEventsEnabled byke.RemovedComponents[SensorEventsEnabled],
@@ -221,12 +221,12 @@ func preStepSyncShapesSystem(
 
 func preStepSyncBodiesSystem(
 	bodiesQuery byke.Query[struct {
-		Body      *Body
-		Velocity  Velocity
-		Transform bykebiten.GlobalTransform
-		Mass      byke.Option[Mass]
-		Forces    ExternalForces
-	}],
+	Body      *Body
+	Velocity  Velocity
+	Transform bykebiten.GlobalTransform
+	Mass      byke.Option[Mass]
+	Forces    ExternalForces
+}],
 ) {
 	for item := range bodiesQuery.Items() {
 		body := item.Body.body
@@ -279,10 +279,10 @@ func updateSpaceSystem(t byke.FixedTime, world b2World, steps Stepping) {
 func postStepSyncSystem(
 	world b2World,
 	bodiesQuery byke.Query[struct {
-		Body      *Body
-		Velocity  *Velocity
-		Transform *bykebiten.Transform
-	}],
+	Body      *Body
+	Velocity  *Velocity
+	Transform *bykebiten.Transform
+}],
 ) {
 	events := world.GetBodyEvents()
 	for _, event := range events.MoveEvents {
@@ -305,8 +305,8 @@ func postStepSyncSystem(
 func emitCollisionEventsSystem(
 	commands *byke.Commands,
 	world b2World,
-	writerStarted *byke.EventWriter[ContactStarted],
-	writerEnded *byke.EventWriter[ContactEnded],
+	writerStarted *byke.MessageWriter[ContactStarted],
+	writerEnded *byke.MessageWriter[ContactEnded],
 	hasMarkerQuery byke.Query[byke.With[ContactEventsEnabled]],
 ) {
 	events := world.GetContactEvents()
@@ -395,8 +395,8 @@ func emitCollisionEventsSystem(
 func emitSensorEventsSystem(
 	commands *byke.Commands,
 	world b2World,
-	writerStarted *byke.EventWriter[SensorStarted],
-	writerEnded *byke.EventWriter[SensorEnded],
+	writerStarted *byke.MessageWriter[SensorStarted],
+	writerEnded *byke.MessageWriter[SensorEnded],
 	hasMarkerQuery byke.Query[byke.With[SensorEventsEnabled]],
 ) {
 	events := world.GetSensorEvents()

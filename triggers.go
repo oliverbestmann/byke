@@ -74,12 +74,12 @@ func NewObserver(fn any) Observer {
 
 	funcType := value.Type()
 	if funcType.NumIn() < 1 {
-		panic("Observers first parameter must be of type On[Event]")
+		panic("Observers first parameter must be of type On[Message]")
 	}
 
 	triggerType := funcType.In(0)
 	if triggerType.Kind() != reflect.Struct || !refl.ImplementsInterfaceDirectly[isTriggerComponent](triggerType) {
-		panic(fmt.Sprintf("Observers first parameter must be of type On[Event], got %s", triggerType))
+		panic(fmt.Sprintf("Observers first parameter must be of type On[Message], got %s", triggerType))
 	}
 
 	triggerValue := reflect.New(triggerType).Elem().Interface().(isTriggerComponent)

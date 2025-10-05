@@ -71,7 +71,7 @@ func spawnTitleMenuSystem(commands *Commands) {
 			DespawnOnExitState(ScreenTitle),
 			button(gm.Vec{Y: 32}, "Exit Game"),
 		).
-		Observe(func(_ On[Clicked], exit *EventWriter[AppExit]) {
+		Observe(func(_ On[Clicked], exit *MessageWriter[AppExit]) {
 			exit.Write(AppExitSuccess)
 		})
 }

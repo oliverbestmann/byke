@@ -17,7 +17,7 @@ func (r StateType[S]) configureStateIn(app *App) {
 	app.InsertResource(State[S]{current: r.InitialValue})
 	app.InsertResource(NextState[S]{})
 
-	app.AddEvent(EventType[StateTransitionEvent[S]]())
+	app.AddMessage(MessageType[StateTransitionEvent[S]]())
 
 	app.AddSystems(StateTransition, System(
 		performStateTransition[S],
@@ -143,7 +143,7 @@ func performStateTransition[S comparable](
 	world *World,
 	state *State[S],
 	nextState *NextState[S],
-	transitions *EventWriter[StateTransitionEvent[S]],
+	transitions *MessageWriter[StateTransitionEvent[S]],
 ) {
 	if !state.initialized {
 		// we need to run the OnEnter schedule once
@@ -187,7 +187,7 @@ type despawnOnExitStateScopedItem[S comparable] struct {
 func despawnOnExitStateSystem[S comparable](
 	commands *Commands,
 	query Query[despawnOnExitStateScopedItem[S]],
-	transitions *EventReader[StateTransitionEvent[S]],
+	transitions *MessageReader[StateTransitionEvent[S]],
 ) {
 	events := transitions.Read()
 	if len(events) == 0 {
@@ -215,7 +215,7 @@ type despawnOnEnterStateScopedItem[S comparable] struct {
 func despawnOnEnterStateSystem[S comparable](
 	commands *Commands,
 	query Query[despawnOnEnterStateScopedItem[S]],
-	transitions *EventReader[StateTransitionEvent[S]],
+	transitions *MessageReader[StateTransitionEvent[S]],
 ) {
 	events := transitions.Read()
 	if len(events) == 0 {
