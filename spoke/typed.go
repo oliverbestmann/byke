@@ -1,6 +1,6 @@
 package spoke
 
-type IsComponent[T any] interface {
+type IsComponent[T IsComponent[T]] interface {
 	ErasedComponent
 	IsComponent(T)
 }
@@ -70,3 +70,5 @@ type IsSupportsChangeDetectionComponent[C IsComponent[C]] interface {
 	IsComponent[C]
 	supportsChangeDetection(componentMarkerType)
 }
+
+type Foo[T Foo[T]] struct{}

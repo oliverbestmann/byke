@@ -11,14 +11,14 @@ type EntityId = spoke.EntityId
 // IsComponent can be used in a type parameter to ensure that type T is a Component type.
 //
 // To implement the IsComponent interface for a type, you must embed the Component type.
-type IsComponent[T any] = spoke.IsComponent[T]
+type IsComponent[T spoke.IsComponent[T]] = spoke.IsComponent[T]
 
 // IsImmutableComponent indicates that a component is immutable and can not be queried
 // using pointer access. Immutable components can be updated by inserting a new copy of the
 // same component into an entity using Command.
 //
 // To implement the IsImmutableComponent interface for a type, you must embed the ImmutableComponent type.
-type IsImmutableComponent[T IsComponent[T]] = spoke.IsImmutableComponent[T]
+type IsImmutableComponent[T spoke.IsImmutableComponent[T]] = spoke.IsImmutableComponent[T]
 
 // IsComparableComponent indicates that a component is comparable. Only comparable components
 // and immutable components can be used with the Changed query filter.
@@ -26,7 +26,7 @@ type IsImmutableComponent[T IsComponent[T]] = spoke.IsImmutableComponent[T]
 // by pointer.
 //
 // To implement the IsComparableComponent interface for a type, you must embed the ComparableComponent type.
-type IsComparableComponent[T IsComponent[T]] = spoke.IsComparableComponent[T]
+type IsComparableComponent[T spoke.IsComparableComponent[T]] = spoke.IsComparableComponent[T]
 
 // Component is a zero sized type that may be embedded into a struct to turn that
 // struct into a component (see IsComponent).
