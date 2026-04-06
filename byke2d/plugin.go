@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -16,6 +17,19 @@ func Plugin(app *byke.App) {
 	app.InsertResource(DefaultWindowConfig())
 	app.InsertResource(DefaultSurfaceConfig())
 	app.InsertResource(surfaceConfigState{})
+
+	// input resources
+	app.InsertResource(Keys{})
+	app.InsertResource(MouseButtons{})
+	app.InsertResource(MouseCursor{})
+	app.InsertResource(MouseCursorDelta{})
+
+	app.AddMessage(byke.MessageType[AppExit]())
+
+	app.AddSystems(byke.First, updateMouseCursorSystem)
+
+	app.AddSystems(byke.Last, readAppExitEventsSystem)
+
 	app.RunWorld(runWorld)
 }
 
@@ -66,6 +80,8 @@ func runWorld(world *byke.World) error {
 		return fmt.Errorf("create window: %w", err)
 	}
 
+	defer win.Terminate()
+
 	ctx, err := wx.New(win.SurfaceDescriptor())
 	if err != nil {
 		return fmt.Errorf("initialize wgpu: %w", err)
@@ -77,9 +93,16 @@ func runWorld(world *byke.World) error {
 
 	world.InsertResource(PrimaryWindow{window: win, context: ctx})
 
-	return win.Run(func(state vyn.UpdateInputState) error {
+	err = win.Run(func(state vyn.UpdateInputState) error {
 		return updateWorld(ctx, win, world, state)
 	})
+
+	// unwrap AppExit errors
+	if exit, ok := errors.AsType[AppExit](err); ok {
+		err = exit.error
+	}
+
+	return err
 }
 
 func dumpContextInfo(ctx *wx.Context) {
@@ -127,8 +150,7 @@ func updateWorld(ctx *wx.Context, win vyn.Window, world *byke.World, makeInputSt
 	}()
 
 	// update input state in world
-	inputState := makeInputState()
-	world.InsertResource(inputState)
+	updateInputState(world, makeInputState)
 
 	// update the game state by running all schedules
 	world.RunSchedule(byke.Main)
@@ -139,7 +161,25 @@ func updateWorld(ctx *wx.Context, win vyn.Window, world *byke.World, makeInputSt
 	// we do not need to release the surface texture if present was successful
 	surface = nil
 
+	// handle app exit by error
+	if exit, ok := byke.ResourceOf[appExitState](world); ok {
+		return exit.Error
+	}
+
 	return nil
+}
+
+func updateInputState(world *byke.World, makeInputState vyn.UpdateInputState) {
+	inputState := makeInputState()
+
+	// store state in world for mouse cursors to update
+	world.InsertResource(InputState{inputState})
+
+	keys, _ := byke.ResourceOf[Keys](world)
+	keys.state = inputState.Keys
+
+	buttons, _ := byke.ResourceOf[MouseButtons](world)
+	buttons.state = inputState.Mouse
 }
 
 func ensureSurfaceConfigured(ctx *wx.Context, world *byke.World, surfaceWidth uint32, surfaceHeight uint32) {
@@ -186,4 +226,14 @@ func getOr[T comparable](value, fallback T) T {
 	}
 
 	return value
+}
+
+func readAppExitEventsSystem(c *byke.Commands, events *byke.MessageReader[AppExit]) {
+	for _, ev := range events.Read() {
+		c.InsertResource(appExitState{Error: ev})
+	}
+}
+
+type appExitState struct {
+	Error error
 }
