@@ -17,6 +17,7 @@ func Plugin(app *byke.App) {
 	app.InsertResource(DefaultWindowConfig())
 	app.InsertResource(DefaultSurfaceConfig())
 	app.InsertResource(surfaceConfigState{})
+	app.InsertResource(ClearColor{wx.ColorSRGBA(0.2, 0.2, 0.3, 1.0)})
 
 	// input resources
 	app.InsertResource(Keys{})
@@ -56,16 +57,15 @@ func DefaultSurfaceConfig() SurfaceConfig {
 }
 
 type PrimaryWindow struct {
-	window  vyn.Window
-	context *wx.Context
+	window vyn.Window
+}
+
+type RenderContext struct {
+	*wx.Context
 }
 
 type ScreenSize struct {
 	glm.Vec2f
-}
-
-func (w PrimaryWindow) Context() *wx.Context {
-	return w.context
 }
 
 func runWorld(world *byke.World) error {
@@ -91,10 +91,11 @@ func runWorld(world *byke.World) error {
 
 	dumpContextInfo(ctx)
 
-	world.InsertResource(PrimaryWindow{window: win, context: ctx})
+	world.InsertResource(PrimaryWindow{window: win})
+	world.InsertResource(RenderContext{Context: ctx})
 
 	err = win.Run(func(state vyn.UpdateInputState) error {
-		return updateWorld(ctx, win, world, state)
+		return updateWorld(world, state)
 	})
 
 	// unwrap AppExit errors
@@ -128,14 +129,21 @@ type InputState struct {
 	state vyn.InputState
 }
 
+type ClearColor struct {
+	wx.Color
+}
+
 type surfaceConfigState struct {
 	Width  uint32
 	Height uint32
 	Config SurfaceConfig
 }
 
-func updateWorld(ctx *wx.Context, win vyn.Window, world *byke.World, makeInputState vyn.UpdateInputState) error {
-	surfaceWidth, surfaceHeight := win.GetSize()
+func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
+	ctx, _ := byke.ResourceOf[RenderContext](world)
+	win, _ := byke.ResourceOf[PrimaryWindow](world)
+
+	surfaceWidth, surfaceHeight := win.window.GetSize()
 	ensureSurfaceConfigured(ctx, world, surfaceWidth, surfaceHeight)
 
 	// get the surface texture (the actual screen)
@@ -151,6 +159,14 @@ func updateWorld(ctx *wx.Context, win vyn.Window, world *byke.World, makeInputSt
 
 	// update input state in world
 	updateInputState(world, makeInputState)
+
+	// create a view we can render to
+	textureView := surface.CreateView(nil)
+	defer textureView.Release()
+
+	// clear the texture
+	clearColor, _ := byke.ResourceOf[ClearColor](world)
+	clearTexture(ctx, textureView, clearColor.Color)
 
 	// update the game state by running all schedules
 	world.RunSchedule(byke.Main)
@@ -182,11 +198,11 @@ func updateInputState(world *byke.World, makeInputState vyn.UpdateInputState) {
 	buttons.state = inputState.Mouse
 }
 
-func ensureSurfaceConfigured(ctx *wx.Context, world *byke.World, surfaceWidth uint32, surfaceHeight uint32) {
+func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth uint32, surfaceHeight uint32) {
 	state, _ := byke.ResourceOf[surfaceConfigState](world)
 	surfaceConfig, _ := byke.ResourceOf[SurfaceConfig](world)
 
-	if state.Width == surfaceWidth || state.Height == surfaceHeight || state.Config == *surfaceConfig {
+	if state.Width == surfaceWidth && state.Height == surfaceHeight && state.Config == *surfaceConfig {
 		return
 	}
 
@@ -236,4 +252,37 @@ func readAppExitEventsSystem(c *byke.Commands, events *byke.MessageReader[AppExi
 
 type appExitState struct {
 	Error error
+}
+
+func clearTexture(ctx *RenderContext, texView *wgpu.TextureView, color wx.Color) {
+	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "ClearTexture"})
+	defer enc.Release()
+
+	carr := color.ToWGPU()
+
+	desc := &wgpu.RenderPassDescriptor{
+		Label: "ClearUsingTexture",
+		ColorAttachments: []wgpu.RenderPassColorAttachment{
+			{
+				View: texView,
+				// ResolveTarget: resolveView,
+				LoadOp:  wgpu.LoadOpClear,
+				StoreOp: wgpu.StoreOpStore,
+				ClearValue: wgpu.Color{
+					R: float64(carr[0]),
+					G: float64(carr[1]),
+					B: float64(carr[2]),
+					A: float64(carr[3]),
+				},
+			},
+		},
+	}
+
+	enc.BeginRenderPass(desc).End()
+
+	// encode into a command buffer
+	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ClearTexture"})
+	defer buf.Release()
+
+	ctx.Submit(buf)
 }
