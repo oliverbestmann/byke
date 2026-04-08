@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"runtime"
 
 	"github.com/oliverbestmann/byke"
@@ -13,11 +14,21 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+var TransformSystems = &byke.SystemSet{}
+var VisibilitySystems = &byke.SystemSet{}
+var AudioSystems = &byke.SystemSet{}
+
 func Plugin(app *byke.App) {
+	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
+	if !ok {
+		assetFs = &AssetFS{FS: os.DirFS("assets")}
+	}
+
 	app.InsertResource(DefaultWindowConfig())
 	app.InsertResource(DefaultSurfaceConfig())
 	app.InsertResource(surfaceConfigState{})
 	app.InsertResource(ClearColor{wx.ColorSRGBA(0.2, 0.2, 0.3, 1.0)})
+	app.InsertResource(makePipelineCache())
 
 	// input resources
 	app.InsertResource(Keys{})
@@ -25,9 +36,25 @@ func Plugin(app *byke.App) {
 	app.InsertResource(MouseCursor{})
 	app.InsertResource(MouseCursorDelta{})
 
+	app.InsertResource(AudioContext{audioContext})
+	app.InsertResource(GlobalVolume{Volume: 1.0})
+	app.InsertResource(GlobalSpatialScale{Scale: glm.Vec3f{1, 1, 1}})
+
+	app.InsertResource(makeAssets(app.World(), assetFs.FS,
+		TextureLoader{},
+		AudioLoader{},
+	))
+
 	app.AddMessage(byke.MessageType[AppExit]())
 
 	app.AddSystems(byke.First, updateMouseCursorSystem)
+
+	app.AddSystems(byke.PreRender,
+		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
+			Chain().
+			InSet(AudioSystems))
+
+	app.AddSystems(byke.Render, renderSpriteSystem)
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
@@ -51,7 +78,7 @@ func DefaultWindowConfig() WindowConfig {
 
 func DefaultSurfaceConfig() SurfaceConfig {
 	return SurfaceConfig{
-		Format:      wgpu.TextureFormatBGRA8Unorm,
+		Format:      wgpu.TextureFormatBGRA8UnormSrgb,
 		PresentMode: wgpu.PresentModeFifo,
 	}
 }
@@ -163,6 +190,12 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	// create a view we can render to
 	textureView := surface.CreateView(nil)
 	defer textureView.Release()
+
+	// store the target in the world for the renderer to access it
+	world.InsertResource(ViewTarget{
+		Format: surface.GetFormat(),
+		Target: textureView,
+	})
 
 	// clear the texture
 	clearColor, _ := byke.ResourceOf[ClearColor](world)
