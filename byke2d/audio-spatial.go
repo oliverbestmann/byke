@@ -29,24 +29,24 @@ func (Microphone) RequireComponents() []spoke.ErasedComponent {
 
 func adjustSpatialAudioVolume(
 	microphoneQuery byke.Query[struct {
-		Microphone Microphone
-		Transform  GlobalTransform
-	}],
+	Microphone Microphone
+	Transform  GlobalTransform
+}],
 
 	sinksQuery byke.Query[struct {
-		_         byke.With[spatialSinkMarker]
-		Sink      *AudioSink
-		Transform GlobalTransform
-	}],
+	_         byke.With[spatialSinkMarker]
+	Sink      *AudioSink
+	Transform GlobalTransform
+}],
 ) {
 	mic, ok := microphoneQuery.Single()
 	if !ok {
 		return
 	}
 
-	micTr := mic.Transform.AsAffine()
-	leftGlobal := micTr.Transform3(mic.Microphone.LeftEarOffset)
-	rightGlobal := micTr.Transform3(mic.Microphone.RightEarOffset)
+	micTr := mic.Transform.AsMat3f()
+	leftGlobal := micTr.Transform(mic.Microphone.LeftEarOffset)
+	rightGlobal := micTr.Transform(mic.Microphone.RightEarOffset)
 
 	for item := range sinksQuery.Items() {
 		spatialScale := item.Sink.ps.SpatialScale

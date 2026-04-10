@@ -28,8 +28,10 @@ type Sprite struct {
 	FlipX, FlipY bool
 }
 
-type renderSpriteValue struct {
-	Sprite Sprite
+func (Sprite) RequireComponents() []byke.ErasedComponent {
+	return append(
+		[]byke.ErasedComponent{NewTransform()},
+	)
 }
 
 type renderSpritePipelineConfig struct {
@@ -48,6 +50,51 @@ func (r renderSpritePipelineConfig) Specialize(dev *wgpu.Device) *wgpu.RenderPip
 		Vertex: wgpu.VertexState{
 			Module:     module,
 			EntryPoint: "vs_main",
+			Buffers: []wgpu.VertexBufferLayout{
+				{
+					ArrayStride: 52,
+					StepMode:    wgpu.VertexStepModeInstance,
+					Attributes: []wgpu.VertexAttribute{
+						// @location(0) i_translation: vec2<f32>,
+						// @location(1) i_scale: vec2<f32>,
+						// @location(2) i_rotation: f32,
+						// @location(3) i_uv_offset: vec2<f32>,
+						// @location(4) i_uv_scale: vec2<f32>,
+						// @location(5) i_color: vec4<f32>,
+
+						{
+							ShaderLocation: 0,
+							Offset:         0,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 1,
+							Offset:         8,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 2,
+							Offset:         16,
+							Format:         wgpu.VertexFormatFloat32,
+						},
+						{
+							ShaderLocation: 3,
+							Offset:         20,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 4,
+							Offset:         28,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 5,
+							Offset:         36,
+							Format:         wgpu.VertexFormatFloat32x4,
+						},
+					},
+				},
+			},
 		},
 		Fragment: &wgpu.FragmentState{
 			Module:     module,
@@ -97,20 +144,47 @@ func pipelineCacheGet[C PipelineConfig](cache *PipelineCache, ctx *RenderContext
 	return pipelineCache.(*wx.PipelineCache[C]).Get(config)
 }
 
+type renderCameraValue struct {
+	Camera     Camera
+	Projection OrthographicProjection
+	Transform  GlobalTransform
+}
+
+type renderSpriteValue struct {
+	Sprite    Sprite
+	Transform GlobalTransform
+}
+
+type renderSpriteAllocations struct {
+	bufIndices *wgpu.Buffer
+	bufView    *wgpu.Buffer
+}
+
 func renderSpriteSystem(
-	query byke.Query[renderSpriteValue],
+	spritesQuery byke.Query[renderSpriteValue],
 	ctx *RenderContext,
 	viewTarget *ViewTarget,
-	bufIndices *byke.Local[*wgpu.Buffer],
+	gpu *byke.Local[renderSpriteAllocations],
 	pipelineCache *PipelineCache,
+	camerasQuery byke.Query[renderCameraValue],
 ) {
-	if bufIndices.Value == nil {
+	if gpu.Value.bufIndices == nil {
 		slog.Debug("Initialize index buffer")
 
-		bufIndices.Value = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+		gpu.Value.bufIndices = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
 			Label:    "Sprite.Indices",
 			Contents: wgpu.ToBytes([]uint16{2, 0, 1, 1, 3, 2}),
 			Usage:    wgpu.BufferUsageIndex,
+		})
+	}
+
+	if gpu.Value.bufView == nil {
+		slog.Debug("Initialize view uniform buffer")
+
+		gpu.Value.bufView = ctx.CreateBuffer(&wgpu.BufferDescriptor{
+			Label: "Sprite.ViewUniform",
+			Usage: wgpu.BufferUsageUniform | wgpu.BufferUsageCopyDst,
+			Size:  max(96, uint64(len(new(viewUniform).ToWGPU()))),
 		})
 	}
 
@@ -121,44 +195,118 @@ func renderSpriteSystem(
 
 	cp := pipelineCacheGet(pipelineCache, ctx, conf)
 
-	encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
-	defer encoder.Release()
+	// collect instances values, reuse allocations
+	var instances wx.InstanceWriter
+	var instanceCount uint32
 
-	for sprite := range query.Items() {
-		bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-			Label:  "Sprite.BindGroup",
+	for camera := range camerasQuery.Items() {
+		screenSize := camera.Projection.ScalingMode.ViewportSize(viewTarget.Size.XY())
+
+		viewUniformValue := viewUniform{
+			ScreenToNDC:   camera.Projection.ScreenToNDC(screenSize),
+			WorldToScreen: camera.Transform.AsMat3f(),
+		}
+
+		// upload uniforms for this camera
+		ctx.Queue.WriteBuffer(gpu.Value.bufView, 0, viewUniformValue.ToWGPU())
+
+		viewBindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+			Label:  "Sprite.ViewUniform.BindGroup",
 			Layout: cp.GetBindGroupLayout(0),
 			Entries: []wgpu.BindGroupEntry{
 				{
-					Binding:     0,
-					TextureView: sprite.Sprite.Texture.TextureView,
-				},
-				{
-					Binding: 1,
-					Sampler: sprite.Sprite.Texture.Sampler,
+					Binding: 0,
+					Buffer:  gpu.Value.bufView,
+					Size:    wgpu.WholeSize,
 				},
 			},
 		})
 
-		pass := encoder.BeginRenderPass(&wgpu.RenderPassDescriptor{
-			Label: "Sprite.RenderPass",
-			ColorAttachments: []wgpu.RenderPassColorAttachment{
-				{
-					View:    viewTarget.Target,
-					LoadOp:  wgpu.LoadOpLoad,
-					StoreOp: wgpu.StoreOpStore,
-				},
-			},
-		})
+		flush := func(currentTexture *Texture) {
+			encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
+			defer encoder.Release()
 
-		pass.SetPipeline(cp.Pipeline)
-		pass.SetBindGroup(0, bindGroup, nil)
-		pass.SetIndexBuffer(bufIndices.Value, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
-		pass.DrawIndexed(6, 1, 0, 0, 0)
-		pass.End()
-		
-		bindGroup.Release()
+			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+				Label:  "Sprite.BindGroup",
+				Layout: cp.GetBindGroupLayout(1),
+				Entries: []wgpu.BindGroupEntry{
+					{
+						Binding:     0,
+						TextureView: currentTexture.TextureView,
+					},
+					{
+						Binding: 1,
+						Sampler: currentTexture.Sampler,
+					},
+				},
+			})
+
+			defer bindGroup.Release()
+
+			pass := encoder.BeginRenderPass(&wgpu.RenderPassDescriptor{
+				Label: "Sprite.RenderPass",
+				ColorAttachments: []wgpu.RenderPassColorAttachment{
+					{
+						View:    viewTarget.Target,
+						LoadOp:  wgpu.LoadOpLoad,
+						StoreOp: wgpu.StoreOpStore,
+					},
+				},
+			})
+			defer pass.Release()
+
+			bufInstances := ctx.CreateBuffer(&wgpu.BufferDescriptor{
+				Label: "Sprite.Instances",
+				Usage: wgpu.BufferUsageVertex | wgpu.BufferUsageCopyDst,
+				Size:  uint64(len(instances.Bytes())),
+			})
+
+			ctx.WriteBuffer(bufInstances, 0, instances.Bytes())
+
+			pass.SetPipeline(cp.Pipeline)
+			pass.SetBindGroup(0, viewBindGroup, nil)
+			pass.SetBindGroup(1, bindGroup, nil)
+			pass.SetVertexBuffer(0, bufInstances, 0, uint64(instanceCount)*52)
+			pass.SetIndexBuffer(gpu.Value.bufIndices, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
+			pass.DrawIndexed(6, instanceCount, 0, 0, 0)
+			pass.End()
+
+			ctx.Submit(encoder.Finish(nil))
+		}
+
+		var currentTexture *Texture = nil
+
+		for sprite := range spritesQuery.Items() {
+			if currentTexture != nil && currentTexture != sprite.Sprite.Texture {
+				flush(currentTexture)
+				instances.Clear()
+				instanceCount = 0
+			}
+
+			currentTexture = sprite.Sprite.Texture
+
+			// @location(0) i_translation: vec2<f32>,
+			// @location(1) i_scale: vec2<f32>,
+			// @location(2) i_rotation: f32,
+			// @location(3) i_uv_offset: vec2<f32>,
+			// @location(4) i_uv_scale: vec2<f32>,
+			// @location(5) i_color: vec4<f32>,
+			instances.AppendVec2f(sprite.Transform.Translation.Truncate())
+			instances.AppendVec2f(sprite.Transform.Scale.Truncate())
+			instances.AppendFloat32(float32(sprite.Transform.Rotation))
+			instances.AppendVec2f(glm.Vec2f{1, 1})
+			instances.AppendVec2f(glm.Vec2f{0, 0})
+			instances.AppendVec4f(glm.Vec4f{1, 1, 1, 1})
+
+			instanceCount += 1
+		}
+
+		if instanceCount > 0 {
+			flush(currentTexture)
+			instances.Clear()
+			instanceCount = 0
+		}
+
+		viewBindGroup.Release()
 	}
-
-	ctx.Queue.Submit(encoder.Finish(nil))
 }

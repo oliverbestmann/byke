@@ -18,6 +18,10 @@ var TransformSystems = &byke.SystemSet{}
 var VisibilitySystems = &byke.SystemSet{}
 var AudioSystems = &byke.SystemSet{}
 
+var RenderClearSystems = &byke.SystemSet{}
+var RenderSystems = &byke.SystemSet{}
+var RenderPostProcessSystems = &byke.SystemSet{}
+
 func Plugin(app *byke.App) {
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
 	if !ok {
@@ -27,7 +31,6 @@ func Plugin(app *byke.App) {
 	app.InsertResource(DefaultWindowConfig())
 	app.InsertResource(DefaultSurfaceConfig())
 	app.InsertResource(surfaceConfigState{})
-	app.InsertResource(ClearColor{wx.ColorSRGBA(0.2, 0.2, 0.3, 1.0)})
 	app.InsertResource(makePipelineCache())
 
 	// input resources
@@ -49,12 +52,22 @@ func Plugin(app *byke.App) {
 
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 
+	app.AddSystems(byke.PostUpdate, byke.
+		System(syncSimpleTransformSystem, propagateTransformSystem).
+		Chain().
+		InSet(TransformSystems))
+	
 	app.AddSystems(byke.PreRender,
 		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
 			Chain().
 			InSet(AudioSystems))
 
-	app.AddSystems(byke.Render, renderSpriteSystem)
+	app.AddSystems(byke.Render,
+		byke.System(clearViewTargetSystem, renderSpriteSystem).Chain())
+
+	app.ConfigureSystemSets(byke.Render, RenderClearSystems.
+		Before(RenderSystems).
+		Before(RenderPostProcessSystems))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
@@ -157,6 +170,7 @@ type InputState struct {
 }
 
 type ClearColor struct {
+	byke.ComparableComponent[ClearColor]
 	wx.Color
 }
 
@@ -191,15 +205,14 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	textureView := surface.CreateView(nil)
 	defer textureView.Release()
 
+	surfaceSize := glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)}
+
 	// store the target in the world for the renderer to access it
 	world.InsertResource(ViewTarget{
 		Format: surface.GetFormat(),
 		Target: textureView,
+		Size:   surfaceSize,
 	})
-
-	// clear the texture
-	clearColor, _ := byke.ResourceOf[ClearColor](world)
-	clearTexture(ctx, textureView, clearColor.Color)
 
 	// update the game state by running all schedules
 	world.RunSchedule(byke.Main)
