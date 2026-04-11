@@ -57,7 +57,7 @@ fn mat3_translation(translation: vec2<f32>) -> mat3x3<f32> {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     let model_to_world = mat3_translation(in.i_translation)
-        * mat3_scale(in.i_scale*2)
+        * mat3_scale(in.i_scale)
         * mat3_rotation(in.i_rotation);
 
     // between 0 and 1
@@ -72,13 +72,13 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         * view.screen_to_ndc
         * view.world_to_screen
         * model_to_world
-        * vec3<f32>(vertex_position * 64.0, 1.0);
+        * vec3<f32>(vertex_position, 1.0);
 
     // move the vertex to the world
     var out: VertexOutput;
     out.position = vec4(position.xy, 0.0, 1.0);
-    out.uv = vertex_position;
-    out.color = vec4f(1, 1, 1, 1);
+    out.uv = vertex_position * in.i_uv_scale + in.i_uv_offset;
+    out.color = in.i_color;
 
     return out;
 }
@@ -94,5 +94,5 @@ var texture_sampler: sampler;
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4f {
     let tex = textureSample(texture, texture_sampler, vertex.uv);
-    return tex * vertex.color + vec4f(0.5, 0, 0.4, 1.0);
+    return tex * vertex.color;
 }

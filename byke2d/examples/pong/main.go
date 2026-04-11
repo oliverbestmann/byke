@@ -8,9 +8,10 @@ import (
 	"os"
 
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d"
+	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
+	"github.com/oliverbestmann/pulse/wx"
 )
 
 //go:embed assets
@@ -27,12 +28,12 @@ func main() {
 	var app byke.App
 
 	// configure assets before loading the plugin
-	app.InsertResource(byke2d.MakeAssetFS(assets))
+	app.InsertResource(MakeAssetFS(assets))
 
-	app.AddPlugin(byke2d.Plugin)
-	app.AddSystems(byke.Update, byke2d.ExitOnEscapeSystem)
+	app.AddPlugin(Plugin)
+	app.AddSystems(byke.Update, ExitOnEscapeSystem)
 
-	app.AddSystems(byke.Update, func(buttons byke2d.MouseButtons, cursor byke2d.MouseCursor) {
+	app.AddSystems(byke.Update, func(buttons MouseButtons, cursor MouseCursor) {
 		if buttons.IsJustPressed(vyn.MouseButton(0)) {
 			fmt.Println(cursor.XY())
 		}
@@ -44,14 +45,19 @@ func main() {
 	app.MustRun()
 }
 
-func setupSystem(commands *byke.Commands, assets *byke2d.Assets) {
+type Rocket struct {
+	byke.ImmutableComponent[Rocket]
+}
+
+func setupSystem(commands *byke.Commands, assets *Assets) {
 	asset := assets.Texture("circle.png").Await()
+	figure := assets.Texture("figure.png").Await()
 
 	commands.Spawn(
-		byke2d.Camera{},
-		byke2d.OrthographicProjection{
+		Camera{},
+		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    byke2d.ScalingModeWindowSize{},
+			ScalingMode:    ScalingModeWindowSize{},
 			Scale:          1.0,
 		},
 	)
@@ -59,19 +65,26 @@ func setupSystem(commands *byke.Commands, assets *byke2d.Assets) {
 	for range 100 {
 		x := rand.Float32()*1000 - 500
 		y := rand.Float32()*600 - 300
-		tr := byke2d.NewTransform()
-		tr.Translation = glm.Vec3f{x, y, 0}
+
+		tr := TransformFromXY(x, y)
 
 		commands.Spawn(
 			tr,
-			byke2d.Sprite{Texture: asset},
+			Sprite{Texture: asset},
 		)
 	}
+
+	commands.Spawn(
+		Rocket{},
+		Sprite{Texture: figure},
+		TransformFromXYZ(0, 0, 1),
+		TextureAtlasFromRect(wx.RectangleFromXYWH[uint32](0, 0, 32, 32)),
+	)
 }
 
 func moveCamera(query byke.Query[struct {
-	_         byke.With[byke2d.Camera]
-	Transform *byke2d.Transform
+	_         byke.With[Camera]
+	Transform *Transform
 }]) {
 	for item := range query.Items() {
 		item.Transform.Translation[0] += 1
@@ -79,10 +92,10 @@ func moveCamera(query byke.Query[struct {
 }
 
 func moveSprite(query byke.Query[struct {
-	_         byke.With[byke2d.Sprite]
-	Transform *byke2d.Transform
+	_         byke.With[Sprite]
+	Transform *Transform
 }]) {
 	for item := range query.Items() {
-		item.Transform.Rotation += 0.01
+		item.Transform.Translation[0] *= 1.001
 	}
 }

@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	_ "embed"
-	"log/slog"
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
@@ -18,11 +17,16 @@ var spritesShader string
 
 type Sprite struct {
 	byke.ComparableComponent[Sprite]
+
+	// The texture to use
 	Texture *Texture
 
 	// Sets a custom render size for this texture.
 	// The default is to render at the textures native size.
 	CustomSize Optional[glm.Vec2f]
+
+	// A color tint for this sprite.
+	Color wx.Color
 
 	// flips the sprite during rendering.
 	FlipX, FlipY bool
@@ -30,9 +34,26 @@ type Sprite struct {
 
 func (Sprite) RequireComponents() []byke.ErasedComponent {
 	return append(
-		[]byke.ErasedComponent{NewTransform()},
+		[]byke.ErasedComponent{NewTransform(), AnchorCenter, InheritVisibility},
 	)
 }
+
+type Anchor struct {
+	byke.ComparableComponent[Anchor]
+	glm.Vec2f
+}
+
+var (
+	AnchorTopLeft      = &Anchor{Vec2f: glm.Vec2f{0.0, 0.0}}
+	AnchorTopCenter    = &Anchor{Vec2f: glm.Vec2f{0.5, 0.0}}
+	AnchorTopRight     = &Anchor{Vec2f: glm.Vec2f{1.0, 0.0}}
+	AnchorCenterLeft   = &Anchor{Vec2f: glm.Vec2f{0, 0.5}}
+	AnchorCenter       = &Anchor{Vec2f: glm.Vec2f{0.5, 0.5}}
+	AnchorCenterRight  = &Anchor{Vec2f: glm.Vec2f{1.0, 0.5}}
+	AnchorBottomLeft   = &Anchor{Vec2f: glm.Vec2f{0, 1.0}}
+	AnchorBottomCenter = &Anchor{Vec2f: glm.Vec2f{0.5, 1.0}}
+	AnchorBottomRight  = &Anchor{Vec2f: glm.Vec2f{1.0, 1.0}}
+)
 
 type renderSpritePipelineConfig struct {
 	Format      wgpu.TextureFormat
@@ -151,46 +172,52 @@ type renderCameraValue struct {
 }
 
 type renderSpriteValue struct {
-	Sprite    Sprite
-	Transform GlobalTransform
+	Sprite       Sprite
+	Transform    GlobalTransform
+	Visibility   ComputedVisibility
+	TextureAtlas byke.Option[TextureAtlas]
 }
 
 type renderSpriteAllocations struct {
-	bufIndices *wgpu.Buffer
-	bufView    *wgpu.Buffer
+	bufIndices   *wgpu.Buffer
+	bufView      *wgpu.Buffer
+	bufInstances *wgpu.Buffer
 }
 
 func renderSpriteSystem(
 	spritesQuery byke.Query[renderSpriteValue],
 	ctx *RenderContext,
 	viewTarget *ViewTarget,
-	gpu *byke.Local[renderSpriteAllocations],
+	cachedAllocs *byke.Local[renderSpriteAllocations],
 	pipelineCache *PipelineCache,
 	camerasQuery byke.Query[renderCameraValue],
 ) {
-	if gpu.Value.bufIndices == nil {
-		slog.Debug("Initialize index buffer")
+	const bufInstancesSize = 1024 * 1024
+	allocs := &cachedAllocs.Value
 
-		gpu.Value.bufIndices = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+	if allocs.bufIndices == nil {
+		allocs.bufIndices = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
 			Label:    "Sprite.Indices",
 			Contents: wgpu.ToBytes([]uint16{2, 0, 1, 1, 3, 2}),
 			Usage:    wgpu.BufferUsageIndex,
 		})
-	}
 
-	if gpu.Value.bufView == nil {
-		slog.Debug("Initialize view uniform buffer")
-
-		gpu.Value.bufView = ctx.CreateBuffer(&wgpu.BufferDescriptor{
+		allocs.bufView = ctx.CreateBuffer(&wgpu.BufferDescriptor{
 			Label: "Sprite.ViewUniform",
 			Usage: wgpu.BufferUsageUniform | wgpu.BufferUsageCopyDst,
 			Size:  max(96, uint64(len(new(viewUniform).ToWGPU()))),
+		})
+
+		allocs.bufInstances = ctx.CreateBuffer(&wgpu.BufferDescriptor{
+			Label: "Sprite.Instances",
+			Usage: wgpu.BufferUsageVertex | wgpu.BufferUsageCopyDst,
+			Size:  bufInstancesSize,
 		})
 	}
 
 	conf := renderSpritePipelineConfig{
 		Format:      viewTarget.Format,
-		SampleCount: 1,
+		SampleCount: viewTarget.SampleCount,
 	}
 
 	cp := pipelineCacheGet(pipelineCache, ctx, conf)
@@ -198,6 +225,8 @@ func renderSpriteSystem(
 	// collect instances values, reuse allocations
 	var instances wx.InstanceWriter
 	var instanceCount uint32
+
+	const instanceSize = 52
 
 	for camera := range camerasQuery.Items() {
 		screenSize := camera.Projection.ScalingMode.ViewportSize(viewTarget.Size.XY())
@@ -208,15 +237,16 @@ func renderSpriteSystem(
 		}
 
 		// upload uniforms for this camera
-		ctx.Queue.WriteBuffer(gpu.Value.bufView, 0, viewUniformValue.ToWGPU())
+		ctx.Queue.WriteBuffer(allocs.bufView, 0, viewUniformValue.ToWGPU())
 
+		// bind ViewUniform
 		viewBindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 			Label:  "Sprite.ViewUniform.BindGroup",
 			Layout: cp.GetBindGroupLayout(0),
 			Entries: []wgpu.BindGroupEntry{
 				{
 					Binding: 0,
-					Buffer:  gpu.Value.bufView,
+					Buffer:  allocs.bufView,
 					Size:    wgpu.WholeSize,
 				},
 			},
@@ -255,19 +285,13 @@ func renderSpriteSystem(
 			})
 			defer pass.Release()
 
-			bufInstances := ctx.CreateBuffer(&wgpu.BufferDescriptor{
-				Label: "Sprite.Instances",
-				Usage: wgpu.BufferUsageVertex | wgpu.BufferUsageCopyDst,
-				Size:  uint64(len(instances.Bytes())),
-			})
-
-			ctx.WriteBuffer(bufInstances, 0, instances.Bytes())
+			ctx.WriteBuffer(allocs.bufInstances, 0, instances.Bytes())
 
 			pass.SetPipeline(cp.Pipeline)
 			pass.SetBindGroup(0, viewBindGroup, nil)
 			pass.SetBindGroup(1, bindGroup, nil)
-			pass.SetVertexBuffer(0, bufInstances, 0, uint64(instanceCount)*52)
-			pass.SetIndexBuffer(gpu.Value.bufIndices, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
+			pass.SetVertexBuffer(0, allocs.bufInstances, 0, uint64(instanceCount)*instanceSize)
+			pass.SetIndexBuffer(allocs.bufIndices, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
 			pass.DrawIndexed(6, instanceCount, 0, 0, 0)
 			pass.End()
 
@@ -277,26 +301,53 @@ func renderSpriteSystem(
 		var currentTexture *Texture = nil
 
 		for sprite := range spritesQuery.Items() {
-			if currentTexture != nil && currentTexture != sprite.Sprite.Texture {
+			hasNoSpace := bufInstancesSize-instances.Len() < instanceSize
+			hasNewTexture := currentTexture != nil && currentTexture != sprite.Sprite.Texture
+
+			if hasNewTexture || hasNoSpace {
 				flush(currentTexture)
 				instances.Clear()
 				instanceCount = 0
 			}
 
+			// display the full image by default
+			textureSize := sprite.Sprite.Texture.Size()
+			rect := wx.RectangleFromPoints(glm.Vec2f{}, textureSize)
+
+			// but apply texture atlas if available
+			if ta, ok := sprite.TextureAtlas.Get(); ok {
+				rect.Min = ta.Layout[ta.Index].Min.ToVec2f()
+				rect.Max = ta.Layout[ta.Index].Max.ToVec2f()
+			}
+
 			currentTexture = sprite.Sprite.Texture
 
+			// initial base size of the sprite
+			baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
+
+			if sprite.Sprite.FlipX {
+				baseSize[0] *= -1
+			}
+
+			if sprite.Sprite.FlipY {
+				baseSize[1] *= -1
+			}
+
+			uvOffset := rect.Min.Div(textureSize)
+			uvScale := rect.Size().Div(textureSize)
+
 			// @location(0) i_translation: vec2<f32>,
-			// @location(1) i_scale: vec2<f32>,
-			// @location(2) i_rotation: f32,
-			// @location(3) i_uv_offset: vec2<f32>,
-			// @location(4) i_uv_scale: vec2<f32>,
-			// @location(5) i_color: vec4<f32>,
 			instances.AppendVec2f(sprite.Transform.Translation.Truncate())
-			instances.AppendVec2f(sprite.Transform.Scale.Truncate())
+			// @location(1) i_scale: vec2<f32>,
+			instances.AppendVec2f(sprite.Transform.Scale.Truncate().Mul(baseSize))
+			// @location(2) i_rotation: f32,
 			instances.AppendFloat32(float32(sprite.Transform.Rotation))
-			instances.AppendVec2f(glm.Vec2f{1, 1})
-			instances.AppendVec2f(glm.Vec2f{0, 0})
-			instances.AppendVec4f(glm.Vec4f{1, 1, 1, 1})
+			// @location(3) i_uv_offset: vec2<f32>,
+			instances.AppendVec2f(uvOffset)
+			// @location(4) i_uv_scale: vec2<f32>,
+			instances.AppendVec2f(uvScale)
+			// @location(5) i_color: vec4<f32>,
+			instances.AppendVec4f(sprite.Sprite.Color.ToVec())
 
 			instanceCount += 1
 		}

@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/draw"
 
+	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -15,6 +16,13 @@ type Texture struct {
 	TextureView *wgpu.TextureView
 	Sampler     *wgpu.Sampler
 	Descriptor  *wgpu.TextureDescriptor
+}
+
+func (t *Texture) Size() glm.Vec2f {
+	return glm.Vec2f{
+		float32(t.Descriptor.Size.Width),
+		float32(t.Descriptor.Size.Height),
+	}
 }
 
 func (t *Texture) Width() uint32 {

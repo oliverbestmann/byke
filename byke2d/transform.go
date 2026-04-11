@@ -21,6 +21,41 @@ func NewTransform() Transform {
 	}
 }
 
+func TransformFromXY(x, y float32) Transform {
+	return TransformFromXYZ(x, y, 0)
+}
+
+func TransformFromXYZ(x, y, z float32) Transform {
+	return Transform{
+		Scale:       glm.Vec3f{1, 1, 1},
+		Translation: glm.Vec3f{x, y, z},
+	}
+}
+
+func (t Transform) WithTranslationXY(x, y float32) Transform {
+	t.Translation = glm.Vec3f{x, y, 0}
+	return t
+}
+func (t Transform) WithTranslationXYZ(x, y, z float32) Transform {
+	t.Translation = glm.Vec3f{x, y, z}
+	return t
+}
+
+func (t Transform) WithScaleXY(x, y float32) Transform {
+	t.Scale = glm.Vec3f{x, y, 0}
+	return t
+}
+
+func (t Transform) WithScaleXYZ(x, y, z float32) Transform {
+	t.Scale = glm.Vec3f{x, y, z}
+	return t
+}
+
+func (t Transform) WithRotation(rotation glm.Rad) Transform {
+	t.Rotation = rotation
+	return t
+}
+
 func (Transform) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		GlobalTransform{Scale: glm.Vec3f{1, 1, 1}},

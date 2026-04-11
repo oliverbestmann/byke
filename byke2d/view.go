@@ -19,4 +19,7 @@ type ViewTarget struct {
 
 	// The target to render to, must support Format.
 	Target *wgpu.TextureView
+
+	// The sample count of this view target.
+	SampleCount uint32
 }

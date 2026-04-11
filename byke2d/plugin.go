@@ -53,10 +53,15 @@ func Plugin(app *byke.App) {
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 
 	app.AddSystems(byke.PostUpdate, byke.
+		System(syncSimpleVisibilitySystem, propagateVisibilitySystem).
+		Chain().
+		InSet(VisibilitySystems))
+
+	app.AddSystems(byke.PostUpdate, byke.
 		System(syncSimpleTransformSystem, propagateTransformSystem).
 		Chain().
 		InSet(TransformSystems))
-	
+
 	app.AddSystems(byke.PreRender,
 		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
 			Chain().
@@ -209,9 +214,10 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 
 	// store the target in the world for the renderer to access it
 	world.InsertResource(ViewTarget{
-		Format: surface.GetFormat(),
-		Target: textureView,
-		Size:   surfaceSize,
+		Format:      surface.GetFormat(),
+		SampleCount: surface.GetSampleCount(),
+		Target:      textureView,
+		Size:        surfaceSize,
 	})
 
 	// update the game state by running all schedules
