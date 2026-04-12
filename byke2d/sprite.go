@@ -166,9 +166,10 @@ func pipelineCacheGet[C PipelineConfig](cache *PipelineCache, ctx *RenderContext
 }
 
 type renderCameraValue struct {
-	Camera     Camera
-	Projection OrthographicProjection
-	Transform  GlobalTransform
+	Camera       Camera
+	Projection   OrthographicProjection
+	Transform    GlobalTransform
+	RenderLayers RenderLayers
 }
 
 type renderSpriteValue struct {
@@ -176,6 +177,7 @@ type renderSpriteValue struct {
 	Transform    GlobalTransform
 	Visibility   ComputedVisibility
 	TextureAtlas byke.Option[TextureAtlas]
+	RenderLayers byke.Option[RenderLayers]
 }
 
 type renderSpriteAllocations struct {
@@ -301,6 +303,14 @@ func renderSpriteSystem(
 		var currentTexture *Texture = nil
 
 		for sprite := range spritesQuery.Items() {
+			if !sprite.Visibility.Visible {
+				continue
+			}
+
+			if !camera.RenderLayers.Intersects(sprite.RenderLayers.Or(renderLayerZero)) {
+				continue
+			}
+
 			hasNoSpace := bufInstancesSize-instances.Len() < instanceSize
 			hasNewTexture := currentTexture != nil && currentTexture != sprite.Sprite.Texture
 

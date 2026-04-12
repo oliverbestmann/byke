@@ -28,6 +28,7 @@ type Camera struct {
 func (Camera) RequireComponents() []spoke.ErasedComponent {
 	return []byke.ErasedComponent{
 		NewTransform(),
+		renderLayerZero,
 		ClearColor{
 			Color: wx.ColorSRGBA(0.2, 0.2, 0.3, 1.0),
 		},
