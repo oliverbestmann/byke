@@ -15,7 +15,7 @@ func clearViewTargetSystem(
 			continue
 		}
 
-		clearTexture(renderContext, viewTarget.Target, camera.ClearColor.Color)
+		// clearTexture(renderContext, viewTarget.Target, camera.ClearColor.Color)
 		break
 	}
 }

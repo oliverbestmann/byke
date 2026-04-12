@@ -3,6 +3,7 @@ package byke2d
 import (
 	_ "embed"
 	"reflect"
+	"slices"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/pulse/glm"
@@ -170,6 +171,7 @@ type renderCameraValue struct {
 	Projection   OrthographicProjection
 	Transform    GlobalTransform
 	RenderLayers RenderLayers
+	ViewTarget   *ViewTarget
 }
 
 type renderSpriteValue struct {
@@ -189,7 +191,6 @@ type renderSpriteAllocations struct {
 func renderSpriteSystem(
 	spritesQuery byke.Query[renderSpriteValue],
 	ctx *RenderContext,
-	viewTarget *ViewTarget,
 	cachedAllocs *byke.Local[renderSpriteAllocations],
 	pipelineCache *PipelineCache,
 	camerasQuery byke.Query[renderCameraValue],
@@ -217,21 +218,29 @@ func renderSpriteSystem(
 		})
 	}
 
-	conf := renderSpritePipelineConfig{
-		Format:      viewTarget.Format,
-		SampleCount: viewTarget.SampleCount,
-	}
-
-	cp := pipelineCacheGet(pipelineCache, ctx, conf)
-
 	// collect instances values, reuse allocations
 	var instances wx.InstanceWriter
 	var instanceCount uint32
 
 	const instanceSize = 52
 
+	// TODO reuse allocation
+	cameras := camerasQuery.AppendTo(nil)
+
+	// sort cameras to render in ascending camera order
+	slices.SortFunc(cameras, func(a, b renderCameraValue) int {
+		return b.Camera.Order - a.Camera.Order
+	})
+
 	for camera := range camerasQuery.Items() {
-		screenSize := camera.Projection.ScalingMode.ViewportSize(viewTarget.Size.XY())
+		conf := renderSpritePipelineConfig{
+			Format:      camera.ViewTarget.Format,
+			SampleCount: camera.ViewTarget.SampleCount,
+		}
+
+		cp := pipelineCacheGet(pipelineCache, ctx, conf)
+
+		screenSize := camera.Projection.ScalingMode.ViewportSize(camera.ViewTarget.Size.XY())
 
 		viewUniformValue := viewUniform{
 			ScreenToNDC:   camera.Projection.ScreenToNDC(screenSize),
@@ -254,7 +263,11 @@ func renderSpriteSystem(
 			},
 		})
 
-		flush := func(currentTexture *Texture) {
+		type batchKey struct {
+			Texture *Texture
+		}
+
+		flush := func(key batchKey) {
 			encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
 			defer encoder.Release()
 
@@ -264,11 +277,11 @@ func renderSpriteSystem(
 				Entries: []wgpu.BindGroupEntry{
 					{
 						Binding:     0,
-						TextureView: currentTexture.TextureView,
+						TextureView: key.Texture.TextureView,
 					},
 					{
 						Binding: 1,
-						Sampler: currentTexture.Sampler,
+						Sampler: key.Texture.Sampler,
 					},
 				},
 			})
@@ -278,11 +291,7 @@ func renderSpriteSystem(
 			pass := encoder.BeginRenderPass(&wgpu.RenderPassDescriptor{
 				Label: "Sprite.RenderPass",
 				ColorAttachments: []wgpu.RenderPassColorAttachment{
-					{
-						View:    viewTarget.Target,
-						LoadOp:  wgpu.LoadOpLoad,
-						StoreOp: wgpu.StoreOpStore,
-					},
+					camera.ViewTarget.ColorAttachment(),
 				},
 			})
 			defer pass.Release()
@@ -300,9 +309,25 @@ func renderSpriteSystem(
 			ctx.Submit(encoder.Finish(nil))
 		}
 
-		var currentTexture *Texture = nil
+		var keyCurrent batchKey
 
-		for sprite := range spritesQuery.Items() {
+		sprites := spritesQuery.AppendTo(nil)
+
+		// sort sprites by z-order
+		slices.SortFunc(sprites, func(a, b renderSpriteValue) int {
+			aZ := a.Transform.Translation[2]
+			bZ := b.Transform.Translation[2]
+			switch {
+			case aZ < bZ:
+				return -1
+			case aZ > bZ:
+				return 1
+			default:
+				return 0
+			}
+		})
+
+		for _, sprite := range sprites {
 			if !sprite.Visibility.Visible {
 				continue
 			}
@@ -311,14 +336,20 @@ func renderSpriteSystem(
 				continue
 			}
 
+			key := batchKey{
+				Texture: sprite.Sprite.Texture,
+			}
+
 			hasNoSpace := bufInstancesSize-instances.Len() < instanceSize
-			hasNewTexture := currentTexture != nil && currentTexture != sprite.Sprite.Texture
+			hasNewTexture := instances.Len() > 0 && keyCurrent != key
 
 			if hasNewTexture || hasNoSpace {
-				flush(currentTexture)
+				flush(keyCurrent)
 				instances.Clear()
 				instanceCount = 0
 			}
+
+			keyCurrent = key
 
 			// display the full image by default
 			textureSize := sprite.Sprite.Texture.Size()
@@ -330,8 +361,6 @@ func renderSpriteSystem(
 				rect.Min = ta.Layout[idx].Min.ToVec2f()
 				rect.Max = ta.Layout[idx].Max.ToVec2f()
 			}
-
-			currentTexture = sprite.Sprite.Texture
 
 			// initial base size of the sprite
 			baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
@@ -364,7 +393,7 @@ func renderSpriteSystem(
 		}
 
 		if instanceCount > 0 {
-			flush(currentTexture)
+			flush(keyCurrent)
 			instances.Clear()
 			instanceCount = 0
 		}

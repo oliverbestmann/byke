@@ -67,8 +67,11 @@ func Plugin(app *byke.App) {
 			Chain().
 			InSet(AudioSystems))
 
+	app.AddSystems(byke.PreRender,
+		updateViewTargetOnCamerasSystem)
+
 	app.AddSystems(byke.Render,
-		byke.System(clearViewTargetSystem, renderSpriteSystem).Chain())
+		byke.System(renderSpriteSystem).Chain())
 
 	app.ConfigureSystemSets(byke.Render, RenderClearSystems.
 		Before(RenderSystems).
@@ -185,6 +188,12 @@ type surfaceConfigState struct {
 	Config SurfaceConfig
 }
 
+type currentSurfaceValues struct {
+	Texture     *wgpu.Texture
+	TextureView *wgpu.TextureView
+	Size        glm.Vec2f
+}
+
 func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	ctx, _ := byke.ResourceOf[RenderContext](world)
 	win, _ := byke.ResourceOf[PrimaryWindow](world)
@@ -207,17 +216,14 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	updateInputState(world, makeInputState)
 
 	// create a view we can render to
-	textureView := surface.CreateView(nil)
-	defer textureView.Release()
-
-	surfaceSize := glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)}
+	surfaceTextureView := surface.CreateView(nil)
+	defer surfaceTextureView.Release()
 
 	// store the target in the world for the renderer to access it
-	world.InsertResource(ViewTarget{
-		Format:      surface.GetFormat(),
-		SampleCount: surface.GetSampleCount(),
-		Target:      textureView,
-		Size:        surfaceSize,
+	world.InsertResource(currentSurfaceValues{
+		Texture:     surface,
+		TextureView: surfaceTextureView,
+		Size:        glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)},
 	})
 
 	// update the game state by running all schedules
@@ -235,6 +241,51 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	}
 
 	return nil
+}
+
+func updateViewTargetOnCamerasSystem(surfaceValues currentSurfaceValues, query byke.Query[struct {
+	_            byke.With[Camera]
+	RenderTarget *RenderTarget
+	ViewTarget   *ViewTarget
+	ClearColor   ClearColor
+}]) {
+	for camera := range query.Items() {
+		switch {
+		case camera.RenderTarget.PrimaryWindow:
+			v := surfaceValues
+
+			*camera.ViewTarget = ViewTarget{
+				ClearColor:  camera.ClearColor.Color,
+				Format:      v.Texture.GetFormat(),
+				SampleCount: v.Texture.GetSampleCount(),
+				Size:        v.Size,
+
+				attachments: [2]*colorAttachment{
+					{
+						Texture:       v.TextureView,
+						ResolveTarget: nil,
+					},
+				},
+			}
+
+		case camera.RenderTarget.Texture != nil:
+			target := camera.RenderTarget.Texture
+
+			*camera.ViewTarget = ViewTarget{
+				ClearColor:  camera.ClearColor.Color,
+				Format:      target.Descriptor.Format,
+				SampleCount: target.Descriptor.SampleCount,
+				Size:        target.Size(),
+
+				attachments: [2]*colorAttachment{
+					{
+						Texture:       target.TextureView,
+						ResolveTarget: nil,
+					},
+				},
+			}
+		}
+	}
 }
 
 func updateInputState(world *byke.World, makeInputState vyn.UpdateInputState) {

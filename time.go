@@ -28,9 +28,9 @@ type FixedTime struct {
 type VirtualTime struct {
 	Elapsed   time.Duration
 	Delta     time.Duration
-	DeltaSecs float64
+	DeltaSecs float32
 
-	Scale float64
+	Scale float32
 }
 
 func updateVirtualTime(v *VirtualTime, lastTime *Local[time.Time]) {
@@ -41,10 +41,10 @@ func updateVirtualTime(v *VirtualTime, lastTime *Local[time.Time]) {
 		return
 	}
 
-	delta := time.Duration(float64(now.Sub(lastTime.Value)) * v.Scale)
+	delta := time.Duration(float32(now.Sub(lastTime.Value)) * v.Scale)
 	lastTime.Value = now
 
 	v.Delta = delta
-	v.DeltaSecs = v.Delta.Seconds()
+	v.DeltaSecs = float32(v.Delta.Seconds())
 	v.Elapsed += v.Delta
 }

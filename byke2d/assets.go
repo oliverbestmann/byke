@@ -126,8 +126,16 @@ func (a *Assets) Texture(path string) AsyncAsset[*Texture] {
 	return asTypedAsyncAsset[*Texture](a.Load(path))
 }
 
+func (a *Assets) TextureWithSettings(path string, settings *LoadTextureSettings) AsyncAsset[*Texture] {
+	return asTypedAsyncAsset[*Texture](a.LoadWithSettings(path, settings))
+}
+
 func (a *Assets) Audio(path string) AsyncAsset[*AudioSource] {
 	return asTypedAsyncAsset[*AudioSource](a.Load(path))
+}
+
+func (a *Assets) AudioWithSettings(path string, settings *LoadAudioSettings) AsyncAsset[*AudioSource] {
+	return asTypedAsyncAsset[*AudioSource](a.LoadWithSettings(path, settings))
 }
 
 func (a *Assets) StartCount() int {

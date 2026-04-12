@@ -12,10 +12,22 @@ import (
 	"github.com/oliverbestmann/byke"
 )
 
+type LoadTextureSettings struct {
+	Sampler      SamplerConfig
+	LinearColors bool
+}
+
+func (*LoadTextureSettings) IsLoadSettings() {}
+
 type TextureLoader struct{}
 
 func (i TextureLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	defer func() { _ = r.Close() }()
+
+	var settings LoadTextureSettings
+	if ctx.Settings != nil {
+		settings = *ctx.Settings.(*LoadTextureSettings)
+	}
 
 	renderContext, ok := byke.ResourceOf[RenderContext](ctx.World)
 	if !ok {
@@ -27,7 +39,7 @@ func (i TextureLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 		return nil, fmt.Errorf("decode image: %w", err)
 	}
 
-	return NewTextureFromImage(renderContext, img, true), nil
+	return NewTextureFromImage(renderContext, img, settings.Sampler, !settings.LinearColors), nil
 }
 
 func (i TextureLoader) Extensions() []string {

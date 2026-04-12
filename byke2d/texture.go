@@ -14,8 +14,8 @@ import (
 type Texture struct {
 	Texture     *wgpu.Texture
 	TextureView *wgpu.TextureView
-	Sampler     *wgpu.Sampler
 	Descriptor  *wgpu.TextureDescriptor
+	Sampler     *wgpu.Sampler
 }
 
 func (t *Texture) Size() glm.Vec2f {
@@ -89,10 +89,31 @@ func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts WritePixelsOptions)
 }
 
 type NewTextureOptions struct {
+	SamplerConfig
+	Label  string
 	Format wgpu.TextureFormat
 	Width  uint32
 	Height uint32
-	Label  string
+}
+
+type SamplerConfig struct {
+	AddressModeU wgpu.AddressMode
+	AddressModeV wgpu.AddressMode
+	FilterMode   wgpu.FilterMode
+}
+
+func (c *SamplerConfig) fillValues() {
+	if c.AddressModeU == wgpu.AddressModeUndefined {
+		c.AddressModeU = wgpu.AddressModeClampToEdge
+	}
+
+	if c.AddressModeV == wgpu.AddressModeUndefined {
+		c.AddressModeV = wgpu.AddressModeClampToEdge
+	}
+
+	if c.FilterMode == wgpu.FilterModeUndefined {
+		c.FilterMode = wgpu.FilterModeLinear
+	}
 }
 
 func NewTexture(ctx *RenderContext, opts NewTextureOptions) *Texture {
@@ -118,25 +139,28 @@ func NewTexture(ctx *RenderContext, opts NewTextureOptions) *Texture {
 			wgpu.TextureUsageCopySrc,
 	}
 
-	return NewTextureFromDesc(ctx, desc)
+	return NewTextureFromDesc(ctx, opts.SamplerConfig, desc)
 }
 
 // NewTextureFromDesc gives you full control and creates a texture directly from
 // a texture descriptor
-func NewTextureFromDesc(ctx *RenderContext, desc *wgpu.TextureDescriptor) *Texture {
+func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wgpu.TextureDescriptor) *Texture {
 	texture := ctx.CreateTexture(desc)
 
 	// now create a default texture view
 	textureView := texture.CreateView(nil)
 
+	// fill missing config values
+	sampleConfig.fillValues()
+
 	// and the default sampler for this texture
 	sampler := ctx.CreateSampler(&wgpu.SamplerDescriptor{
 		Label:         desc.Label + ".Sampler",
-		AddressModeU:  wgpu.AddressModeClampToEdge,
-		AddressModeV:  wgpu.AddressModeClampToEdge,
+		AddressModeU:  sampleConfig.AddressModeU,
+		AddressModeV:  sampleConfig.AddressModeV,
 		AddressModeW:  wgpu.AddressModeUndefined,
-		MagFilter:     wgpu.FilterModeLinear,
-		MinFilter:     wgpu.FilterModeLinear,
+		MagFilter:     sampleConfig.FilterMode,
+		MinFilter:     sampleConfig.FilterMode,
 		MipmapFilter:  wgpu.MipmapFilterModeLinear,
 		LodMinClamp:   1,
 		LodMaxClamp:   1,
@@ -152,18 +176,19 @@ func NewTextureFromDesc(ctx *RenderContext, desc *wgpu.TextureDescriptor) *Textu
 
 	return t
 }
-func DecodeTextureFromMemory(ctx *RenderContext, buf []byte, srgb bool) (*Texture, error) {
+
+func DecodeTextureFromMemory(ctx *RenderContext, buf []byte, sampleConfig SamplerConfig, srgb bool) (*Texture, error) {
 	src, _, err := image.Decode(bytes.NewReader(buf))
 	if err != nil {
 		return nil, fmt.Errorf("decode image from memory: %w", err)
 	}
 
-	tex := NewTextureFromImage(ctx, src, srgb)
+	tex := NewTextureFromImage(ctx, src, sampleConfig, srgb)
 	return tex, nil
 }
 
 // NewTextureFromImage creates a new Texture from the given golang image.Image instance.
-func NewTextureFromImage(ctx *RenderContext, src image.Image, srgb bool) *Texture {
+func NewTextureFromImage(ctx *RenderContext, src image.Image, sampleConfig SamplerConfig, srgb bool) *Texture {
 	iw, ih := src.Bounds().Dx(), src.Bounds().Dy()
 	rgba := image.NewNRGBA(image.Rect(0, 0, iw, ih))
 
@@ -175,10 +200,11 @@ func NewTextureFromImage(ctx *RenderContext, src image.Image, srgb bool) *Textur
 	}
 
 	t := NewTexture(ctx, NewTextureOptions{
-		Format: format,
-		Width:  uint32(iw),
-		Height: uint32(ih),
-		Label:  "TexFromImage",
+		SamplerConfig: sampleConfig,
+		Format:        format,
+		Width:         uint32(iw),
+		Height:        uint32(ih),
+		Label:         "TexFromImage",
 	})
 
 	t.WritePixels(ctx, rgba.Pix)
