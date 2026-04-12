@@ -186,6 +186,9 @@ type renderSpriteAllocations struct {
 	bufIndices   *wgpu.Buffer
 	bufView      *wgpu.Buffer
 	bufInstances *wgpu.Buffer
+
+	instances    wx.InstanceWriter
+	spritesSlice []renderSpriteValue
 }
 
 func renderSpriteSystem(
@@ -219,8 +222,8 @@ func renderSpriteSystem(
 	}
 
 	// collect instances values, reuse allocations
-	var instances wx.InstanceWriter
-	var instanceCount uint32
+	instances := &allocs.instances
+	instances.Clear()
 
 	const instanceSize = 52
 
@@ -296,14 +299,15 @@ func renderSpriteSystem(
 			})
 			defer pass.Release()
 
-			ctx.WriteBuffer(allocs.bufInstances, 0, instances.Bytes())
+			bytesInstances := instances.Bytes()
+			ctx.WriteBuffer(allocs.bufInstances, 0, bytesInstances)
 
 			pass.SetPipeline(cp.Pipeline)
 			pass.SetBindGroup(0, viewBindGroup, nil)
 			pass.SetBindGroup(1, bindGroup, nil)
-			pass.SetVertexBuffer(0, allocs.bufInstances, 0, uint64(instanceCount)*instanceSize)
+			pass.SetVertexBuffer(0, allocs.bufInstances, 0, uint64(len(bytesInstances)))
 			pass.SetIndexBuffer(allocs.bufIndices, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
-			pass.DrawIndexed(6, instanceCount, 0, 0, 0)
+			pass.DrawIndexed(6, uint32(instances.Count()), 0, 0, 0)
 			pass.End()
 
 			ctx.Submit(encoder.Finish(nil))
@@ -311,7 +315,8 @@ func renderSpriteSystem(
 
 		var keyCurrent batchKey
 
-		sprites := spritesQuery.AppendTo(nil)
+		sprites := spritesQuery.AppendTo(allocs.spritesSlice[:0])
+		allocs.spritesSlice = sprites
 
 		// sort sprites by z-order
 		slices.SortFunc(sprites, func(a, b renderSpriteValue) int {
@@ -340,13 +345,12 @@ func renderSpriteSystem(
 				Texture: sprite.Sprite.Texture,
 			}
 
-			hasNoSpace := bufInstancesSize-instances.Len() < instanceSize
-			hasNewTexture := instances.Len() > 0 && keyCurrent != key
+			hasNoSpace := bufInstancesSize-len(instances.Bytes()) < instanceSize
+			hasNewTexture := instances.Count() > 0 && keyCurrent != key
 
-			if hasNewTexture || hasNoSpace {
+			if instances.Count() > 0 && (hasNewTexture || hasNoSpace) {
 				flush(keyCurrent)
 				instances.Clear()
-				instanceCount = 0
 			}
 
 			keyCurrent = key
@@ -376,6 +380,8 @@ func renderSpriteSystem(
 			uvOffset := rect.Min.Div(textureSize)
 			uvScale := rect.Size().Div(textureSize)
 
+			instances.StartNew(instanceSize)
+
 			// @location(0) i_translation: vec2<f32>,
 			instances.AppendVec2f(sprite.Transform.Translation.Truncate())
 			// @location(1) i_scale: vec2<f32>,
@@ -388,14 +394,11 @@ func renderSpriteSystem(
 			instances.AppendVec2f(uvScale)
 			// @location(5) i_color: vec4<f32>,
 			instances.AppendVec4f(sprite.Sprite.Color.ToVec())
-
-			instanceCount += 1
 		}
 
-		if instanceCount > 0 {
+		if instances.Count() > 0 {
 			flush(keyCurrent)
 			instances.Clear()
-			instanceCount = 0
 		}
 
 		viewBindGroup.Release()
