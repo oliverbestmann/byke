@@ -44,12 +44,17 @@ func TextureAtlasFromGrid(opts GridOptions) TextureAtlas {
 
 	var layout TextureAtlasLayout
 
+	columns := uint32(opts.Columns)
+	if columns == 0 {
+		columns = count
+	}
+
 	for n := range count {
 		// clamp n into the valid range
 		n = min(max(n, 0), count)
 
-		row := n / uint32(opts.Columns)
-		column := n % uint32(opts.Columns)
+		row := n / columns
+		column := n % columns
 
 		x0 := column*uint32(opts.Width+opts.GapX) + uint32(opts.OffsetX)
 		y0 := row*uint32(opts.Height+opts.GapY) + uint32(opts.OffsetY)

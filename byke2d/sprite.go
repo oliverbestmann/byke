@@ -316,8 +316,9 @@ func renderSpriteSystem(
 
 			// but apply texture atlas if available
 			if ta, ok := sprite.TextureAtlas.Get(); ok {
-				rect.Min = ta.Layout[ta.Index].Min.ToVec2f()
-				rect.Max = ta.Layout[ta.Index].Max.ToVec2f()
+				idx := ta.Index % len(ta.Layout)
+				rect.Min = ta.Layout[idx].Min.ToVec2f()
+				rect.Max = ta.Layout[idx].Max.ToVec2f()
 			}
 
 			currentTexture = sprite.Sprite.Texture

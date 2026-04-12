@@ -41,12 +41,18 @@ func main() {
 
 	app.AddSystems(byke.Startup, setupSystem)
 	app.AddSystems(byke.Update, moveSprite)
+	app.AddSystems(byke.Update, animateSprite)
 
 	app.MustRun()
 }
 
 type Rocket struct {
 	byke.ImmutableComponent[Rocket]
+}
+
+type Animate struct {
+	byke.Component[Animate]
+	Timer byke.Timer
 }
 
 func setupSystem(commands *byke.Commands, assets *Assets) {
@@ -57,7 +63,7 @@ func setupSystem(commands *byke.Commands, assets *Assets) {
 		Camera{},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeWindowSize{},
+			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 1000},
 			Scale:          1.0,
 		},
 	)
@@ -65,20 +71,31 @@ func setupSystem(commands *byke.Commands, assets *Assets) {
 	for range 100 {
 		x := rand.Float32()*1000 - 500
 		y := rand.Float32()*600 - 300
-
-		tr := TransformFromXY(x, y)
+		size := rand.Float32()*32 + 16
+		alpha := rand.Float32()*0.8 + 0.1
 
 		commands.Spawn(
-			tr,
-			Sprite{Texture: asset},
+			TransformFromXY(x, y),
+			Sprite{
+				Texture:    asset,
+				Color:      wx.ColorSRGBA(1, 1, 1, alpha),
+				CustomSize: Some(glm.Vec2f{size, size}),
+			},
 		)
+	}
+
+	gridOptions := GridOptions{
+		Count:  12,
+		Width:  32,
+		Height: 32,
 	}
 
 	commands.Spawn(
 		Rocket{},
 		Sprite{Texture: figure},
-		TransformFromXYZ(0, 0, 1),
-		TextureAtlasFromRect(wx.RectangleFromXYWH[uint32](0, 0, 32, 32)),
+		TransformFromXYZ(0, 0, 1).WithScaleXY(4, 4),
+		TextureAtlasFromGrid(gridOptions),
+		Animate{Timer: byke.NewTimerWithFrequency(4.0)},
 	)
 }
 
@@ -97,5 +114,16 @@ func moveSprite(query byke.Query[struct {
 }]) {
 	for item := range query.Items() {
 		item.Transform.Translation[0] *= 1.001
+	}
+}
+
+func animateSprite(vt *byke.VirtualTime, query byke.Query[struct {
+	Animation    *Animate
+	TextureAtlas *TextureAtlas
+}]) {
+	for item := range query.Items() {
+		if item.Animation.Timer.Tick(vt.Delta).JustFinished() {
+			item.TextureAtlas.Index += 1
+		}
 	}
 }
