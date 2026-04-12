@@ -31,9 +31,14 @@ type VirtualTime struct {
 	DeltaSecs float32
 
 	Scale float32
+
+	// number of times the VirtualTime instances was updated
+	Frames int
 }
 
 func updateVirtualTime(v *VirtualTime, lastTime *Local[time.Time]) {
+	v.Frames += 1
+
 	now := time.Now()
 
 	if lastTime.Value.IsZero() {

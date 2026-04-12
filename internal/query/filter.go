@@ -26,6 +26,10 @@ type Ref[C spoke.IsComponent[C]] struct {
 	Value *C
 }
 
+func (r Ref[C]) Get() *C {
+	return r.Value
+}
+
 func (Ref[C]) applyTo(result *ParsedQuery, fieldOffset uintptr) spoke.Filter {
 	idx := result.Builder.FetchComponent(spoke.ComponentTypeOf[C](), false)
 

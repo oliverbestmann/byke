@@ -180,6 +180,7 @@ type renderSpriteValue struct {
 	Visibility   ComputedVisibility
 	TextureAtlas byke.Option[TextureAtlas]
 	RenderLayers byke.Option[RenderLayers]
+	Anchor       Anchor
 }
 
 type renderSpriteAllocations struct {
@@ -361,9 +362,10 @@ func renderSpriteSystem(
 
 			// but apply texture atlas if available
 			if ta, ok := sprite.TextureAtlas.Get(); ok {
-				idx := ta.Index % len(ta.Layout)
-				rect.Min = ta.Layout[idx].Min.ToVec2f()
-				rect.Max = ta.Layout[idx].Max.ToVec2f()
+				if current, ok := ta.Current(); ok {
+					rect.Min = current.Min.ToVec2f()
+					rect.Max = current.Max.ToVec2f()
+				}
 			}
 
 			// initial base size of the sprite
@@ -382,10 +384,13 @@ func renderSpriteSystem(
 
 			instances.StartNew(instanceSize)
 
+			scale := sprite.Transform.Scale.Truncate().Mul(baseSize)
+			anchorOffset := sprite.Anchor.Mul(scale)
+
 			// @location(0) i_translation: vec2<f32>,
-			instances.AppendVec2f(sprite.Transform.Translation.Truncate())
+			instances.AppendVec2f(sprite.Transform.Translation.Truncate().Sub(anchorOffset))
 			// @location(1) i_scale: vec2<f32>,
-			instances.AppendVec2f(sprite.Transform.Scale.Truncate().Mul(baseSize))
+			instances.AppendVec2f(scale)
 			// @location(2) i_rotation: f32,
 			instances.AppendFloat32(float32(sprite.Transform.Rotation))
 			// @location(3) i_uv_offset: vec2<f32>,

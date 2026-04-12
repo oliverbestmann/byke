@@ -10,62 +10,99 @@ type TextureAtlas struct {
 	byke.Component[TextureAtlas]
 	Layout TextureAtlasLayout
 	Index  int
+
+	// Wrap index around if it is out of rane
+	Wrapping bool
+}
+
+func (t TextureAtlas) IsValid() bool {
+	if len(t.Layout) == 0 {
+		return false
+	}
+
+	return t.Wrapping || (t.Index >= 0 && t.Index < len(t.Layout))
+}
+
+func (t TextureAtlas) Current() (wx.Rectangle2u, bool) {
+	if !t.IsValid() {
+		return wx.Rectangle2u{}, false
+	}
+
+	rect := t.Layout[t.Index%len(t.Layout)]
+	return rect, true
 }
 
 type TextureAtlasLayout []wx.Rectangle2u
 
-func TextureAtlasFromRect(rect wx.Rectangle2u) TextureAtlas {
-	return TextureAtlas{
-		Layout: TextureAtlasLayout{rect},
-	}
+func TextureAtlasLayoutFromRect(rect wx.Rectangle2u) TextureAtlasLayout {
+	return TextureAtlasLayout{rect}
 }
 
 type GridOptions struct {
-	// Defaults to Width * Height if not defined, otherwise this will
-	// be the number of frames from the Grid, left to right
-	Count uint32
+	// Total number of Columns & Rows in the Grid. Columns and Rows can each be derived
+	// if Count is set to a non zero value.
+	Columns, Rows uint
 
-	Columns uint16
-	Rows    uint16
-	Width   uint16
-	Height  uint16
-	OffsetX uint16
-	OffsetY uint16
-	GapX    uint16
-	GapY    uint16
+	// Defaults to Columns * Rows if not defined, otherwise this will
+	// be the number of tiles to take from the Grid in the order
+	// of left to right, top to bottom.
+	Count uint
+
+	// The StartColumn and StartRow indices the row & column
+	// to start the grid at.
+	StartColumn, StartRow uint
+
+	// Width and Height of a single grid cell in pixels.
+	Width, Height uint
+
+	// Offset in pixels from the images origin.
+	OffsetX, OffsetY uint
+
+	// Gap in pixels between two adjecent tiles.
+	GapX, GapY uint
 }
 
-func TextureAtlasFromGrid(opts GridOptions) TextureAtlas {
-	// calculate number of layout
+func TextureAtlasLayoutFromGrid(opts GridOptions) TextureAtlasLayout {
 	count := opts.Count
+	columns := opts.Columns
+
+	// if no count is defined,
+	// we derive if from the number of rows & columns.
 	if count == 0 {
-		count = uint32(opts.Width) * uint32(opts.Height)
+		count = opts.Rows * opts.Columns
 	}
 
-	var layout TextureAtlasLayout
+	if count == 0 {
+		panic("number of tiles in the grid must be positive")
+	}
 
-	columns := uint32(opts.Columns)
+	// if the number of Columns is not defined, we set derive it from
+	// the count of images.
 	if columns == 0 {
 		columns = count
 	}
+
+	var layout TextureAtlasLayout
 
 	for n := range count {
 		// clamp n into the valid range
 		n = min(max(n, 0), count)
 
-		row := n / columns
-		column := n % columns
+		// calculate the index of the tile
+		row := n/columns + opts.StartRow
+		column := n%columns + opts.StartColumn
 
-		x0 := column*uint32(opts.Width+opts.GapX) + uint32(opts.OffsetX)
-		y0 := row*uint32(opts.Height+opts.GapY) + uint32(opts.OffsetY)
-		x1 := x0 + uint32(opts.Width)
-		y1 := y0 + uint32(opts.Height)
+		// calculate the tiles pixel position
+		x0 := column*opts.Width + opts.GapX + opts.OffsetX
+		y0 := row*opts.Height + opts.GapY + opts.OffsetY
+		x1 := x0 + opts.Width
+		y1 := y0 + opts.Height
 
 		layout = append(layout, wx.RectangleFromPoints(
-			glm.Vec2u{x0, y0},
-			glm.Vec2u{x1, y1},
+			glm.Vec2u{uint32(x0), uint32(y0)},
+			glm.Vec2u{uint32(x1), uint32(y1)},
 		))
 	}
 
-	return TextureAtlas{Layout: layout}
+	return layout
 }

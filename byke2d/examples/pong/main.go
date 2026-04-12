@@ -7,7 +7,7 @@ import (
 	"math/rand/v2"
 	"os"
 
-	"github.com/oliverbestmann/byke"
+	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
@@ -26,42 +26,93 @@ func main() {
 
 	slog.SetDefault(slog.New(handler))
 
-	var app byke.App
+	var app App
 
 	// configure assets before loading the plugin
 	app.InsertResource(MakeAssetFS(assets))
 
-	app.AddPlugin(Plugin)
-	app.AddSystems(byke.Update, ExitOnEscapeSystem)
+	app.AddPlugin(RenderPlugin)
+	app.AddSystems(Update, ExitOnEscapeSystem)
 
-	app.AddSystems(byke.Update, func(buttons MouseButtons, cursor MouseCursor) {
+	app.AddSystems(Update, func(buttons MouseButtons, cursor MouseCursor) {
 		if buttons.IsJustPressed(vyn.MouseButton(0)) {
 			fmt.Println(cursor.XY())
 		}
 	})
 
-	app.AddSystems(byke.Startup, setupSystem)
-	app.AddSystems(byke.Update, moveSprites)
-	app.AddSystems(byke.Update, animateSprite)
+	app.AddSystems(Startup, setupSystem)
+	app.AddSystems(Update, moveSprites)
+	app.AddSystems(Update, animateSprite)
+	app.AddSystems(Update, System(handleInputSystem).After(animateSprite))
 
 	app.MustRun()
 }
 
-type Rocket struct {
-	byke.ImmutableComponent[Rocket]
+type Player struct {
+	Component[Player]
+	Direction int
+	Blocked   bool
 }
 
 type Animate struct {
-	byke.Component[Animate]
-	byke.Timer
+	Component[Animate]
+	Timer
 }
 
 type Velocity struct {
-	byke.Component[Velocity]
+	Component[Velocity]
 	glm.Vec2f
 }
 
-func setupSystem(commands *byke.Commands, assets *Assets) {
+var layoutIdle = TextureAtlasLayoutFromGrid(GridOptions{
+	Count:  13,
+	Width:  32,
+	Height: 32,
+})
+
+var layoutWalk = TextureAtlasLayoutFromGrid(GridOptions{
+	StartRow: 1,
+	Count:    8,
+	Width:    32,
+	Height:   32,
+})
+
+var layoutHurt = TextureAtlasLayoutFromGrid(GridOptions{
+	StartRow: 6,
+	Count:    4,
+	Width:    32,
+	Height:   32,
+})
+
+var layoutDeath = TextureAtlasLayoutFromGrid(GridOptions{
+	StartRow: 7,
+	Count:    7,
+	Width:    32,
+	Height:   32,
+})
+
+var layoutAttack = []TextureAtlasLayout{
+	TextureAtlasLayoutFromGrid(GridOptions{
+		StartRow: 2,
+		Count:    10,
+		Width:    32,
+		Height:   32,
+	}),
+	TextureAtlasLayoutFromGrid(GridOptions{
+		StartRow: 3,
+		Count:    10,
+		Width:    32,
+		Height:   32,
+	}),
+	TextureAtlasLayoutFromGrid(GridOptions{
+		StartRow: 4,
+		Count:    10,
+		Width:    32,
+		Height:   32,
+	}),
+}
+
+func setupSystem(commands *Commands, assets *Assets) {
 	asset := assets.Texture("circle.png").Await()
 
 	nnSettings := &LoadTextureSettings{
@@ -81,21 +132,15 @@ func setupSystem(commands *byke.Commands, assets *Assets) {
 		},
 	)
 
-	gridOptions := GridOptions{
-		Count:  12,
-		Width:  32,
-		Height: 32,
-	}
-
 	commands.Spawn(
-		Rocket{},
-		Sprite{Texture: figure},
 		TransformFromXYZ(0, 0, 1).WithScaleXY(4, 4),
-		TextureAtlasFromGrid(gridOptions),
-		Animate{Timer: byke.NewTimerWithFrequency(4.0)},
+		Player{},
+		Sprite{Texture: figure},
+		Animate{Timer: NewTimerWithFrequency(10.0)},
+		TextureAtlas{Layout: layoutIdle},
 	)
 
-	for range 500 {
+	for range 100_000 {
 		x := (rand.Float32() - 0.5) * 1200
 		y := (rand.Float32() - 0.5) * 1200
 
@@ -103,7 +148,7 @@ func setupSystem(commands *byke.Commands, assets *Assets) {
 		vy := (rand.Float32() - 0.5) * 5
 
 		size := rand.Float32()*32 + 16
-		alpha := rand.Float32()*0.8 + 0.1
+		alpha := rand.Float32()*0.1 + 0.05
 
 		commands.Spawn(
 			TransformFromXY(x, y),
@@ -117,8 +162,8 @@ func setupSystem(commands *byke.Commands, assets *Assets) {
 	}
 }
 
-func moveSprites(vt byke.VirtualTime, query byke.Query[struct {
-	_         byke.With[Sprite]
+func moveSprites(vt VirtualTime, query Query[struct {
+	_         With[Sprite]
 	Transform *Transform
 	Velocity  Velocity
 }]) {
@@ -130,7 +175,7 @@ func moveSprites(vt byke.VirtualTime, query byke.Query[struct {
 	}
 }
 
-func animateSprite(vt *byke.VirtualTime, query byke.Query[struct {
+func animateSprite(vt *VirtualTime, query Query[struct {
 	Animation    *Animate
 	TextureAtlas *TextureAtlas
 }]) {
@@ -138,5 +183,78 @@ func animateSprite(vt *byke.VirtualTime, query byke.Query[struct {
 		if item.Animation.Tick(vt.Delta).JustFinished() {
 			item.TextureAtlas.Index += 1
 		}
+	}
+}
+
+func handleInputSystem(keys Keys, player Single[struct {
+	Player       *Player
+	Sprite       *Sprite
+	TextureAtlas *TextureAtlas
+}]) {
+	var direction int
+	var attack, hurt bool
+
+	if player.Value.Player.Blocked {
+		if player.Value.TextureAtlas.IsValid() {
+			return
+		}
+	}
+
+	if keys.IsPressed(vyn.KeyArrowLeft) {
+		direction -= 1
+	}
+
+	if keys.IsPressed(vyn.KeyArrowRight) {
+		direction += 1
+	}
+
+	if keys.IsJustPressed(vyn.KeySpace) {
+		direction = 0
+		attack = true
+	}
+
+	if keys.IsJustPressed(vyn.KeyH) {
+		hurt = true
+	}
+
+	player.Value.Player.Blocked = false
+
+	if player.Value.Player.Direction != direction {
+		player.Value.TextureAtlas.Index = 0
+		player.Value.Player.Direction = direction
+	}
+
+	player.Value.TextureAtlas.Wrapping = true
+
+	switch {
+	case attack:
+		layout := layoutAttack[rand.IntN(len(layoutAttack))]
+		player.Value.TextureAtlas.Layout = layout
+		player.Value.TextureAtlas.Wrapping = false
+		player.Value.TextureAtlas.Index = 0
+		player.Value.Player.Blocked = true
+
+	case hurt:
+		player.Value.TextureAtlas.Layout = layoutHurt
+		player.Value.TextureAtlas.Wrapping = false
+		player.Value.TextureAtlas.Index = 0
+		player.Value.Player.Blocked = true
+
+	case direction == 0:
+		player.Value.TextureAtlas.Layout = layoutIdle
+
+	case direction == 1:
+		player.Value.TextureAtlas.Layout = layoutWalk
+
+	case direction == -1:
+		player.Value.TextureAtlas.Layout = layoutWalk
+	}
+
+	switch {
+	case direction == 1:
+		player.Value.Sprite.FlipX = false
+
+	case direction == -1:
+		player.Value.Sprite.FlipX = true
 	}
 }

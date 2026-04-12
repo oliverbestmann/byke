@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/pulse/glm"
@@ -22,7 +23,7 @@ var RenderClearSystems = &byke.SystemSet{}
 var RenderSystems = &byke.SystemSet{}
 var RenderPostProcessSystems = &byke.SystemSet{}
 
-func Plugin(app *byke.App) {
+func RenderPlugin(app *byke.App) {
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
 	if !ok {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
@@ -193,6 +194,8 @@ type currentSurfaceValues struct {
 	TextureView *wgpu.TextureView
 	Size        glm.Vec2f
 }
+
+var startTime = time.Now()
 
 func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	ctx, _ := byke.ResourceOf[RenderContext](world)
