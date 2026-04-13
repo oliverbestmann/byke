@@ -112,7 +112,7 @@ var layoutAttack = []TextureAtlasLayout{
 	}),
 }
 
-func setupSystem(commands *Commands, assets *Assets) {
+func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 	asset := assets.Texture("circle.png").Await()
 
 	nnSettings := &LoadTextureSettings{
@@ -123,24 +123,52 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	figure := assets.TextureWithSettings("figure.png", nnSettings).Await()
 
+	cameraTexture := NewTexture(ctx, NewTextureOptions{
+		Label:  "PixelCamera",
+		Width:  360,
+		Height: 200,
+		Format: wgpu.TextureFormatBGRA8UnormSrgb,
+		SamplerConfig: SamplerConfig{
+			FilterMode: wgpu.FilterModeNearest,
+		},
+	})
 	commands.Spawn(
 		Camera{},
+		RenderTarget{Texture: cameraTexture},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 1000},
+			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 360},
 			Scale:          1.0,
 		},
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(0, 0, 1).WithScaleXY(4, 4),
+		RenderLayersOf(1),
+		Camera{},
+		ClearColor{Color: wx.ColorBlack},
+		OrthographicProjection{
+			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 360},
+			Scale:          1.0,
+		},
+	)
+
+	commands.Spawn(
+		RenderLayersOf(1),
+		Sprite{
+			Texture: cameraTexture,
+		},
+	)
+
+	commands.Spawn(
+		TransformFromXYZ(30, 0, 1).WithScaleXY(1, 1),
 		Player{},
 		Sprite{Texture: figure},
 		Animate{Timer: NewTimerWithFrequency(10.0)},
 		TextureAtlas{Layout: layoutIdle},
 	)
 
-	for range 100_000 {
+	for range 500 {
 		x := (rand.Float32() - 0.5) * 1200
 		y := (rand.Float32() - 0.5) * 1200
 
