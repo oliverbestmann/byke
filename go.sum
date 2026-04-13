@@ -15,6 +15,8 @@ github.com/jfreymuth/oggvorbis v1.0.5 h1:u+Ck+R0eLSRhgq8WTmffYnrVtSztJcYrl588DM4
 github.com/jfreymuth/oggvorbis v1.0.5/go.mod h1:1U4pqWmghcoVsCJJ4fRBKv9peUJMBHixthRlBeD6uII=
 github.com/jfreymuth/vorbis v1.0.2 h1:m1xH6+ZI4thH927pgKD8JOH4eaGRm18rEE9/0WKjvNE=
 github.com/jfreymuth/vorbis v1.0.2/go.mod h1:DoftRo4AznKnShRl1GxiTFCseHr4zR9BN3TWXyuzrqQ=
+github.com/oliverbestmann/pulse v0.0.0-20260413043828-d003639f44ca h1:msRJW3ByRNkcc9OZANxrwfrQZwkTkccITDUK+yXgIrY=
+github.com/oliverbestmann/pulse v0.0.0-20260413043828-d003639f44ca/go.mod h1:RZqSMgnj7HtxgX0hexa4ixgXLPdR9zEa+a2+qqIs4jU=
 github.com/oliverbestmann/qoa v0.0.0-20250815202008-160039a10c5e h1:GmMzR9V6eyAdR2LCJ9Z2EAc6soWr2KO910IPps11TdQ=
 github.com/oliverbestmann/qoa v0.0.0-20250815202008-160039a10c5e/go.mod h1:khmDlaGrAik51KrzIFybm8P7MkEA0sjw54/ucntFmk8=
 github.com/oliverbestmann/webgpu v1.29.1 h1:pUPKuXyDdsmtKAsUE/6S0XU1pZ+0qHEY7BvTtfl8iq4=

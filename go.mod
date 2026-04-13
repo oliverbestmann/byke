@@ -15,6 +15,7 @@ require (
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
+	github.com/oliverbestmann/pulse v0.0.0-20260413043828-d003639f44ca // indirect
 	github.com/oliverbestmann/qoa v0.0.0-20250815202008-160039a10c5e // indirect
 	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260321175638-35553c66247e // indirect
 	github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260321175628-865c2b8d8a62 // indirect
