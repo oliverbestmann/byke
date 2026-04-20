@@ -35,7 +35,11 @@ type Sprite struct {
 
 func (Sprite) RequireComponents() []byke.ErasedComponent {
 	return append(
-		[]byke.ErasedComponent{NewTransform(), AnchorCenter, InheritVisibility},
+		[]byke.ErasedComponent{
+			NewTransform(),
+			AnchorCenter,
+			InheritVisibility,
+		},
 	)
 }
 
@@ -45,15 +49,15 @@ type Anchor struct {
 }
 
 var (
-	AnchorTopLeft      = &Anchor{Vec2f: glm.Vec2f{0.0, 0.0}}
-	AnchorTopCenter    = &Anchor{Vec2f: glm.Vec2f{0.5, 0.0}}
-	AnchorTopRight     = &Anchor{Vec2f: glm.Vec2f{1.0, 0.0}}
-	AnchorCenterLeft   = &Anchor{Vec2f: glm.Vec2f{0, 0.5}}
-	AnchorCenter       = &Anchor{Vec2f: glm.Vec2f{0.5, 0.5}}
-	AnchorCenterRight  = &Anchor{Vec2f: glm.Vec2f{1.0, 0.5}}
-	AnchorBottomLeft   = &Anchor{Vec2f: glm.Vec2f{0, 1.0}}
-	AnchorBottomCenter = &Anchor{Vec2f: glm.Vec2f{0.5, 1.0}}
-	AnchorBottomRight  = &Anchor{Vec2f: glm.Vec2f{1.0, 1.0}}
+	AnchorTopLeft      = &Anchor{Vec2f: glm.Vec2f{-0.5, -0.5}}
+	AnchorTopCenter    = &Anchor{Vec2f: glm.Vec2f{0.0, -0.5}}
+	AnchorTopRight     = &Anchor{Vec2f: glm.Vec2f{0.5, -0.5}}
+	AnchorCenterLeft   = &Anchor{Vec2f: glm.Vec2f{-0.5, 0}}
+	AnchorCenter       = &Anchor{Vec2f: glm.Vec2f{0.0, 0}}
+	AnchorCenterRight  = &Anchor{Vec2f: glm.Vec2f{0.5, 0}}
+	AnchorBottomLeft   = &Anchor{Vec2f: glm.Vec2f{-0.5, 0.5}}
+	AnchorBottomCenter = &Anchor{Vec2f: glm.Vec2f{0.0, 0.5}}
+	AnchorBottomRight  = &Anchor{Vec2f: glm.Vec2f{0.5, 0.5}}
 )
 
 type renderSpritePipelineConfig struct {
@@ -244,11 +248,15 @@ func renderSpriteSystem(
 
 		cp := pipelineCacheGet(pipelineCache, ctx, conf)
 
-		screenSize := camera.Projection.ScalingMode.ViewportSize(camera.ViewTarget.Size.XY())
+		vv := ViewValues{
+			Transform:   camera.Transform,
+			Projection:  camera.Projection,
+			SurfaceSize: camera.ViewTarget.Size,
+		}
 
 		viewUniformValue := viewUniform{
-			ScreenToNDC:   camera.Projection.ScreenToNDC(screenSize),
-			WorldToScreen: camera.Transform.AsMat3f(),
+			ScreenToNDC:   vv.SurfaceToNDC(),
+			WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
 		}
 
 		// upload uniforms for this camera
@@ -368,27 +376,31 @@ func renderSpriteSystem(
 				}
 			}
 
-			// initial base size of the sprite
-			baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
-
-			if sprite.Sprite.FlipX {
-				baseSize[0] *= -1
-			}
-
-			if sprite.Sprite.FlipY {
-				baseSize[1] *= -1
-			}
-
+			// uv = offset + position * scale
 			uvOffset := rect.Min.Div(textureSize)
 			uvScale := rect.Size().Div(textureSize)
 
+			if sprite.Sprite.FlipX {
+				// flip uv along the x axis
+				uvOffset[0] += uvScale[0]
+				uvScale[0] *= -1
+			}
+
+			if !sprite.Sprite.FlipY {
+				// flip uv along the y axis
+				uvOffset[1] += uvScale[1]
+				uvScale[1] *= -1
+			}
+
 			instances.StartNew(instanceSize)
 
+			// calculate size of the sprite
+			baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
 			scale := sprite.Transform.Scale.Truncate().Mul(baseSize)
-			anchorOffset := sprite.Anchor.Mul(scale)
+			anchorOffset := sprite.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
 
 			// @location(0) i_translation: vec2<f32>,
-			instances.AppendVec2f(sprite.Transform.Translation.Truncate().Sub(anchorOffset))
+			instances.AppendVec2f(sprite.Transform.Translation.Truncate().Add(anchorOffset))
 			// @location(1) i_scale: vec2<f32>,
 			instances.AppendVec2f(scale)
 			// @location(2) i_rotation: f32,

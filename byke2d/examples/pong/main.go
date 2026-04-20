@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"os"
@@ -33,12 +32,6 @@ func main() {
 
 	app.AddPlugin(RenderPlugin)
 	app.AddSystems(Update, ExitOnEscapeSystem)
-
-	app.AddSystems(Update, func(buttons MouseButtons, cursor MouseCursor) {
-		if buttons.IsJustPressed(vyn.MouseButton(0)) {
-			fmt.Println(cursor.XY())
-		}
-	})
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, moveSprites)

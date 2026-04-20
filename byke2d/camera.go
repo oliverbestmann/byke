@@ -52,14 +52,6 @@ type OrthographicProjection struct {
 	Scale float32
 }
 
-func (p OrthographicProjection) ScreenToNDC(screenSize glm.Vec2f) glm.Mat3f {
-	return glm.IdentityMat3[float32]().
-		Scale(2.0, -2.0).
-		Translate(p.ViewportOrigin.XY()).
-		Translate(-0.5, -0.5).
-		Scale(screenSize.Scale(1.0 / p.Scale).Reciprocal().XY())
-}
-
 type ScalingMode interface {
 	ViewportSize(width, height float32) glm.Vec2f
 }
@@ -122,4 +114,45 @@ type ScalingModeFixedHorizontal struct {
 
 func (s ScalingModeFixedHorizontal) ViewportSize(width, height float32) glm.Vec2f {
 	return glm.Vec2f{s.ViewportWidth, height * s.ViewportWidth / width}
+}
+
+type ViewValues struct {
+	// Camera transformation
+	Transform GlobalTransform
+
+	// Camera projection
+	Projection OrthographicProjection
+
+	// Surface size
+	SurfaceSize glm.Vec2f
+}
+
+// SurfaceToNDC maps from Surface pixel coordinates to NDC (normalized device coordinates).
+// NDC is from -1 to +1 on both axis.
+func (v *ViewValues) SurfaceToNDC() glm.Mat3f {
+	return glm.Mat3f{}.
+		Scale(2.0, 2.0).
+		Translate(-0.5, -0.5)
+}
+
+// CameraToSurface maps a value from Camera space to a Surface space. Surface
+// space is described by pixel coordinates with origin at 0 in the lower left corner.
+func (v *ViewValues) CameraToSurface() glm.Mat3f {
+	viewportSize := v.Projection.ScalingMode.ViewportSize(v.SurfaceSize.XY())
+
+	return glm.Mat3f{}.
+		Translate(v.Projection.ViewportOrigin.XY()).
+		Scale(v.Projection.Scale, v.Projection.Scale).
+		Scale(viewportSize.Reciprocal().XY())
+}
+
+// WorldToCamera maps a point from World space into Camera space.
+// This just applies the Cameras position. It does not apply the
+// cameras projection.
+func (v *ViewValues) WorldToCamera() glm.Mat3f {
+	t := v.Transform
+
+	return glm.RotationMat3[float32](t.Rotation).
+		Scale(t.Scale.XY()).
+		Translate(t.Translation.Scale(-1).XY())
 }

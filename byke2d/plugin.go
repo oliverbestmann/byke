@@ -18,6 +18,7 @@ import (
 var TransformSystems = &byke.SystemSet{}
 var VisibilitySystems = &byke.SystemSet{}
 var AudioSystems = &byke.SystemSet{}
+var DeriveSprites = &byke.SystemSet{}
 
 var RenderClearSystems = &byke.SystemSet{}
 var RenderSystems = &byke.SystemSet{}
@@ -54,6 +55,10 @@ func RenderPlugin(app *byke.App) {
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 
 	app.AddSystems(byke.PostUpdate, byke.
+		System(renderTextSystem).
+		InSet(DeriveSprites))
+
+	app.AddSystems(byke.PostUpdate, byke.
 		System(syncSimpleVisibilitySystem, propagateVisibilitySystem).
 		Chain().
 		InSet(VisibilitySystems))
@@ -73,6 +78,10 @@ func RenderPlugin(app *byke.App) {
 
 	app.AddSystems(byke.Render,
 		byke.System(renderSpriteSystem).Chain())
+
+	// Adding new sprites must run before transform & visibility propagation
+	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(TransformSystems))
+	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(VisibilitySystems))
 
 	app.ConfigureSystemSets(byke.Render, RenderClearSystems.
 		Before(RenderSystems).
