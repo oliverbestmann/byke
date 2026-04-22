@@ -118,10 +118,6 @@ type PrimaryWindow struct {
 	window vyn.Window
 }
 
-type RenderContext struct {
-	*wx.Context
-}
-
 type ScreenSize struct {
 	glm.Vec2f
 }
@@ -210,6 +206,8 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	ctx, _ := byke.ResourceOf[RenderContext](world)
 	win, _ := byke.ResourceOf[PrimaryWindow](world)
 
+	ctx.Metrics.reset()
+
 	surfaceWidth, surfaceHeight := win.window.GetSize()
 	ensureSurfaceConfigured(ctx, world, surfaceWidth, surfaceHeight)
 
@@ -251,6 +249,8 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	if exit, ok := byke.ResourceOf[appExitState](world); ok {
 		return exit.Error
 	}
+
+	// slog.Info("Render metrics", slog.Any("metrics", ctx.Metrics))
 
 	return nil
 }

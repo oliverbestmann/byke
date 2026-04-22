@@ -188,9 +188,11 @@ type renderSpriteValue struct {
 }
 
 type renderSpriteAllocations struct {
-	bufIndices   *wgpu.Buffer
-	bufView      *wgpu.Buffer
-	bufInstances *wgpu.Buffer
+	bufIndices        *wgpu.Buffer
+	bufView           *wgpu.Buffer
+	bufInstances      *wgpu.Buffer
+	bufAlphaOnlyTrue  *wgpu.Buffer
+	bufAlphaOnlyFalse *wgpu.Buffer
 
 	instances    wx.InstanceWriter
 	spritesSlice []renderSpriteValue
@@ -223,6 +225,18 @@ func renderSpriteSystem(
 			Label: "Sprite.Instances",
 			Usage: wgpu.BufferUsageVertex | wgpu.BufferUsageCopyDst,
 			Size:  bufInstancesSize,
+		})
+
+		allocs.bufAlphaOnlyTrue = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "Sprite.AlphaOnlyTrueUniform",
+			Usage:    wgpu.BufferUsageUniform,
+			Contents: wgpu.ToBytes([]uint32{1}),
+		})
+
+		allocs.bufAlphaOnlyFalse = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "Sprite.AlphaOnlyFalseUniform",
+			Usage:    wgpu.BufferUsageUniform,
+			Contents: wgpu.ToBytes([]uint32{0}),
 		})
 	}
 
@@ -283,6 +297,15 @@ func renderSpriteSystem(
 			encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
 			defer encoder.Release()
 
+			bytesInstances := instances.Bytes()
+			ctx.WriteBuffer(allocs.bufInstances, 0, bytesInstances)
+
+			// interpret one channel textures as alpha only
+			var bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyFalse
+			if key.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
+				bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyTrue
+			}
+
 			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 				Label:  "Sprite.BindGroup",
 				Layout: cp.GetBindGroupLayout(1),
@@ -294,6 +317,11 @@ func renderSpriteSystem(
 					{
 						Binding: 1,
 						Sampler: key.Texture.Sampler,
+					},
+					{
+						Binding: 2,
+						Buffer:  bufAlphaOnly,
+						Size:    wgpu.WholeSize,
 					},
 				},
 			})
@@ -307,9 +335,6 @@ func renderSpriteSystem(
 				},
 			})
 			defer pass.Release()
-
-			bytesInstances := instances.Bytes()
-			ctx.WriteBuffer(allocs.bufInstances, 0, bytesInstances)
 
 			pass.SetPipeline(cp.Pipeline)
 			pass.SetBindGroup(0, viewBindGroup, nil)
@@ -392,12 +417,12 @@ func renderSpriteSystem(
 				uvScale[1] *= -1
 			}
 
-			instances.StartNew(instanceSize)
-
 			// calculate size of the sprite
 			baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
 			scale := sprite.Transform.Scale.Truncate().Mul(baseSize)
 			anchorOffset := sprite.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
+
+			instances.StartNew(instanceSize)
 
 			// @location(0) i_translation: vec2<f32>,
 			instances.AppendVec2f(sprite.Transform.Translation.Truncate().Add(anchorOffset))

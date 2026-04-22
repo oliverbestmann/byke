@@ -2,7 +2,7 @@ package byke2d
 
 import (
 	"bytes"
-	"fmt"
+	_ "embed"
 	"image"
 	"image/color"
 	"image/draw"
@@ -11,6 +11,7 @@ import (
 	"github.com/go-text/render"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
+	"github.com/go-text/typesetting/font/opentype"
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/shaping"
 	"github.com/oliverbestmann/byke"
@@ -86,43 +87,47 @@ func renderTextSystem(ctx *RenderContext,
 		text := []rune(item.Text.Text)
 		output := prepareTextGlyphs(ctx, text, item.Text.Size)
 
+		// calculate origin for the text
+		offset := output.Size.Mul(item.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}))
+
 		var posX float32
 		var posY float32
 
-		offset := output.Size.Mul(item.Anchor.Vec2f)
-
 		for _, glyph := range output.Glyphs {
-			x := posX + floatOf(glyph.XOffset) - offset[0]
-			// y is still a little off
-			y := posY + offset[1] + floatOf(glyph.YOffset) + floatOf(output.LineBounds.Ascent) - floatOf(output.LineBounds.Descent)
+			x := posX + floatOf(glyph.XOffset) + offset[0]
+			y := posY + floatOf(glyph.YOffset) + offset[1]
 
+			// advance to the next glyph
 			posX += floatOf(glyph.Advance)
 
-			texture, region, ok := glyphCache.Lookup(output.Face, item.Text.Size, glyph.GlyphID)
+			glyphTexture, ok := glyphCache.Lookup(output.Face, item.Text.Size, glyph.GlyphID)
 			if !ok {
 				continue
 			}
 
-			customSize := glm.Vec2f{
-				floatOf(glyph.Width + glyph.XBearing),
-				floatOf(output.LineBounds.Ascent - output.LineBounds.Descent),
-			}
+			// customSize := glm.Vec2f{
+			// 	floatOf(glyph.Width + glyph.XBearing),
+			// 	floatOf(output.LineBounds.Ascent - output.LineBounds.Descent),
+			// }
 
 			sprite := Sprite{
-				Texture:    texture,
-				Color:      item.Text.Color,
-				CustomSize: Some(customSize),
+				Texture: glyphTexture.Texture,
+				Color:   item.Text.Color,
+				// CustomSize: Some(customSize),
 			}
+
+			// offset position by the texture offset
+			x += glyphTexture.Offset[0]
+			y -= glyphTexture.Offset[1]
 
 			commands.Spawn(
 				byke.ChildOf{Parent: item.Entity},
 				TransformFromXY(x, y),
 				Glyph{glyph: glyph, charValue: text[glyph.TextIndex()]},
-				TextureAtlas{Layout: TextureAtlasLayoutFromRect(region)},
+				TextureAtlas{Layout: TextureAtlasLayoutFromRect(glyphTexture.Rectangle)},
 				AnchorBottomLeft,
 				sprite,
 			)
-
 		}
 	}
 }
@@ -147,6 +152,12 @@ func prepareTextGlyphs(ctx *RenderContext, text []rune, fontSize float32) layout
 		Size:      fixed.Int26_6(fontSize * float32(1<<6)),
 		Script:    language.Latin,
 		Language:  language.DefaultLanguage(),
+		FontFeatures: []shaping.FontFeature{
+			{
+				Tag:   opentype.MustNewTag("liga"),
+				Value: 1,
+			},
+		},
 	}
 
 	output := fontShaper.Shape(input)
@@ -160,7 +171,7 @@ func prepareTextGlyphs(ctx *RenderContext, text []rune, fontSize float32) layout
 	height := (output.GlyphBounds.Ascent - output.GlyphBounds.Descent).Ceil()
 
 	for _, glyph := range output.Glyphs {
-		_, _, ok := glyphCache.Lookup(output.Face, fontSize, glyph.GlyphID)
+		_, ok := glyphCache.Lookup(output.Face, fontSize, glyph.GlyphID)
 		if ok {
 			// already cached
 			continue
@@ -172,22 +183,26 @@ func prepareTextGlyphs(ctx *RenderContext, text []rune, fontSize float32) layout
 			continue
 		}
 
-		slog.Info("Cache glyph",
-			slog.Int("glyph", int(input.Text[glyph.TextIndex()])),
-			slog.Int("width", width),
-			slog.Int("height", height),
-		)
-
+		// shallow copy of output, we want to modify the slice of glyphs
 		output := output
 		output.Glyphs = []shaping.Glyph{glyph}
 
-		img := image.NewNRGBA(image.Rectangle{Max: image.Point{X: width, Y: height}})
+		img := image.NewNRGBA(image.Rectangle{Max: image.Point{X: width + 8, Y: height * 2}})
 
 		startY := output.LineBounds.Ascent.Ceil()
 		startX := 0
+
 		renderer.DrawShapedRunAt(output, img, startX, startY)
 
-		glyphCache.Store(ctx, output.Face, fontSize, glyph.GlyphID, img)
+		entry := glyphCache.Store(ctx, output.Face, fontSize, glyph.GlyphID, img)
+
+		slog.Info("Cache glyph",
+			slog.Int("glyph", int(input.Text[glyph.TextIndex()])),
+			slog.Any("size", entry.Rectangle.Size()),
+			slog.Any("offset", entry.Offset),
+			slog.Int("glyphCount", glyphCache.GlyphCount()),
+		)
+
 	}
 
 	size := glm.Vec2f{0, float32(height)}
@@ -201,161 +216,165 @@ func prepareTextGlyphs(ctx *RenderContext, text []rune, fontSize float32) layout
 	return layoutOutput{Output: output, Size: size}
 }
 
-type TextureAtlasAllocator struct {
-	SamplerConfig SamplerConfig
-	textures      []cacheTexture
+type GlyphTexture struct {
+	Texture   *Texture
+	Rectangle wx.Rectangle2u
+	Offset    glm.Vec2f
 }
 
-func (t *TextureAtlasAllocator) Allocate(ctx *RenderContext, width, height uint32) (*Texture, wx.Rectangle2u) {
-	tex, slice := t.findSlice(ctx, height, width)
-
-	// extract the target region
-	region := wx.RectangleFromXYWH(slice.NextX, slice.Y, width, height)
-
-	// consume space in this new slice
-	slice.NextX += width
-	slice.AvailableWidth -= width
-
-	return tex, region
+func (g *GlyphTexture) IsValid() bool {
+	return g.Texture != nil
 }
 
-func (t *TextureAtlasAllocator) findSlice(ctx *RenderContext, height, width uint32) (*Texture, *cacheTextureSlice) {
-	// find a matching slice that still has space
-	for _, tex := range t.textures {
-		for idx := range tex.Slices {
-			slice := &tex.Slices[idx]
-			if slice.Height == height && slice.AvailableWidth >= width {
-				return tex.Texture, slice
-			}
-		}
-	}
-
-	// find the first texture that still has room
-	for idx := range t.textures {
-		tex := &t.textures[idx]
-
-		if tex.Available >= height {
-			// start a new slice
-			slice := cacheTextureSlice{
-				Y:              tex.NextY,
-				AvailableWidth: tex.Texture.Width(),
-				Height:         height,
-			}
-
-			tex.Slices = append(tex.Slices, slice)
-
-			// remove space width
-			tex.Available -= height
-			tex.NextY += height
-
-			// return reference to the new slice
-			refSlice := &tex.Slices[len(tex.Slices)-1]
-			return tex.Texture, refSlice
-		}
-	}
-
-	// allocate a new texture and try again
-	texture := NewTexture(ctx, NewTextureOptions{
-		SamplerConfig: t.SamplerConfig,
-		Label:         "TextureAtlas",
-		Format:        wgpu.TextureFormatBGRA8UnormSrgb,
-		Width:         2048,
-		Height:        2048,
-	})
-
-	t.textures = append(t.textures, cacheTexture{
-		Texture:   texture,
-		Available: texture.Width(),
-	})
-
-	if tex, slice := t.findSlice(ctx, height, width); tex != nil {
-		return tex, slice
-	}
-
-	// still no space?
-	panic(fmt.Errorf("failed to allocate slice for height %d, width %d", height, width))
-}
-
-type FontCache struct {
+type GlyphCache struct {
 	Allocator TextureAtlasAllocator
-	cache     map[glyphCacheKey]cachedSubTexture
+	cache     map[glyphCacheKey]GlyphTexture
 }
 
-func NewFontCache() *FontCache {
-	return &FontCache{
-		cache: map[glyphCacheKey]cachedSubTexture{},
+func NewFontCache() *GlyphCache {
+	return &GlyphCache{
+		Allocator: TextureAtlasAllocator{
+			TextureFormat: wgpu.TextureFormatR8Unorm,
+		},
+
+		cache: map[glyphCacheKey]GlyphTexture{},
 	}
 }
 
-func (c *FontCache) Lookup(face *font.Face, fontSize float32, glyphId font.GID) (*Texture, wx.Rectangle2u, bool) {
+func (c *GlyphCache) Lookup(face *font.Face, fontSize float32, glyphId font.GID) (GlyphTexture, bool) {
 	key := glyphCacheKey{
 		FontFace: face,
-		Size:     uint32(fontSize + 0.5),
+		Size:     fontSize,
 		GlyphId:  glyphId,
 	}
 
 	if cached, ok := c.cache[key]; ok {
-		return cached.Texture, cached.Region, true
+		return cached, true
 	}
 
-	return nil, wx.Rectangle2u{}, false
+	return GlyphTexture{}, false
 }
 
-func (c *FontCache) Store(ctx *RenderContext, face *font.Face, fontSize float32, glyphId font.GID, src image.Image) (*Texture, wx.Rectangle2u) {
-	width := src.Bounds().Dx()
-	height := src.Bounds().Dy()
+func (c *GlyphCache) Store(ctx *RenderContext, face *font.Face, fontSize float32, glyphId font.GID, src *image.NRGBA) GlyphTexture {
+	rectGlyph := regionOfInterest(src)
 
-	var padding uint32 = 1
+	var padding = 1
 
-	tex, region := c.Allocator.Allocate(ctx, uint32(width)+2*padding, uint32(height)+2*padding)
+	// allocate a buffer to hold the non-transparent region
+	// add padding to the glyphs size
+	rgba := image.NewAlpha(image.Rect(0, 0, rectGlyph.Dx()+2*padding, rectGlyph.Dy()+2*padding))
 
-	rgba := image.NewNRGBA(image.Rect(0, 0, width, height))
-	draw.Draw(rgba, rgba.Bounds(), src, image.Point{}, draw.Src)
+	// pick the sub image that the glyph will be placed at
+	rgbaGlyph := rgba.Bounds().Inset(padding)
 
-	regionInner := wx.RectangleFromPoints(
-		region.Min.Add(glm.Vec2u{padding, padding}),
-		region.Max.Sub(glm.Vec2u{padding, padding}),
-	)
+	// copy the glyph over
+	draw.Draw(rgba, rgbaGlyph.Bounds(), src, rectGlyph.Min, draw.Src)
 
+	// DEBUG: fill texture with color for debugging the region
+	// debug := color.RGBA{R: 255, G: 255, B: 255, A: 64}
+	// draw.Draw(rgba, rgbaGlyph.Bounds(), image.NewUniform(debug), image.Point{}, draw.Over)
+
+	// allocate a texture of the required size
+	texWidth, texHeight := uint32(rgba.Bounds().Dx()), uint32(rgba.Bounds().Dy())
+	tex, region := c.Allocator.Allocate(ctx, texWidth, texHeight)
+
+	// upload the glyph data to the sub rectangle
 	tex.WritePixelsToRect(ctx, WritePixelsOptions{
+		Stride: uint32(rgba.Stride),
 		Pixels: rgba.Pix,
-		Region: regionInner,
+		Region: region,
 	})
 
 	key := glyphCacheKey{
 		FontFace: face,
-		Size:     uint32(fontSize + 0.5),
+		Size:     fontSize,
 		GlyphId:  glyphId,
 	}
 
-	c.cache[key] = cachedSubTexture{
-		Texture: tex,
-		Region:  regionInner,
+	result := GlyphTexture{
+		Texture:   tex,
+		Rectangle: region,
+		Offset: glm.Vec2f{
+			// move the glyph origin back to the
+			// origin of the provided src image
+			float32(rectGlyph.Min.X) - float32(padding),
+			float32(rectGlyph.Max.Y) - float32(padding),
+		},
 	}
 
-	return tex, regionInner
+	c.cache[key] = result
+
+	return result
 }
 
-type cacheTexture struct {
-	Texture   *Texture
-	Slices    []cacheTextureSlice
-	NextY     uint32
-	Available uint32
+func (c *GlyphCache) GlyphCount() int {
+	return len(c.cache)
 }
 
-type cacheTextureSlice struct {
-	Y, Height             uint32
-	NextX, AvailableWidth uint32
+func regionOfInterest(src *image.NRGBA) image.Rectangle {
+	rect := src.Bounds()
+
+	// walk through each row of the image and skip empty rows
+	for ; rect.Min.Y < rect.Max.Y; rect.Min.Y++ {
+		if !rowIsTransparent(src, rect.Min.Y) {
+			break
+		}
+	}
+
+	for ; rect.Max.Y > rect.Min.Y; rect.Max.Y-- {
+		if !rowIsTransparent(src, rect.Max.Y-1) {
+			break
+		}
+	}
+
+	// walk through columns
+	for ; rect.Min.X < rect.Max.X; rect.Min.X++ {
+		if !columnIsTransparent(src, rect.Min.X) {
+			break
+		}
+	}
+
+	for ; rect.Max.X > rect.Min.X; rect.Max.X-- {
+		if !columnIsTransparent(src, rect.Max.X-1) {
+			break
+		}
+	}
+
+	if rect.Empty() {
+		// return a non empty rect^
+		return image.Rect(0, 0, 1, 1)
+	}
+
+	return rect
 }
 
-type cachedSubTexture struct {
-	Texture *Texture
-	Region  wx.Rectangle2u
+func rowIsTransparent(src *image.NRGBA, y int) bool {
+	width := src.Bounds().Dx()
+
+	for x := 0; x < width; x++ {
+		if src.NRGBAAt(x, y).A > 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func columnIsTransparent(src *image.NRGBA, x int) bool {
+	height := src.Bounds().Dy()
+
+	for y := 0; y < height; y++ {
+		if src.NRGBAAt(x, y).A > 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 type glyphCacheKey struct {
 	FontFace *font.Face
-	Size     uint32
+	Size     float32
 	GlyphId  font.GID
 }
 

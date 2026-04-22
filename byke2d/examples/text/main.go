@@ -33,7 +33,8 @@ func main() {
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)
-	app.AddSystems(Update, updateCamera, updateTextSystem, updateTextTransformSystem)
+	app.AddSystems(Update, updateTextSystem, updateTextTransformSystem)
+	// app.AddSystems(Update, updateCamera)
 
 	app.MustRun()
 }
@@ -52,7 +53,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	asset := assets.Texture("coordinates.png").Await()
 	commands.Spawn(
-		Sprite{Texture: asset},
+		Sprite{Texture: asset, Color: wx.ColorSRGBA(1, 1, 1, 0.25)},
 	)
 
 	commands.Spawn(
@@ -63,11 +64,11 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		TransformFromXY(200, 200),
-		AnchorTopLeft,
+		AnchorCenter,
 		Text{
 			Text:  "Hello World!",
-			Size:  24.0,
-			Color: wx.ColorSRGBA(1, 0, 1, 1.0),
+			Size:  48.0,
+			Color: wx.ColorSRGBA(1, 1, 1, 1.0),
 		},
 	)
 }
@@ -75,7 +76,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 func updateTextSystem(vt VirtualTime, query Query[*Text]) {
 	for item := range query.Items() {
 		fps := float64(vt.Frames) / vt.Elapsed.Seconds()
-		item.Text = fmt.Sprintf("Seconds: %1.2f, about %1.2f fps", vt.Elapsed.Seconds(), fps)
+		item.Text = fmt.Sprintf("Seconds: %1.2f, about %1.2f fps. fi f i", vt.Elapsed.Seconds(), fps)
 	}
 }
 

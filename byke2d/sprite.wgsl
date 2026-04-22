@@ -91,8 +91,18 @@ var texture: texture_2d<f32>;
 @binding(1)
 var texture_sampler: sampler;
 
+@group(1)
+@binding(2)
+var<uniform> red_as_alpha: u32;
+
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4f {
     let tex = textureSample(texture, texture_sampler, vertex.uv);
+
+    if red_as_alpha != 0 {
+        // use the red channel of the texture as alpha
+        return vec4(vertex.color.rgb, tex.r * vertex.color.a);
+    }
+
     return tex * vertex.color;
 }
