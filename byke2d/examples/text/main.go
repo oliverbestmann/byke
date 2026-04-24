@@ -4,12 +4,10 @@ import (
 	"embed"
 	"fmt"
 	"log/slog"
-	"math"
 	"os"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
-	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 )
 
@@ -33,94 +31,57 @@ func main() {
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)
-	app.AddSystems(Update, updateTextSystem, updateTextTransformSystem)
-	// app.AddSystems(Update, updateCamera)
+	app.AddSystems(Update, updateTextSystem)
 
 	app.MustRun()
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
-		TransformFromXY(200, 200).WithScaleXY(1, 1),
 		Camera{},
-		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			// ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 1000.0},
-			ScalingMode: ScalingModeWindowSize{},
-			Scale:       1.0,
-		},
-	)
-
-	asset := assets.Texture("coordinates.png").Await()
-	commands.Spawn(
-		Sprite{Texture: asset, Color: wx.ColorSRGBA(1, 1, 1, 0.25)},
 	)
 
 	commands.Spawn(
-		TransformFromXY(200, 200),
-		Sprite{Texture: asset, CustomSize: Some(glm.Vec2f{64, 64})},
+		TransformFromXY(0, 200),
 		AnchorCenter,
-	)
-
-	commands.Spawn(
-		TransformFromXY(200, 200),
-		AnchorCenter,
+		UpdateTextMarker{},
 		Text{
-			Text:  "Hello World!",
 			Size:  48.0,
 			Color: wx.ColorSRGBA(1, 1, 1, 1.0),
 		},
 	)
+
+	commands.Spawn(
+		TransformFromXY(8, -80),
+		AnchorTopLeft,
+		Text{
+			Size:  24.0,
+			Color: wx.ColorSRGBA(1, 0.75, 0.65, 1.0),
+			Text:  "This is some\nMultiline text.\nDepending on the font, we also have ligatures\ni.e. compare fi to f i.",
+		},
+	)
+
+	commands.Spawn(
+		TransformFromXY(-8, -80),
+		AnchorTopRight,
+		Text{
+			Size:  24.0,
+			Color: wx.ColorSRGBA(1, 0.75, 0.65, 1.0),
+			Text:  "Hello すべての world",
+		},
+	)
 }
 
-func updateTextSystem(vt VirtualTime, query Query[*Text]) {
-	for item := range query.Items() {
-		fps := float64(vt.Frames) / vt.Elapsed.Seconds()
-		item.Text = fmt.Sprintf("Seconds: %1.2f, about %1.2f fps. fi f i", vt.Elapsed.Seconds(), fps)
-	}
+type UpdateTextMarker struct {
+	ImmutableComponent[UpdateTextMarker]
 }
 
-func updateCamera(vt VirtualTime, query Query[struct {
-	Projection *OrthographicProjection
+func updateTextSystem(vt VirtualTime, query Query[struct {
+	_    With[UpdateTextMarker]
+	Text *Text
 }]) {
 	for item := range query.Items() {
-		size := (math.Sin(vt.Elapsed.Seconds())+1)*0.5 + 1
-		item.Projection.Scale = float32(size)
+		fps := float64(vt.Frames) / vt.Elapsed.Seconds()
+		item.Text.Text = fmt.Sprintf("Seconds: %1.2f,\nabout %1.2f fps", vt.Elapsed.Seconds(), fps)
 	}
-}
-
-func updateTextTransformSystem(mouse MouseCursor,
-	cameraQuery Single[struct {
-		_          With[Camera]
-		Projection OrthographicProjection
-		Transform  GlobalTransform
-		ViewTarget *ViewTarget
-	}],
-
-	query Query[struct {
-		_         With[Text]
-		Transform *Transform
-	}],
-) {
-	/*
-		viewportSize := cameraQuery.Value.Projection.ScalingMode.ViewportSize(cameraQuery.Value.ViewTarget.Size.XY())
-		if viewportSize[0] == 0 {
-			return
-		}
-
-		screenToNDC := glm.Mat3f{}.
-			Translate(viewportSize.M.Extend(1).XY()).
-			Scale(cameraQuery.Value.Projection.ViewportOrigin.Mul(-1).XY())
-
-		worldToScreen := cameraQuery.Value.Transform.AsMat3f()
-
-		invert := worldToScreen.Mul(screenToNDC).Invert()
-
-		for item := range query.Items() {
-			pos := invert.Transform(mouse.Extend(1))
-			item.Transform.Translation = pos
-
-			fmt.Println(pos)
-		}
-	*/
 }

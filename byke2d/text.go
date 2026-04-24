@@ -1,38 +1,32 @@
 package byke2d
 
 import (
-	"bytes"
 	_ "embed"
 	"image"
 	"image/color"
 	"image/draw"
 	"log/slog"
+	"unicode"
 
 	"github.com/go-text/render"
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/font/opentype"
-	"github.com/go-text/typesetting/language"
+	"github.com/go-text/typesetting/segmenter"
 	"github.com/go-text/typesetting/shaping"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
-	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/math/fixed"
 )
 
 var _ = byke.ValidateComponent[Text]()
+var _ = byke.ValidateComponent[Font]()
 
-var defaultFontFace *font.Face
-
-var fontShaper shaping.HarfbuzzShaper
-
-func init() {
-	f, _ := font.ParseTTF(bytes.NewReader(goregular.TTF))
-	defaultFontFace = f
-}
+var sharedShaper shaping.HarfbuzzShaper
+var sharedSegmenter shaping.Segmenter
 
 type Text struct {
 	byke.ComparableComponent[Text]
@@ -45,8 +39,14 @@ func (Text) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		NewTransform(),
 		InheritVisibility,
-		AnchorBottomLeft,
+		AnchorCenter,
+		DefaultFont,
 	}
+}
+
+type Font struct {
+	byke.ComparableComponent[Font]
+	Faces Faces
 }
 
 type Glyph struct {
@@ -61,6 +61,7 @@ type renderTextValue struct {
 	Entity byke.EntityId
 	Text   Text
 	Anchor Anchor
+	Font   Font
 
 	Children byke.Option[byke.Children]
 }
@@ -85,49 +86,61 @@ func renderTextSystem(ctx *RenderContext,
 		}
 
 		text := []rune(item.Text.Text)
-		output := prepareTextGlyphs(ctx, text, item.Text.Size)
+
+		layout := layoutText(text, item.Font.Faces, item.Text.Size)
 
 		// calculate origin for the text
-		offset := output.Size.Mul(item.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}))
+		offset := layout.Size.Mul(item.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}))
 
 		var posX float32
 		var posY float32
 
-		for _, glyph := range output.Glyphs {
-			x := posX + floatOf(glyph.XOffset) + offset[0]
-			y := posY + floatOf(glyph.YOffset) + offset[1]
+		for idx := len(layout.Lines) - 1; idx >= 0; idx-- {
+			line := layout.Lines[idx]
 
-			// advance to the next glyph
-			posX += floatOf(glyph.Advance)
+			for idx, output := range line.Outputs {
+				cacheGlyphs(ctx, item.Text.Size, line.Inputs[idx], output)
 
-			glyphTexture, ok := glyphCache.Lookup(output.Face, item.Text.Size, glyph.GlyphID)
-			if !ok {
-				continue
+				for _, glyph := range output.Glyphs {
+					x := posX + floatOf(glyph.XOffset) + offset[0]
+					y := posY + floatOf(glyph.YOffset) + offset[1]
+
+					// advance to the next glyph
+					posX += floatOf(glyph.Advance)
+
+					if unicode.IsSpace(text[glyph.TextIndex()]) {
+						// no need to spawn sprites for whitespace
+						continue
+					}
+
+					glyphTexture, ok := glyphCache.Lookup(output.Face, item.Text.Size, glyph.GlyphID)
+					if !ok {
+						continue
+					}
+
+					sprite := Sprite{
+						Texture: glyphTexture.Texture,
+						Color:   item.Text.Color,
+						// CustomSize: Some(customSize),
+					}
+
+					// offset position by the texture offset
+					x += glyphTexture.Offset[0]
+					y -= glyphTexture.Offset[1]
+
+					commands.Spawn(
+						byke.ChildOf{Parent: item.Entity},
+						TransformFromXY(x, y),
+						Glyph{glyph: glyph, charValue: text[glyph.TextIndex()]},
+						TextureAtlas{Layout: TextureAtlasLayoutFromRect(glyphTexture.Rectangle)},
+						AnchorBottomLeft,
+						sprite,
+					)
+				}
 			}
 
-			// customSize := glm.Vec2f{
-			// 	floatOf(glyph.Width + glyph.XBearing),
-			// 	floatOf(output.LineBounds.Ascent - output.LineBounds.Descent),
-			// }
-
-			sprite := Sprite{
-				Texture: glyphTexture.Texture,
-				Color:   item.Text.Color,
-				// CustomSize: Some(customSize),
-			}
-
-			// offset position by the texture offset
-			x += glyphTexture.Offset[0]
-			y -= glyphTexture.Offset[1]
-
-			commands.Spawn(
-				byke.ChildOf{Parent: item.Entity},
-				TransformFromXY(x, y),
-				Glyph{glyph: glyph, charValue: text[glyph.TextIndex()]},
-				TextureAtlas{Layout: TextureAtlasLayoutFromRect(glyphTexture.Rectangle)},
-				AnchorBottomLeft,
-				sprite,
-			)
+			posX = 0
+			posY += line.Size[1]
 		}
 	}
 }
@@ -136,22 +149,76 @@ func floatOf(value fixed.Int26_6) float32 {
 	return float32(value) / 64.0
 }
 
-type layoutOutput struct {
-	shaping.Output
-	Size glm.Vec2f
+type textLayout struct {
+	Lines []lineLayout
+	Size  glm.Vec2f
 }
 
-func prepareTextGlyphs(ctx *RenderContext, text []rune, fontSize float32) layoutOutput {
-	// Input configuration
+type lineLayout struct {
+	Inputs  []shaping.Input
+	Outputs []shaping.Output
+	Size    glm.Vec2f
+}
+
+func layoutText(text []rune, faces Faces, fontSize float32) textLayout {
+	lines := splitTextToLines(text)
+
+	var size glm.Vec2f
+	var layouts []lineLayout
+
+	for _, line := range lines {
+		layout := layoutLine(text, line, faces, fontSize)
+		layouts = append(layouts, layout)
+
+		size[0] = max(size[0], layout.Size[0])
+		size[1] += layout.Size[1]
+	}
+
+	return textLayout{Lines: layouts, Size: size}
+}
+
+func splitTextToLines(text []rune) []lineIndices {
+	var lines []lineIndices
+
+	var seg segmenter.Segmenter
+	seg.Init(text)
+
+	lineIter := seg.LineIterator()
+
+	var lineStart = -1
+
+	for lineIter.Next() {
+		line := lineIter.Line()
+
+		if lineStart < 0 {
+			lineStart = line.Offset
+		}
+
+		if line.IsMandatoryBreak {
+			end := line.Offset + len(line.Text)
+			lines = append(lines, lineIndices{Offset: lineStart, End: end})
+			lineStart = -1
+		}
+	}
+
+	if lineStart >= 0 {
+		lines = append(lines, lineIndices{Offset: lineStart, End: len(text)})
+	}
+	return lines
+}
+
+type lineIndices struct {
+	Offset int
+	End    int
+}
+
+func layoutLine(text []rune, line lineIndices, faces Faces, fontSize float32) lineLayout {
 	input := shaping.Input{
 		Text:      text,
-		RunStart:  0,
-		RunEnd:    len(text),
+		RunStart:  line.Offset,
+		RunEnd:    line.End,
 		Direction: di.DirectionLTR,
-		Face:      defaultFontFace,
 		Size:      fixed.Int26_6(fontSize * float32(1<<6)),
-		Script:    language.Latin,
-		Language:  language.DefaultLanguage(),
 		FontFeatures: []shaping.FontFeature{
 			{
 				Tag:   opentype.MustNewTag("liga"),
@@ -160,8 +227,33 @@ func prepareTextGlyphs(ctx *RenderContext, text []rune, fontSize float32) layout
 		},
 	}
 
-	output := fontShaper.Shape(input)
+	var size glm.Vec2f
 
+	var inputs []shaping.Input
+	var outputs []shaping.Output
+
+	for _, input := range sharedSegmenter.Split(input, faces) {
+		output := sharedShaper.Shape(input)
+
+		for idx := range output.Glyphs {
+			glyph := &output.Glyphs[idx]
+			size[0] += floatOf(glyph.Advance)
+		}
+
+		size[1] = max(size[1], floatOf(output.LineBounds.LineThickness()))
+
+		inputs = append(inputs, input)
+		outputs = append(outputs, output)
+	}
+
+	return lineLayout{
+		Inputs:  inputs,
+		Outputs: outputs,
+		Size:    size,
+	}
+}
+
+func cacheGlyphs(ctx *RenderContext, fontSize float32, input shaping.Input, output shaping.Output) {
 	renderer := render.Renderer{
 		Color:    color.White,
 		FontSize: fontSize,
@@ -202,18 +294,7 @@ func prepareTextGlyphs(ctx *RenderContext, text []rune, fontSize float32) layout
 			slog.Any("offset", entry.Offset),
 			slog.Int("glyphCount", glyphCache.GlyphCount()),
 		)
-
 	}
-
-	size := glm.Vec2f{0, float32(height)}
-
-	for idx := range output.Glyphs {
-		glyph := &output.Glyphs[idx]
-
-		size[0] += floatOf(glyph.Advance)
-	}
-
-	return layoutOutput{Output: output, Size: size}
 }
 
 type GlyphTexture struct {
