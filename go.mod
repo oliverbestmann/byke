@@ -4,10 +4,13 @@ go 1.26.1
 
 require (
 	github.com/ebitengine/oto/v3 v3.4.0
+	github.com/go-text/render v0.2.1
+	github.com/go-text/typesetting v0.3.4
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/oliverbestmann/pulse v0.0.0-20260413043828-d003639f44ca
 	github.com/oliverbestmann/webgpu v1.29.1
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/image v0.39.0
 )
 
 require (
@@ -15,8 +18,6 @@ require (
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20250301202403-da16c1255728 // indirect
-	github.com/go-text/render v0.2.1 // indirect
-	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -33,7 +34,6 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
-	golang.org/x/image v0.39.0 // indirect
 	golang.org/x/mobile v0.0.0-20260312152759-81488f6aeb60 // indirect
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect

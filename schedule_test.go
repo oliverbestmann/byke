@@ -116,5 +116,5 @@ func x() int {
 
 func gen[X any]() {
 	ty := reflect.TypeFor[X]()
-	fmt.Sprintln(ty)
+	fmt.Println(ty)
 }

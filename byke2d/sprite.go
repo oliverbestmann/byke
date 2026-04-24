@@ -34,13 +34,11 @@ type Sprite struct {
 }
 
 func (Sprite) RequireComponents() []byke.ErasedComponent {
-	return append(
-		[]byke.ErasedComponent{
-			NewTransform(),
-			AnchorCenter,
-			InheritVisibility,
-		},
-	)
+	return []byke.ErasedComponent{
+		NewTransform(),
+		AnchorCenter,
+		InheritVisibility,
+	}
 }
 
 type Anchor struct {
