@@ -1,5 +1,5 @@
 [![Reference byke](https://pkg.go.dev/badge/github.com/oliverbestmann/byke.svg)](https://pkg.go.dev/github.com/oliverbestmann/byke)
-[![Reference bykebiten](https://pkg.go.dev/badge/github.com/oliverbestmann/byke/bykebiten.svg)](https://pkg.go.dev/github.com/oliverbestmann/byke/bykebiten)
+[![Reference byke2d](https://pkg.go.dev/badge/github.com/oliverbestmann/byke/byke2d.svg)](https://pkg.go.dev/github.com/oliverbestmann/byke/byke2d)
 
 # byke
 
@@ -7,6 +7,11 @@
 
 > Although still under development, it already includes a wide range of features.
 > Documentation and examples will improve in the near feature.
+
+---
+
+> Note: This README and some documentation was refined using generative AI,
+> but all code in this project is handwritten.
 
 With a background in Bevy, you'll find Byke straightforward.
 The `App` type is the main entry point - just add plugins, resources, and systems.
@@ -64,34 +69,8 @@ func moveObjectsSystem(vt VirtualTime, query Query[struct {
 * **Entity Hierarchies**: Support for parent-child relationships between entities.
 * **Fixed Timestep**: Execute game logic or physics systems with a fixed timestep interval.
 
-
-### Ebitengine Integration
-
-The `bykebiten` package provides integration with [Ebitengine](https://ebitengine.org/):
-* Initializes and manages the game loop
-* Configures window settings, screen size, and input
-* Applies transforms through entity hierarchy
-* Manages rendering with z-order, anchors, and sizes
-* Sprites, also supports sprite sheets
-* Text rendering with custom fonts
-* Handles vectors with filled and stroked paths
-* Supports meshes: circles, rectangles, and triangulated polygons
-* Shaders for sprites and meshes with uniforms and image inputs
-* Multi-camera functionality
-* Custom render targets via *ebiten.Image
-* Asset loading:
-  * AssetLoader support
-  * Tracks asset loads
-  * Custom fs.FS: embedded, http, local support
-* Audio playback with looping and despawning
-* Spatial audio (see `astroids` example)
-
 ### Example
 
-Check out the [examples](https://github.com/oliverbestmann/byke/blob/main/bykebiten/examples/) for a
+Check out the [examples](https://github.com/oliverbestmann/byke/blob/main/byke2d/examples/) for a
 look at how everything comes together.
 
----
-
-> Note: This README and some documentation was refined using generative AI,
-> but all code in this project is handwritten.
