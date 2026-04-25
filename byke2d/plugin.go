@@ -146,7 +146,7 @@ func runWorld(world *byke.World) error {
 	dumpContextInfo(ctx)
 
 	world.InsertResource(PrimaryWindow{window: win})
-	world.InsertResource(RenderContext{Context: ctx})
+	world.InsertResource(buildRenderContext(ctx))
 
 	err = win.Run(func(state vyn.UpdateInputState) error {
 		return updateWorld(world, state)
@@ -158,6 +158,13 @@ func runWorld(world *byke.World) error {
 	}
 
 	return err
+}
+
+func buildRenderContext(ctx *wx.Context) RenderContext {
+	return RenderContext{
+		Context:         ctx,
+		MipmapGenerator: makeMipmapGenerator(ctx),
+	}
 }
 
 func dumpContextInfo(ctx *wx.Context) {
@@ -369,7 +376,29 @@ type appExitState struct {
 	Error error
 }
 
-func clearTexture(ctx *RenderContext, texView *wgpu.TextureView, color wx.Color) {
+func clearTarget(ctx *RenderContext, viewTarget *ViewTarget) {
+	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "ClearTexture"})
+	defer enc.Release()
+
+	desc := &wgpu.RenderPassDescriptor{
+		Label: "ClearUsingTexture",
+		ColorAttachments: []wgpu.RenderPassColorAttachment{
+			viewTarget.ColorAttachment(),
+		},
+	}
+
+	enc.BeginRenderPass(desc).End()
+
+	// encode into a command buffer
+	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ClearTexture"})
+	defer buf.Release()
+
+	ctx.Submit(buf)
+
+	viewTarget.DiscardContent()
+}
+
+func clearTexture(ctx *RenderContext, texView, resolveView *wgpu.TextureView, color wx.Color) {
 	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "ClearTexture"})
 	defer enc.Release()
 
@@ -379,10 +408,10 @@ func clearTexture(ctx *RenderContext, texView *wgpu.TextureView, color wx.Color)
 		Label: "ClearUsingTexture",
 		ColorAttachments: []wgpu.RenderPassColorAttachment{
 			{
-				View: texView,
-				// ResolveTarget: resolveView,
-				LoadOp:  wgpu.LoadOpClear,
-				StoreOp: wgpu.StoreOpStore,
+				View:          texView,
+				ResolveTarget: resolveView,
+				LoadOp:        wgpu.LoadOpClear,
+				StoreOp:       wgpu.StoreOpStore,
 				ClearValue: wgpu.Color{
 					R: float64(carr[0]),
 					G: float64(carr[1]),

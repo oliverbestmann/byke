@@ -291,6 +291,8 @@ func renderSpriteSystem(
 			Texture *Texture
 		}
 
+		var renderedSomething bool
+
 		flush := func(key batchKey) {
 			encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
 			defer encoder.Release()
@@ -343,6 +345,8 @@ func renderSpriteSystem(
 			pass.End()
 
 			ctx.Submit(encoder.Finish(nil))
+
+			renderedSomething = true
 		}
 
 		var keyCurrent batchKey
@@ -442,5 +446,11 @@ func renderSpriteSystem(
 		}
 
 		viewBindGroup.Release()
+
+		if !renderedSomething {
+			// If we did not render anything, we need to clear the target to prevent
+			// the content from being undefined.
+			clearTarget(ctx, camera.ViewTarget)
+		}
 	}
 }

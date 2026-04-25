@@ -20,7 +20,8 @@ func (m *RenderMetrics) reset() {
 }
 
 type RenderContext struct {
-	Metrics RenderMetrics
+	Metrics         RenderMetrics
+	MipmapGenerator *mipmapGenerator
 	*wx.Context
 }
 

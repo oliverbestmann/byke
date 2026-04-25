@@ -12,7 +12,7 @@ var _ = byke.ValidateComponent[ViewTarget]()
 // TODO Some preparations for post processing and to support MSAA
 
 type colorAttachment struct {
-	IsCleared     bool
+	HasContent    bool
 	Texture       *wgpu.TextureView
 	ResolveTarget *wgpu.TextureView
 }
@@ -37,14 +37,21 @@ type ViewTarget struct {
 	active      int
 }
 
+// DiscardContent marks the content as discarded. The next call
+// to ColorAttachment() will use LoadOpClear to prevent loading
+// of old data and just clear the buffer again.
+func (m *ViewTarget) DiscardContent() {
+	m.attachments[m.active%2].HasContent = false
+}
+
 func (m *ViewTarget) ColorAttachment() wgpu.RenderPassColorAttachment {
 	target := m.attachments[m.active%2]
 
 	var clearColor wgpu.Color
 
 	loadOp := wgpu.LoadOpLoad
-	if !target.IsCleared {
-		target.IsCleared = true
+	if !target.HasContent {
+		target.HasContent = true
 		loadOp = wgpu.LoadOpClear
 
 		r, g, b, a := m.ClearColor.Components()

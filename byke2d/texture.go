@@ -86,6 +86,9 @@ func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts WritePixelsOptions)
 
 	// send data to the gpu
 	ctx.WriteTexture(dest, opts.Pixels, layout, size)
+
+	// generate mip maps for this texture
+	ctx.MipmapGenerator.Generate(t)
 }
 
 type NewTextureOptions struct {
@@ -123,7 +126,7 @@ func NewTexture(ctx *RenderContext, opts NewTextureOptions) *Texture {
 		Label:         opts.Label,
 		Format:        opts.Format,
 		SampleCount:   sampleCount,
-		MipLevelCount: 1,
+		MipLevelCount: mipmapLevelCount(opts.Width, opts.Height),
 
 		Dimension: wgpu.TextureDimension2D,
 		Size: wgpu.Extent3D{
@@ -162,8 +165,8 @@ func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wg
 		MagFilter:     sampleConfig.FilterMode,
 		MinFilter:     sampleConfig.FilterMode,
 		MipmapFilter:  wgpu.MipmapFilterModeLinear,
-		LodMinClamp:   1,
-		LodMaxClamp:   1,
+		LodMinClamp:   0,
+		LodMaxClamp:   32,
 		MaxAnisotropy: 1,
 	})
 
