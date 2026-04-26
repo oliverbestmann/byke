@@ -20,9 +20,14 @@ var VisibilitySystems = &byke.SystemSet{}
 var AudioSystems = &byke.SystemSet{}
 var DeriveSprites = &byke.SystemSet{}
 
-var RenderClearSystems = &byke.SystemSet{}
 var RenderSystems = &byke.SystemSet{}
 var RenderPostProcessSystems = &byke.SystemSet{}
+
+var (
+	PreRender  = byke.MakeScheduleId("PreRender")
+	Render     = byke.MakeScheduleId("Render")
+	PostRender = byke.MakeScheduleId("PostRender")
+)
 
 func RenderPlugin(app *byke.App) {
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
@@ -68,23 +73,24 @@ func RenderPlugin(app *byke.App) {
 		Chain().
 		InSet(TransformSystems))
 
-	app.AddSystems(byke.PreRender,
+	app.AddSystems(byke.RenderMain, runRenderScheduleSystem)
+
+	app.AddSystems(PreRender,
 		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
 			Chain().
 			InSet(AudioSystems))
 
-	app.AddSystems(byke.PreRender,
+	app.AddSystems(PreRender,
 		updateViewTargetOnCamerasSystem)
 
-	app.AddSystems(byke.Render,
+	app.AddSystems(Render,
 		byke.System(renderSpriteSystem).Chain())
 
 	// Adding new sprites must run before transform & visibility propagation
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(TransformSystems))
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(VisibilitySystems))
 
-	app.ConfigureSystemSets(byke.Render, RenderClearSystems.
-		Before(RenderSystems).
+	app.ConfigureSystemSets(Render, RenderSystems.
 		Before(RenderPostProcessSystems))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
@@ -429,4 +435,11 @@ func clearTexture(ctx *RenderContext, texView, resolveView *wgpu.TextureView, co
 	defer buf.Release()
 
 	ctx.Submit(buf)
+}
+
+func runRenderScheduleSystem(world *byke.World) {
+	world.RunSchedule(PreRender)
+	world.RunSchedule(Render)
+	world.RunSchedule(PostRender)
+
 }

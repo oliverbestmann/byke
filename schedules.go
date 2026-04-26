@@ -44,9 +44,7 @@ var (
 	StateTransition = MakeScheduleId("StateTransition")
 	Update          = MakeScheduleId("Update")
 	PostUpdate      = MakeScheduleId("PostUpdate")
-	PreRender       = MakeScheduleId("PreRender")
-	Render          = MakeScheduleId("Render")
-	PostRender      = MakeScheduleId("PostRender")
+	RenderMain      = MakeScheduleId("RenderMain")
 	Last            = MakeScheduleId("Last")
 
 	FixedFirst      = MakeScheduleId("FixedFirst")
@@ -93,9 +91,8 @@ func runMainSchedule(world *World, initialized *Local[bool]) {
 	world.RunSchedule(Update)
 	world.RunSchedule(PostUpdate)
 
-	world.RunSchedule(PreRender)
-	world.RunSchedule(Render)
-	world.RunSchedule(PostRender)
+	// run the render schedule
+	world.RunSchedule(RenderMain)
 
 	// end the frame
 	world.RunSchedule(Last)
