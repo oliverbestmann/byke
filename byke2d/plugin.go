@@ -151,6 +151,9 @@ func runWorld(world *byke.World) error {
 	world.InsertResource(PrimaryWindow{window: win})
 	world.InsertResource(buildRenderContext(ctx))
 
+	renderContext, _ := byke.ResourceOf[RenderContext](world)
+	world.InsertResource(TextureCache{Context: renderContext})
+
 	err = win.Run(func(state vyn.UpdateInputState) error {
 		return updateWorld(world, state)
 	})
@@ -387,7 +390,12 @@ func clearTexture(ctx *RenderContext, texView, resolveView *wgpu.TextureView, co
 	ctx.Submit(buf)
 }
 
-func driveRenderScheduleSystem(world *byke.World, ctx *RenderContext, surfaceValues currentSurfaceValues, camerasQuery byke.Query[cameraQueryValues]) {
+func driveRenderScheduleSystem(world *byke.World,
+	ctx *RenderContext,
+	textureCache *TextureCache,
+	surfaceValues currentSurfaceValues,
+	camerasQuery byke.Query[cameraQueryValues],
+) {
 	// TODO reuse allocation
 	cameras := camerasQuery.AppendTo(nil)
 
@@ -399,13 +407,22 @@ func driveRenderScheduleSystem(world *byke.World, ctx *RenderContext, surfaceVal
 	// remove the camera value from the world after rendering
 	defer world.RemoveResource(reflect.TypeFor[CurrentCamera]())
 
+	textureCache.Reset()
+
 	for _, camera := range cameras {
 		if camera.Camera.Inactive {
 			continue
 		}
 
-		viewTarget, ok := buildCameraViewTarget(surfaceValues, camera.RenderTarget, camera.ClearColor.Color)
-		if !ok {
+		viewTarget, hasViewTarget := buildCameraViewTarget(
+			textureCache,
+			surfaceValues,
+			camera.RenderTarget,
+			camera.ClearColor.Color,
+			camera.Msaa.On,
+		)
+
+		if !hasViewTarget {
 			continue
 		}
 
@@ -442,48 +459,5 @@ type cameraQueryValues struct {
 	RenderLayers RenderLayers
 	RenderTarget RenderTarget
 	ClearColor   ClearColor
-}
-
-func buildCameraViewTarget(surfaceValues currentSurfaceValues, renderTarget RenderTarget, clearColor wx.Color) (*ViewTarget, bool) {
-	switch {
-	case renderTarget.PrimaryWindow:
-		sv := surfaceValues
-
-		viewTarget := ViewTarget{
-			ClearColor:  clearColor,
-			Format:      sv.Texture.GetFormat(),
-			SampleCount: sv.Texture.GetSampleCount(),
-			Size:        sv.Size,
-
-			attachments: [2]*colorAttachment{
-				{
-					Texture:       sv.TextureView,
-					ResolveTarget: nil,
-				},
-			},
-		}
-
-		return &viewTarget, true
-
-	case renderTarget.Texture != nil:
-		target := renderTarget.Texture
-
-		viewTarget := ViewTarget{
-			ClearColor:  clearColor,
-			Format:      target.Descriptor.Format,
-			SampleCount: target.Descriptor.SampleCount,
-			Size:        target.Size(),
-
-			attachments: [2]*colorAttachment{
-				{
-					Texture:       target.RenderView,
-					ResolveTarget: nil,
-				},
-			},
-		}
-
-		return &viewTarget, true
-	}
-
-	return nil, false
+	Msaa         Msaa
 }

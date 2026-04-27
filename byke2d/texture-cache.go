@@ -1,108 +1,58 @@
 package byke2d
 
 import (
-	"fmt"
-	"strconv"
+	"log/slog"
+	"slices"
 
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-type TextureAtlasAllocator struct {
-	SamplerConfig SamplerConfig
-	TextureFormat wgpu.TextureFormat
-	textures      []textureWithSlices
+type TextureCache struct {
+	Context *RenderContext
+	used    []*Texture
+	unused  []*Texture
 }
 
-func (t *TextureAtlasAllocator) Allocate(ctx *RenderContext, width, height uint32) (*Texture, wx.Rectangle2u) {
-	// round height up to next multiple of 4 to reduce number of bins
-	var height4 = height
-	if d := height4 % 4; d > 0 {
-		height4 += 4 - d
-	}
-
-	// find a slice of the expected height
-	tex, slice := t.findSlice(ctx, height4, width)
-
-	// extract the target region
-	region := wx.RectangleFromXYWH(slice.NextX, slice.Y, width, height)
-
-	// consume space in this new slice
-	slice.NextX += width
-	slice.AvailableWidth -= width
-
-	return tex, region
-}
-
-func (t *TextureAtlasAllocator) findSlice(ctx *RenderContext, height, width uint32) (*Texture, *textureSlice) {
-	// find a matching slice that still has space
-	for _, tex := range t.textures {
-		for idx := range tex.Slices {
-			slice := &tex.Slices[idx]
-			if slice.Height == height && slice.AvailableWidth >= width {
-				return tex.Texture, slice
-			}
+func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {
+	for idx, tex := range t.unused {
+		if *tex.Descriptor == *desc {
+			t.unused = slices.Delete(t.unused, idx, idx+1)
+			t.used = append(t.used, tex)
+			return tex
 		}
 	}
 
-	// find the first texture that still has room
-	for idx := range t.textures {
-		tex := &t.textures[idx]
+	// allocate a new texture
+	tex := NewTextureFromDesc(t.Context, SamplerConfig{}, desc)
+	t.used = append(t.used, tex)
 
-		if tex.Available >= height {
-			// start a new slice
-			slice := textureSlice{
-				Y:              tex.NextY,
-				AvailableWidth: tex.Texture.Width(),
-				Height:         height,
-			}
+	slog.Info("Allocated texture",
+		slog.String("label", tex.Descriptor.Label),
+		slog.Any("size", tex.Size()),
+	)
 
-			tex.Slices = append(tex.Slices, slice)
+	return tex
+}
 
-			// remove space width
-			tex.Available -= height
-			tex.NextY += height
+func (t *TextureCache) Reset() {
+	for _, tex := range t.unused {
+		slog.Info("Freeing texture",
+			slog.String("label", tex.Descriptor.Label),
+			slog.Any("size", tex.Size()),
+		)
 
-			// return reference to the new slice
-			refSlice := &tex.Slices[len(tex.Slices)-1]
-			return tex.Texture, refSlice
-		}
+		tex.TextureView.Release()
+		tex.Texture.Release()
 	}
 
-	t.allocateNewTexture(ctx)
+	// clear references and empty slice
+	clear(t.unused)
+	t.unused = t.unused[:0]
 
-	if tex, slice := t.findSlice(ctx, height, width); tex != nil {
-		return tex, slice
-	}
+	// copy used to unused
+	t.unused = append(t.unused, t.used...)
 
-	// still no space?
-	panic(fmt.Errorf("failed to allocate slice for height %d, width %d", height, width))
-}
-
-func (t *TextureAtlasAllocator) allocateNewTexture(ctx *RenderContext) {
-	// allocate a new texture and try again
-	texture := NewTexture(ctx, NewTextureOptions{
-		SamplerConfig: t.SamplerConfig,
-		Label:         "TextureAtlas." + strconv.Itoa(len(t.textures)),
-		Format:        t.TextureFormat,
-		Width:         2048,
-		Height:        2048,
-	})
-
-	t.textures = append(t.textures, textureWithSlices{
-		Texture:   texture,
-		Available: texture.Width(),
-	})
-}
-
-type textureWithSlices struct {
-	Texture   *Texture
-	Slices    []textureSlice
-	NextY     uint32
-	Available uint32
-}
-
-type textureSlice struct {
-	Y, Height             uint32
-	NextX, AvailableWidth uint32
+	// clear references and empty used
+	clear(t.used)
+	t.used = t.used[:0]
 }

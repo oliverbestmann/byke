@@ -147,7 +147,7 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXY(0, 0).WithScaleXY(0.1, 0.1),
+		TransformFromXY(0, 0),
 		RenderLayersOf(1),
 		Sprite{
 			Texture: cameraTexture,

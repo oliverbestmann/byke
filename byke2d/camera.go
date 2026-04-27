@@ -30,6 +30,7 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 		NewTransform(),
 		PrimaryWindowRenderTarget,
 		renderLayerZero,
+		MsaaOff,
 		ClearColor{
 			Color: wx.ColorSRGBA(0.2, 0.2, 0.3, 1.0),
 		},
