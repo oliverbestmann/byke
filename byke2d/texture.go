@@ -97,6 +97,10 @@ type NewTextureOptions struct {
 	Format wgpu.TextureFormat
 	Width  uint32
 	Height uint32
+
+	// Set the number of mipmap levels to generate. Use zero to
+	// generate all levels.
+	MipmapLevels uint32
 }
 
 type SamplerConfig struct {
@@ -122,11 +126,16 @@ func (c *SamplerConfig) fillValues() {
 func NewTexture(ctx *RenderContext, opts NewTextureOptions) *Texture {
 	var sampleCount uint32 = 1
 
+	var mipmapLevels = mipmapLevelCount(opts.Width, opts.Height)
+	if opts.MipmapLevels > 0 {
+		mipmapLevels = opts.MipmapLevels
+	}
+
 	desc := &wgpu.TextureDescriptor{
 		Label:         opts.Label,
 		Format:        opts.Format,
 		SampleCount:   sampleCount,
-		MipLevelCount: mipmapLevelCount(opts.Width, opts.Height),
+		MipLevelCount: mipmapLevels,
 
 		Dimension: wgpu.TextureDimension2D,
 		Size: wgpu.Extent3D{

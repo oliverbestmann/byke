@@ -168,14 +168,6 @@ func pipelineCacheGet[C PipelineConfig](cache *PipelineCache, ctx *RenderContext
 	return pipelineCache.(*wx.PipelineCache[C]).Get(config)
 }
 
-type renderCameraValue struct {
-	Camera       Camera
-	Projection   OrthographicProjection
-	Transform    GlobalTransform
-	RenderLayers RenderLayers
-	ViewTarget   *ViewTarget
-}
-
 type renderSpriteValue struct {
 	Sprite       Sprite
 	Transform    GlobalTransform
@@ -197,11 +189,11 @@ type renderSpriteAllocations struct {
 }
 
 func renderSpriteSystem(
+	camera CurrentCamera,
 	spritesQuery byke.Query[renderSpriteValue],
 	ctx *RenderContext,
 	cachedAllocs *byke.Local[renderSpriteAllocations],
 	pipelineCache *PipelineCache,
-	camerasQuery byke.Query[renderCameraValue],
 ) {
 	const bufInstancesSize = 1024 * 1024
 	allocs := &cachedAllocs.Value
@@ -244,213 +236,203 @@ func renderSpriteSystem(
 
 	const instanceSize = 52
 
-	// TODO reuse allocation
-	cameras := camerasQuery.AppendTo(nil)
+	conf := renderSpritePipelineConfig{
+		Format:      camera.ViewTarget.Format,
+		SampleCount: camera.ViewTarget.SampleCount,
+	}
 
-	// sort cameras to render in ascending camera order
-	slices.SortFunc(cameras, func(a, b renderCameraValue) int {
-		return b.Camera.Order - a.Camera.Order
+	cp := pipelineCacheGet(pipelineCache, ctx, conf)
+
+	vv := ViewValues{
+		Transform:   camera.Transform,
+		Projection:  camera.Projection,
+		SurfaceSize: camera.ViewTarget.Size,
+	}
+
+	viewUniformValue := viewUniform{
+		ScreenToNDC:   vv.SurfaceToNDC(),
+		WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
+	}
+
+	// upload uniforms for this camera
+	ctx.Queue.WriteBuffer(allocs.bufView, 0, viewUniformValue.ToWGPU())
+
+	// bind ViewUniform
+	viewBindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		Label:  "Sprite.ViewUniform.BindGroup",
+		Layout: cp.GetBindGroupLayout(0),
+		Entries: []wgpu.BindGroupEntry{
+			{
+				Binding: 0,
+				Buffer:  allocs.bufView,
+				Size:    wgpu.WholeSize,
+			},
+		},
 	})
 
-	for camera := range camerasQuery.Items() {
-		conf := renderSpritePipelineConfig{
-			Format:      camera.ViewTarget.Format,
-			SampleCount: camera.ViewTarget.SampleCount,
+	type batchKey struct {
+		Texture *Texture
+	}
+
+	var renderedSomething bool
+
+	flush := func(key batchKey) {
+		encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
+		defer encoder.Release()
+
+		bytesInstances := instances.Bytes()
+		ctx.WriteBuffer(allocs.bufInstances, 0, bytesInstances)
+
+		// interpret one channel textures as alpha only
+		var bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyFalse
+		if key.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
+			bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyTrue
 		}
 
-		cp := pipelineCacheGet(pipelineCache, ctx, conf)
-
-		vv := ViewValues{
-			Transform:   camera.Transform,
-			Projection:  camera.Projection,
-			SurfaceSize: camera.ViewTarget.Size,
-		}
-
-		viewUniformValue := viewUniform{
-			ScreenToNDC:   vv.SurfaceToNDC(),
-			WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
-		}
-
-		// upload uniforms for this camera
-		ctx.Queue.WriteBuffer(allocs.bufView, 0, viewUniformValue.ToWGPU())
-
-		// bind ViewUniform
-		viewBindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-			Label:  "Sprite.ViewUniform.BindGroup",
-			Layout: cp.GetBindGroupLayout(0),
+		bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+			Label:  "Sprite.BindGroup",
+			Layout: cp.GetBindGroupLayout(1),
 			Entries: []wgpu.BindGroupEntry{
 				{
-					Binding: 0,
-					Buffer:  allocs.bufView,
+					Binding:     0,
+					TextureView: key.Texture.TextureView,
+				},
+				{
+					Binding: 1,
+					Sampler: key.Texture.Sampler,
+				},
+				{
+					Binding: 2,
+					Buffer:  bufAlphaOnly,
 					Size:    wgpu.WholeSize,
 				},
 			},
 		})
 
-		type batchKey struct {
-			Texture *Texture
-		}
+		defer bindGroup.Release()
 
-		var renderedSomething bool
-
-		flush := func(key batchKey) {
-			encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
-			defer encoder.Release()
-
-			bytesInstances := instances.Bytes()
-			ctx.WriteBuffer(allocs.bufInstances, 0, bytesInstances)
-
-			// interpret one channel textures as alpha only
-			var bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyFalse
-			if key.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
-				bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyTrue
-			}
-
-			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-				Label:  "Sprite.BindGroup",
-				Layout: cp.GetBindGroupLayout(1),
-				Entries: []wgpu.BindGroupEntry{
-					{
-						Binding:     0,
-						TextureView: key.Texture.TextureView,
-					},
-					{
-						Binding: 1,
-						Sampler: key.Texture.Sampler,
-					},
-					{
-						Binding: 2,
-						Buffer:  bufAlphaOnly,
-						Size:    wgpu.WholeSize,
-					},
-				},
-			})
-
-			defer bindGroup.Release()
-
-			pass := encoder.BeginRenderPass(&wgpu.RenderPassDescriptor{
-				Label: "Sprite.RenderPass",
-				ColorAttachments: []wgpu.RenderPassColorAttachment{
-					camera.ViewTarget.ColorAttachment(),
-				},
-			})
-			defer pass.Release()
-
-			pass.SetPipeline(cp.Pipeline)
-			pass.SetBindGroup(0, viewBindGroup, nil)
-			pass.SetBindGroup(1, bindGroup, nil)
-			pass.SetVertexBuffer(0, allocs.bufInstances, 0, uint64(len(bytesInstances)))
-			pass.SetIndexBuffer(allocs.bufIndices, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
-			pass.DrawIndexed(6, uint32(instances.Count()), 0, 0, 0)
-			pass.End()
-
-			ctx.Submit(encoder.Finish(nil))
-
-			renderedSomething = true
-		}
-
-		var keyCurrent batchKey
-
-		sprites := spritesQuery.AppendTo(allocs.spritesSlice[:0])
-		allocs.spritesSlice = sprites
-
-		// sort sprites by z-order
-		slices.SortFunc(sprites, func(a, b renderSpriteValue) int {
-			aZ := a.Transform.Translation[2]
-			bZ := b.Transform.Translation[2]
-			switch {
-			case aZ < bZ:
-				return -1
-			case aZ > bZ:
-				return 1
-			default:
-				return 0
-			}
+		pass := encoder.BeginRenderPass(&wgpu.RenderPassDescriptor{
+			Label: "Sprite.RenderPass",
+			ColorAttachments: []wgpu.RenderPassColorAttachment{
+				camera.ViewTarget.ColorAttachment(),
+			},
 		})
+		defer pass.Release()
 
-		for _, sprite := range sprites {
-			if !sprite.Visibility.Visible {
-				continue
-			}
+		pass.SetPipeline(cp.Pipeline)
+		pass.SetBindGroup(0, viewBindGroup, nil)
+		pass.SetBindGroup(1, bindGroup, nil)
+		pass.SetVertexBuffer(0, allocs.bufInstances, 0, uint64(len(bytesInstances)))
+		pass.SetIndexBuffer(allocs.bufIndices, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
+		pass.DrawIndexed(6, uint32(instances.Count()), 0, 0, 0)
+		pass.End()
 
-			if !camera.RenderLayers.Intersects(sprite.RenderLayers.Or(renderLayerZero)) {
-				continue
-			}
+		ctx.Submit(encoder.Finish(nil))
 
-			key := batchKey{
-				Texture: sprite.Sprite.Texture,
-			}
+		renderedSomething = true
+	}
 
-			hasNoSpace := bufInstancesSize-len(instances.Bytes()) < instanceSize
-			hasNewTexture := instances.Count() > 0 && keyCurrent != key
+	var keyCurrent batchKey
 
-			if instances.Count() > 0 && (hasNewTexture || hasNoSpace) {
-				flush(keyCurrent)
-				instances.Clear()
-			}
+	sprites := spritesQuery.AppendTo(allocs.spritesSlice[:0])
+	allocs.spritesSlice = sprites
 
-			keyCurrent = key
+	// sort sprites by z-order
+	slices.SortFunc(sprites, func(a, b renderSpriteValue) int {
+		aZ := a.Transform.Translation[2]
+		bZ := b.Transform.Translation[2]
+		switch {
+		case aZ < bZ:
+			return -1
+		case aZ > bZ:
+			return 1
+		default:
+			return 0
+		}
+	})
 
-			// display the full image by default
-			textureSize := sprite.Sprite.Texture.Size()
-			rect := wx.RectangleFromPoints(glm.Vec2f{}, textureSize)
-
-			// but apply texture atlas if available
-			if ta, ok := sprite.TextureAtlas.Get(); ok {
-				if current, ok := ta.Current(); ok {
-					rect.Min = current.Min.ToVec2f()
-					rect.Max = current.Max.ToVec2f()
-				}
-			}
-
-			// uv = offset + position * scale
-			uvOffset := rect.Min.Div(textureSize)
-			uvScale := rect.Size().Div(textureSize)
-
-			if sprite.Sprite.FlipX {
-				// flip uv along the x axis
-				uvOffset[0] += uvScale[0]
-				uvScale[0] *= -1
-			}
-
-			if !sprite.Sprite.FlipY {
-				// flip uv along the y axis
-				uvOffset[1] += uvScale[1]
-				uvScale[1] *= -1
-			}
-
-			// calculate size of the sprite
-			baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
-			scale := sprite.Transform.Scale.Truncate().Mul(baseSize)
-			anchorOffset := sprite.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
-
-			instances.StartNew(instanceSize)
-
-			// @location(0) i_translation: vec2<f32>,
-			instances.AppendVec2f(sprite.Transform.Translation.Truncate().Add(anchorOffset))
-			// @location(1) i_scale: vec2<f32>,
-			instances.AppendVec2f(scale)
-			// @location(2) i_rotation: f32,
-			instances.AppendFloat32(float32(sprite.Transform.Rotation))
-			// @location(3) i_uv_offset: vec2<f32>,
-			instances.AppendVec2f(uvOffset)
-			// @location(4) i_uv_scale: vec2<f32>,
-			instances.AppendVec2f(uvScale)
-			// @location(5) i_color: vec4<f32>,
-			instances.AppendVec4f(sprite.Sprite.Color.ToVec())
+	for _, sprite := range sprites {
+		if !sprite.Visibility.Visible {
+			continue
 		}
 
-		if instances.Count() > 0 {
+		if !camera.RenderLayers.Intersects(sprite.RenderLayers.Or(renderLayerZero)) {
+			continue
+		}
+
+		key := batchKey{
+			Texture: sprite.Sprite.Texture,
+		}
+
+		hasNoSpace := bufInstancesSize-len(instances.Bytes()) < instanceSize
+		hasNewTexture := instances.Count() > 0 && keyCurrent != key
+
+		if instances.Count() > 0 && (hasNewTexture || hasNoSpace) {
 			flush(keyCurrent)
 			instances.Clear()
 		}
 
-		viewBindGroup.Release()
+		keyCurrent = key
 
-		if !renderedSomething {
-			// If we did not render anything, we need to clear the target to prevent
-			// the content from being undefined.
-			clearTarget(ctx, camera.ViewTarget)
+		// display the full image by default
+		textureSize := sprite.Sprite.Texture.Size()
+		rect := wx.RectangleFromPoints(glm.Vec2f{}, textureSize)
+
+		// but apply texture atlas if available
+		if ta, ok := sprite.TextureAtlas.Get(); ok {
+			if current, ok := ta.Current(); ok {
+				rect.Min = current.Min.ToVec2f()
+				rect.Max = current.Max.ToVec2f()
+			}
 		}
+
+		// uv = offset + position * scale
+		uvOffset := rect.Min.Div(textureSize)
+		uvScale := rect.Size().Div(textureSize)
+
+		if sprite.Sprite.FlipX {
+			// flip uv along the x axis
+			uvOffset[0] += uvScale[0]
+			uvScale[0] *= -1
+		}
+
+		if !sprite.Sprite.FlipY {
+			// flip uv along the y axis
+			uvOffset[1] += uvScale[1]
+			uvScale[1] *= -1
+		}
+
+		// calculate size of the sprite
+		baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
+		scale := sprite.Transform.Scale.Truncate().Mul(baseSize)
+		anchorOffset := sprite.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
+
+		instances.StartNew(instanceSize)
+
+		// @location(0) i_translation: vec2<f32>,
+		instances.AppendVec2f(sprite.Transform.Translation.Truncate().Add(anchorOffset))
+		// @location(1) i_scale: vec2<f32>,
+		instances.AppendVec2f(scale)
+		// @location(2) i_rotation: f32,
+		instances.AppendFloat32(float32(sprite.Transform.Rotation))
+		// @location(3) i_uv_offset: vec2<f32>,
+		instances.AppendVec2f(uvOffset)
+		// @location(4) i_uv_scale: vec2<f32>,
+		instances.AppendVec2f(uvScale)
+		// @location(5) i_color: vec4<f32>,
+		instances.AppendVec4f(sprite.Sprite.Color.ToVec())
+	}
+
+	if instances.Count() > 0 {
+		flush(keyCurrent)
+		instances.Clear()
+	}
+
+	viewBindGroup.Release()
+
+	if !renderedSomething {
+		// If we did not render anything, we need to clear the target to prevent
+		// the content from being undefined.
+		clearTarget(ctx, camera.ViewTarget)
 	}
 }

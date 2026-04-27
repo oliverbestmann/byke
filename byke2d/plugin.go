@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"runtime"
-	"time"
+	"slices"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/pulse/glm"
@@ -73,15 +74,12 @@ func RenderPlugin(app *byke.App) {
 		Chain().
 		InSet(TransformSystems))
 
-	app.AddSystems(byke.RenderMain, runRenderScheduleSystem)
+	app.AddSystems(byke.RenderMain, driveRenderScheduleSystem)
 
 	app.AddSystems(PreRender,
 		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
 			Chain().
 			InSet(AudioSystems))
-
-	app.AddSystems(PreRender,
-		updateViewTargetOnCamerasSystem)
 
 	app.AddSystems(Render,
 		byke.System(renderSpriteSystem).Chain())
@@ -90,8 +88,7 @@ func RenderPlugin(app *byke.App) {
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(TransformSystems))
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(VisibilitySystems))
 
-	app.ConfigureSystemSets(Render, RenderSystems.
-		Before(RenderPostProcessSystems))
+	app.ConfigureSystemSets(Render, RenderSystems.Before(RenderPostProcessSystems))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
@@ -213,8 +210,6 @@ type currentSurfaceValues struct {
 	Size        glm.Vec2f
 }
 
-var startTime = time.Now()
-
 func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	ctx, _ := byke.ResourceOf[RenderContext](world)
 	win, _ := byke.ResourceOf[PrimaryWindow](world)
@@ -266,51 +261,6 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	// slog.Info("Render metrics", slog.Any("metrics", ctx.Metrics))
 
 	return nil
-}
-
-func updateViewTargetOnCamerasSystem(surfaceValues currentSurfaceValues, query byke.Query[struct {
-	_            byke.With[Camera]
-	RenderTarget *RenderTarget
-	ViewTarget   *ViewTarget
-	ClearColor   ClearColor
-}]) {
-	for camera := range query.Items() {
-		switch {
-		case camera.RenderTarget.PrimaryWindow:
-			v := surfaceValues
-
-			*camera.ViewTarget = ViewTarget{
-				ClearColor:  camera.ClearColor.Color,
-				Format:      v.Texture.GetFormat(),
-				SampleCount: v.Texture.GetSampleCount(),
-				Size:        v.Size,
-
-				attachments: [2]*colorAttachment{
-					{
-						Texture:       v.TextureView,
-						ResolveTarget: nil,
-					},
-				},
-			}
-
-		case camera.RenderTarget.Texture != nil:
-			target := camera.RenderTarget.Texture
-
-			*camera.ViewTarget = ViewTarget{
-				ClearColor:  camera.ClearColor.Color,
-				Format:      target.Descriptor.Format,
-				SampleCount: target.Descriptor.SampleCount,
-				Size:        target.Size(),
-
-				attachments: [2]*colorAttachment{
-					{
-						Texture:       target.TextureView,
-						ResolveTarget: nil,
-					},
-				},
-			}
-		}
-	}
 }
 
 func updateInputState(world *byke.World, makeInputState vyn.UpdateInputState) {
@@ -437,9 +387,103 @@ func clearTexture(ctx *RenderContext, texView, resolveView *wgpu.TextureView, co
 	ctx.Submit(buf)
 }
 
-func runRenderScheduleSystem(world *byke.World) {
-	world.RunSchedule(PreRender)
-	world.RunSchedule(Render)
-	world.RunSchedule(PostRender)
+func driveRenderScheduleSystem(world *byke.World, ctx *RenderContext, surfaceValues currentSurfaceValues, camerasQuery byke.Query[cameraQueryValues]) {
+	// TODO reuse allocation
+	cameras := camerasQuery.AppendTo(nil)
 
+	// sort cameras to render in ascending camera order
+	slices.SortFunc(cameras, func(a, b cameraQueryValues) int {
+		return b.Camera.Order - a.Camera.Order
+	})
+
+	// remove the camera value from the world after rendering
+	defer world.RemoveResource(reflect.TypeFor[CurrentCamera]())
+
+	for _, camera := range cameras {
+		if camera.Camera.Inactive {
+			continue
+		}
+
+		viewTarget, ok := buildCameraViewTarget(surfaceValues, camera.RenderTarget, camera.ClearColor.Color)
+		if !ok {
+			continue
+		}
+
+		currentCamera := CurrentCamera{
+			Projection:   camera.Projection,
+			Transform:    camera.Transform,
+			RenderLayers: camera.RenderLayers,
+			ViewTarget:   viewTarget,
+		}
+
+		world.InsertResource(currentCamera)
+
+		world.RunSchedule(PreRender)
+		world.RunSchedule(Render)
+		world.RunSchedule(PostRender)
+
+		if camera.RenderTarget.Texture != nil {
+			camera.RenderTarget.Texture.Updated(ctx)
+		}
+	}
+}
+
+type CurrentCamera struct {
+	Projection   OrthographicProjection
+	Transform    GlobalTransform
+	RenderLayers RenderLayers
+	ViewTarget   *ViewTarget
+}
+
+type cameraQueryValues struct {
+	Camera       Camera
+	Projection   OrthographicProjection
+	Transform    GlobalTransform
+	RenderLayers RenderLayers
+	RenderTarget RenderTarget
+	ClearColor   ClearColor
+}
+
+func buildCameraViewTarget(surfaceValues currentSurfaceValues, renderTarget RenderTarget, clearColor wx.Color) (*ViewTarget, bool) {
+	switch {
+	case renderTarget.PrimaryWindow:
+		sv := surfaceValues
+
+		viewTarget := ViewTarget{
+			ClearColor:  clearColor,
+			Format:      sv.Texture.GetFormat(),
+			SampleCount: sv.Texture.GetSampleCount(),
+			Size:        sv.Size,
+
+			attachments: [2]*colorAttachment{
+				{
+					Texture:       sv.TextureView,
+					ResolveTarget: nil,
+				},
+			},
+		}
+
+		return &viewTarget, true
+
+	case renderTarget.Texture != nil:
+		target := renderTarget.Texture
+
+		viewTarget := ViewTarget{
+			ClearColor:  clearColor,
+			Format:      target.Descriptor.Format,
+			SampleCount: target.Descriptor.SampleCount,
+			Size:        target.Size(),
+
+			attachments: [2]*colorAttachment{
+				{
+					Texture:       target.RenderView,
+					ResolveTarget: nil,
+				},
+			},
+		}
+
+		return &viewTarget, true
+	}
+
+	return nil, false
 }

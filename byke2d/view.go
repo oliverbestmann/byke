@@ -1,13 +1,10 @@
 package byke2d
 
 import (
-	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
-
-var _ = byke.ValidateComponent[ViewTarget]()
 
 // TODO Some preparations for post processing and to support MSAA
 
@@ -18,8 +15,6 @@ type colorAttachment struct {
 }
 
 type ViewTarget struct {
-	byke.Component[ViewTarget]
-
 	// Size of the view target in pixels
 	Size glm.Vec2f
 

@@ -127,7 +127,7 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 	})
 	commands.Spawn(
 		Camera{},
-		RenderTarget{Texture: cameraTexture},
+		RenderTarget{Texture: AsRenderTexture(cameraTexture)},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 360},
@@ -147,6 +147,7 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
+		TransformFromXY(0, 0).WithScaleXY(0.1, 0.1),
 		RenderLayersOf(1),
 		Sprite{
 			Texture: cameraTexture,

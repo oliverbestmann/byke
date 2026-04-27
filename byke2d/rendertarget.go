@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/spoke"
 )
 
 var _ = byke.ValidateComponent[RenderTarget]()
@@ -14,11 +13,7 @@ type RenderTarget struct {
 	PrimaryWindow bool
 
 	// Render to a specific texture
-	Texture *Texture
-}
-
-func (RenderTarget) RequireComponents() []spoke.ErasedComponent {
-	return []spoke.ErasedComponent{ViewTarget{}}
+	Texture *RenderTexture
 }
 
 var PrimaryWindowRenderTarget = RenderTarget{PrimaryWindow: true}
