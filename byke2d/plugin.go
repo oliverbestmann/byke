@@ -237,7 +237,16 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	updateInputState(world, makeInputState)
 
 	// create a view we can render to
-	surfaceTextureView := surface.CreateView(nil)
+	surfaceTextureView := surface.CreateView(&wgpu.TextureViewDescriptor{
+		Label:           "Surface",
+		Format:          surface.GetFormat(),
+		Dimension:       wgpu.TextureViewDimension2D,
+		BaseMipLevel:    0,
+		MipLevelCount:   1,
+		BaseArrayLayer:  0,
+		ArrayLayerCount: 1,
+		Aspect:          wgpu.TextureAspectAll,
+	})
 	defer surfaceTextureView.Release()
 
 	// store the target in the world for the renderer to access it
@@ -342,7 +351,7 @@ func clearTarget(ctx *RenderContext, viewTarget *ViewTarget) {
 	desc := &wgpu.RenderPassDescriptor{
 		Label: "ClearUsingTexture",
 		ColorAttachments: []wgpu.RenderPassColorAttachment{
-			viewTarget.ColorAttachment(),
+			viewTarget.Attachment(),
 		},
 	}
 
@@ -385,6 +394,31 @@ func clearTexture(ctx *RenderContext, texView, resolveView *wgpu.TextureView, co
 
 	// encode into a command buffer
 	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ClearTexture"})
+	defer buf.Release()
+
+	ctx.Submit(buf)
+}
+
+func resolveTexture(ctx *RenderContext, view, resolveView *wgpu.TextureView) {
+	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "ClearTexture"})
+	defer enc.Release()
+
+	desc := &wgpu.RenderPassDescriptor{
+		Label: "ResolveTexture",
+		ColorAttachments: []wgpu.RenderPassColorAttachment{
+			{
+				View:          view,
+				ResolveTarget: resolveView,
+				LoadOp:        wgpu.LoadOpLoad,
+				StoreOp:       wgpu.StoreOpStore,
+			},
+		},
+	}
+
+	enc.BeginRenderPass(desc).End()
+
+	// encode into a command buffer
+	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ResolveTexture"})
 	defer buf.Release()
 
 	ctx.Submit(buf)
@@ -438,6 +472,13 @@ func driveRenderScheduleSystem(world *byke.World,
 		world.RunSchedule(PreRender)
 		world.RunSchedule(Render)
 		world.RunSchedule(PostRender)
+
+		// we might need to resolve into the target texture
+		blitTexture(ctx,
+			viewTarget.UnsampledTexture(),
+			viewTarget.SurfaceTextureView,
+			viewTarget.SurfaceTextureFormat,
+		)
 
 		if camera.RenderTarget.Texture != nil {
 			camera.RenderTarget.Texture.Updated(ctx)

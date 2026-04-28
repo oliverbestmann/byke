@@ -160,7 +160,16 @@ func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wg
 	texture := ctx.CreateTexture(desc)
 
 	// now create a default texture view
-	textureView := texture.CreateView(nil)
+	textureView := texture.CreateView(&wgpu.TextureViewDescriptor{
+		Label:           desc.Label,
+		Format:          desc.Format,
+		Dimension:       wgpu.TextureViewDimension2D,
+		BaseMipLevel:    0,
+		MipLevelCount:   desc.MipLevelCount,
+		BaseArrayLayer:  0,
+		ArrayLayerCount: 1,
+		Aspect:          wgpu.TextureAspectAll,
+	})
 
 	// fill missing config values
 	sampleConfig.fillValues()

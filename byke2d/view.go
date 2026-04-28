@@ -7,63 +7,93 @@ import (
 )
 
 type ViewTarget struct {
-	// Size of the view target in pixels
 	Size glm.Vec2f
 
-	// The format of the target texture view
+	// The format to render to the color attachments
 	Format wgpu.TextureFormat
 
-	// The sample count for this view target.
+	// The target texture to render the final image to. This is normally backed by
+	// the surface, or by the cameras texture, if the camera renderes to a texture.
+	SurfaceTextureView *wgpu.TextureView
+
+	// The format of the final surface
+	SurfaceTextureFormat wgpu.TextureFormat
+
+	// Samples to use for rendering to MainTextureView()
 	SampleCount uint32
 
-	// Clear color to apply to the view target
-	ClearColor wx.Color
-
-	// An optional callback that cleanups the ViewTarget after rendering.
-	// This can be used to free temporary resources
-	CleanupCallback func()
-
-	// multiple attachments to support post processing
-	attachments [2]*colorAttachment
-	active      int
+	// temporary textures to use for rendering, post processing, msaa write back, etc.
+	attachments     [2]ViewTargetAttachment
+	attachmentIndex uint8
 }
 
 // DiscardContent marks the content as discarded. The next call
-// to ColorAttachment() will use LoadOpClear to prevent loading
+// to Attachment() will use LoadOpClear to prevent loading
 // of old data and just clear the buffer again.
 func (m *ViewTarget) DiscardContent() {
-	m.attachments[m.active%2].HasContent = false
+	m.attachments[m.attachmentIndex].hasContent = false
 }
 
-func (m *ViewTarget) ColorAttachment() wgpu.RenderPassColorAttachment {
-	target := m.attachments[m.active%2]
+// Attachment returns the currently active render attachment.
+// This should be where we render to. If we have a multiple sample texture,
+// this will not automatically resolve.
+// You need to manually resolve to an UnsampledAttachment()
+func (m *ViewTarget) Attachment() wgpu.RenderPassColorAttachment {
+	return m.attachments[m.attachmentIndex].Attachment()
+}
 
-	var clearColor wgpu.Color
+func (m *ViewTarget) SampledTexture() *wgpu.TextureView {
+	return m.attachments[m.attachmentIndex].SampledView
+}
 
-	loadOp := wgpu.LoadOpLoad
-	if !target.HasContent {
-		target.HasContent = true
-		loadOp = wgpu.LoadOpClear
+func (m *ViewTarget) UnsampledTexture() *wgpu.TextureView {
+	return m.attachments[m.attachmentIndex].TextureView
+}
 
-		r, g, b, a := m.ClearColor.Components()
-		clearColor.R = float64(r)
-		clearColor.G = float64(g)
-		clearColor.B = float64(b)
-		clearColor.A = float64(a)
+// UnsampledAttachment returns the currently active unsampled attachment.
+func (m *ViewTarget) UnsampledAttachment() wgpu.RenderPassColorAttachment {
+	return m.attachments[m.attachmentIndex].UnsampledAttachment()
+}
+
+type ViewTargetAttachment struct {
+	TextureView *wgpu.TextureView
+
+	// An optional multisample texture
+	SampledView *wgpu.TextureView
+
+	// The clear color of this attachment
+	ClearColor wx.Color
+
+	hasContent bool
+}
+
+func (v *ViewTargetAttachment) Attachment() wgpu.RenderPassColorAttachment {
+	if v.SampledView == nil {
+		return v.UnsampledAttachment()
 	}
 
-	if target.ResolveTarget != nil {
-		return wgpu.RenderPassColorAttachment{
-			View:          target.TextureView,
-			ResolveTarget: target.ResolveTarget,
-			LoadOp:        loadOp,
-			StoreOp:       wgpu.StoreOpStore,
-			ClearValue:    clearColor,
-		}
+	attachment := v.attachment(v.SampledView)
+	attachment.ResolveTarget = v.TextureView
+	return attachment
+}
+
+func (v *ViewTargetAttachment) UnsampledAttachment() wgpu.RenderPassColorAttachment {
+	return v.attachment(v.TextureView)
+}
+
+func (v *ViewTargetAttachment) attachment(view *wgpu.TextureView) wgpu.RenderPassColorAttachment {
+	var clearColor wgpu.Color
+	var loadOp = wgpu.LoadOpLoad
+
+	if !v.hasContent {
+		v.hasContent = true
+
+		loadOp = wgpu.LoadOpClear
+		clearColor = colorToWGPU(v.ClearColor)
 	}
 
 	return wgpu.RenderPassColorAttachment{
-		View:          target.TextureView,
+		View:          view,
 		ResolveTarget: nil,
 		LoadOp:        loadOp,
 		StoreOp:       wgpu.StoreOpStore,
@@ -71,133 +101,114 @@ func (m *ViewTarget) ColorAttachment() wgpu.RenderPassColorAttachment {
 	}
 }
 
-func (m *ViewTarget) Switch() {
-	m.active = (m.active + 1) % 2
-}
+func colorToWGPU(c wx.Color) wgpu.Color {
+	r, g, b, a := c.Components()
 
-type colorAttachment struct {
-	HasContent    bool
-	TextureView   *wgpu.TextureView
-	ResolveTarget *wgpu.TextureView
+	return wgpu.Color{
+		R: float64(r),
+		G: float64(g),
+		B: float64(b),
+		A: float64(a),
+	}
 }
-
-// TODO
-//   * only last step can write to swapchain
-//   * single msaa render target if enabled
-//   * no need for msaa render target if disabled, can use one of the post processing textures
-//   * two post processing textures for ping/pong rendering
-//   * render active post processing texture to swapchain
-//   .
-//   render target (render_attachment, msaa?, hdr?)
-//   do msaa writeback, post processing texture 1 (hdr?, no msaa)
-//   other post processing steps (hdr?)
-//   tone mapping to swapchain
-//
 
 func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurfaceValues, renderTarget RenderTarget, clearColor wx.Color, msaa bool) (*ViewTarget, bool) {
-	switch {
-	case renderTarget.PrimaryWindow && msaa:
-		sv := surfaceValues
+	// hdr -> use float16 texture
+	format := wgpu.TextureFormatRGBA16Float
 
-		// allocate a temporary texture to render to
-		msaaTexture := textureCache.Allocate(&wgpu.TextureDescriptor{
-			Label:     "Camera.MSAA",
+	var width, height uint32
+	var surfaceTextureView *wgpu.TextureView
+	var surfaceTextureFormat wgpu.TextureFormat
+
+	switch {
+	case renderTarget.PrimaryWindow:
+		width = surfaceValues.Texture.GetWidth()
+		height = surfaceValues.Texture.GetHeight()
+		surfaceTextureView = surfaceValues.TextureView
+		surfaceTextureFormat = surfaceValues.Texture.GetFormat()
+
+	case renderTarget.Texture != nil:
+		width = renderTarget.Texture.Width()
+		height = renderTarget.Texture.Height()
+		surfaceTextureView = renderTarget.Texture.TextureView
+		surfaceTextureFormat = renderTarget.Texture.Texture.Descriptor.Format
+
+	default:
+		// invalid configuration
+		return nil, false
+	}
+
+	var sampleCount uint32 = 1
+
+	a := textureCache.Allocate(&wgpu.TextureDescriptor{
+		Label:     "CameraIntermediate",
+		Usage:     wgpu.TextureUsageRenderAttachment | wgpu.TextureUsageTextureBinding,
+		Dimension: wgpu.TextureDimension2D,
+		Format:    format,
+		Size: wgpu.Extent3D{
+			Width:              width,
+			Height:             height,
+			DepthOrArrayLayers: 1,
+		},
+		MipLevelCount: 1,
+		SampleCount:   1,
+	})
+
+	b := textureCache.Allocate(&wgpu.TextureDescriptor{
+		Label:     "CameraIntermediate",
+		Usage:     wgpu.TextureUsageRenderAttachment | wgpu.TextureUsageTextureBinding,
+		Dimension: wgpu.TextureDimension2D,
+		Format:    format,
+		Size: wgpu.Extent3D{
+			Width:              width,
+			Height:             height,
+			DepthOrArrayLayers: 1,
+		},
+		MipLevelCount: 1,
+		SampleCount:   1,
+	})
+
+	var sampledTextureView *wgpu.TextureView
+
+	if msaa {
+		sampleCount = 4
+
+		sampled := textureCache.Allocate(&wgpu.TextureDescriptor{
+			Label:     "CameraIntermediate.Sampled",
 			Usage:     wgpu.TextureUsageRenderAttachment,
-			Dimension: sv.Texture.GetDimension(),
-			Format:    sv.Texture.GetFormat(),
+			Dimension: wgpu.TextureDimension2D,
+			Format:    format,
 			Size: wgpu.Extent3D{
-				Width:              sv.Texture.GetWidth(),
-				Height:             sv.Texture.GetHeight(),
+				Width:              width,
+				Height:             height,
 				DepthOrArrayLayers: 1,
 			},
 			MipLevelCount: 1,
 			SampleCount:   4,
 		})
 
-		viewTarget := ViewTarget{
-			ClearColor:  clearColor,
-			Format:      sv.Texture.GetFormat(),
-			Size:        sv.Size,
-			SampleCount: 4,
-
-			attachments: [2]*colorAttachment{
-				{
-					TextureView:   msaaTexture.TextureView,
-					ResolveTarget: sv.TextureView,
-				},
-			},
-		}
-
-		return &viewTarget, true
-
-	case renderTarget.PrimaryWindow:
-		sv := surfaceValues
-
-		viewTarget := ViewTarget{
-			ClearColor:  clearColor,
-			Format:      sv.Texture.GetFormat(),
-			SampleCount: sv.Texture.GetSampleCount(),
-			Size:        sv.Size,
-
-			attachments: [2]*colorAttachment{
-				{
-					TextureView:   sv.TextureView,
-					ResolveTarget: nil,
-				},
-			},
-		}
-
-		return &viewTarget, true
-
-	case renderTarget.Texture != nil && msaa:
-		target := renderTarget.Texture
-
-		// allocate a temporary texture to render to
-		msaaTexture := textureCache.Allocate(&wgpu.TextureDescriptor{
-			Label:         renderTarget.Texture.Descriptor.Label + ".MSAA",
-			Usage:         wgpu.TextureUsageRenderAttachment,
-			Dimension:     target.Descriptor.Dimension,
-			Size:          target.Descriptor.Size,
-			Format:        target.Descriptor.Format,
-			MipLevelCount: 1,
-			SampleCount:   4,
-		})
-
-		viewTarget := ViewTarget{
-			ClearColor:  clearColor,
-			Format:      target.Descriptor.Format,
-			Size:        target.Size(),
-			SampleCount: 4,
-
-			attachments: [2]*colorAttachment{
-				{
-					TextureView:   msaaTexture.TextureView,
-					ResolveTarget: target.RenderView,
-				},
-			},
-		}
-
-		return &viewTarget, true
-
-	case renderTarget.Texture != nil:
-		target := renderTarget.Texture
-
-		viewTarget := ViewTarget{
-			ClearColor:  clearColor,
-			Format:      target.Descriptor.Format,
-			SampleCount: target.Descriptor.SampleCount,
-			Size:        target.Size(),
-
-			attachments: [2]*colorAttachment{
-				{
-					TextureView:   target.RenderView,
-					ResolveTarget: nil,
-				},
-			},
-		}
-
-		return &viewTarget, true
+		sampledTextureView = sampled.TextureView
 	}
 
-	return nil, false
+	view := &ViewTarget{
+		Size:                 glm.Vec2f{float32(width), float32(height)},
+		Format:               format,
+		SurfaceTextureView:   surfaceTextureView,
+		SurfaceTextureFormat: surfaceTextureFormat,
+		SampleCount:          sampleCount,
+		attachments: [2]ViewTargetAttachment{
+			{
+				TextureView: a.TextureView,
+				SampledView: sampledTextureView,
+				ClearColor:  clearColor,
+			},
+			{
+				TextureView: b.TextureView,
+				SampledView: sampledTextureView,
+				ClearColor:  clearColor,
+			},
+		},
+	}
+
+	return view, true
 }
