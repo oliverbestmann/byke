@@ -62,12 +62,19 @@ type Res[T any] struct {
 	world *World
 }
 
-func (r *Res[T]) NewState(world *World) SystemParamState {
-	r.world = world
-	return r
+func (Res[T]) newState(world *World, _ resT) SystemParamState {
+	return &resSystemParamState[T]{
+		world: world,
+	}
 }
 
-func (r *Res[T]) GetValue(SystemContext) (reflect.Value, error) {
+type resT interface {
+	newState(_ *World, _ resT) SystemParamState
+}
+
+type resSystemParamState[T any] Res[T]
+
+func (r *resSystemParamState[T]) GetValue(SystemContext) (reflect.Value, error) {
 	lookupType := reflect.TypeFor[T]()
 	if lookupType.Kind() == reflect.Pointer {
 		lookupType = lookupType.Elem()
@@ -83,14 +90,14 @@ func (r *Res[T]) GetValue(SystemContext) (reflect.Value, error) {
 	return reflect.ValueOf(r).Elem(), nil
 }
 
-func (r *Res[T]) CleanupValue() {
+func (r *resSystemParamState[T]) CleanupValue() {
 }
 
-func (r *Res[T]) ValueType() reflect.Type {
+func (r *resSystemParamState[T]) ValueType() reflect.Type {
 	return reflect.TypeFor[Res[T]]()
 }
 
-func (r *Res[T]) setValue(value any) {
+func (r *resSystemParamState[T]) setValue(value any) {
 	// the value we get is always a pointer to the resource
 	switch value := value.(type) {
 	case T:
@@ -111,12 +118,19 @@ type ResOption[T any] struct {
 	world *World
 }
 
-func (r *ResOption[T]) NewState(world *World) SystemParamState {
-	r.world = world
-	return r
+func (r *ResOption[T]) newState(world *World, _ resOptionT) SystemParamState {
+	return &resOptionSystemParamState[T]{
+		world: world,
+	}
 }
 
-func (r *ResOption[T]) GetValue(SystemContext) (reflect.Value, error) {
+type resOptionT interface {
+	newState(_ *World, _ resOptionT) SystemParamState
+}
+
+type resOptionSystemParamState[T any] ResOption[T]
+
+func (r *resOptionSystemParamState[T]) GetValue(SystemContext) (reflect.Value, error) {
 	lookupType := reflect.TypeFor[T]()
 
 	resValue, ok := r.world.Resource(lookupType)
@@ -129,9 +143,9 @@ func (r *ResOption[T]) GetValue(SystemContext) (reflect.Value, error) {
 	return reflect.ValueOf(r).Elem(), nil
 }
 
-func (r *ResOption[T]) CleanupValue() {
+func (r *resOptionSystemParamState[T]) CleanupValue() {
 }
 
-func (r *ResOption[T]) ValueType() reflect.Type {
+func (r *resOptionSystemParamState[T]) ValueType() reflect.Type {
 	return reflect.TypeFor[ResOption[T]]()
 }

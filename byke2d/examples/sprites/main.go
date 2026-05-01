@@ -32,14 +32,15 @@ func main() {
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)
-	app.AddSystems(Update, System(flipAllSpritesSystem))
+	app.AddSystems(Update, flipAllSpritesSystem)
+	app.AddSystems(Update, useSingleToQueryCameraSystem)
 
 	app.MustRun()
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
-		Camera{},
+		Camera{Order: 1},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			// ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
@@ -76,4 +77,8 @@ func flipAllSpritesSystem(keys Keys, query Query[struct {
 			item.Sprite.FlipY = !item.Sprite.FlipY
 		}
 	}
+}
+
+func useSingleToQueryCameraSystem(single Single[*Camera]) {
+	// fmt.Println(single.Value)
 }

@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/pulse/wx"
 )
 
@@ -14,12 +15,26 @@ type Pipelines[C PipelineConfig] struct {
 	cache *wx.PipelineCache[C]
 }
 
-func (Pipelines[C]) NewState(world *byke.World) byke.SystemParamState {
+func (p Pipelines[C]) Specialize(config C) wx.CachedPipeline {
+	return p.cache.Get(config)
+}
+
+func (Pipelines[C]) newState(world *byke.World, _ pipelinesT) byke.SystemParamState {
 	return &pipelineCacheSystemParamState[C]{World: world}
 }
 
-func (p Pipelines[C]) Specialize(config C) wx.CachedPipeline {
-	return p.cache.Get(config)
+type pipelinesT interface {
+	newState(world *byke.World, _ pipelinesT) byke.SystemParamState
+}
+
+func makePipelinesSystemParamState(world *byke.World, pType reflect.Type) byke.SystemParamState {
+	if !refl.ImplementsInterfaceDirectly[pipelinesT](pType) {
+		return nil
+	}
+
+	// pType is Pipelines[C]
+	p := reflect.New(pType).Elem().Interface().(pipelinesT)
+	return p.newState(world, p)
 }
 
 type pipelineCacheSystemParamState[C PipelineConfig] struct {
@@ -34,7 +49,7 @@ func (p *pipelineCacheSystemParamState[C]) GetValue(byke.SystemContext) (reflect
 			return reflect.Value{}, errors.New("no RenderContext in World")
 		}
 
-		pipelines := &Pipelines[C]{cache: wx.NewPipelineCache[C](ctx.Context)}
+		pipelines := Pipelines[C]{cache: wx.NewPipelineCache[C](ctx.Context)}
 		p.instance = reflect.ValueOf(pipelines)
 	}
 
@@ -42,7 +57,7 @@ func (p *pipelineCacheSystemParamState[C]) GetValue(byke.SystemContext) (reflect
 }
 
 func (p *pipelineCacheSystemParamState[C]) ValueType() reflect.Type {
-	return reflect.TypeFor[*Pipelines[C]]()
+	return reflect.TypeFor[Pipelines[C]]()
 }
 
 func (p *pipelineCacheSystemParamState[C]) CleanupValue() {

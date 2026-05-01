@@ -12,11 +12,15 @@ type On[E Event] struct {
 	Event E
 }
 
-func (On[E]) NewState(*World) SystemParamState {
+func (On[E]) newState(_ *World, _ onT) SystemParamState {
 	return onSystemParamState{
 		onType:    reflect.TypeFor[On[E]](),
 		makeValue: On[E]{}.new,
 	}
+}
+
+type onT interface {
+	newState(_ *World, _ onT) SystemParamState
 }
 
 func (On[E]) eventType() reflect.Type {

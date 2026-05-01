@@ -66,21 +66,14 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 	for idx := range systemType.NumIn() {
 		inType := systemType.In(idx)
 
-		switch {
-		case refl.ImplementsInterfaceDirectly[SystemParam](inType):
-			params = append(params, makeSystemParamState(w, inType))
-
-		case refl.ImplementsInterfaceDirectly[SystemParam](reflect.PointerTo(inType)):
-			params = append(params, makeSystemParamState(w, inType))
-
-		case inType == reflect.TypeFor[*World]():
-			params = append(params, valueSystemParamState(reflect.ValueOf(w)))
-
-		default:
-			// in all other cases, we assume that it might be a resource that we can
-			// grab during runtime
-			params = append(params, makeResourceSystemParamState(w, inType))
+		if param, ok := w.makeSystemParams.newState(w, inType); ok {
+			params = append(params, param)
+			continue
 		}
+
+		// in all other cases, we assume that it might be a resource that we can
+		// grab during runtime
+		params = append(params, makeResourceSystemParamState(w, inType))
 	}
 
 	for idx, param := range params {
@@ -192,14 +185,51 @@ func funcNameOf(fn reflect.Value) string {
 	return name
 }
 
-func makeSystemParamState(world *World, ty reflect.Type) SystemParamState {
-	for ty.Kind() == reflect.Pointer {
-		ty = ty.Elem()
+func makeWorldSystemParamState(world *World, pType reflect.Type) SystemParamState {
+	if pType != reflect.TypeFor[*World]() {
+		return nil
 	}
 
-	// allocate a new instance on the heap and get the value as an interface
-	param := reflect.New(ty).Interface().(SystemParam)
+	// return the world!
+	return valueSystemParamState(reflect.ValueOf(world))
+}
 
-	// initialize using the world
-	return param.NewState(world)
+type makeSystemParams []MakeSystemParam
+
+func (m makeSystemParams) newState(world *World, ty reflect.Type) (SystemParamState, bool) {
+	for _, fn := range m {
+		param := fn(world, ty)
+		if param != nil {
+			return param, true
+		}
+	}
+
+	// no function supported creating system params of this type
+	return nil, false
+}
+
+type genericNewState[T genericNewState[T]] interface {
+	newState(*World, T) SystemParamState
+}
+
+func forwardToNewState[T genericNewState[T]](world *World, pType reflect.Type) SystemParamState {
+	if !refl.ImplementsInterfaceDirectly[T](pType) {
+		return nil
+	}
+
+	// if the interface is implemented on a pointer type *T, we need to do new(T)
+	if pType.Kind() == reflect.Pointer {
+		t := reflect.New(pType.Elem()).Interface().(T)
+		return t.newState(world, t)
+	}
+
+	// if the interface is not implemented on a pointer type, we can create a pointer
+	// to it, and then dereference it to a T
+	t := reflect.New(pType).Elem().Interface().(T)
+	return t.newState(world, t)
+}
+
+// Same as forwardToNewState with the difference, that the genericT is implemented on *pType, not on pType directly.
+func forwardToNewStateOnPointer[T genericNewState[T]](world *World, pType reflect.Type) SystemParamState {
+	return forwardToNewState[T](world, reflect.PointerTo(pType))
 }

@@ -22,12 +22,13 @@ type AnyPtr = any
 // While an empty World can be created using NewWorld, it is normally created and configured
 // by using the App api.
 type World struct {
-	storage     *spoke.Storage
-	entityIdSeq EntityId
-	resources   map[reflect.Type]resourceValue
-	schedules   map[ScheduleId]*schedule
-	systems     map[SystemId]*preparedSystem
-	currentTick spoke.Tick
+	storage          *spoke.Storage
+	entityIdSeq      EntityId
+	resources        map[reflect.Type]resourceValue
+	schedules        map[ScheduleId]*schedule
+	systems          map[SystemId]*preparedSystem
+	makeSystemParams makeSystemParams
+	currentTick      spoke.Tick
 
 	activeQueries atomic.Int32
 	flushes       []func()
@@ -36,12 +37,28 @@ type World struct {
 // NewWorld creates a new empty world.
 // You probably want to use the App api instead.
 func NewWorld() *World {
+	defaultMakeSystemParams := makeSystemParams{
+		makeWorldSystemParamState,
+		makeCommandsSystemStateParam,
+		forwardToNewStateOnPointer[queryT],
+		forwardToNewState[localT],
+		forwardToNewState[messageWriterT],
+		forwardToNewState[messageReaderT],
+		forwardToNewState[singleT],
+		forwardToNewState[inT],
+		forwardToNewState[onT],
+		forwardToNewState[resT],
+		forwardToNewState[resOptionT],
+		forwardToNewState[removedComponentsT],
+	}
+
 	return &World{
-		storage:     spoke.NewStorage(),
-		resources:   map[reflect.Type]resourceValue{},
-		schedules:   map[ScheduleId]*schedule{},
-		systems:     map[SystemId]*preparedSystem{},
-		currentTick: 1,
+		storage:          spoke.NewStorage(),
+		resources:        map[reflect.Type]resourceValue{},
+		schedules:        map[ScheduleId]*schedule{},
+		systems:          map[SystemId]*preparedSystem{},
+		makeSystemParams: defaultMakeSystemParams,
+		currentTick:      1,
 	}
 }
 
@@ -82,6 +99,10 @@ func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*System
 	if err := schedule.UpdateSystemOrdering(); err != nil {
 		panic(err)
 	}
+}
+
+func (w *World) AddMakeSystemParam(msp MakeSystemParam) {
+	w.makeSystemParams = append(w.makeSystemParams, msp)
 }
 
 func (w *World) timingStats() *TimingStats {

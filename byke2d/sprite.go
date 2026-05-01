@@ -168,7 +168,7 @@ func renderSpriteSystem(
 	spritesQuery byke.Query[renderSpriteValue],
 	ctx *RenderContext,
 	cachedAllocs *byke.Local[renderSpriteAllocations],
-	pipelines *Pipelines[renderSpritePipelineConfig],
+	pipelines Pipelines[renderSpritePipelineConfig],
 ) {
 	const bufInstancesSize = 1024 * 1024
 	allocs := &cachedAllocs.Value

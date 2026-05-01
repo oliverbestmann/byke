@@ -8,9 +8,11 @@ type Single[T any] struct {
 	Value T
 }
 
-func (s Single[T]) NewState(world *World) SystemParamState {
+func (s Single[T]) newState(world *World, _ singleT) SystemParamState {
+
+	// instantiate a query that we can delegate to
 	var query Query[T]
-	queryState := query.NewState(world)
+	queryState := query.newState(world, &query)
 
 	var value Single[T]
 
@@ -30,6 +32,10 @@ func (s Single[T]) NewState(world *World) SystemParamState {
 			return reflect.ValueOf(&value).Elem(), nil
 		},
 	}
+}
+
+type singleT interface {
+	newState(world *World, _ singleT) SystemParamState
 }
 
 type singleParamState struct {

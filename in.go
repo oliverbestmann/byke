@@ -11,12 +11,16 @@ type In[T any] struct {
 	Value T
 }
 
-func (i In[T]) NewState(*World) SystemParamState {
+func (In[T]) newState(_ *World, _ inT) SystemParamState {
 	wrapper := reflect.ValueOf(&In[T]{}).Elem()
 	return &inSystemParamState[T]{
 		wrapperValue: wrapper,
 		inValue:      wrapper.Field(0),
 	}
+}
+
+type inT interface {
+	newState(_ *World, _ inT) SystemParamState
 }
 
 type inSystemParamState[T any] struct {

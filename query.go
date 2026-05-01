@@ -3,6 +3,7 @@ package byke
 import (
 	"fmt"
 	"iter"
+	"log/slog"
 	"reflect"
 
 	"github.com/oliverbestmann/byke/internal/query"
@@ -14,13 +15,19 @@ type Query[T any] struct {
 	items iter.Seq[T]
 }
 
-func (*Query[T]) NewState(world *World) SystemParamState {
+func (*Query[T]) newState(world *World, _ queryT) SystemParamState {
 	var q Query[T]
+
+	queryValueType := reflect.TypeFor[T]()
+
+	slog.Debug(
+		"Instantiate query parameter",
+		slog.Any("type", queryValueType),
+	)
 
 	parsed, err := q.parse()
 	if err != nil {
-		queryType := reflect.TypeFor[T]()
-		panic(fmt.Sprintf("failed to parse query of type %s: %s", queryType, err))
+		panic(fmt.Errorf("failed to parse query of type %s: %s", queryValueType, err))
 	}
 
 	inner := &innerQuery{
@@ -40,9 +47,8 @@ func (*Query[T]) NewState(world *World) SystemParamState {
 	}
 }
 
-func (q *Query[T]) set(inner *innerQuery) {
-	q.inner = inner
-	q.items = makeQueryIter[T](inner)
+type queryT interface {
+	newState(world *World, _ queryT) SystemParamState
 }
 
 func (q *Query[T]) parse() (query.ParsedQuery, error) {

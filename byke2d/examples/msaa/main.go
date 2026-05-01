@@ -7,7 +7,6 @@ import (
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
-	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -71,13 +70,4 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		Sprite{Texture: cameraTexture},
 		RenderLayersOf(1),
 	)
-}
-
-func rotateSystem(vt VirtualTime, query Query[struct {
-	_         With[Sprite]
-	Transform *Transform
-}]) {
-	for item := range query.Items() {
-		item.Transform.Rotation += glm.Rad(vt.DeltaSecs * 0.1)
-	}
 }

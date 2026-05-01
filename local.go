@@ -1,6 +1,8 @@
 package byke
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // Local is a SystemParam that provides a value local to a system.
 // It must be injected as a pointer value.
@@ -11,11 +13,15 @@ type Local[T any] struct {
 	Value T
 }
 
-func (l *Local[T]) NewState(*World) SystemParamState {
+func (l *Local[T]) newState(*World, localT) SystemParamState {
 	return &localState{
 		Type:  reflect.TypeFor[*Local[T]](),
 		Value: reflect.ValueOf(l),
 	}
+}
+
+type localT interface {
+	newState(*World, localT) SystemParamState
 }
 
 type localState struct {

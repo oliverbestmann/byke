@@ -3,6 +3,8 @@ package byke
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/oliverbestmann/byke/internal/refl"
 )
 
 func MessageType[E any]() AddMessageType {
@@ -76,7 +78,7 @@ func (w *MessageWriter[E]) Write(message E) {
 	w.messages.Send(message)
 }
 
-func (w *MessageWriter[E]) NewState(world *World) SystemParamState {
+func (*MessageWriter[E]) newState(world *World, _ messageWriterT) SystemParamState {
 	messages, ok := ResourceOf[Messages[E]](world)
 	if !ok {
 		var eZero E
@@ -85,6 +87,20 @@ func (w *MessageWriter[E]) NewState(world *World) SystemParamState {
 
 	reader := messages.Writer()
 	return valueSystemParamState(reflect.ValueOf(reader))
+}
+
+type messageWriterT interface {
+	newState(*World, messageWriterT) SystemParamState
+}
+
+func makeMessageWriterSystemParamState(world *World, pType reflect.Type) SystemParamState {
+	if !refl.ImplementsInterfaceDirectly[messageWriterT](pType) {
+		return nil
+	}
+
+	// pType is *MessageWriter[T]
+	mw := reflect.New(pType.Elem()).Interface().(messageWriterT)
+	return mw.newState(world, mw)
 }
 
 type MessageReader[E any] struct {
@@ -128,7 +144,7 @@ func (r *MessageReader[E]) Read() []E {
 	return messages
 }
 
-func (r *MessageReader[E]) NewState(world *World) SystemParamState {
+func (r *MessageReader[E]) newState(world *World, _ messageReaderT) SystemParamState {
 	messages, ok := ResourceOf[Messages[E]](world)
 	if !ok {
 		var eZero E
@@ -137,4 +153,8 @@ func (r *MessageReader[E]) NewState(world *World) SystemParamState {
 
 	reader := messages.Reader()
 	return valueSystemParamState(reflect.ValueOf(reader))
+}
+
+type messageReaderT interface {
+	newState(*World, messageReaderT) SystemParamState
 }

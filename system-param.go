@@ -7,19 +7,15 @@ import (
 
 var ErrSkipSystem = errors.New("skip system")
 
-// SystemParam is an interface to give a type special behaviour when it is used
+// MakeSystemParam is a way to give a type special behaviour when it is used
 // as a parameter to a system.
 //
-// While a system is being prepared, byke will check each parameter if it fulfills
-// the SystemParam interface. If a parameter type does, a new instance will be allocate
-// and the init method will be called.
+// While a system is being prepared, byke will check each parameter if it can be
+// created using a registered MakeSystemParam function.
+// If a parameter type can be created, a SystemParamState is cached.
 //
-// See Local, ResOption or Query for some implementations of SystemParam.
-type SystemParam interface {
-	// NewState will be called while the system is being prepared.
-	// It should setup everything as needed, e.g. allocate memory
-	NewState(world *World) SystemParamState
-}
+// If a type is not supported, MakeSystemParam returns nil.
+type MakeSystemParam func(world *World, pType reflect.Type) SystemParamState
 
 // SystemParamState is the state produced by SystemParam.
 // TODO i need to check this interface & the assumptions,

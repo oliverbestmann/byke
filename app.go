@@ -27,10 +27,15 @@ func (a *App) AddPlugin(plugin Plugin) {
 	plugin(a)
 }
 
+// AddMakeSystemParam adds the given MakeSystemParam to this app.
+func (a *App) AddMakeSystemParam(msp MakeSystemParam) {
+	a.World().AddMakeSystemParam(msp)
+}
+
 // AddSystems adds one or more systems to the World.
 func (a *App) AddSystems(scheduleId ScheduleId, system AnySystem, systems ...AnySystem) {
 	if !reflect.ValueOf(scheduleId).Comparable() {
-		panic(fmt.Sprintf("scheduleId must be comparable: %T", scheduleId))
+		panic(fmt.Errorf("scheduleId must be comparable: %T", scheduleId))
 	}
 
 	a.World().AddSystems(scheduleId, system, systems...)

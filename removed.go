@@ -21,7 +21,7 @@ func (c RemovedComponents[C]) Read() iter.Seq[EntityId] {
 	}
 }
 
-func (RemovedComponents[C]) addToWorld(w *World) *Messages[removedComponentEvent[C]] {
+func removedComponentsAddToWorld[C IsComponent[C]](w *World) *Messages[removedComponentEvent[C]] {
 	if events, exists := ResourceOf[Messages[removedComponentEvent[C]]](w); exists {
 		return events
 	}
@@ -50,11 +50,14 @@ func (RemovedComponents[C]) addToWorld(w *World) *Messages[removedComponentEvent
 	return events
 }
 
-func (c RemovedComponents[C]) NewState(world *World) SystemParamState {
-	events := c.addToWorld(world)
-
+func (RemovedComponents[C]) newState(world *World, _ removedComponentsT) SystemParamState {
+	events := removedComponentsAddToWorld[C](world)
 	instance := RemovedComponents[C]{reader: events.Reader()}
 	return valueSystemParamState(reflect.ValueOf(instance))
+}
+
+type removedComponentsT interface {
+	newState(_ *World, _ removedComponentsT) SystemParamState
 }
 
 type removedComponentEvent[C IsComponent[C]] EntityId

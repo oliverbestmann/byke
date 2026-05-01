@@ -40,7 +40,11 @@ func (c *Commands) applyToWorld() {
 	c.queue = c.queue[:0]
 }
 
-func (*Commands) NewState(world *World) SystemParamState {
+func makeCommandsSystemStateParam(world *World, pType reflect.Type) SystemParamState {
+	if pType != reflect.TypeFor[*Commands]() {
+		return nil
+	}
+
 	return (*commandSystemParamState)(
 		&Commands{world: world},
 	)

@@ -31,6 +31,8 @@ var (
 )
 
 func RenderPlugin(app *byke.App) {
+	app.AddMakeSystemParam(makePipelinesSystemParamState)
+
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
 	if !ok {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
