@@ -14,7 +14,7 @@ type Query[T any] struct {
 	items iter.Seq[T]
 }
 
-func (*Query[T]) init(world *World) SystemParamState {
+func (*Query[T]) NewState(world *World) SystemParamState {
 	var q Query[T]
 
 	parsed, err := q.parse()
@@ -123,18 +123,18 @@ type queryParamState struct {
 	mutable []*spoke.ComponentType
 }
 
-func (q *queryParamState) getValue(sc systemContext) (reflect.Value, error) {
+func (q *queryParamState) GetValue(sc SystemContext) (reflect.Value, error) {
 	q.world.activeQueries.Add(1)
 	q.inner.QueryContext.LastRun = sc.LastRun
 	return q.ptrToValue.Elem(), nil
 }
 
-func (q *queryParamState) cleanupValue() {
+func (q *queryParamState) CleanupValue() {
 	q.world.recheckComponents(q.inner.Query, q.mutable)
 	q.world.activeQueries.Add(-1)
 }
 
-func (q *queryParamState) valueType() reflect.Type {
+func (q *queryParamState) ValueType() reflect.Type {
 	return q.ptrToValue.Type().Elem()
 }
 

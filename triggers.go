@@ -12,7 +12,7 @@ type On[E Event] struct {
 	Event E
 }
 
-func (On[E]) init(*World) SystemParamState {
+func (On[E]) NewState(*World) SystemParamState {
 	return onSystemParamState{
 		onType:    reflect.TypeFor[On[E]](),
 		makeValue: On[E]{}.new,
@@ -37,13 +37,13 @@ type onSystemParamState struct {
 	makeValue func(event Event) isOn
 }
 
-func (o onSystemParamState) getValue(sc systemContext) (reflect.Value, error) {
+func (o onSystemParamState) GetValue(sc SystemContext) (reflect.Value, error) {
 	return reflect.ValueOf(o.makeValue(sc.Trigger.EventValue)), nil
 }
 
-func (o onSystemParamState) cleanupValue() {}
+func (o onSystemParamState) CleanupValue() {}
 
-func (o onSystemParamState) valueType() reflect.Type {
+func (o onSystemParamState) ValueType() reflect.Type {
 	return o.onType
 }
 

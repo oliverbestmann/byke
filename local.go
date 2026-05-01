@@ -7,20 +7,28 @@ import "reflect"
 //
 // A system can have multiple independent Local parameters even with the same type T.
 type Local[T any] struct {
-	_     noCopy
+	_     NoCopy
 	Value T
 }
 
-func (l *Local[T]) init(*World) SystemParamState {
-	return l
+func (l *Local[T]) NewState(*World) SystemParamState {
+	return &localState{
+		Type:  reflect.TypeFor[*Local[T]](),
+		Value: reflect.ValueOf(l),
+	}
 }
 
-func (l *Local[T]) getValue(systemContext) (reflect.Value, error) {
-	return reflect.ValueOf(l), nil
+type localState struct {
+	Type  reflect.Type
+	Value reflect.Value
 }
 
-func (l *Local[T]) cleanupValue() {}
+func (l *localState) GetValue(SystemContext) (reflect.Value, error) {
+	return l.Value, nil
+}
 
-func (*Local[T]) valueType() reflect.Type {
-	return reflect.TypeFor[*Local[T]]()
+func (l *localState) CleanupValue() {}
+
+func (l *localState) ValueType() reflect.Type {
+	return l.Type
 }

@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	_ "embed"
-	"reflect"
 	"slices"
 
 	"github.com/oliverbestmann/byke"
@@ -144,30 +143,6 @@ func (r renderSpritePipelineConfig) Specialize(dev *wgpu.Device) *wgpu.RenderPip
 	})
 }
 
-type PipelineConfig = wx.PipelineConfig
-
-type PipelineCache struct {
-	pipelines map[any]any
-}
-
-func makePipelineCache() PipelineCache {
-	return PipelineCache{
-		pipelines: map[any]any{},
-	}
-}
-
-func pipelineCacheGet[C PipelineConfig](cache *PipelineCache, ctx *RenderContext, config C) wx.CachedPipeline {
-	configType := reflect.TypeFor[C]()
-
-	pipelineCache := cache.pipelines[configType]
-	if pipelineCache == nil {
-		pipelineCache = wx.NewPipelineCache[C](ctx.Context)
-		cache.pipelines[configType] = pipelineCache
-	}
-
-	return pipelineCache.(*wx.PipelineCache[C]).Get(config)
-}
-
 type renderSpriteValue struct {
 	Sprite       Sprite
 	Transform    GlobalTransform
@@ -193,7 +168,7 @@ func renderSpriteSystem(
 	spritesQuery byke.Query[renderSpriteValue],
 	ctx *RenderContext,
 	cachedAllocs *byke.Local[renderSpriteAllocations],
-	pipelineCache *PipelineCache,
+	pipelines *Pipelines[renderSpritePipelineConfig],
 ) {
 	const bufInstancesSize = 1024 * 1024
 	allocs := &cachedAllocs.Value
@@ -241,7 +216,7 @@ func renderSpriteSystem(
 		SampleCount: camera.ViewTarget.SampleCount,
 	}
 
-	cp := pipelineCacheGet(pipelineCache, ctx, conf)
+	cp := pipelines.Specialize(conf)
 
 	vv := ViewValues{
 		Transform:   camera.Transform,

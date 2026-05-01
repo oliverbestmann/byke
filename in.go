@@ -11,7 +11,7 @@ type In[T any] struct {
 	Value T
 }
 
-func (i In[T]) init(*World) SystemParamState {
+func (i In[T]) NewState(*World) SystemParamState {
 	wrapper := reflect.ValueOf(&In[T]{}).Elem()
 	return &inSystemParamState[T]{
 		wrapperValue: wrapper,
@@ -23,7 +23,7 @@ type inSystemParamState[T any] struct {
 	wrapperValue, inValue reflect.Value
 }
 
-func (i *inSystemParamState[T]) getValue(sc systemContext) (reflect.Value, error) {
+func (i *inSystemParamState[T]) GetValue(sc SystemContext) (reflect.Value, error) {
 	actualValue := reflect.ValueOf(sc.InValue)
 
 	if !actualValue.Type().AssignableTo(i.inValue.Type()) {
@@ -35,11 +35,11 @@ func (i *inSystemParamState[T]) getValue(sc systemContext) (reflect.Value, error
 	return i.wrapperValue, nil
 }
 
-func (i *inSystemParamState[T]) cleanupValue() {
+func (i *inSystemParamState[T]) CleanupValue() {
 	// clear the reference
 	i.inValue.SetZero()
 }
 
-func (i *inSystemParamState[T]) valueType() reflect.Type {
+func (i *inSystemParamState[T]) ValueType() reflect.Type {
 	return i.wrapperValue.Type()
 }

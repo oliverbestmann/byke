@@ -19,7 +19,7 @@ type systemTrigger struct {
 	EventValue Event
 }
 
-type systemContext struct {
+type SystemContext struct {
 	// a value that has triggerd the execution of the system.
 	// Should be an event.
 	Trigger systemTrigger
@@ -34,7 +34,7 @@ type preparedSystem struct {
 
 	Name        string
 	LastRun     spoke.Tick
-	RawSystem   func(systemContext) any
+	RawSystem   func(SystemContext) any
 	IsPredicate bool
 
 	// This system has a Commands parameter. We need this to handle flush point
@@ -87,10 +87,10 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		inType := systemType.In(idx)
 
 		// verify that all the param types match their actual types
-		if !param.valueType().AssignableTo(inType) {
+		if !param.ValueType().AssignableTo(inType) {
 			panic(fmt.Sprintf(
 				"Argument %d (%s) of %q is not assignable to value of type %s",
-				idx, param.valueType(), preparedSystem.Name, inType,
+				idx, param.ValueType(), preparedSystem.Name, inType,
 			))
 		}
 
@@ -113,7 +113,7 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		preparedSystem.IsPredicate = true
 	}
 
-	preparedSystem.RawSystem = func(sc systemContext) any {
+	preparedSystem.RawSystem = func(sc SystemContext) any {
 		paramValues := valueSlices.Get()
 		defer valueSlices.Put(paramValues)
 
@@ -122,12 +122,12 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		sc.LastRun = preparedSystem.LastRun
 
 		for idx, param := range params {
-			value, err := param.getValue(sc)
+			value, err := param.GetValue(sc)
 
 			if err != nil {
 				// need to cleanup the ones we've already added
 				for _, param := range params[:idx+1] {
-					param.cleanupValue()
+					param.CleanupValue()
 				}
 
 				if errors.Is(err, ErrSkipSystem) {
@@ -143,7 +143,7 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		returnValues := rSystem.Call(*paramValues)
 
 		for _, param := range params {
-			param.cleanupValue()
+			param.CleanupValue()
 		}
 
 		// clear any pointers that are still in the param slice
@@ -201,5 +201,5 @@ func makeSystemParamState(world *World, ty reflect.Type) SystemParamState {
 	param := reflect.New(ty).Interface().(SystemParam)
 
 	// initialize using the world
-	return param.init(world)
+	return param.NewState(world)
 }

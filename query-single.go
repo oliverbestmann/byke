@@ -8,9 +8,9 @@ type Single[T any] struct {
 	Value T
 }
 
-func (s Single[T]) init(world *World) SystemParamState {
+func (s Single[T]) NewState(world *World) SystemParamState {
 	var query Query[T]
-	queryState := query.init(world)
+	queryState := query.NewState(world)
 
 	var value Single[T]
 
@@ -38,8 +38,8 @@ type singleParamState struct {
 	extractValue func(q reflect.Value) (reflect.Value, error)
 }
 
-func (s *singleParamState) getValue(sc systemContext) (reflect.Value, error) {
-	value, err := s.QueryState.getValue(sc)
+func (s *singleParamState) GetValue(sc SystemContext) (reflect.Value, error) {
+	value, err := s.QueryState.GetValue(sc)
 	if err != nil {
 		return reflect.Value{}, err
 	}
@@ -47,10 +47,10 @@ func (s *singleParamState) getValue(sc systemContext) (reflect.Value, error) {
 	return s.extractValue(value)
 }
 
-func (s *singleParamState) cleanupValue() {
-	s.QueryState.cleanupValue()
+func (s *singleParamState) CleanupValue() {
+	s.QueryState.CleanupValue()
 }
 
-func (s *singleParamState) valueType() reflect.Type {
+func (s *singleParamState) ValueType() reflect.Type {
 	return s.Type
 }

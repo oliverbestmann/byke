@@ -40,7 +40,7 @@ func (c *Commands) applyToWorld() {
 	c.queue = c.queue[:0]
 }
 
-func (*Commands) init(world *World) SystemParamState {
+func (*Commands) NewState(world *World) SystemParamState {
 	return (*commandSystemParamState)(
 		&Commands{world: world},
 	)
@@ -168,11 +168,11 @@ func InsertComponent[C IsComponent[C]](optionalValue ...C) EntityCommand {
 
 type commandSystemParamState Commands
 
-func (c *commandSystemParamState) getValue(systemContext) (reflect.Value, error) {
+func (c *commandSystemParamState) GetValue(SystemContext) (reflect.Value, error) {
 	return reflect.ValueOf((*Commands)(c)), nil
 }
 
-func (c *commandSystemParamState) cleanupValue() {
+func (c *commandSystemParamState) CleanupValue() {
 	if len(c.queue) > 0 {
 		c.world.flushes = append(c.world.flushes, func() {
 			(*Commands)(c).applyToWorld()
@@ -180,7 +180,7 @@ func (c *commandSystemParamState) cleanupValue() {
 	}
 }
 
-func (*commandSystemParamState) valueType() reflect.Type {
+func (*commandSystemParamState) ValueType() reflect.Type {
 	return reflect.TypeFor[*Commands]()
 }
 

@@ -16,9 +16,9 @@ var ErrSkipSystem = errors.New("skip system")
 //
 // See Local, ResOption or Query for some implementations of SystemParam.
 type SystemParam interface {
-	// Init will be called while the system is being prepared.
+	// NewState will be called while the system is being prepared.
 	// It should setup everything as needed, e.g. allocate memory
-	init(world *World) SystemParamState
+	NewState(world *World) SystemParamState
 }
 
 // SystemParamState is the state produced by SystemParam.
@@ -26,34 +26,34 @@ type SystemParam interface {
 //
 //	maybe it makes sense to merge it into SystemParam.
 type SystemParamState interface {
-	// getValue returns the value that should be passed to the system.
+	// GetValue returns the value that should be passed to the system.
 	// While this might be the same value as the SystemParam that has created the SystemParamState,
 	// it must be of the same type as the SystemParam.
 	//
 	// In case that the parameter has no value, a zero reflect.Value is to be returned.
-	getValue(sc systemContext) (reflect.Value, error)
+	GetValue(sc SystemContext) (reflect.Value, error)
 
-	// cleanupValue will be called once the system is executed. It is used
+	// CleanupValue will be called once the system is executed. It is used
 	// to e.g. apply a Commands object against the world
-	cleanupValue()
+	CleanupValue()
 
-	// valueType returns the exact type that getValue will return. This is used
+	// ValueType returns the exact type that getValue will return. This is used
 	// while preparing
-	valueType() reflect.Type
+	ValueType() reflect.Type
 }
 
 // valueSystemParamState is a simple implementation of SystemParamState
 // that just returns a constant value
 type valueSystemParamState reflect.Value
 
-func (s valueSystemParamState) getValue(systemContext) (reflect.Value, error) {
+func (s valueSystemParamState) GetValue(SystemContext) (reflect.Value, error) {
 	return reflect.Value(s), nil
 }
 
-func (s valueSystemParamState) valueType() reflect.Type {
+func (s valueSystemParamState) ValueType() reflect.Type {
 	return reflect.Value(s).Type()
 }
 
-func (valueSystemParamState) cleanupValue() {
+func (valueSystemParamState) CleanupValue() {
 	// do nothing
 }

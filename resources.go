@@ -28,7 +28,7 @@ func makeResourceSystemParamState(world *World, typ reflect.Type) SystemParamSta
 	return r
 }
 
-func (r resourceSystemParamState) getValue(systemContext) (reflect.Value, error) {
+func (r resourceSystemParamState) GetValue(SystemContext) (reflect.Value, error) {
 	ptrToValue, ok := r.world.Resource(r.typ)
 	if !ok {
 		err := fmt.Errorf("resource of type %s does not exist in world", r.typ)
@@ -42,15 +42,15 @@ func (r resourceSystemParamState) getValue(systemContext) (reflect.Value, error)
 	return reflect.ValueOf(ptrToValue).Elem(), nil
 }
 
-func (r resourceSystemParamState) cleanupValue() {
+func (r resourceSystemParamState) CleanupValue() {
 }
 
-func (r resourceSystemParamState) valueType() reflect.Type {
+func (r resourceSystemParamState) ValueType() reflect.Type {
 	if r.mutable {
 		return reflect.PointerTo(r.typ)
-	} else {
-		return r.typ
 	}
+
+	return r.typ
 }
 
 // Res provides a SystemParam to inject a resource at runtime.
@@ -62,12 +62,12 @@ type Res[T any] struct {
 	world *World
 }
 
-func (r *Res[T]) init(world *World) SystemParamState {
+func (r *Res[T]) NewState(world *World) SystemParamState {
 	r.world = world
 	return r
 }
 
-func (r *Res[T]) getValue(systemContext) (reflect.Value, error) {
+func (r *Res[T]) GetValue(SystemContext) (reflect.Value, error) {
 	lookupType := reflect.TypeFor[T]()
 	if lookupType.Kind() == reflect.Pointer {
 		lookupType = lookupType.Elem()
@@ -83,10 +83,10 @@ func (r *Res[T]) getValue(systemContext) (reflect.Value, error) {
 	return reflect.ValueOf(r).Elem(), nil
 }
 
-func (r *Res[T]) cleanupValue() {
+func (r *Res[T]) CleanupValue() {
 }
 
-func (r *Res[T]) valueType() reflect.Type {
+func (r *Res[T]) ValueType() reflect.Type {
 	return reflect.TypeFor[Res[T]]()
 }
 
@@ -111,12 +111,12 @@ type ResOption[T any] struct {
 	world *World
 }
 
-func (r *ResOption[T]) init(world *World) SystemParamState {
+func (r *ResOption[T]) NewState(world *World) SystemParamState {
 	r.world = world
 	return r
 }
 
-func (r *ResOption[T]) getValue(systemContext) (reflect.Value, error) {
+func (r *ResOption[T]) GetValue(SystemContext) (reflect.Value, error) {
 	lookupType := reflect.TypeFor[T]()
 
 	resValue, ok := r.world.Resource(lookupType)
@@ -129,9 +129,9 @@ func (r *ResOption[T]) getValue(systemContext) (reflect.Value, error) {
 	return reflect.ValueOf(r).Elem(), nil
 }
 
-func (r *ResOption[T]) cleanupValue() {
+func (r *ResOption[T]) CleanupValue() {
 }
 
-func (r *ResOption[T]) valueType() reflect.Type {
+func (r *ResOption[T]) ValueType() reflect.Type {
 	return reflect.TypeFor[ResOption[T]]()
 }

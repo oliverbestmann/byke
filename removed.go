@@ -50,7 +50,7 @@ func (RemovedComponents[C]) addToWorld(w *World) *Messages[removedComponentEvent
 	return events
 }
 
-func (c RemovedComponents[C]) init(world *World) SystemParamState {
+func (c RemovedComponents[C]) NewState(world *World) SystemParamState {
 	events := c.addToWorld(world)
 
 	instance := RemovedComponents[C]{reader: events.Reader()}

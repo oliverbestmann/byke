@@ -69,7 +69,7 @@ func (w *World) RunSystem(system AnySystem) {
 func (w *World) RunSystemWithInValue(system AnySystem, inValue any) {
 	systemConfig := asSystemConfig(system)
 	preparedSystem := w.prepareSystem(systemConfig)
-	w.runSystem(preparedSystem, systemContext{InValue: inValue})
+	w.runSystem(preparedSystem, SystemContext{InValue: inValue})
 }
 
 func (w *World) ConfigureSystemSets(scheduleId ScheduleId, systemSets ...*SystemSet) {
@@ -99,9 +99,9 @@ func (w *World) scheduleOf(scheduleId ScheduleId) *schedule {
 	return schedule
 }
 
-func (w *World) runSystem(system *preparedSystem, ctx systemContext) any {
+func (w *World) runSystem(system *preparedSystem, ctx SystemContext) any {
 	for _, predicate := range system.Predicates {
-		result := w.runSystem(predicate, systemContext{})
+		result := w.runSystem(predicate, SystemContext{})
 		if result == nil || !result.(bool) {
 			// predicate evaluated to "do not run", stop execution here
 			return nil
@@ -167,7 +167,7 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 	}
 
 	for _, system := range schedule.systems {
-		w.runSystem(system, systemContext{})
+		w.runSystem(system, SystemContext{})
 	}
 }
 
@@ -371,6 +371,11 @@ func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRela
 // If the world already contains a resource of the same type, this value will
 // just be updated with the newly provided one.
 func (w *World) InsertResource(resource any) {
+	// special casing for resources created with InitFromWorld
+	if ifw, ok := resource.(initFromWorld); ok {
+		resource = ifw(w)
+	}
+
 	resType := reflect.PointerTo(reflect.TypeOf(resource))
 
 	if existing, ok := w.resources[resType]; ok {
@@ -447,6 +452,17 @@ func ResourceOf[T any](w *World) (*T, bool) {
 	return value.(*T), true
 }
 
+// RequireResourceOf calls ResourceOf and panics, if the resource does not exist.
+func RequireResourceOf[T any](w *World) *T {
+	res, ok := ResourceOf[T](w)
+	if !ok {
+		var tZero T
+		panic(fmt.Errorf("resource of type %T not found", tZero))
+	}
+
+	return res
+}
+
 func (w *World) flushCommands() {
 	if w.activeQueries.Load() != 0 {
 		panic("can not flush, queries are still running")
@@ -511,10 +527,28 @@ func triggerObserverSystem(
 		}
 
 		// we found a match, trigger the observer
-		w.runSystem(observer.system, systemContext{
+		w.runSystem(observer.system, SystemContext{
 			Trigger: systemTrigger{
 				EventValue: params.EventValue,
 			},
 		})
 	}
 }
+
+// FromWorld implements a "static" method that can create a new instance
+// of the type R and return it.
+type FromWorld[R FromWorld[R]] interface {
+	FromWorld(world *World) R
+}
+
+// InitFromWorld can be passed to World.InsertResource to initialize a resource
+// from the world. The resource R must implement FromWorld.
+func InitFromWorld[R FromWorld[R]]() any {
+	return initFromWorld(func(world *World) any {
+		var res R
+		res.FromWorld(world)
+		return res
+	})
+}
+
+type initFromWorld func(world *World) any

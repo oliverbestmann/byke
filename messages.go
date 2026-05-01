@@ -28,7 +28,7 @@ type MessageWithId[M any] struct {
 }
 
 type Messages[E any] struct {
-	_ noCopy
+	_ NoCopy
 
 	prevId MessageId
 	curr   []MessageWithId[E]
@@ -67,7 +67,7 @@ func (e *Messages[E]) Writer() *MessageWriter[E] {
 }
 
 type MessageWriter[E any] struct {
-	_ noCopy
+	_ NoCopy
 
 	messages *Messages[E]
 }
@@ -76,7 +76,7 @@ func (w *MessageWriter[E]) Write(message E) {
 	w.messages.Send(message)
 }
 
-func (w *MessageWriter[E]) init(world *World) SystemParamState {
+func (w *MessageWriter[E]) NewState(world *World) SystemParamState {
 	messages, ok := ResourceOf[Messages[E]](world)
 	if !ok {
 		var eZero E
@@ -88,7 +88,7 @@ func (w *MessageWriter[E]) init(world *World) SystemParamState {
 }
 
 type MessageReader[E any] struct {
-	_ noCopy
+	_ NoCopy
 
 	messages *Messages[E]
 	lastId   MessageId
@@ -128,7 +128,7 @@ func (r *MessageReader[E]) Read() []E {
 	return messages
 }
 
-func (r *MessageReader[E]) init(world *World) SystemParamState {
+func (r *MessageReader[E]) NewState(world *World) SystemParamState {
 	messages, ok := ResourceOf[Messages[E]](world)
 	if !ok {
 		var eZero E
