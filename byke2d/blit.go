@@ -3,6 +3,7 @@ package byke2d
 import (
 	_ "embed"
 
+	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -14,6 +15,8 @@ var blitShaderVertex string
 var blitShaderFragment string
 
 func blitTexture(ctx *RenderContext, sourceView, targetView *wgpu.TextureView, targetFormat wgpu.TextureFormat) {
+	defer puffin.NewScope("byke2d.blitTexture").End()
+
 	modVertex := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      "FullscreenShaderVertex",
 		WGSLSource: &wgpu.ShaderSourceWGSL{Code: blitShaderVertex},

@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/draw"
 
+	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -50,6 +51,8 @@ type WritePixelsOptions struct {
 }
 
 func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts WritePixelsOptions) {
+	defer puffin.NewScope("texture.WritePixels").End()
+
 	region := wx.RectangleFromXYWH(0, 0, t.Width(), t.Height())
 
 	// fail if not in rect
@@ -157,6 +160,8 @@ func NewTexture(ctx *RenderContext, opts NewTextureOptions) *Texture {
 // NewTextureFromDesc gives you full control and creates a texture directly from
 // a texture descriptor
 func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wgpu.TextureDescriptor) *Texture {
+	defer puffin.NewScope("byke2d.NewTextureFromDesc").End()
+
 	texture := ctx.CreateTexture(desc)
 
 	// now create a default texture view
@@ -210,6 +215,8 @@ func DecodeTextureFromMemory(ctx *RenderContext, buf []byte, sampleConfig Sample
 
 // NewTextureFromImage creates a new Texture from the given golang image.Image instance.
 func NewTextureFromImage(ctx *RenderContext, src image.Image, sampleConfig SamplerConfig, srgb bool) *Texture {
+	defer puffin.NewScope("byke2d.NewTextureFromImage").End()
+
 	iw, ih := src.Bounds().Dx(), src.Bounds().Dy()
 	rgba := image.NewNRGBA(image.Rect(0, 0, iw, ih))
 

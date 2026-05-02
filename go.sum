@@ -48,6 +48,8 @@ github.com/jfreymuth/vorbis v1.0.2/go.mod h1:DoftRo4AznKnShRl1GxiTFCseHr4zR9BN3T
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80/go.mod h1:imJHygn/1yfhB7XSJJKlFZKl/J+dCPAknuiaGOshXAs=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
+github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678 h1:G/GCogFVTic5WL/YzOeykPNLQ7x26HpeEdkG8eMG/WU=
+github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
 github.com/oliverbestmann/pulse v0.0.0-20260413043828-d003639f44ca h1:msRJW3ByRNkcc9OZANxrwfrQZwkTkccITDUK+yXgIrY=
 github.com/oliverbestmann/pulse v0.0.0-20260413043828-d003639f44ca/go.mod h1:RZqSMgnj7HtxgX0hexa4ixgXLPdR9zEa+a2+qqIs4jU=
 github.com/oliverbestmann/webgpu v1.29.1 h1:pUPKuXyDdsmtKAsUE/6S0XU1pZ+0qHEY7BvTtfl8iq4=
@@ -77,6 +79,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
+github.com/timandy/routine v1.1.6 h1:cueNRVPutK8O6387LL7dmYPLNyS6aKlPCPi5qWCLdc8=
+github.com/timandy/routine v1.1.6/go.mod h1:kXslgIosdY8LW0byTyPnenDgn4/azt2euufAq9rK51w=
 github.com/yuin/goldmark v1.8.2 h1:kEGpgqJXdgbkhcOgBxkC0X0PmoPG1ZyoZ117rDVp4zE=
 github.com/yuin/goldmark v1.8.2/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 h1:jiDhWWeC7jfWqR9c/uplMOqJ0sbNlNWv0UkzE0vX1MA=

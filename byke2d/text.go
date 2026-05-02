@@ -16,6 +16,7 @@ import (
 	"github.com/go-text/typesetting/shaping"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -76,6 +77,8 @@ func renderTextSystem(ctx *RenderContext,
 	}],
 ) {
 	for item := range textQuery.Items() {
+		scope := puffin.NewScopeWithValue("text.ToSprites", item.Text.Text)
+
 		if children, ok := item.Children.Get(); ok {
 			for _, child := range children.Children() {
 				_, ok := glyphSpriteQuery.Get(child)
@@ -142,6 +145,8 @@ func renderTextSystem(ctx *RenderContext,
 			posX = 0
 			posY += line.Size[1]
 		}
+
+		scope.End()
 	}
 }
 
@@ -161,6 +166,8 @@ type lineLayout struct {
 }
 
 func layoutText(text []rune, faces Faces, fontSize float32) textLayout {
+	defer puffin.NewScope("text.Layout").End()
+
 	lines := splitTextToLines(text)
 
 	var size glm.Vec2f
@@ -254,6 +261,8 @@ func layoutLine(text []rune, line lineIndices, faces Faces, fontSize float32) li
 }
 
 func cacheGlyphs(ctx *RenderContext, fontSize float32, input shaping.Input, output shaping.Output) {
+	defer puffin.NewScope("text.CacheGlyphs").End()
+
 	renderer := render.Renderer{
 		Color:    color.White,
 		FontSize: fontSize,

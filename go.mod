@@ -23,6 +23,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
+	github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678 // indirect
 	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260321175638-35553c66247e // indirect
 	github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260321175628-865c2b8d8a62 // indirect
 	github.com/oliverbestmann/webgpu/libs-ios v0.0.0-20260321175629-0e29e7d88738 // indirect
@@ -32,6 +33,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
+	github.com/timandy/routine v1.1.6 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/mobile v0.0.0-20260312152759-81488f6aeb60 // indirect

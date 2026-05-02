@@ -3,8 +3,10 @@ package byke2d
 import (
 	_ "embed"
 	"slices"
+	"strconv"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -170,10 +172,14 @@ func renderSpriteSystem(
 	cachedAllocs *byke.Local[renderSpriteAllocations],
 	pipelines Pipelines[renderSpritePipelineConfig],
 ) {
+	defer puffin.NewScope("byke2d.RenderSprites").End()
+
 	const bufInstancesSize = 1024 * 1024
 	allocs := &cachedAllocs.Value
 
 	if allocs.bufIndices == nil {
+		defer puffin.NewScope("allocate buffers").End()
+
 		allocs.bufIndices = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
 			Label:    "Sprite.Indices",
 			Contents: wgpu.ToBytes([]uint16{2, 0, 1, 1, 3, 2}),
@@ -250,6 +256,8 @@ func renderSpriteSystem(
 	}
 
 	flush := func(key batchKey) {
+		defer puffin.NewScopeWithValue("Flush", strconv.Itoa(instances.Count())).End()
+
 		encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
 		defer encoder.Release()
 

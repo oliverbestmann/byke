@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/bits"
 
+	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -75,6 +76,8 @@ func (m *mipmapGenerator) Generate(texture *Texture) {
 	if texture.Descriptor.MipLevelCount <= 1 {
 		return
 	}
+
+	defer puffin.NewScopeWithValue("texture.GenerateMipMaps", texture.Descriptor.Label).End()
 
 	enc := m.context.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{
 		Label: "Texture.MipMap.Encoder",

@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
 	"github.com/oliverbestmann/pulse/wx"
@@ -31,6 +32,8 @@ var (
 )
 
 func RenderPlugin(app *byke.App) {
+	puffin.Enable("127.0.0.1:8585")
+
 	app.AddMakeSystemParam(makePipelinesSystemParamState)
 
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
@@ -216,6 +219,8 @@ type currentSurfaceValues struct {
 }
 
 func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
+	defer puffin.NewScope("frame").End()
+
 	ctx, _ := byke.ResourceOf[RenderContext](world)
 	win, _ := byke.ResourceOf[PrimaryWindow](world)
 
@@ -225,7 +230,10 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	ensureSurfaceConfigured(ctx, world, surfaceWidth, surfaceHeight)
 
 	// get the surface texture (the actual screen)
-	surface := ctx.Surface.GetCurrentTexture()
+	surface := func() *wgpu.Texture {
+		defer puffin.NewScope("surface.GetCurrentTexture").End()
+		return ctx.Surface.GetCurrentTexture()
+	}()
 
 	// The surface must only be released if it was not rendered to.
 	// To skip releasing the surface, we can set it to nil later.
@@ -262,7 +270,10 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	world.RunSchedule(byke.Main)
 
 	// present the current frame
-	ctx.Surface.Present()
+	func() {
+		defer puffin.NewScope("surface.Present").End()
+		ctx.Surface.Present()
+	}()
 
 	// we do not need to release the surface texture if present was successful
 	surface = nil
@@ -297,6 +308,8 @@ func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth
 	if state.Width == surfaceWidth && state.Height == surfaceHeight && state.Config == *surfaceConfig {
 		return
 	}
+
+	defer puffin.NewScope("surface.Configure").End()
 
 	slog.Debug("Configure surface",
 		slog.Int("width", int(surfaceWidth)),
@@ -446,45 +459,49 @@ func driveRenderScheduleSystem(world *byke.World,
 	textureCache.Reset()
 
 	for _, camera := range cameras {
-		if camera.Camera.Inactive {
-			continue
-		}
+		puffin.Scoped("byke2d.RenderCamera", func() any {
+			if camera.Camera.Inactive {
+				return nil
+			}
 
-		viewTarget, hasViewTarget := buildCameraViewTarget(
-			textureCache,
-			surfaceValues,
-			camera.RenderTarget,
-			camera.ClearColor.Color,
-			camera.Msaa.On,
-		)
+			viewTarget, hasViewTarget := buildCameraViewTarget(
+				textureCache,
+				surfaceValues,
+				camera.RenderTarget,
+				camera.ClearColor.Color,
+				camera.Msaa.On,
+			)
 
-		if !hasViewTarget {
-			continue
-		}
+			if !hasViewTarget {
+				return nil
+			}
 
-		currentCamera := CurrentCamera{
-			Projection:   camera.Projection,
-			Transform:    camera.Transform,
-			RenderLayers: camera.RenderLayers,
-			ViewTarget:   viewTarget,
-		}
+			currentCamera := CurrentCamera{
+				Projection:   camera.Projection,
+				Transform:    camera.Transform,
+				RenderLayers: camera.RenderLayers,
+				ViewTarget:   viewTarget,
+			}
 
-		world.InsertResource(currentCamera)
+			world.InsertResource(currentCamera)
 
-		world.RunSchedule(PreRender)
-		world.RunSchedule(Render)
-		world.RunSchedule(PostRender)
+			world.RunSchedule(PreRender)
+			world.RunSchedule(Render)
+			world.RunSchedule(PostRender)
 
-		// we might need to resolve into the target texture
-		blitTexture(ctx,
-			viewTarget.UnsampledTexture(),
-			viewTarget.SurfaceTextureView,
-			viewTarget.SurfaceTextureFormat,
-		)
+			// we might need to resolve into the target texture
+			blitTexture(ctx,
+				viewTarget.UnsampledTexture(),
+				viewTarget.SurfaceTextureView,
+				viewTarget.SurfaceTextureFormat,
+			)
 
-		if camera.RenderTarget.Texture != nil {
-			camera.RenderTarget.Texture.Updated(ctx)
-		}
+			if camera.RenderTarget.Texture != nil {
+				camera.RenderTarget.Texture.Updated(ctx)
+			}
+
+			return nil
+		})
 	}
 }
 
