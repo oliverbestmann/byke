@@ -130,7 +130,7 @@ func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurf
 	case renderTarget.Texture != nil:
 		width = renderTarget.Texture.Width()
 		height = renderTarget.Texture.Height()
-		surfaceTextureView = renderTarget.Texture.TextureView
+		surfaceTextureView = renderTarget.Texture.RenderView
 		surfaceTextureFormat = renderTarget.Texture.Texture.Descriptor.Format
 
 	default:
