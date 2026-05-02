@@ -14,24 +14,26 @@ var blitShaderVertex string
 //go:embed blit.wgsl
 var blitShaderFragment string
 
-func blitTexture(ctx *RenderContext, sourceView, targetView *wgpu.TextureView, targetFormat wgpu.TextureFormat) {
-	defer puffin.NewScope("byke2d.blitTexture").End()
+type blitConfig struct {
+	TargetFormat wgpu.TextureFormat
+}
 
-	modVertex := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
+func (b blitConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
+	modVertex := def.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      "FullscreenShaderVertex",
 		WGSLSource: &wgpu.ShaderSourceWGSL{Code: blitShaderVertex},
 	})
 
 	defer modVertex.Release()
 
-	modFragment := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
+	modFragment := def.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      "FullscreenShaderFragment",
 		WGSLSource: &wgpu.ShaderSourceWGSL{Code: blitShaderFragment},
 	})
 
 	defer modFragment.Release()
 
-	pipeline := ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
+	return def.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
 		Label: "Blit",
 		Vertex: wgpu.VertexState{
 			Module:     modVertex,
@@ -42,7 +44,7 @@ func blitTexture(ctx *RenderContext, sourceView, targetView *wgpu.TextureView, t
 			EntryPoint: "fs_main",
 			Targets: []wgpu.ColorTargetState{
 				{
-					Format:    targetFormat,
+					Format:    b.TargetFormat,
 					Blend:     &wgpu.BlendStateReplace,
 					WriteMask: wgpu.ColorWriteMaskAll,
 				},
@@ -57,8 +59,14 @@ func blitTexture(ctx *RenderContext, sourceView, targetView *wgpu.TextureView, t
 			Mask:  0xffffffff,
 		},
 	})
+}
 
-	defer pipeline.Release()
+func blitTexture(
+	ctx *RenderContext,
+	pipeline wx.CachedPipeline,
+	sourceView, targetView *wgpu.TextureView,
+) {
+	defer puffin.NewScope("byke2d.blitTexture").End()
 
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Blit",
@@ -105,7 +113,7 @@ func blitTexture(ctx *RenderContext, sourceView, targetView *wgpu.TextureView, t
 	pass := enc.BeginRenderPass(desc)
 	defer pass.Release()
 
-	pass.SetPipeline(pipeline)
+	pass.SetPipeline(pipeline.Pipeline)
 	pass.SetBindGroup(0, bindGroup, nil)
 	pass.Draw(3, 1, 0, 0)
 	pass.End()

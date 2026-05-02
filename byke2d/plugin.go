@@ -442,6 +442,7 @@ func driveRenderScheduleSystem(world *byke.World,
 	textureCache *TextureCache,
 	surfaceValues currentSurfaceValues,
 	camerasQuery byke.Query[cameraQueryValues],
+	blitPipelines Pipelines[blitConfig],
 ) {
 	// TODO reuse allocation
 	cameras := camerasQuery.AppendTo(nil)
@@ -487,11 +488,15 @@ func driveRenderScheduleSystem(world *byke.World,
 			world.RunSchedule(Render)
 			world.RunSchedule(PostRender)
 
-			// we might need to resolve into the target texture
+			blit := blitConfig{
+				TargetFormat: viewTarget.SurfaceTextureFormat,
+			}
+
+			// blit into the target texture
 			blitTexture(ctx,
+				blitPipelines.Specialize(blit),
 				viewTarget.UnsampledTexture(),
 				viewTarget.SurfaceTextureView,
-				viewTarget.SurfaceTextureFormat,
 			)
 
 			if camera.RenderTarget.Texture != nil {
