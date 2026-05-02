@@ -72,12 +72,25 @@ func (m mipmapPipelineConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline 
 }
 
 func (m *mipmapGenerator) Generate(texture *Texture) {
-	for level := uint32(1); level < texture.Descriptor.MipLevelCount; level++ {
-		m.generateLevel(texture, level)
+	if texture.Descriptor.MipLevelCount <= 1 {
+		return
 	}
+
+	enc := m.context.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{
+		Label: "Texture.MipMap.Encoder",
+	})
+
+	defer enc.Release()
+
+	for level := uint32(1); level < texture.Descriptor.MipLevelCount; level++ {
+		m.generateLevel(enc, texture, level)
+	}
+
+	buf := enc.Finish(nil)
+	m.context.Submit(buf)
 }
 
-func (m *mipmapGenerator) generateLevel(texture *Texture, level uint32) {
+func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Texture, level uint32) {
 	inSampler := wx.CachedSampler(m.context.Device, wgpu.SamplerDescriptor{
 		Label:         "Texture.MipMap.Sampler",
 		AddressModeU:  wgpu.AddressModeClampToEdge,
@@ -140,12 +153,6 @@ func (m *mipmapGenerator) generateLevel(texture *Texture, level uint32) {
 
 	defer bindGroup.Release()
 
-	enc := m.context.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{
-		Label: "Texture.MipMap.Encoder",
-	})
-
-	defer enc.Release()
-
 	pass := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
 		Label: "Texture.MipMap.RenderPass",
 		ColorAttachments: []wgpu.RenderPassColorAttachment{
@@ -164,7 +171,4 @@ func (m *mipmapGenerator) generateLevel(texture *Texture, level uint32) {
 	pass.Draw(6, 1, 0, 0)
 	pass.End()
 
-	buf := enc.Finish(nil)
-
-	m.context.Submit(buf)
 }
