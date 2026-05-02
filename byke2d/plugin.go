@@ -32,8 +32,6 @@ var (
 )
 
 func RenderPlugin(app *byke.App) {
-	puffin.Enable("127.0.0.1:8585")
-
 	app.AddMakeSystemParam(makePipelinesSystemParamState)
 
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())

@@ -7,6 +7,7 @@ import (
 
 	"github.com/oliverbestmann/byke/internal/set"
 	"github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/puffin-go"
 )
 
 const NoEntityId = EntityId(0)
@@ -121,6 +122,8 @@ func (w *World) scheduleOf(scheduleId ScheduleId) *schedule {
 }
 
 func (w *World) runSystem(system *preparedSystem, ctx SystemContext) any {
+	defer puffin.NewScopeWithValue("byke.RunSystem", system.Name).End()
+
 	for _, predicate := range system.Predicates {
 		result := w.runSystem(predicate, SystemContext{})
 		if result == nil || !result.(bool) {
@@ -170,6 +173,8 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 	if !ok {
 		return
 	}
+
+	defer puffin.NewScopeWithValue("RunSchedule", scheduleId.String()).End()
 
 	// remove the schedule while it is executed
 	delete(w.schedules, scheduleId)
@@ -487,6 +492,10 @@ func RequireResourceOf[T any](w *World) *T {
 func (w *World) flushCommands() {
 	if w.activeQueries.Load() != 0 {
 		panic("can not flush, queries are still running")
+	}
+
+	if len(w.flushes) > 0 {
+		defer puffin.NewScope("byke.FlushCommands").End()
 	}
 
 	// TODO evaluate if this is save like this. maybe we can do better here?

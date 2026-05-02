@@ -11,6 +11,7 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/byke/internal/typedpool"
 	"github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/puffin-go"
 )
 
 var valueSlices = typedpool.New[[]reflect.Value]()
@@ -55,6 +56,8 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 		systemConfig: config,
 		Name:         funcNameOf(config.SystemFunc),
 	}
+
+	defer puffin.NewScopeWithValue("byke.PrepareSystem", preparedSystem.Name).End()
 
 	slog.Info("Prepare system", slog.String("name", preparedSystem.Name), slog.Int("idx", len(w.systems)))
 
