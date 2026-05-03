@@ -268,10 +268,10 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	world.RunSchedule(byke.Main)
 
 	// present the current frame
-	func() {
-		defer puffin.NewScope("surface.Present").End()
+	puffin.Scoped("surface.Present", func() any {
 		ctx.Surface.Present()
-	}()
+		return nil
+	})
 
 	// we do not need to release the surface texture if present was successful
 	surface = nil
