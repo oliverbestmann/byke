@@ -33,6 +33,7 @@ var (
 
 func RenderPlugin(app *byke.App) {
 	app.AddMakeSystemParam(makePipelinesSystemParamState)
+	app.AddMakeSystemParam(makeComponentUniformsSystemParamState)
 
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
 	if !ok {
@@ -86,6 +87,10 @@ func RenderPlugin(app *byke.App) {
 
 	app.AddSystems(Render,
 		byke.System(renderSpriteSystem).Chain())
+
+	app.AddSystems(Render, byke.
+		System(applyBloomSystem).
+		InSet(RenderPostProcessSystems))
 
 	// Adding new sprites must run before transform & visibility propagation
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(TransformSystems))
@@ -476,6 +481,7 @@ func driveRenderScheduleSystem(world *byke.World,
 			}
 
 			currentCamera := CurrentCamera{
+				Entity:       camera.EntityId,
 				Projection:   camera.Projection,
 				Transform:    camera.Transform,
 				RenderLayers: camera.RenderLayers,
@@ -509,6 +515,7 @@ func driveRenderScheduleSystem(world *byke.World,
 }
 
 type CurrentCamera struct {
+	Entity       byke.EntityId
 	Projection   OrthographicProjection
 	Transform    GlobalTransform
 	RenderLayers RenderLayers
@@ -516,6 +523,7 @@ type CurrentCamera struct {
 }
 
 type cameraQueryValues struct {
+	EntityId     byke.EntityId
 	Camera       Camera
 	Projection   OrthographicProjection
 	Transform    GlobalTransform

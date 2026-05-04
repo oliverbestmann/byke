@@ -8,9 +8,6 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-//go:embed fullscreen_vertex.wgsl
-var blitShaderVertex string
-
 //go:embed blit.wgsl
 var blitShaderFragment string
 
@@ -19,12 +16,7 @@ type blitConfig struct {
 }
 
 func (b blitConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
-	modVertex := def.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
-		Label:      "FullscreenShaderVertex",
-		WGSLSource: &wgpu.ShaderSourceWGSL{Code: blitShaderVertex},
-	})
-
-	defer modVertex.Release()
+	vertexState, primitiveState := prepareFullscreenShader(def)
 
 	modFragment := def.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      "FullscreenShaderFragment",
@@ -34,11 +26,9 @@ func (b blitConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
 	defer modFragment.Release()
 
 	return def.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
-		Label: "Blit",
-		Vertex: wgpu.VertexState{
-			Module:     modVertex,
-			EntryPoint: "fullscreen_vertex_shader",
-		},
+		Label:     "Blit",
+		Vertex:    vertexState,
+		Primitive: primitiveState,
 		Fragment: &wgpu.FragmentState{
 			Module:     modFragment,
 			EntryPoint: "fs_main",
@@ -49,10 +39,6 @@ func (b blitConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
 					WriteMask: wgpu.ColorWriteMaskAll,
 				},
 			},
-		},
-		Primitive: wgpu.PrimitiveState{
-			Topology: wgpu.PrimitiveTopologyTriangleList,
-			CullMode: wgpu.CullModeNone,
 		},
 		Multisample: wgpu.MultisampleState{
 			Count: 1,

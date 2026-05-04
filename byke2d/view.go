@@ -27,6 +27,21 @@ type ViewTarget struct {
 	attachmentIndex uint8
 }
 
+type PostProcessing struct {
+	Source *ViewTargetAttachment
+	Target *ViewTargetAttachment
+}
+
+func (m *ViewTarget) PostProcess() PostProcessing {
+	sourceIdx := m.attachmentIndex
+	m.attachmentIndex = (m.attachmentIndex + 1) % 2
+
+	return PostProcessing{
+		Source: &m.attachments[sourceIdx],
+		Target: &m.attachments[m.attachmentIndex],
+	}
+}
+
 // DiscardContent marks the content as discarded. The next call
 // to Attachment() will use LoadOpClear to prevent loading
 // of old data and just clear the buffer again.
