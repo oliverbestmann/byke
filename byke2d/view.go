@@ -28,7 +28,7 @@ type ViewTarget struct {
 }
 
 type PostProcessing struct {
-	Source *ViewTargetAttachment
+	Source *wgpu.TextureView
 	Target *ViewTargetAttachment
 }
 
@@ -37,7 +37,7 @@ func (m *ViewTarget) PostProcess() PostProcessing {
 	m.attachmentIndex = (m.attachmentIndex + 1) % 2
 
 	return PostProcessing{
-		Source: &m.attachments[sourceIdx],
+		Source: m.attachments[sourceIdx].TextureView,
 		Target: &m.attachments[m.attachmentIndex],
 	}
 }
@@ -127,9 +127,15 @@ func colorToWGPU(c wx.Color) wgpu.Color {
 	}
 }
 
-func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurfaceValues, renderTarget RenderTarget, clearColor wx.Color, msaa bool) (*ViewTarget, bool) {
+func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurfaceValues, renderTarget RenderTarget, clearColor wx.Color, hdr, msaa bool) (*ViewTarget, bool) {
 	// hdr -> use float16 texture
-	format := wgpu.TextureFormatRGBA16Float
+	var format wgpu.TextureFormat
+
+	if hdr {
+		format = wgpu.TextureFormatRGBA16Float
+	} else {
+		format = wgpu.TextureFormatBGRA8Unorm
+	}
 
 	var width, height uint32
 	var surfaceTextureView *wgpu.TextureView

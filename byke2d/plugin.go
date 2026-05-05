@@ -89,7 +89,8 @@ func RenderPlugin(app *byke.App) {
 		byke.System(renderSpriteSystem).Chain())
 
 	app.AddSystems(Render, byke.
-		System(applyBloomSystem).
+		System(applyBloomSystem, tonemappingSystem).
+		Chain().
 		InSet(RenderPostProcessSystems))
 
 	// Adding new sprites must run before transform & visibility propagation
@@ -473,7 +474,8 @@ func driveRenderScheduleSystem(world *byke.World,
 				surfaceValues,
 				camera.RenderTarget,
 				camera.ClearColor.Color,
-				camera.Msaa.On,
+				camera.HDR.Exists(),
+				camera.MSAA.Exists(),
 			)
 
 			if !hasViewTarget {
@@ -486,6 +488,10 @@ func driveRenderScheduleSystem(world *byke.World,
 				Transform:    camera.Transform,
 				RenderLayers: camera.RenderLayers,
 				ViewTarget:   viewTarget,
+
+				ColorGrading: toOptional(camera.ColorGrading),
+				Tonemapping:  toOptional(camera.Tonemapping),
+				DebandDither: toOptional(camera.DebandDither),
 			}
 
 			world.InsertResource(currentCamera)
@@ -514,12 +520,21 @@ func driveRenderScheduleSystem(world *byke.World,
 	}
 }
 
+func toOptional[T byke.IsComponent[T]](o byke.Option[T]) Optional[T] {
+	value, ok := o.Get()
+	return Optional[T]{Value: value, IsSet: ok}
+}
+
 type CurrentCamera struct {
 	Entity       byke.EntityId
 	Projection   OrthographicProjection
 	Transform    GlobalTransform
 	RenderLayers RenderLayers
 	ViewTarget   *ViewTarget
+
+	ColorGrading Optional[ColorGrading]
+	Tonemapping  Optional[Tonemapping]
+	DebandDither Optional[DebandDither]
 }
 
 type cameraQueryValues struct {
@@ -530,5 +545,11 @@ type cameraQueryValues struct {
 	RenderLayers RenderLayers
 	RenderTarget RenderTarget
 	ClearColor   ClearColor
-	Msaa         Msaa
+
+	MSAA byke.Has[MSAA]
+
+	HDR          byke.Has[HDR]
+	ColorGrading byke.Option[ColorGrading]
+	Tonemapping  byke.Option[Tonemapping]
+	DebandDither byke.Option[DebandDither]
 }

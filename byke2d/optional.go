@@ -23,3 +23,8 @@ func (o *Optional[T]) Or(fallbackValue T) T {
 
 	return o.Value
 }
+
+func (o *Optional[T]) OrZero() T {
+	var tZero T
+	return o.Or(tZero)
+}

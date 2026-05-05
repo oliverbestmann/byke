@@ -2,12 +2,8 @@ package byke2d
 
 import "github.com/oliverbestmann/byke"
 
-var _ = byke.ValidateComponent[Msaa]()
+var _ = byke.ValidateComponent[MSAA]()
 
-type Msaa struct {
-	byke.Component[Msaa]
-	On bool
+type MSAA struct {
+	byke.ImmutableComponent[MSAA]
 }
-
-var MsaaOn = Msaa{On: true}
-var MsaaOff = Msaa{}

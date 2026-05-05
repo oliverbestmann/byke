@@ -33,6 +33,8 @@ fn karis_average(color: vec3<f32>) -> f32 {
 
 // [COD] slide 153
 fn sample_input_13_tap(uv: vec2<f32>) -> vec3<f32> {
+    _ = uniforms.scale;
+
 #ifdef UNIFORM_SCALE
     // This is the fast path. When the bloom scale is uniform, the 13 tap sampling kernel can be
     // expressed with constant offsets.

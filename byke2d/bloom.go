@@ -54,9 +54,14 @@ func (b bloomPipelineConfig) Specialize(ctx *wgpu.Device) *wgpu.RenderPipeline {
 	defs.Define("UNIFORM_SCALE", b.UniformScale)
 	defs.Define("FIRST_DOWNSAMPLE", b.FirstDownsample)
 
-	var entry = "downsample"
-	if b.Upsample {
+	var entry string
+	switch {
+	case b.Upsample:
 		entry = "upsample"
+	case b.FirstDownsample:
+		entry = "downsample_first"
+	default:
+		entry = "downsample"
 	}
 
 	shaderCode, err := pre.Process(bloomShader, defs)
