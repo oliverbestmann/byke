@@ -66,8 +66,10 @@ type ColorGrading struct {
 	Highlights ColorGradingSection
 }
 
-func (c ColorGrading) HasIdenticalSections() bool {
-	return c.Shadows == c.Midtones && c.Midtones == c.Highlights
+func (c ColorGrading) HasSectionalColorGrading() bool {
+	return c.Shadows != defaultColorGradingSection ||
+		c.Midtones != defaultColorGradingSection ||
+		c.Highlights != defaultColorGradingSection
 }
 
 func (c ColorGrading) ToWGPU() []byte {
@@ -217,9 +219,12 @@ var TonemappingAgX = Tonemapping{value: 6}
 var TonemappingBlenderFilmic = Tonemapping{value: 7}
 
 type tonemappingPipelineConfig struct {
-	TargetFormat wgpu.TextureFormat
-	Tonemapping  Tonemapping
-	DebandDither DebandDither
+	TargetFormat          wgpu.TextureFormat
+	Tonemapping           Tonemapping
+	DebandDither          DebandDither
+	HueRotate             bool
+	WhiteBalance          bool
+	SectionalColorGrading bool
 }
 
 func (c tonemappingPipelineConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
@@ -245,6 +250,10 @@ func (c tonemappingPipelineConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipe
 	}
 
 	defs.Define("DEBAND_DITHER", c.DebandDither.enable)
+
+	defs.Define("HUE_ROTATE", c.HueRotate)
+	defs.Define("WHITE_BALANCE", c.WhiteBalance)
+	defs.Define("SECTIONAL_COLOR_GRADING", c.SectionalColorGrading)
 
 	shaderSource, err := pre.Process(tonemappingShader, defs)
 	if err != nil {
@@ -295,10 +304,14 @@ func tonemappingSystem(
 
 	pp := camera.ViewTarget.PostProcess()
 
+	cg := camera.ColorGrading.Value
 	pipeline := pipelines.Specialize(tonemappingPipelineConfig{
-		TargetFormat: camera.ViewTarget.Format,
-		Tonemapping:  camera.Tonemapping.OrZero(),
-		DebandDither: camera.DebandDither.OrZero(),
+		TargetFormat:          camera.ViewTarget.Format,
+		Tonemapping:           camera.Tonemapping.OrZero(),
+		DebandDither:          camera.DebandDither.OrZero(),
+		HueRotate:             cg.Global.Hue != 0,
+		WhiteBalance:          cg.Global.Temperature != 0 || cg.Global.Tint != 0,
+		SectionalColorGrading: cg.HasSectionalColorGrading(),
 	})
 
 	sampler := wx.CachedSampler(ctx.Device, wgpu.SamplerDescriptor{
@@ -314,7 +327,7 @@ func tonemappingSystem(
 		MaxAnisotropy: 1,
 	})
 
-	uniforms.Write(camera.ColorGrading.Value)
+	uniforms.Write(cg)
 
 	bindGroupEntries := []wgpu.BindGroupEntry{
 		uniforms.Binding(0),

@@ -36,8 +36,11 @@ func main() {
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, scaleColorSystem)
-	app.AddSystems(Update, System(toggleDebandDither).RunIf(KeyIsJustPressed(vyn.KeyD)))
-	app.AddSystems(Update, System(toggleTonemapping).RunIf(KeyIsJustPressed(vyn.KeyT)))
+	app.AddSystems(Update, System(toggleDebandDitherSystem).RunIf(KeyIsJustPressed(vyn.KeyD)))
+	app.AddSystems(Update, System(toggleTonemappingSystem).RunIf(KeyIsJustPressed(vyn.KeyT)))
+	app.AddSystems(Update, System(rotateHueSystem).RunIf(KeyIsPressed(vyn.KeyH)))
+	app.AddSystems(Update, System(liftSystem).RunIf(KeyIsPressed(vyn.KeyL)))
+	app.AddSystems(Update, System(temperatureSystem).RunIf(KeyIsPressed(vyn.KeyU)))
 
 	app.MustRun()
 }
@@ -72,7 +75,7 @@ func scaleColorSystem(vt VirtualTime, query Query[struct {
 	}
 }
 
-func toggleDebandDither(camera Single[*DebandDither]) {
+func toggleDebandDitherSystem(camera Single[*DebandDither]) {
 	if *camera.Value == DebandDitherOn {
 		*camera.Value = DebandDitherOff
 	} else {
@@ -80,7 +83,7 @@ func toggleDebandDither(camera Single[*DebandDither]) {
 	}
 }
 
-func toggleTonemapping(camera Single[*Tonemapping]) {
+func toggleTonemappingSystem(camera Single[*Tonemapping]) {
 	mappings := []Tonemapping{
 		TonemappingNone,
 		TonemappingSomewhatBoringDisplayTransform,
@@ -97,4 +100,16 @@ func toggleTonemapping(camera Single[*Tonemapping]) {
 	*camera.Value = mappings[idx]
 
 	fmt.Println("Tonemapping", *camera.Value)
+}
+
+func rotateHueSystem(vt VirtualTime, camera Single[*ColorGrading]) {
+	camera.Value.Global.Hue += vt.DeltaSecs
+}
+
+func liftSystem(vt VirtualTime, camera Single[*ColorGrading]) {
+	camera.Value.Midtones.Lift += vt.DeltaSecs
+}
+
+func temperatureSystem(vt VirtualTime, camera Single[*ColorGrading]) {
+	camera.Value.Global.Temperature += vt.DeltaSecs
 }
