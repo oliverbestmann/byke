@@ -109,6 +109,7 @@ type NewTextureOptions struct {
 type SamplerConfig struct {
 	AddressModeU wgpu.AddressMode
 	AddressModeV wgpu.AddressMode
+	AddressModeW wgpu.AddressMode
 	FilterMode   wgpu.FilterMode
 }
 
@@ -168,7 +169,6 @@ func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wg
 	textureView := texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           desc.Label,
 		Format:          desc.Format,
-		Dimension:       wgpu.TextureViewDimension2D,
 		BaseMipLevel:    0,
 		MipLevelCount:   desc.MipLevelCount,
 		BaseArrayLayer:  0,
@@ -184,7 +184,7 @@ func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wg
 		Label:         desc.Label + ".Sampler",
 		AddressModeU:  sampleConfig.AddressModeU,
 		AddressModeV:  sampleConfig.AddressModeV,
-		AddressModeW:  wgpu.AddressModeUndefined,
+		AddressModeW:  sampleConfig.AddressModeW,
 		MagFilter:     sampleConfig.FilterMode,
 		MinFilter:     sampleConfig.FilterMode,
 		MipmapFilter:  wgpu.MipmapFilterModeLinear,

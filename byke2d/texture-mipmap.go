@@ -110,7 +110,6 @@ func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Textu
 	inView := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Texture.MipMap.In",
 		Format:          texture.Descriptor.Format,
-		Dimension:       wgpu.TextureViewDimension2D,
 		BaseMipLevel:    level - 1,
 		MipLevelCount:   1,
 		BaseArrayLayer:  0,
@@ -123,7 +122,6 @@ func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Textu
 	outView := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Texture.MipMap.Out",
 		Format:          texture.Descriptor.Format,
-		Dimension:       wgpu.TextureViewDimension2D,
 		BaseMipLevel:    level,
 		MipLevelCount:   1,
 		BaseArrayLayer:  0,

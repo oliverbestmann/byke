@@ -11,7 +11,6 @@ func AsRenderTexture(tex *Texture) *RenderTexture {
 	renderView := tex.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           tex.Descriptor.Label + ".RenderView",
 		Format:          tex.Descriptor.Format,
-		Dimension:       wgpu.TextureViewDimension2D,
 		BaseMipLevel:    0,
 		MipLevelCount:   1,
 		BaseArrayLayer:  0,

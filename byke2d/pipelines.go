@@ -62,13 +62,3 @@ func (p *pipelineCacheSystemParamState[C]) ValueType() reflect.Type {
 
 func (p *pipelineCacheSystemParamState[C]) CleanupValue() {
 }
-
-type PipelineCache struct {
-	pipelines map[any]any
-}
-
-func makePipelineCache() PipelineCache {
-	return PipelineCache{
-		pipelines: map[any]any{},
-	}
-}

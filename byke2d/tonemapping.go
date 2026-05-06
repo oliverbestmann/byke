@@ -196,6 +196,12 @@ func (t Tonemapping) String() string {
 		return "Reinhard"
 	case TonemappingReinhardLuminance:
 		return "ReinhardLuminance"
+	case TonemappingTonyMcMapface:
+		return "TonyMcMapface"
+	case TonemappingAgX:
+		return "AgX"
+	case TonemappingBlenderFilmic:
+		return "BlenderFilmic"
 	default:
 		return "None"
 	}
@@ -206,6 +212,9 @@ var TonemappingSomewhatBoringDisplayTransform = Tonemapping{value: 1}
 var TonemappingAcesFitted = Tonemapping{value: 2}
 var TonemappingReinhard = Tonemapping{value: 3}
 var TonemappingReinhardLuminance = Tonemapping{value: 4}
+var TonemappingTonyMcMapface = Tonemapping{value: 5}
+var TonemappingAgX = Tonemapping{value: 6}
+var TonemappingBlenderFilmic = Tonemapping{value: 7}
 
 type tonemappingPipelineConfig struct {
 	TargetFormat wgpu.TextureFormat
@@ -219,13 +228,18 @@ func (c tonemappingPipelineConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipe
 	switch c.Tonemapping {
 	case TonemappingSomewhatBoringDisplayTransform:
 		defs.Define("TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM", true)
+	case TonemappingAcesFitted:
+		defs.Define("TONEMAP_METHOD_ACES_FITTED", true)
 	case TonemappingReinhard:
 		defs.Define("TONEMAP_METHOD_REINHARD", true)
 	case TonemappingReinhardLuminance:
 		defs.Define("TONEMAP_METHOD_REINHARD_LUMINANCE", true)
-	case TonemappingAcesFitted:
-		defs.Define("TONEMAP_METHOD_ACES_FITTED", true)
-
+	case TonemappingTonyMcMapface:
+		defs.Define("TONEMAP_METHOD_TONY_MC_MAPFACE", true)
+	case TonemappingAgX:
+		defs.Define("TONEMAP_METHOD_AGX", true)
+	case TonemappingBlenderFilmic:
+		defs.Define("TONEMAP_METHOD_BLENDER_FILMIC", true)
 	default:
 		defs.Define("TONEMAP_METHOD_NONE", true)
 	}
@@ -271,6 +285,7 @@ func tonemappingSystem(
 	camera *CurrentCamera,
 	pipelines Pipelines[tonemappingPipelineConfig],
 	uniforms *ComponentUniforms[ColorGrading],
+	luts *TonemappingLutTextures,
 ) {
 	if !camera.ColorGrading.IsSet {
 		return
@@ -301,20 +316,55 @@ func tonemappingSystem(
 
 	uniforms.Write(camera.ColorGrading.Value)
 
-	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Label:  "Tonemapping",
-		Layout: pipeline.GetBindGroupLayout(0),
-		Entries: []wgpu.BindGroupEntry{
-			uniforms.Binding(0),
-			{
-				Binding:     1,
-				TextureView: pp.Source,
-			},
-			{
-				Binding: 2,
-				Sampler: sampler,
-			},
+	bindGroupEntries := []wgpu.BindGroupEntry{
+		uniforms.Binding(0),
+		{
+			Binding:     1,
+			TextureView: pp.Source,
 		},
+		{
+			Binding: 2,
+			Sampler: sampler,
+		},
+	}
+
+	switch camera.Tonemapping.Value {
+	case TonemappingTonyMcMapface:
+		bindGroupEntries = append(bindGroupEntries,
+			wgpu.BindGroupEntry{
+				Binding:     3,
+				TextureView: luts.TonyMcMapface(ctx).TextureView,
+			},
+			wgpu.BindGroupEntry{
+				Binding: 4,
+				Sampler: luts.TonyMcMapface(ctx).Sampler,
+			})
+	case TonemappingAgX:
+		bindGroupEntries = append(bindGroupEntries,
+			wgpu.BindGroupEntry{
+				Binding:     3,
+				TextureView: luts.AgX(ctx).TextureView,
+			},
+			wgpu.BindGroupEntry{
+				Binding: 4,
+				Sampler: luts.AgX(ctx).Sampler,
+			})
+	case TonemappingBlenderFilmic:
+		bindGroupEntries = append(bindGroupEntries,
+			wgpu.BindGroupEntry{
+				Binding:     3,
+				TextureView: luts.BlenderFilmic(ctx).TextureView,
+			},
+			wgpu.BindGroupEntry{
+				Binding: 4,
+				Sampler: luts.BlenderFilmic(ctx).Sampler,
+			})
+	}
+
+	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		Label:   "Tonemapping",
+		Layout:  pipeline.GetBindGroupLayout(0),
+		Entries: bindGroupEntries,
 	})
 
 	defer bindGroup.Release()

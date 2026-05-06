@@ -87,6 +87,9 @@ func toggleTonemapping(camera Single[*Tonemapping]) {
 		TonemappingAcesFitted,
 		TonemappingReinhard,
 		TonemappingReinhardLuminance,
+		TonemappingTonyMcMapface,
+		TonemappingAgX,
+		TonemappingBlenderFilmic,
 	}
 
 	idx := slices.Index(mappings, *camera.Value)

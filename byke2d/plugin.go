@@ -43,7 +43,7 @@ func RenderPlugin(app *byke.App) {
 	app.InsertResource(DefaultWindowConfig())
 	app.InsertResource(DefaultSurfaceConfig())
 	app.InsertResource(surfaceConfigState{})
-	app.InsertResource(makePipelineCache())
+	app.InsertResource(TonemappingLutTextures{})
 
 	// input resources
 	app.InsertResource(Keys{})
@@ -254,10 +254,7 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	surfaceTextureView := surface.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Surface",
 		Format:          surface.GetFormat(),
-		Dimension:       wgpu.TextureViewDimension2D,
-		BaseMipLevel:    0,
 		MipLevelCount:   1,
-		BaseArrayLayer:  0,
 		ArrayLayerCount: 1,
 		Aspect:          wgpu.TextureAspectAll,
 	})
@@ -361,86 +358,6 @@ func readAppExitEventsSystem(c *byke.Commands, events *byke.MessageReader[AppExi
 
 type appExitState struct {
 	Error error
-}
-
-func clearTarget(ctx *RenderContext, viewTarget *ViewTarget) {
-	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "ClearTexture"})
-	defer enc.Release()
-
-	desc := &wgpu.RenderPassDescriptor{
-		Label: "ClearUsingTexture",
-		ColorAttachments: []wgpu.RenderPassColorAttachment{
-			viewTarget.Attachment(),
-		},
-	}
-
-	enc.BeginRenderPass(desc).End()
-
-	// encode into a command buffer
-	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ClearTexture"})
-	defer buf.Release()
-
-	ctx.Submit(buf)
-
-	viewTarget.DiscardContent()
-}
-
-func clearTexture(ctx *RenderContext, texView, resolveView *wgpu.TextureView, color wx.Color) {
-	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "ClearTexture"})
-	defer enc.Release()
-
-	carr := color.ToWGPU()
-
-	desc := &wgpu.RenderPassDescriptor{
-		Label: "ClearUsingTexture",
-		ColorAttachments: []wgpu.RenderPassColorAttachment{
-			{
-				View:          texView,
-				ResolveTarget: resolveView,
-				LoadOp:        wgpu.LoadOpClear,
-				StoreOp:       wgpu.StoreOpStore,
-				ClearValue: wgpu.Color{
-					R: float64(carr[0]),
-					G: float64(carr[1]),
-					B: float64(carr[2]),
-					A: float64(carr[3]),
-				},
-			},
-		},
-	}
-
-	enc.BeginRenderPass(desc).End()
-
-	// encode into a command buffer
-	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ClearTexture"})
-	defer buf.Release()
-
-	ctx.Submit(buf)
-}
-
-func resolveTexture(ctx *RenderContext, view, resolveView *wgpu.TextureView) {
-	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "ClearTexture"})
-	defer enc.Release()
-
-	desc := &wgpu.RenderPassDescriptor{
-		Label: "ResolveTexture",
-		ColorAttachments: []wgpu.RenderPassColorAttachment{
-			{
-				View:          view,
-				ResolveTarget: resolveView,
-				LoadOp:        wgpu.LoadOpLoad,
-				StoreOp:       wgpu.StoreOpStore,
-			},
-		},
-	}
-
-	enc.BeginRenderPass(desc).End()
-
-	// encode into a command buffer
-	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ResolveTexture"})
-	defer buf.Release()
-
-	ctx.Submit(buf)
 }
 
 func driveRenderScheduleSystem(world *byke.World,

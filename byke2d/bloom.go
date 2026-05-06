@@ -329,7 +329,6 @@ func (b bloomTexture) Get(level uint32) *wgpu.TextureView {
 	return b.Texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Bloom Texture View",
 		Format:          b.Texture.Descriptor.Format,
-		Dimension:       wgpu.TextureViewDimension2D,
 		BaseMipLevel:    level,
 		MipLevelCount:   1,
 		BaseArrayLayer:  0,
