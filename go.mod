@@ -7,7 +7,7 @@ require (
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.4
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
-	github.com/oliverbestmann/pulse v0.0.0-20260413043828-d003639f44ca
+	github.com/oliverbestmann/pulse v0.0.0-20260505203707-9b17bdcf17fe
 	github.com/oliverbestmann/webgpu v1.29.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.39.0
