@@ -330,54 +330,33 @@ func tonemappingSystem(
 	uniforms.Write(cg)
 
 	bindGroupEntries := []wgpu.BindGroupEntry{
-		uniforms.Binding(0),
-		{
-			Binding:     1,
-			TextureView: pp.Source,
-		},
-		{
-			Binding: 2,
-			Sampler: sampler,
-		},
+		uniforms.Binding(),
+		BindingTextureView(pp.Source),
+		BindingSampler(sampler),
 	}
 
 	switch camera.Tonemapping.Value {
 	case TonemappingTonyMcMapface:
 		bindGroupEntries = append(bindGroupEntries,
-			wgpu.BindGroupEntry{
-				Binding:     3,
-				TextureView: luts.TonyMcMapface(ctx).TextureView,
-			},
-			wgpu.BindGroupEntry{
-				Binding: 4,
-				Sampler: luts.TonyMcMapface(ctx).Sampler,
-			})
+			BindingTextureView(luts.TonyMcMapface(ctx).TextureView),
+			BindingSampler(luts.TonyMcMapface(ctx).Sampler),
+		)
 	case TonemappingAgX:
 		bindGroupEntries = append(bindGroupEntries,
-			wgpu.BindGroupEntry{
-				Binding:     3,
-				TextureView: luts.AgX(ctx).TextureView,
-			},
-			wgpu.BindGroupEntry{
-				Binding: 4,
-				Sampler: luts.AgX(ctx).Sampler,
-			})
+			BindingTextureView(luts.AgX(ctx).TextureView),
+			BindingSampler(luts.AgX(ctx).Sampler),
+		)
 	case TonemappingBlenderFilmic:
 		bindGroupEntries = append(bindGroupEntries,
-			wgpu.BindGroupEntry{
-				Binding:     3,
-				TextureView: luts.BlenderFilmic(ctx).TextureView,
-			},
-			wgpu.BindGroupEntry{
-				Binding: 4,
-				Sampler: luts.BlenderFilmic(ctx).Sampler,
-			})
+			BindingTextureView(luts.BlenderFilmic(ctx).TextureView),
+			BindingSampler(luts.BlenderFilmic(ctx).Sampler),
+		)
 	}
 
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:   "Tonemapping",
 		Layout:  pipeline.GetBindGroupLayout(0),
-		Entries: bindGroupEntries,
+		Entries: Sequential(bindGroupEntries...),
 	})
 
 	defer bindGroup.Release()

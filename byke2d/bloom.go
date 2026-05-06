@@ -208,17 +208,11 @@ func bloomDownsample(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline wx.C
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Bloom Bindgroup",
 		Layout: pipeline.GetBindGroupLayout(0),
-		Entries: []wgpu.BindGroupEntry{
-			{
-				Binding:     0,
-				TextureView: source,
-			},
-			{
-				Binding: 1,
-				Sampler: bloomSampler,
-			},
-			uniforms.Binding(2),
-		},
+		Entries: Sequential(
+			BindingTextureView(source),
+			BindingSampler(bloomSampler),
+			uniforms.Binding(),
+		),
 	})
 
 	pass := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
@@ -257,17 +251,11 @@ func bloomUpsample(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline wx.Cac
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Bloom Bindgroup",
 		Layout: pipeline.GetBindGroupLayout(0),
-		Entries: []wgpu.BindGroupEntry{
-			{
-				Binding:     0,
-				TextureView: source,
-			},
-			{
-				Binding: 1,
-				Sampler: bloomSampler,
-			},
-			uniforms.Binding(2),
-		},
+		Entries: Sequential(
+			BindingTextureView(source),
+			BindingSampler(bloomSampler),
+			uniforms.Binding(),
+		),
 	})
 
 	pass := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
@@ -382,12 +370,8 @@ type ComponentUniforms[C WGPUComponent[C]] struct {
 	bufferSize int
 }
 
-func (c *ComponentUniforms[C]) Binding(idx uint32) wgpu.BindGroupEntry {
-	return wgpu.BindGroupEntry{
-		Binding: idx,
-		Buffer:  c.buffer,
-		Size:    uint64(c.bufferSize),
-	}
+func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
+	return BindingBufferSize(c.buffer, 0, uint64(c.bufferSize))
 }
 
 func (c *ComponentUniforms[C]) Write(value C) {

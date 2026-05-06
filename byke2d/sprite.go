@@ -242,13 +242,9 @@ func renderSpriteSystem(
 	viewBindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Sprite.ViewUniform.BindGroup",
 		Layout: cp.GetBindGroupLayout(0),
-		Entries: []wgpu.BindGroupEntry{
-			{
-				Binding: 0,
-				Buffer:  allocs.bufView,
-				Size:    wgpu.WholeSize,
-			},
-		},
+		Entries: Sequential(
+			BindingBuffer(allocs.bufView),
+		),
 	})
 
 	type batchKey struct {
@@ -273,21 +269,11 @@ func renderSpriteSystem(
 		bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 			Label:  "Sprite.BindGroup",
 			Layout: cp.GetBindGroupLayout(1),
-			Entries: []wgpu.BindGroupEntry{
-				{
-					Binding:     0,
-					TextureView: key.Texture.TextureView,
-				},
-				{
-					Binding: 1,
-					Sampler: key.Texture.Sampler,
-				},
-				{
-					Binding: 2,
-					Buffer:  bufAlphaOnly,
-					Size:    wgpu.WholeSize,
-				},
-			},
+			Entries: Sequential(
+				BindingTextureView(key.Texture.TextureView),
+				BindingSampler(key.Texture.Sampler),
+				BindingBuffer(bufAlphaOnly),
+			),
 		})
 
 		defer bindGroup.Release()

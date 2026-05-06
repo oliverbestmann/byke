@@ -140,16 +140,10 @@ func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Textu
 	bindGroup := m.context.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Texture.MipMap.BindGroup",
 		Layout: pipeline.GetBindGroupLayout(0),
-		Entries: []wgpu.BindGroupEntry{
-			{
-				Binding:     0,
-				TextureView: inView,
-			},
-			{
-				Binding: 1,
-				Sampler: inSampler,
-			},
-		},
+		Entries: Sequential(
+			BindingTextureView(inView),
+			BindingSampler(inSampler),
+		),
 	})
 
 	defer bindGroup.Release()

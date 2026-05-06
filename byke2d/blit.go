@@ -54,30 +54,25 @@ func blitTexture(
 ) {
 	defer puffin.NewScope("byke2d.blitTexture").End()
 
+	sampler := wx.CachedSampler(ctx.Device, wgpu.SamplerDescriptor{
+		Label:         "Blit",
+		AddressModeU:  wgpu.AddressModeClampToEdge,
+		AddressModeV:  wgpu.AddressModeClampToEdge,
+		AddressModeW:  wgpu.AddressModeClampToEdge,
+		MagFilter:     wgpu.FilterModeNearest,
+		MinFilter:     wgpu.FilterModeNearest,
+		MipmapFilter:  wgpu.MipmapFilterModeNearest,
+		LodMinClamp:   0,
+		LodMaxClamp:   32,
+		MaxAnisotropy: 1,
+	})
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Blit",
 		Layout: pipeline.GetBindGroupLayout(0),
-		Entries: []wgpu.BindGroupEntry{
-			{
-				Binding:     0,
-				TextureView: sourceView,
-			},
-			{
-				Binding: 1,
-				Sampler: wx.CachedSampler(ctx.Device, wgpu.SamplerDescriptor{
-					Label:         "Blit",
-					AddressModeU:  wgpu.AddressModeClampToEdge,
-					AddressModeV:  wgpu.AddressModeClampToEdge,
-					AddressModeW:  wgpu.AddressModeClampToEdge,
-					MagFilter:     wgpu.FilterModeNearest,
-					MinFilter:     wgpu.FilterModeNearest,
-					MipmapFilter:  wgpu.MipmapFilterModeNearest,
-					LodMinClamp:   0,
-					LodMaxClamp:   32,
-					MaxAnisotropy: 1,
-				}),
-			},
-		},
+		Entries: Sequential(
+			BindingTextureView(sourceView),
+			BindingSampler(sampler),
+		),
 	})
 
 	defer bindGroup.Release()
