@@ -7,8 +7,8 @@ require (
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.4
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
-	github.com/oliverbestmann/pulse v0.0.0-20260505203707-9b17bdcf17fe
-	github.com/oliverbestmann/webgpu v1.29.1
+	github.com/oliverbestmann/pulse v0.0.0-20260507220745-5219b2019158
+	github.com/oliverbestmann/webgpu v1.29.2-0.20260507215031-337844f76148
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.39.0
 )
@@ -17,7 +17,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
-	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20250301202403-da16c1255728 // indirect
+	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20260406072232-3ac4aa2bb164 // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -35,13 +35,13 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/timandy/routine v1.1.6 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
-	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
-	golang.org/x/mobile v0.0.0-20260312152759-81488f6aeb60 // indirect
-	golang.org/x/mod v0.34.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
+	golang.org/x/mobile v0.0.0-20260410095206-2cfb76559b7b // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
-	golang.org/x/tools v0.43.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	golang.org/x/tools/cmd/godoc v0.1.0-deprecated // indirect
 	golang.org/x/tools/godoc v0.1.0-deprecated // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
