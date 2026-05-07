@@ -3,6 +3,7 @@ package byke2d
 import (
 	"bytes"
 	_ "embed"
+	"sync"
 
 	"github.com/go-text/typesetting/fontscan"
 	"github.com/go-text/typesetting/shaping"
@@ -16,7 +17,9 @@ var fontNormal []byte
 //go:embed fonts/NotoSansJP-VariableFont_wght.ttf
 var fontJapanese []byte
 
-var DefaultFont = Font{Faces: loadDefaultFont()}
+var DefaultFont = sync.OnceValue(func() Font {
+	return Font{Faces: loadDefaultFont()}
+})
 
 func loadDefaultFont() Faces {
 	fm := fontscan.NewFontMap(nil)

@@ -94,6 +94,12 @@ func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts WritePixelsOptions)
 	ctx.MipmapGenerator.Generate(t)
 }
 
+func (t *Texture) Release() {
+	t.Sampler.Release()
+	t.TextureView.Release()
+	t.Texture.Release()
+}
+
 type NewTextureOptions struct {
 	SamplerConfig
 	Label  string

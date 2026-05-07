@@ -13,6 +13,7 @@ import (
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
 	"github.com/oliverbestmann/pulse/wx"
+	"github.com/pkg/profile"
 )
 
 //go:embed assets
@@ -23,6 +24,8 @@ func main() {
 		AddSource: true,
 		Level:     slog.LevelDebug,
 	})
+
+	defer profile.Start(profile.MemProfileRate(512)).Stop()
 
 	slog.SetDefault(slog.New(handler))
 
@@ -42,7 +45,15 @@ func main() {
 	app.AddSystems(Update, System(liftSystem).RunIf(KeyIsPressed(vyn.KeyL)))
 	app.AddSystems(Update, System(temperatureSystem).RunIf(KeyIsPressed(vyn.KeyU)))
 
+	app.AddSystems(Update, exitSystem)
+
 	app.MustRun()
+}
+
+func exitSystem(vt VirtualTime, exit *MessageWriter[AppExit]) {
+	if vt.Frames == 1024 {
+		exit.Write(AppExitSuccess)
+	}
 }
 
 func setupSystem(commands *Commands, assets *Assets) {

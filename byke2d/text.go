@@ -41,7 +41,7 @@ func (Text) RequireComponents() []spoke.ErasedComponent {
 		NewTransform(),
 		InheritVisibility,
 		AnchorCenter,
-		DefaultFont,
+		DefaultFont(),
 	}
 }
 
