@@ -8,13 +8,19 @@ import (
 )
 
 func init() {
+	waitForClient := isTrue(os.Getenv("PUFFIN_WAIT"))
+
 	if addr := os.Getenv("PUFFIN_ADDR"); addr != "" {
-		puffin.Enable(addr)
+		puffin.Enable(addr, waitForClient)
 		return
 	}
 
 	enabled := os.Getenv("PUFFIN_ENABLE")
-	if enabled == "1" || strings.ToLower(enabled) == "true" {
-		puffin.Enable("127.0.0.1:8585")
+	if isTrue(enabled) {
+		puffin.Enable("127.0.0.1:8585", waitForClient)
 	}
+}
+
+func isTrue(value string) bool {
+	return value == "1" || strings.ToLower(value) == "true"
 }

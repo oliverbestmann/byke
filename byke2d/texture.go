@@ -166,8 +166,6 @@ func NewTexture(ctx *RenderContext, opts NewTextureOptions) *Texture {
 // NewTextureFromDesc gives you full control and creates a texture directly from
 // a texture descriptor
 func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wgpu.TextureDescriptor) *Texture {
-	defer puffin.NewScope("byke2d.NewTextureFromDesc").End()
-
 	texture := ctx.CreateTexture(desc)
 
 	// now create a default texture view
