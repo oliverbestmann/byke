@@ -7,7 +7,7 @@ require (
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.4
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
-	github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678
+	github.com/oliverbestmann/puffin-go v1.0.0
 	github.com/oliverbestmann/pulse v0.0.0-20260509201516-49030319e388
 	github.com/oliverbestmann/webgpu v1.30.2
 	github.com/pkg/profile v1.7.0

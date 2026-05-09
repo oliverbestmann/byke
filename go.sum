@@ -52,6 +52,10 @@ github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80/go.mod h1:imJHygn/1
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
 github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678 h1:G/GCogFVTic5WL/YzOeykPNLQ7x26HpeEdkG8eMG/WU=
 github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
+github.com/oliverbestmann/puffin-go v0.0.0-20260509205330-d5ffc271b33b h1:1J1cqWs6NkySFQzBDyZGMKJyya2T/Fq2J1mOxP5hJm8=
+github.com/oliverbestmann/puffin-go v0.0.0-20260509205330-d5ffc271b33b/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
+github.com/oliverbestmann/puffin-go v1.0.0 h1:8Aqa/u7SCot/yTMaVnMwzgWE6VEYgmWUdXG3Y991quA=
+github.com/oliverbestmann/puffin-go v1.0.0/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
 github.com/oliverbestmann/pulse v0.0.0-20260507220745-5219b2019158 h1:K1gST5tr72q69alCc2Iww2Fx1gXT/36nbYyvQJTwH7Q=
 github.com/oliverbestmann/pulse v0.0.0-20260507220745-5219b2019158/go.mod h1:UaKDHJb5ZFX6RTRklnOllbfG15/hy1gmC7nnixUtrRU=
 github.com/oliverbestmann/pulse v0.0.0-20260509182619-5148bd650ba7 h1:aDjqPTPpDbDcQ+dW7MnbaQUMfqAfSE+ErWurB++BAqc=
