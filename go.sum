@@ -54,8 +54,12 @@ github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678 h1:G/GCog
 github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
 github.com/oliverbestmann/pulse v0.0.0-20260507220745-5219b2019158 h1:K1gST5tr72q69alCc2Iww2Fx1gXT/36nbYyvQJTwH7Q=
 github.com/oliverbestmann/pulse v0.0.0-20260507220745-5219b2019158/go.mod h1:UaKDHJb5ZFX6RTRklnOllbfG15/hy1gmC7nnixUtrRU=
+github.com/oliverbestmann/pulse v0.0.0-20260509182619-5148bd650ba7 h1:aDjqPTPpDbDcQ+dW7MnbaQUMfqAfSE+ErWurB++BAqc=
+github.com/oliverbestmann/pulse v0.0.0-20260509182619-5148bd650ba7/go.mod h1:zJMp02s9jttMPj5Hl+c91d1TyZ70Rc3fKCozvzH8YHk=
 github.com/oliverbestmann/webgpu v1.30.0 h1:aqq4V8+b3ORmzU/LteZ3arJ6s/CZExWQtQhqyZuie7Y=
 github.com/oliverbestmann/webgpu v1.30.0/go.mod h1:pQ2kXthpbcJRpygGQ7nw43FDfGHQ6CjdqMJ/JJatfsg=
+github.com/oliverbestmann/webgpu v1.30.1 h1:8NhpWc+dl/gcHQ81etPHm+fsEAjZgKthZ9i+aAx9EZQ=
+github.com/oliverbestmann/webgpu v1.30.1/go.mod h1:pQ2kXthpbcJRpygGQ7nw43FDfGHQ6CjdqMJ/JJatfsg=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15 h1:HPxVSV8C8JaxGfa9hjDhzNmryoqPF3EwESBTFWpxNBo=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15/go.mod h1:tczQXCdsoFy+FTJVsZSve/vF8cmWEkxhvjcyY2Rujp8=
 github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260509160802-b09403b07cd3 h1:NbBG2+pwqKcNfKUKtjWOj+02RkXSUWVkxY3hqzgyjSA=

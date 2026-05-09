@@ -8,8 +8,8 @@ require (
 	github.com/go-text/typesetting v0.3.4
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/oliverbestmann/puffin-go v0.0.0-20260502191059-83da0adac678
-	github.com/oliverbestmann/pulse v0.0.0-20260507220745-5219b2019158
-	github.com/oliverbestmann/webgpu v1.30.0
+	github.com/oliverbestmann/pulse v0.0.0-20260509182619-5148bd650ba7
+	github.com/oliverbestmann/webgpu v1.30.1
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.40.0
