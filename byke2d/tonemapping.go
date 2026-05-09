@@ -305,6 +305,7 @@ func tonemappingSystem(
 	pp := camera.ViewTarget.PostProcess()
 
 	cg := camera.ColorGrading.Value
+
 	pipeline := pipelines.Specialize(tonemappingPipelineConfig{
 		TargetFormat:          camera.ViewTarget.Format,
 		Tonemapping:           camera.Tonemapping.OrZero(),
@@ -327,7 +328,7 @@ func tonemappingSystem(
 		MaxAnisotropy: 1,
 	})
 
-	uniforms.Write(cg)
+	uniforms.Write(ctx, cg)
 
 	bindGroupEntries := []wgpu.BindGroupEntry{
 		uniforms.Binding(),

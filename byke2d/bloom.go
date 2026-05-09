@@ -2,15 +2,12 @@ package byke2d
 
 import (
 	_ "embed"
-	"errors"
 	"fmt"
 	"math"
 	"math/bits"
-	"reflect"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/pre"
-	"github.com/oliverbestmann/byke/internal/refl"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
@@ -170,7 +167,7 @@ func applyBloomSystem(
 
 	bloomTexture := bloomGetTexture(commands, textureCache, bv, camera.ViewTarget.Size)
 
-	uniforms.Write(bloomUniforms{
+	uniforms.Write(ctx, bloomUniforms{
 		Viewport: glm.Vec4f{0, 0, 1, 1},
 		Scale:    bv.Bloom.Scale,
 		Aspect:   camera.ViewTarget.Size[0] / camera.ViewTarget.Size[1],
@@ -375,8 +372,7 @@ type WGPUComponent[C byke.IsComponent[C]] interface {
 }
 
 type ComponentUniforms[C WGPUComponent[C]] struct {
-	_   byke.NoCopy
-	ctx *RenderContext
+	_ byke.NoCopy
 
 	value C
 
@@ -388,7 +384,7 @@ func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
 	return BindingBufferSize(c.buffer, 0, uint64(c.bufferSize))
 }
 
-func (c *ComponentUniforms[C]) Write(value C) {
+func (c *ComponentUniforms[C]) Write(ctx *RenderContext, value C) {
 	if c.value == value && c.buffer != nil {
 		return
 	}
@@ -396,7 +392,7 @@ func (c *ComponentUniforms[C]) Write(value C) {
 	bytes := value.ToWGPU()
 	if c.bufferSize >= len(bytes) {
 		// re-use buffer, just update
-		c.ctx.WriteBuffer(c.buffer, 0, bytes)
+		ctx.WriteBuffer(c.buffer, 0, bytes)
 		return
 	}
 
@@ -409,53 +405,9 @@ func (c *ComponentUniforms[C]) Write(value C) {
 	c.bufferSize = len(bytes)
 
 	// allocate new buffer
-	c.buffer = c.ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+	c.buffer = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
 		Label:    fmt.Sprintf("Uniform Buffer %T", value),
 		Contents: bytes,
 		Usage:    wgpu.BufferUsageUniform | wgpu.BufferUsageCopyDst,
 	})
-}
-
-func (*ComponentUniforms[C]) newState(world *byke.World, _ uniformsT) byke.SystemParamState {
-	return &componentUniformsSystemParamState[C]{World: world}
-}
-
-type uniformsT interface {
-	newState(world *byke.World, _ uniformsT) byke.SystemParamState
-}
-
-func makeComponentUniformsSystemParamState(world *byke.World, pType reflect.Type) byke.SystemParamState {
-	if !refl.ImplementsInterfaceDirectly[uniformsT](pType) {
-		return nil
-	}
-
-	// pType is *ComponentUniforms[C]
-	p := reflect.New(pType.Elem()).Interface().(uniformsT)
-	return p.newState(world, p)
-}
-
-type componentUniformsSystemParamState[C WGPUComponent[C]] struct {
-	World    *byke.World
-	instance reflect.Value
-}
-
-func (p *componentUniformsSystemParamState[C]) GetValue(byke.SystemContext) (reflect.Value, error) {
-	if !p.instance.IsValid() {
-		ctx, ok := byke.ResourceOf[RenderContext](p.World)
-		if !ok {
-			return reflect.Value{}, errors.New("no RenderContext in World")
-		}
-
-		uniforms := &ComponentUniforms[C]{ctx: ctx}
-		p.instance = reflect.ValueOf(uniforms)
-	}
-
-	return p.instance, nil
-}
-
-func (p *componentUniformsSystemParamState[C]) ValueType() reflect.Type {
-	return reflect.TypeFor[*ComponentUniforms[C]]()
-}
-
-func (p *componentUniformsSystemParamState[C]) CleanupValue() {
 }

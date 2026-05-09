@@ -32,8 +32,6 @@ var (
 )
 
 func RenderPlugin(app *byke.App) {
-	app.AddMakeSystemParam(makeComponentUniformsSystemParamState)
-
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
 	if !ok {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
@@ -49,7 +47,11 @@ func RenderPlugin(app *byke.App) {
 
 	app.InsertResource(byke.InitFromWorld[Pipelines[blitConfig]]())
 	app.InsertResource(byke.InitFromWorld[Pipelines[renderSpritePipelineConfig]]())
+
+	app.InsertResource(ComponentUniforms[bloomUniforms]{})
 	app.InsertResource(byke.InitFromWorld[Pipelines[bloomPipelineConfig]]())
+
+	app.InsertResource(ComponentUniforms[ColorGrading]{})
 	app.InsertResource(byke.InitFromWorld[Pipelines[tonemappingPipelineConfig]]())
 
 	// input resources
