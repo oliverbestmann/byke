@@ -225,17 +225,14 @@ func bloomUpsample(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeli
 }
 
 func bloomPrepareRenderPass(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeline, source, target *wgpu.TextureView, uniforms *ComponentUniforms[bloomUniforms], label string, loadOp wgpu.LoadOp) (*wgpu.RenderPassEncoder, *wgpu.BindGroup) {
-	bloomSampler := wx.CachedSampler(ctx.Device, wgpu.SamplerDescriptor{
-		Label:         "Bloom Sampler",
-		AddressModeU:  wgpu.AddressModeClampToEdge,
-		AddressModeV:  wgpu.AddressModeClampToEdge,
-		AddressModeW:  wgpu.AddressModeClampToEdge,
-		MagFilter:     wgpu.FilterModeLinear,
-		MinFilter:     wgpu.FilterModeLinear,
-		MipmapFilter:  wgpu.MipmapFilterModeLinear,
-		LodMinClamp:   0,
-		LodMaxClamp:   32,
-		MaxAnisotropy: 1,
+	bloomSampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        "Bloom Sampler",
+		AddressModeU: wgpu.AddressModeClampToEdge,
+		AddressModeV: wgpu.AddressModeClampToEdge,
+		AddressModeW: wgpu.AddressModeClampToEdge,
+		MagFilter:    wgpu.FilterModeLinear,
+		MinFilter:    wgpu.FilterModeLinear,
+		MipmapFilter: wgpu.MipmapFilterModeLinear,
 	})
 
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{

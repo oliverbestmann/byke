@@ -10,7 +10,6 @@ import (
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -138,7 +137,7 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 	commands.Spawn(
 		RenderLayersOf(1),
 		Camera{},
-		ClearColor{Color: wx.ColorBlack},
+		ClearColor{Color: ColorBlack},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 360},
@@ -177,7 +176,7 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 			Velocity{Vec2f: glm.Vec2f{vx, vy}},
 			Sprite{
 				Texture:    asset,
-				Color:      wx.ColorSRGBA(1, 1, 1, alpha),
+				Color:      ColorSRGBA(1, 1, 1, alpha),
 				CustomSize: Some(glm.Vec2f{size, size}),
 			},
 		)

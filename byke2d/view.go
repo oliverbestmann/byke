@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	"github.com/oliverbestmann/pulse/glm"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -77,7 +76,7 @@ type ViewTargetAttachment struct {
 	SampledView *wgpu.TextureView
 
 	// The clear color of this attachment
-	ClearColor wx.Color
+	ClearColor Color
 
 	hasContent bool
 }
@@ -116,7 +115,7 @@ func (v *ViewTargetAttachment) attachment(view *wgpu.TextureView) wgpu.RenderPas
 	}
 }
 
-func colorToWGPU(c wx.Color) wgpu.Color {
+func colorToWGPU(c Color) wgpu.Color {
 	r, g, b, a := c.Components()
 
 	return wgpu.Color{
@@ -127,7 +126,7 @@ func colorToWGPU(c wx.Color) wgpu.Color {
 	}
 }
 
-func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurfaceValues, renderTarget RenderTarget, clearColor wx.Color, hdr, msaa bool) (*ViewTarget, bool) {
+func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurfaceValues, renderTarget RenderTarget, clearColor Color, hdr, msaa bool) (*ViewTarget, bool) {
 	// hdr -> use float16 texture
 	var format wgpu.TextureFormat
 

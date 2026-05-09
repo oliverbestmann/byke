@@ -28,7 +28,7 @@ type Sprite struct {
 	CustomSize Optional[glm.Vec2f]
 
 	// A color tint for this sprite.
-	Color wx.Color
+	Color Color
 
 	// flips the sprite during rendering.
 	FlipX, FlipY bool
@@ -341,7 +341,7 @@ func renderSpriteSystem(
 
 		// display the full image by default
 		textureSize := sprite.Sprite.Texture.Size()
-		rect := wx.RectangleFromPoints(glm.Vec2f{}, textureSize)
+		rect := glm.RectFromPoints(glm.Vec2f{}, textureSize)
 
 		// but apply texture atlas if available
 		if ta, ok := sprite.TextureAtlas.Get(); ok {

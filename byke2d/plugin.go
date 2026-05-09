@@ -208,7 +208,7 @@ type InputState struct {
 
 type ClearColor struct {
 	byke.ComparableComponent[ClearColor]
-	wx.Color
+	Color
 }
 
 type surfaceConfigState struct {

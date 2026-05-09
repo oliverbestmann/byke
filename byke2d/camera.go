@@ -4,7 +4,6 @@ import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/pulse/glm"
-	"github.com/oliverbestmann/pulse/wx"
 )
 
 var _ = byke.ValidateComponent[Camera]()
@@ -31,7 +30,7 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 		PrimaryWindowRenderTarget,
 		renderLayerZero,
 		ClearColor{
-			Color: wx.ColorSRGBA(0.2, 0.2, 0.3, 1.0),
+			Color: ColorSRGBA(0.2, 0.2, 0.3, 1.0),
 		},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},

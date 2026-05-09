@@ -5,7 +5,6 @@ import (
 	"math/bits"
 
 	"github.com/oliverbestmann/puffin-go"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -94,17 +93,14 @@ func (m *mipmapGenerator) Generate(texture *Texture) {
 }
 
 func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Texture, level uint32) {
-	inSampler := wx.CachedSampler(m.context.Device, wgpu.SamplerDescriptor{
-		Label:         "Texture.MipMap.Sampler",
-		AddressModeU:  wgpu.AddressModeClampToEdge,
-		AddressModeV:  wgpu.AddressModeClampToEdge,
-		AddressModeW:  wgpu.AddressModeClampToEdge,
-		MagFilter:     wgpu.FilterModeLinear,
-		MinFilter:     wgpu.FilterModeLinear,
-		MipmapFilter:  wgpu.MipmapFilterModeNearest,
-		LodMinClamp:   0,
-		LodMaxClamp:   32,
-		MaxAnisotropy: 1,
+	inSampler := m.context.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        "Texture.MipMap.Sampler",
+		AddressModeU: wgpu.AddressModeClampToEdge,
+		AddressModeV: wgpu.AddressModeClampToEdge,
+		AddressModeW: wgpu.AddressModeClampToEdge,
+		MagFilter:    wgpu.FilterModeLinear,
+		MinFilter:    wgpu.FilterModeLinear,
+		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
 
 	inView := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{

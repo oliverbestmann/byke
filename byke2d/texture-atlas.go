@@ -3,7 +3,6 @@ package byke2d
 import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/pulse/glm"
-	"github.com/oliverbestmann/pulse/wx"
 )
 
 type TextureAtlas struct {
@@ -23,18 +22,18 @@ func (t TextureAtlas) IsValid() bool {
 	return t.Wrapping || (t.Index >= 0 && t.Index < len(t.Layout))
 }
 
-func (t TextureAtlas) Current() (wx.Rectangle2u, bool) {
+func (t TextureAtlas) Current() (glm.Rect2u, bool) {
 	if !t.IsValid() {
-		return wx.Rectangle2u{}, false
+		return glm.Rect2u{}, false
 	}
 
 	rect := t.Layout[t.Index%len(t.Layout)]
 	return rect, true
 }
 
-type TextureAtlasLayout []wx.Rectangle2u
+type TextureAtlasLayout []glm.Rect2u
 
-func TextureAtlasLayoutFromRect(rect wx.Rectangle2u) TextureAtlasLayout {
+func TextureAtlasLayoutFromRect(rect glm.Rect2u) TextureAtlasLayout {
 	return TextureAtlasLayout{rect}
 }
 
@@ -98,7 +97,7 @@ func TextureAtlasLayoutFromGrid(opts GridOptions) TextureAtlasLayout {
 		x1 := x0 + opts.Width
 		y1 := y0 + opts.Height
 
-		layout = append(layout, wx.RectangleFromPoints(
+		layout = append(layout, glm.RectFromPoints(
 			glm.Vec2u{uint32(x0), uint32(y0)},
 			glm.Vec2u{uint32(x1), uint32(y1)},
 		))

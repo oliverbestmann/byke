@@ -8,7 +8,6 @@ import (
 
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -35,7 +34,7 @@ func (t *Texture) Height() uint32 {
 }
 
 func (t *Texture) WritePixels(ctx *RenderContext, pixels []byte) {
-	rect := wx.RectangleFromXYWH(0, 0, t.Width(), t.Height())
+	rect := glm.RectFromXYWH(0, 0, t.Width(), t.Height())
 
 	t.WritePixelsToRect(ctx, WritePixelsOptions{
 		Pixels: pixels,
@@ -45,7 +44,7 @@ func (t *Texture) WritePixels(ctx *RenderContext, pixels []byte) {
 
 type WritePixelsOptions struct {
 	Pixels   []byte
-	Region   wx.Rectangle2u
+	Region   glm.Rect2u
 	Stride   uint32
 	MipLevel uint32
 }
@@ -53,7 +52,7 @@ type WritePixelsOptions struct {
 func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts WritePixelsOptions) {
 	defer puffin.NewScope("texture.WritePixels").End()
 
-	region := wx.RectangleFromXYWH(0, 0, t.Width(), t.Height())
+	region := glm.RectFromXYWH(0, 0, t.Width(), t.Height())
 
 	// fail if not in rect
 	if !region.Contains(opts.Region) {
@@ -186,17 +185,14 @@ func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wg
 	sampleConfig.fillValues()
 
 	// and the default sampler for this texture
-	sampler := ctx.CreateSampler(&wgpu.SamplerDescriptor{
-		Label:         desc.Label + ".Sampler",
-		AddressModeU:  sampleConfig.AddressModeU,
-		AddressModeV:  sampleConfig.AddressModeV,
-		AddressModeW:  sampleConfig.AddressModeW,
-		MagFilter:     sampleConfig.FilterMode,
-		MinFilter:     sampleConfig.FilterMode,
-		MipmapFilter:  wgpu.MipmapFilterModeLinear,
-		LodMinClamp:   0,
-		LodMaxClamp:   32,
-		MaxAnisotropy: 1,
+	sampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        desc.Label + ".Sampler",
+		AddressModeU: sampleConfig.AddressModeU,
+		AddressModeV: sampleConfig.AddressModeV,
+		AddressModeW: sampleConfig.AddressModeW,
+		MagFilter:    sampleConfig.FilterMode,
+		MinFilter:    sampleConfig.FilterMode,
+		MipmapFilter: wgpu.MipmapFilterModeLinear,
 	})
 
 	t := &Texture{

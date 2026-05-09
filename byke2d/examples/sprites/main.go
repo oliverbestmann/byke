@@ -9,7 +9,6 @@ import (
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
-	"github.com/oliverbestmann/pulse/wx"
 )
 
 //go:embed assets
@@ -55,12 +54,12 @@ func setupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		Sprite{Texture: asset, Color: wx.ColorSRGBA(1, 0, 0, 0.5)},
+		Sprite{Texture: asset, Color: ColorSRGBA(1, 0, 0, 0.5)},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
-		Sprite{Texture: asset, Color: wx.ColorSRGBA(0, 1, 0, 0.5)},
+		Sprite{Texture: asset, Color: ColorSRGBA(0, 1, 0, 0.5)},
 		AnchorTopRight,
 	)
 }

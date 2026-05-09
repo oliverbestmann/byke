@@ -18,7 +18,6 @@ import (
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 	"golang.org/x/image/math/fixed"
 )
@@ -33,7 +32,7 @@ type Text struct {
 	byke.ComparableComponent[Text]
 	Text  string
 	Size  float32
-	Color wx.Color
+	Color Color
 }
 
 func (Text) RequireComponents() []spoke.ErasedComponent {
@@ -308,7 +307,7 @@ func cacheGlyphs(ctx *RenderContext, fontSize float32, input shaping.Input, outp
 
 type GlyphTexture struct {
 	Texture   *Texture
-	Rectangle wx.Rectangle2u
+	Rectangle glm.Rect2u
 	Offset    glm.Vec2f
 }
 

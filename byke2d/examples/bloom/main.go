@@ -12,7 +12,6 @@ import (
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/pkg/profile"
 )
 
@@ -72,7 +71,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Sprite{
 			Texture: asset,
-			Color:   wx.ColorSRGBA(1, 1, 1, 1),
+			Color:   ColorSRGBA(1, 1, 1, 1),
 		},
 	)
 }
@@ -82,7 +81,7 @@ func scaleColorSystem(vt VirtualTime, query Query[struct {
 }]) {
 	for item := range query.Items() {
 		c := float32((math.Sin(vt.Elapsed.Seconds())+1.0)*3.0 + 1.0)
-		item.Sprite.Color = wx.ColorSRGBA(c, c, c, 1)
+		item.Sprite.Color = ColorSRGBA(c, c, c, 1)
 	}
 }
 

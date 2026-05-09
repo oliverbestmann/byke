@@ -4,7 +4,6 @@ import (
 	_ "embed"
 
 	"github.com/oliverbestmann/puffin-go"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -54,17 +53,14 @@ func blitTexture(
 ) {
 	defer puffin.NewScope("byke2d.blitTexture").End()
 
-	sampler := wx.CachedSampler(ctx.Device, wgpu.SamplerDescriptor{
-		Label:         "Blit",
-		AddressModeU:  wgpu.AddressModeClampToEdge,
-		AddressModeV:  wgpu.AddressModeClampToEdge,
-		AddressModeW:  wgpu.AddressModeClampToEdge,
-		MagFilter:     wgpu.FilterModeNearest,
-		MinFilter:     wgpu.FilterModeNearest,
-		MipmapFilter:  wgpu.MipmapFilterModeNearest,
-		LodMinClamp:   0,
-		LodMaxClamp:   32,
-		MaxAnisotropy: 1,
+	sampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        "Blit",
+		AddressModeU: wgpu.AddressModeClampToEdge,
+		AddressModeV: wgpu.AddressModeClampToEdge,
+		AddressModeW: wgpu.AddressModeClampToEdge,
+		MagFilter:    wgpu.FilterModeNearest,
+		MinFilter:    wgpu.FilterModeNearest,
+		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Blit",

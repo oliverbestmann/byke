@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"github.com/oliverbestmann/puffin-go"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -86,17 +85,14 @@ func (t *TonemappingLutTextures) get(ctx *RenderContext, tex **LutTexture, label
 	data = t.decompress(data)
 	ctx.WriteTexture(copyInfo, data, layout, &size)
 
-	sampler := wx.CachedSampler(ctx.Device, wgpu.SamplerDescriptor{
-		Label:         label,
-		AddressModeU:  wgpu.AddressModeClampToEdge,
-		AddressModeV:  wgpu.AddressModeClampToEdge,
-		AddressModeW:  wgpu.AddressModeClampToEdge,
-		MagFilter:     wgpu.FilterModeLinear,
-		MinFilter:     wgpu.FilterModeLinear,
-		MipmapFilter:  wgpu.MipmapFilterModeLinear,
-		LodMinClamp:   0,
-		LodMaxClamp:   32,
-		MaxAnisotropy: 1,
+	sampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        label,
+		AddressModeU: wgpu.AddressModeClampToEdge,
+		AddressModeV: wgpu.AddressModeClampToEdge,
+		AddressModeW: wgpu.AddressModeClampToEdge,
+		MagFilter:    wgpu.FilterModeLinear,
+		MinFilter:    wgpu.FilterModeLinear,
+		MipmapFilter: wgpu.MipmapFilterModeLinear,
 	})
 
 	*tex = &LutTexture{

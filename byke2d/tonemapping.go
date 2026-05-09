@@ -315,17 +315,14 @@ func tonemappingSystem(
 		SectionalColorGrading: cg.HasSectionalColorGrading(),
 	})
 
-	sampler := wx.CachedSampler(ctx.Device, wgpu.SamplerDescriptor{
-		Label:         "Tonemapping",
-		AddressModeU:  wgpu.AddressModeClampToEdge,
-		AddressModeV:  wgpu.AddressModeClampToEdge,
-		AddressModeW:  wgpu.AddressModeClampToEdge,
-		MagFilter:     wgpu.FilterModeNearest,
-		MinFilter:     wgpu.FilterModeNearest,
-		MipmapFilter:  wgpu.MipmapFilterModeNearest,
-		LodMinClamp:   0,
-		LodMaxClamp:   32,
-		MaxAnisotropy: 1,
+	sampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        "Tonemapping",
+		AddressModeU: wgpu.AddressModeClampToEdge,
+		AddressModeV: wgpu.AddressModeClampToEdge,
+		AddressModeW: wgpu.AddressModeClampToEdge,
+		MagFilter:    wgpu.FilterModeNearest,
+		MinFilter:    wgpu.FilterModeNearest,
+		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
 
 	uniforms.Write(ctx, cg)

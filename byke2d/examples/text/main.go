@@ -8,7 +8,6 @@ import (
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
-	"github.com/oliverbestmann/pulse/wx"
 )
 
 //go:embed assets
@@ -47,7 +46,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		UpdateTextMarker{},
 		Text{
 			Size:  48.0,
-			Color: wx.ColorSRGBA(1, 1, 1, 1.0),
+			Color: ColorSRGBA(1, 1, 1, 1.0),
 		},
 	)
 
@@ -56,7 +55,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		AnchorTopLeft,
 		Text{
 			Size:  24.0,
-			Color: wx.ColorSRGBA(1, 0.75, 0.65, 1.0),
+			Color: ColorSRGBA(1, 0.75, 0.65, 1.0),
 			Text:  "This is some\nMultiline text.\nDepending on the font, we also have ligatures\ni.e. compare fi to f i.",
 		},
 	)
@@ -66,7 +65,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		AnchorTopRight,
 		Text{
 			Size:  24.0,
-			Color: wx.ColorSRGBA(1, 0.75, 0.65, 1.0),
+			Color: ColorSRGBA(1, 0.75, 0.65, 1.0),
 			Text:  "Hello すべての world",
 		},
 	)
