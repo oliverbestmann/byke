@@ -5,6 +5,8 @@ import (
 	"github.com/oliverbestmann/pulse/glm"
 )
 
+var _ = byke.ValidateComponent[TextureAtlas]()
+
 type TextureAtlas struct {
 	byke.Component[TextureAtlas]
 	Layout TextureAtlasLayout

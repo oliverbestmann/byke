@@ -2,6 +2,8 @@ package byke2d
 
 import "github.com/oliverbestmann/byke"
 
+var _ = byke.ValidateComponent[RenderLayers]()
+
 var renderLayerZero = RenderLayersOf(0)
 
 type RenderLayers struct {

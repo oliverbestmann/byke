@@ -24,6 +24,7 @@ import (
 
 var _ = byke.ValidateComponent[Text]()
 var _ = byke.ValidateComponent[Font]()
+var _ = byke.ValidateComponent[Glyph]()
 
 var sharedShaper shaping.HarfbuzzShaper
 var sharedSegmenter shaping.Segmenter

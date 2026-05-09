@@ -6,6 +6,9 @@ import (
 	"github.com/oliverbestmann/pulse/glm"
 )
 
+var _ = byke.ValidateComponent[Transform]()
+var _ = byke.ValidateComponent[GlobalTransform]()
+
 type Transform struct {
 	byke.ComparableComponent[Transform]
 	Translation glm.Vec3f
@@ -75,7 +78,7 @@ func (t GlobalTransform) AsMat3f() glm.Mat3f {
 
 func (t GlobalTransform) Mul(other Transform) GlobalTransform {
 	affine := t.AsMat3f()
-	
+
 	// FIXME clean this up and do it correctly!
 	translation := affine.Transform(other.Translation.Truncate().Extend(1.0))
 

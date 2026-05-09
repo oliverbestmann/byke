@@ -13,6 +13,7 @@ import (
 )
 
 var _ = byke.ValidateComponent[Sprite]()
+var _ = byke.ValidateComponent[Anchor]()
 
 //go:embed sprite.wgsl
 var spritesShader string

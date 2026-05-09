@@ -1,7 +1,6 @@
 package spoke
 
 import (
-	"fmt"
 	"hash/maphash"
 	"log/slog"
 	"maps"
@@ -139,7 +138,10 @@ func nonComparableComponentTypeOf[C IsComponent[C]]() *ComponentType {
 	}
 
 	if typeHasPaddingBytes(reflectType) {
-		fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
+		slog.Warn(
+			"type contains padding bytes",
+			slog.String("type", reflectType.String()),
+		)
 	}
 
 	return ensureComponentType[C](ptrToType, makeNonComparableComponentType[C])
@@ -154,7 +156,10 @@ func makeComparableComponentTypeOf[C IsComparableComponent[C]]() *ComponentType 
 	}
 
 	if typeHasPaddingBytes(reflectType) {
-		fmt.Printf("[warn] type %s contains padding bytes\n", reflectType)
+		slog.Warn(
+			"type contains padding bytes",
+			slog.String("type", reflectType.String()),
+		)
 	}
 
 	return ensureComponentType[C](ptrToType, func(id ComponentTypeId) *ComponentType {

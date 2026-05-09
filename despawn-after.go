@@ -2,6 +2,8 @@ package byke
 
 import "time"
 
+var _ = ValidateComponent[DespawnWithDelay]()
+
 type DespawnWithDelay struct {
 	Component[DespawnWithDelay]
 	Timer Timer

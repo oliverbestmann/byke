@@ -17,6 +17,8 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+var _ = byke.ValidateComponent[ClearColor]()
+
 var TransformSystems = &byke.SystemSet{}
 var VisibilitySystems = &byke.SystemSet{}
 var AudioSystems = &byke.SystemSet{}

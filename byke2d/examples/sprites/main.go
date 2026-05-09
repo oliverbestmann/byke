@@ -14,14 +14,16 @@ import (
 //go:embed assets
 var assets embed.FS
 
-func main() {
+func init() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
 		Level:     slog.LevelDebug,
 	})
 
 	slog.SetDefault(slog.New(handler))
+}
 
+func main() {
 	var app App
 
 	// configure assets before loading the plugin

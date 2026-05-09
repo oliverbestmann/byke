@@ -2,6 +2,7 @@ package byke
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
 	"sync/atomic"
 
@@ -38,6 +39,8 @@ type World struct {
 // NewWorld creates a new empty world.
 // You probably want to use the App api instead.
 func NewWorld() *World {
+	flushComponentValidations()
+
 	defaultMakeSystemParams := makeSystemParams{
 		makeWorldSystemParamState,
 		makeCommandsSystemStateParam,
@@ -434,6 +437,11 @@ func (w *World) Despawn(entityId EntityId) {
 
 		entity, ok := w.storage.Get(entityId)
 		if !ok {
+			slog.Warn(
+				"cannot despawn entity: entity does not exist",
+				slog.Any("entityId", entityId),
+			)
+
 			fmt.Printf("[warn] cannot despawn entity %d: does not exist\n", entityId)
 			continue
 		}

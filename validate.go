@@ -3,9 +3,12 @@ package byke
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/oliverbestmann/byke/spoke"
+	"sync"
 )
+
+var pendingValidationsLock sync.Mutex
+var pendingValidationsCleared bool
+var pendingValidations []func()
 
 // ValidateComponent should be called to verify that the IsComponent interface is correctly implemented.
 //
@@ -16,13 +19,43 @@ import (
 //
 //	var _ = ValidateComponent[Position]()
 //
-// This identifies mistakes in the type passed to Component during compile time.
+// This identifies mistakes in the type passed to Component during compile time,
+// and some more mistake directly at startup.
 func ValidateComponent[C IsComponent[C]]() struct{} {
-	componentType := spoke.ComponentTypeOf[C]()
+	pendingValidationsLock.Lock()
+	defer pendingValidationsLock.Unlock()
 
-	var zero C
+	if pendingValidationsCleared {
+		panic("ValidateComponent must be called before NewWorld")
+	}
 
-	if parent, ok := any(zero).(isRelationshipTargetType); ok {
+	pendingValidations = append(pendingValidations, func() {
+		var cZero C
+		validateComponent(cZero)
+	})
+
+	return struct{}{}
+}
+
+func flushComponentValidations() {
+	pendingValidationsLock.Lock()
+	defer pendingValidationsLock.Unlock()
+
+	if pendingValidationsCleared {
+		return
+	}
+
+	for _, validate := range pendingValidations {
+		validate()
+	}
+
+	pendingValidationsCleared = true
+}
+
+func validateComponent(c ErasedComponent) {
+	componentType := c.ComponentType()
+
+	if parent, ok := componentType.New().(isRelationshipTargetType); ok {
 		// check if the child type points to us
 		childType := parent.RelationshipType()
 		instance := reflect.New(childType.Type).Elem().Interface()
@@ -43,7 +76,7 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 		}
 	}
 
-	if child, ok := any(zero).(isRelationshipComponent); ok {
+	if child, ok := componentType.New().(isRelationshipComponent); ok {
 		// check if the child type points to us
 		parentType := child.RelationshipTargetType()
 
@@ -63,8 +96,4 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 			))
 		}
 	}
-
-	// TODO mark component as valid somewhere, maybe calculate some
-	//  kind of component type id too
-	return struct{}{}
 }
