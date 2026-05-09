@@ -15,17 +15,17 @@ type blitConfig struct {
 	TargetFormat wgpu.TextureFormat
 }
 
-func (b blitConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
-	vertexState, primitiveState := prepareFullscreenShader(def)
+func (b blitConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
+	vertexState, primitiveState := prepareFullscreenShader(ctx)
 
-	modFragment := def.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
+	modFragment := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      "FullscreenShaderFragment",
 		WGSLSource: &wgpu.ShaderSourceWGSL{Code: blitShaderFragment},
 	})
 
 	defer modFragment.Release()
 
-	return def.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
+	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
 		Label:     "Blit",
 		Vertex:    vertexState,
 		Primitive: primitiveState,
@@ -49,7 +49,7 @@ func (b blitConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
 
 func blitTexture(
 	ctx *RenderContext,
-	pipeline wx.CachedPipeline,
+	pipeline Pipeline,
 	sourceView, targetView *wgpu.TextureView,
 ) {
 	defer puffin.NewScope("byke2d.blitTexture").End()
@@ -94,7 +94,7 @@ func blitTexture(
 	pass := enc.BeginRenderPass(desc)
 	defer pass.Release()
 
-	pass.SetPipeline(pipeline.Pipeline)
+	pass.SetPipeline(pipeline.Get())
 	pass.SetBindGroup(0, bindGroup, nil)
 	pass.Draw(3, 1, 0, 0)
 	pass.End()

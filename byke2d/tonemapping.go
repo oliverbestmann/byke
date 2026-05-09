@@ -227,7 +227,7 @@ type tonemappingPipelineConfig struct {
 	SectionalColorGrading bool
 }
 
-func (c tonemappingPipelineConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
+func (c tonemappingPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
 	var defs = pre.Values{}
 
 	switch c.Tonemapping {
@@ -260,14 +260,14 @@ func (c tonemappingPipelineConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipe
 		panic(err)
 	}
 
-	module := def.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
+	module := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      "Tonemapping",
 		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shaderSource},
 	})
 
-	vertexState, primitiveState := prepareFullscreenShader(def)
+	vertexState, primitiveState := prepareFullscreenShader(ctx)
 
-	return def.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
+	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
 		Label: "",
 		Fragment: &wgpu.FragmentState{
 			Module:     module,
@@ -371,7 +371,7 @@ func tonemappingSystem(
 		},
 	})
 
-	pass.SetPipeline(pipeline.Pipeline)
+	pass.SetPipeline(pipeline.Get())
 	pass.SetBindGroup(0, bindGroup, nil)
 	pass.Draw(3, 1, 0, 0)
 	pass.End()

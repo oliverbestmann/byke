@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -11,6 +12,12 @@ type TextureCache struct {
 	Context *RenderContext
 	used    []*Texture
 	unused  []*Texture
+}
+
+//goland:noinspection GoMixedReceiverTypes
+func (TextureCache) FromWorld(world *byke.World) TextureCache {
+	renderContext := byke.RequireResourceOf[RenderContext](world)
+	return TextureCache{Context: renderContext}
 }
 
 func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {

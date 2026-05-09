@@ -167,8 +167,13 @@ func loadAsync[T any](load func() (T, error)) *asyncAsset[T] {
 		defer func() {
 			// we got a panic, propagate to the error
 			if p := recover(); p != nil {
-				err := fmt.Errorf("loading asset panicked: %v", p)
-				asset.error.Store(&err)
+				if err, ok := p.(error); ok {
+					err := new(fmt.Errorf("loading asset panicked: %w", err))
+					asset.error.Store(err)
+				} else {
+					err := new(fmt.Errorf("loading asset panicked: %v", p))
+					asset.error.Store(err)
+				}
 			}
 		}()
 

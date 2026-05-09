@@ -17,12 +17,12 @@ func mipmapLevelCount(width, height uint32) uint32 {
 }
 
 type mipmapGenerator struct {
-	context *wx.Context
-	cache   *wx.PipelineCache[mipmapPipelineConfig]
+	cache   Pipelines[mipmapPipelineConfig]
+	context *RenderContext
 	module  *wgpu.ShaderModule
 }
 
-func makeMipmapGenerator(ctx *wx.Context) *mipmapGenerator {
+func makeMipmapGenerator(ctx *RenderContext) *mipmapGenerator {
 	module := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label: "Texture.MipMap.Shader",
 		WGSLSource: &wgpu.ShaderSourceWGSL{
@@ -32,7 +32,7 @@ func makeMipmapGenerator(ctx *wx.Context) *mipmapGenerator {
 
 	return &mipmapGenerator{
 		context: ctx,
-		cache:   wx.NewPipelineCache[mipmapPipelineConfig](ctx),
+		cache:   newPipelineCache[mipmapPipelineConfig](ctx),
 		module:  module,
 	}
 }
@@ -43,8 +43,8 @@ type mipmapPipelineConfig struct {
 	SampleCount uint32
 }
 
-func (m mipmapPipelineConfig) Specialize(def *wgpu.Device) *wgpu.RenderPipeline {
-	return def.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
+func (m mipmapPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
+	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
 		Label: "Texture.MipMap.Pipeline",
 		Vertex: wgpu.VertexState{
 			Module:     m.Module,
@@ -131,7 +131,7 @@ func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Textu
 
 	defer outView.Release()
 
-	pipeline := m.cache.Get(mipmapPipelineConfig{
+	pipeline := m.cache.Specialize(mipmapPipelineConfig{
 		Module:      m.module,
 		Format:      texture.Descriptor.Format,
 		SampleCount: texture.Descriptor.SampleCount,
@@ -161,7 +161,7 @@ func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Textu
 
 	defer pass.Release()
 
-	pass.SetPipeline(pipeline.Pipeline)
+	pass.SetPipeline(pipeline.Get())
 	pass.SetBindGroup(0, bindGroup, nil)
 	pass.Draw(6, 1, 0, 0)
 	pass.End()

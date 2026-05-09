@@ -576,8 +576,7 @@ type FromWorld[R FromWorld[R]] interface {
 func InitFromWorld[R FromWorld[R]]() any {
 	return initFromWorld(func(world *World) any {
 		var res R
-		res.FromWorld(world)
-		return res
+		return res.FromWorld(world)
 	})
 }
 

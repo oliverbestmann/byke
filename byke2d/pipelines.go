@@ -1,64 +1,91 @@
 package byke2d
 
 import (
-	"errors"
-	"reflect"
-
+	"github.com/hashicorp/golang-lru/v2"
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/internal/refl"
-	"github.com/oliverbestmann/pulse/wx"
+	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-type PipelineConfig = wx.PipelineConfig
+type PipelineConfig interface {
+	comparable
+	Specialize(ctx *RenderContext) *wgpu.RenderPipeline
+}
 
 type Pipelines[C PipelineConfig] struct {
-	cache *wx.PipelineCache[C]
+	renderContext *RenderContext
+	cache         *lru.Cache[C, Pipeline]
 }
 
-func (p Pipelines[C]) Specialize(config C) wx.CachedPipeline {
-	return p.cache.Get(config)
+func newPipelineCache[C PipelineConfig](renderContext *RenderContext) Pipelines[C] {
+	cache, _ := lru.NewWithEvict[C, Pipeline](32, releasePipelineOnEvict)
+
+	return Pipelines[C]{
+		renderContext: renderContext,
+		cache:         cache,
+	}
 }
 
-func (Pipelines[C]) newState(world *byke.World, _ pipelinesT) byke.SystemParamState {
-	return &pipelineCacheSystemParamState[C]{World: world}
+func (Pipelines[C]) FromWorld(world *byke.World) Pipelines[C] {
+	renderContext := byke.RequireResourceOf[RenderContext](world)
+	return newPipelineCache[C](renderContext)
 }
 
-type pipelinesT interface {
-	newState(world *byke.World, _ pipelinesT) byke.SystemParamState
-}
-
-func makePipelinesSystemParamState(world *byke.World, pType reflect.Type) byke.SystemParamState {
-	if !refl.ImplementsInterfaceDirectly[pipelinesT](pType) {
-		return nil
+func (p Pipelines[C]) Specialize(config C) Pipeline {
+	cached, ok := p.cache.Get(config)
+	if ok {
+		return cached
 	}
 
-	// pType is Pipelines[C]
-	p := reflect.New(pType).Elem().Interface().(pipelinesT)
-	return p.newState(world, p)
+	bglCache, _ := lru.NewWithEvict[uint32, *wgpu.BindGroupLayout](32, releaseBindGroupLayoutOnEvict)
+
+	pipeline := Pipeline{
+		pipeline:    config.Specialize(p.renderContext),
+		layoutCache: bglCache,
+	}
+
+	p.cache.Add(config, pipeline)
+
+	return pipeline
 }
 
-type pipelineCacheSystemParamState[C PipelineConfig] struct {
-	World    *byke.World
-	instance reflect.Value
+type Pipeline struct {
+	pipeline    *wgpu.RenderPipeline
+	layoutCache *lru.Cache[uint32, *wgpu.BindGroupLayout]
 }
 
-func (p *pipelineCacheSystemParamState[C]) GetValue(byke.SystemContext) (reflect.Value, error) {
-	if !p.instance.IsValid() {
-		ctx, ok := byke.ResourceOf[RenderContext](p.World)
-		if !ok {
-			return reflect.Value{}, errors.New("no RenderContext in World")
+// Get returns the actual WGPU pipeline.
+// You must NOT release the returned wgpu.RenderPipeline.
+func (pc *Pipeline) Get() *wgpu.RenderPipeline {
+	if !pc.pipeline.IsValid() {
+		panic("cached pipeline was released")
+	}
+
+	return pc.pipeline
+}
+
+// GetBindGroupLayout returns a cached bind group layout.
+// You must NOT release the returned wgpu.BindGroupLayout.
+func (pc *Pipeline) GetBindGroupLayout(idx uint32) *wgpu.BindGroupLayout {
+	bindGroup, ok := pc.layoutCache.Get(idx)
+	if ok {
+		if !bindGroup.IsValid() {
+			panic("cached bindGroup was released")
 		}
 
-		pipelines := Pipelines[C]{cache: wx.NewPipelineCache[C](ctx.Context)}
-		p.instance = reflect.ValueOf(pipelines)
+		return bindGroup
 	}
 
-	return p.instance, nil
+	bindGroup = pc.pipeline.GetBindGroupLayout(idx)
+	pc.layoutCache.Add(idx, bindGroup)
+
+	return bindGroup
 }
 
-func (p *pipelineCacheSystemParamState[C]) ValueType() reflect.Type {
-	return reflect.TypeFor[Pipelines[C]]()
+func releasePipelineOnEvict[C any](_ C, pipe Pipeline) {
+	pipe.layoutCache.Purge()
+	pipe.pipeline.Release()
 }
 
-func (p *pipelineCacheSystemParamState[C]) CleanupValue() {
+func releaseBindGroupLayoutOnEvict(_ uint32, ev *wgpu.BindGroupLayout) {
+	ev.Release()
 }

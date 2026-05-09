@@ -32,7 +32,6 @@ var (
 )
 
 func RenderPlugin(app *byke.App) {
-	app.AddMakeSystemParam(makePipelinesSystemParamState)
 	app.AddMakeSystemParam(makeComponentUniformsSystemParamState)
 
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
@@ -40,10 +39,18 @@ func RenderPlugin(app *byke.App) {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
 	}
 
+	app.InsertResource(RenderContext{})
 	app.InsertResource(DefaultWindowConfig())
 	app.InsertResource(DefaultSurfaceConfig())
-	app.InsertResource(surfaceConfigState{})
 	app.InsertResource(TonemappingLutTextures{})
+	app.InsertResource(surfaceConfigState{})
+
+	app.InsertResource(byke.InitFromWorld[TextureCache]())
+
+	app.InsertResource(byke.InitFromWorld[Pipelines[blitConfig]]())
+	app.InsertResource(byke.InitFromWorld[Pipelines[renderSpritePipelineConfig]]())
+	app.InsertResource(byke.InitFromWorld[Pipelines[bloomPipelineConfig]]())
+	app.InsertResource(byke.InitFromWorld[Pipelines[tonemappingPipelineConfig]]())
 
 	// input resources
 	app.InsertResource(Keys{})
@@ -158,10 +165,9 @@ func runWorld(world *byke.World) error {
 	dumpContextInfo(ctx)
 
 	world.InsertResource(PrimaryWindow{window: win})
-	world.InsertResource(buildRenderContext(ctx))
 
-	renderContext, _ := byke.ResourceOf[RenderContext](world)
-	world.InsertResource(TextureCache{Context: renderContext})
+	renderContext := byke.RequireResourceOf[RenderContext](world)
+	renderContext.init(ctx)
 
 	err = win.Run(func(state vyn.UpdateInputState) error {
 		return updateWorld(world, state)
@@ -173,13 +179,6 @@ func runWorld(world *byke.World) error {
 	}
 
 	return err
-}
-
-func buildRenderContext(ctx *wx.Context) RenderContext {
-	return RenderContext{
-		Context:         ctx,
-		MipmapGenerator: makeMipmapGenerator(ctx),
-	}
 }
 
 func dumpContextInfo(ctx *wx.Context) {

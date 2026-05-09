@@ -64,13 +64,13 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
-func (r renderSpritePipelineConfig) Specialize(dev *wgpu.Device) *wgpu.RenderPipeline {
-	module := dev.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
+func (r renderSpritePipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
+	module := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      "SpriteShaderModule",
 		WGSLSource: &wgpu.ShaderSourceWGSL{Code: spritesShader},
 	})
 
-	return dev.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
+	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
 		Label: "SpriteRenderPipeline",
 		Vertex: wgpu.VertexState{
 			Module:     module,
@@ -222,7 +222,7 @@ func renderSpriteSystem(
 		SampleCount: camera.ViewTarget.SampleCount,
 	}
 
-	cp := pipelines.Specialize(conf)
+	pipeline := pipelines.Specialize(conf)
 
 	vv := ViewValues{
 		Transform:   camera.Transform,
@@ -241,7 +241,7 @@ func renderSpriteSystem(
 	// bind ViewUniform
 	viewBindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Sprite.ViewUniform.BindGroup",
-		Layout: cp.GetBindGroupLayout(0),
+		Layout: pipeline.GetBindGroupLayout(0),
 		Entries: Sequential(
 			BindingBuffer(allocs.bufView),
 		),
@@ -268,7 +268,7 @@ func renderSpriteSystem(
 
 		bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 			Label:  "Sprite.BindGroup",
-			Layout: cp.GetBindGroupLayout(1),
+			Layout: pipeline.GetBindGroupLayout(1),
 			Entries: Sequential(
 				BindingTextureView(key.Texture.TextureView),
 				BindingSampler(key.Texture.Sampler),
@@ -286,7 +286,7 @@ func renderSpriteSystem(
 		})
 		defer pass.Release()
 
-		pass.SetPipeline(cp.Pipeline)
+		pass.SetPipeline(pipeline.Get())
 		pass.SetBindGroup(0, viewBindGroup, nil)
 		pass.SetBindGroup(1, bindGroup, nil)
 		pass.SetVertexBuffer(0, allocs.bufInstances, 0, uint64(len(bytesInstances)))
