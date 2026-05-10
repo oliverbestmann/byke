@@ -89,7 +89,7 @@ func RenderPlugin(app *byke.App) {
 		Chain().
 		InSet(TransformSystems))
 
-	app.AddSystems(byke.RenderMain, driveRenderScheduleSystem)
+	app.AddSystems(byke.RenderMain, renderMainSystem)
 
 	app.AddSystems(PreRender,
 		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
@@ -236,51 +236,11 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	surfaceWidth, surfaceHeight := win.window.GetSize()
 	ensureSurfaceConfigured(ctx, world, surfaceWidth, surfaceHeight)
 
-	// get the surface texture (the actual screen)
-	surface := func() *wgpu.Texture {
-		defer puffin.NewScope("surface.GetCurrentTexture").End()
-		return ctx.Surface.GetCurrentTexture()
-	}()
-
-	// The surface must only be released if it was not rendered to.
-	// To skip releasing the surface, we can set it to nil later.
-	defer func() {
-		if surface != nil {
-			surface.Release()
-		}
-	}()
-
 	// update input state in world
 	updateInputState(world, makeInputState)
 
-	// create a view we can render to
-	surfaceTextureView := surface.CreateView(&wgpu.TextureViewDescriptor{
-		Label:           "Surface",
-		Format:          surface.GetFormat(),
-		MipLevelCount:   1,
-		ArrayLayerCount: 1,
-		Aspect:          wgpu.TextureAspectAll,
-	})
-	defer surfaceTextureView.Release()
-
-	// store the target in the world for the renderer to access it
-	world.InsertResource(currentSurfaceValues{
-		Texture:     surface,
-		TextureView: surfaceTextureView,
-		Size:        glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)},
-	})
-
 	// update the game state by running all schedules
 	world.RunSchedule(byke.Main)
-
-	// present the current frame
-	puffin.Scoped("surface.Present", func() any {
-		ctx.Surface.Present()
-		return nil
-	})
-
-	// we do not need to release the surface texture if present was successful
-	surface = nil
 
 	// handle app exit by error
 	if exit, ok := byke.ResourceOf[appExitState](world); ok {
@@ -361,6 +321,57 @@ func readAppExitEventsSystem(c *byke.Commands, events *byke.MessageReader[AppExi
 
 type appExitState struct {
 	Error error
+}
+
+func renderMainSystem(
+	world *byke.World,
+	ctx *RenderContext,
+) {
+	// get the surface texture (the actual screen)
+	surface := func() *wgpu.Texture {
+		defer puffin.NewScope("surface.GetCurrentTexture").End()
+		return ctx.Surface.GetCurrentTexture()
+	}()
+
+	surfaceWidth := surface.GetWidth()
+	surfaceHeight := surface.GetHeight()
+
+	// The surface must only be released if it was not rendered to.
+	// To skip releasing the surface, we can set it to nil later.
+	defer func() {
+		if surface != nil {
+			surface.Release()
+		}
+	}()
+
+	// create a view we can render to
+	surfaceTextureView := surface.CreateView(&wgpu.TextureViewDescriptor{
+		Label:           "Surface",
+		MipLevelCount:   1,
+		ArrayLayerCount: 1,
+		Aspect:          wgpu.TextureAspectAll,
+	})
+	defer surfaceTextureView.Release()
+
+	// store the target in the world for the renderer to access it
+	world.InsertResource(currentSurfaceValues{
+		Texture:     surface,
+		TextureView: surfaceTextureView,
+		Size:        glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)},
+	})
+	defer world.RemoveResource(reflect.TypeFor[currentSurfaceValues]())
+
+	// drive the render schedule with this surface
+	world.RunSystem(driveRenderScheduleSystem)
+
+	// present the current frame
+	puffin.Scoped("surface.Present", func() any {
+		ctx.Surface.Present()
+		return nil
+	})
+
+	// we do not need to release the surface texture if present was successful
+	surface = nil
 }
 
 func driveRenderScheduleSystem(world *byke.World,
