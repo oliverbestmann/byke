@@ -19,18 +19,26 @@ import (
 
 var _ = byke.ValidateComponent[ClearColor]()
 
-var TransformSystems = &byke.SystemSet{}
-var VisibilitySystems = &byke.SystemSet{}
-var AudioSystems = &byke.SystemSet{}
-var DeriveSprites = &byke.SystemSet{}
-
-var RenderSystems = &byke.SystemSet{}
-var RenderPostProcessSystems = &byke.SystemSet{}
+var (
+	TransformSystems  = &byke.SystemSet{}
+	VisibilitySystems = &byke.SystemSet{}
+	AudioSystems      = &byke.SystemSet{}
+	DeriveSprites     = &byke.SystemSet{}
+)
 
 var (
 	PreRender  = byke.MakeScheduleId("PreRender")
 	Render     = byke.MakeScheduleId("Render")
 	PostRender = byke.MakeScheduleId("PostRender")
+)
+
+var (
+	RenderPhaseExtract               = &byke.SystemSet{}
+	RenderPhasePrepare               = &byke.SystemSet{}
+	RenderPhasePrepareResources      = &byke.SystemSet{}
+	RenderPhasePrepareBindGroups     = &byke.SystemSet{}
+	RenderPhaseExecute               = &byke.SystemSet{}
+	RenderPhaseExecutePostProcessing = &byke.SystemSet{}
 )
 
 func RenderPlugin(app *byke.App) {
@@ -91,24 +99,33 @@ func RenderPlugin(app *byke.App) {
 
 	app.AddSystems(byke.RenderMain, renderMainSystem)
 
-	app.AddSystems(PreRender,
+	app.AddSystems(byke.PostUpdate,
 		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
 			Chain().
 			InSet(AudioSystems))
 
-	app.AddSystems(Render,
-		byke.System(renderSpriteSystem).Chain())
+	app.AddSystems(Render, byke.
+		System(renderSpriteSystem).
+		Chain().
+		InSet(RenderPhaseExecute))
 
 	app.AddSystems(Render, byke.
 		System(applyBloomSystem, tonemappingSystem).
 		Chain().
-		InSet(RenderPostProcessSystems))
+		InSet(RenderPhaseExecutePostProcessing))
 
 	// Adding new sprites must run before transform & visibility propagation
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(TransformSystems))
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(VisibilitySystems))
 
-	app.ConfigureSystemSets(Render, RenderSystems.Before(RenderPostProcessSystems))
+	app.ConfigureSystemSets(Render,
+		RenderPhaseExtract.
+			Before(RenderPhasePrepare).
+			Before(RenderPhasePrepareResources).
+			Before(RenderPhasePrepareBindGroups).
+			Before(RenderPhaseExecute).
+			Before(RenderPhaseExecutePostProcessing),
+	)
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
