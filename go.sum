@@ -62,6 +62,8 @@ github.com/oliverbestmann/pulse v0.0.0-20260509182619-5148bd650ba7 h1:aDjqPTPpDb
 github.com/oliverbestmann/pulse v0.0.0-20260509182619-5148bd650ba7/go.mod h1:zJMp02s9jttMPj5Hl+c91d1TyZ70Rc3fKCozvzH8YHk=
 github.com/oliverbestmann/pulse v0.0.0-20260509201516-49030319e388 h1:lxm1Rl5A5onZM3UuFNy7mp10v1PMmNkngM0S+NJ6OWI=
 github.com/oliverbestmann/pulse v0.0.0-20260509201516-49030319e388/go.mod h1:0QB2q27wI/SPVbI7+7O2+WTdj6d256fntzHemMuLzeo=
+github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200 h1:LN84M+o+N53IlfC7OJURU7GaVMsoKkjYeE9AGHkJQdk=
+github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200/go.mod h1:0QB2q27wI/SPVbI7+7O2+WTdj6d256fntzHemMuLzeo=
 github.com/oliverbestmann/webgpu v1.30.0 h1:aqq4V8+b3ORmzU/LteZ3arJ6s/CZExWQtQhqyZuie7Y=
 github.com/oliverbestmann/webgpu v1.30.0/go.mod h1:pQ2kXthpbcJRpygGQ7nw43FDfGHQ6CjdqMJ/JJatfsg=
 github.com/oliverbestmann/webgpu v1.30.1 h1:8NhpWc+dl/gcHQ81etPHm+fsEAjZgKthZ9i+aAx9EZQ=
