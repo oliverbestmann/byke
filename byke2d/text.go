@@ -39,9 +39,10 @@ type Text struct {
 func (Text) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		NewTransform(),
+		DefaultFont(),
 		InheritVisibility,
 		AnchorCenter,
-		DefaultFont(),
+		renderLayerZero,
 	}
 }
 
@@ -57,36 +58,20 @@ type Glyph struct {
 }
 
 type renderTextValue struct {
-	_ byke.Changed[Text]
-
-	Entity byke.EntityId
-	Text   Text
-	Anchor Anchor
-	Font   Font
-
-	Children byke.Option[byke.Children]
+	Entity          byke.EntityId
+	Text            Text
+	Anchor          Anchor
+	Font            Font
+	RenderLayers    RenderLayers
+	GlobalTransform GlobalTransform
 }
 
 func renderTextSystem(ctx *RenderContext,
-	commands *byke.Commands,
 	textQuery byke.Query[renderTextValue],
-	glyphSpriteQuery byke.Query[struct {
-		_ byke.With[byke.ChildOf]
-		_ byke.With[Glyph]
-		_ byke.With[Sprite]
-	}],
+	sprites *ExtractedSprites,
 ) {
 	for item := range textQuery.Items() {
 		scope := puffin.NewScopeWithValue("text.ToSprites", item.Text.Text)
-
-		if children, ok := item.Children.Get(); ok {
-			for _, child := range children.Children() {
-				_, ok := glyphSpriteQuery.Get(child)
-				if ok {
-					commands.Entity(child).Despawn()
-				}
-			}
-		}
 
 		text := []rune(item.Text.Text)
 
@@ -121,24 +106,27 @@ func renderTextSystem(ctx *RenderContext,
 						continue
 					}
 
-					sprite := Sprite{
-						Texture: glyphTexture.Texture,
-						Color:   item.Text.Color,
-						// CustomSize: Some(customSize),
-					}
-
 					// offset position by the texture offset
 					x += glyphTexture.Offset[0]
 					y -= glyphTexture.Offset[1]
 
-					commands.Spawn(
-						byke.ChildOf{Parent: item.Entity},
-						TransformFromXY(x, y),
-						Glyph{glyph: glyph, charValue: text[glyph.TextIndex()]},
-						TextureAtlas{Layout: TextureAtlasLayoutFromRect(glyphTexture.Rectangle)},
-						AnchorBottomLeft,
-						sprite,
-					)
+					// rectangle within the texture
+					rect := glm.Rect2f{
+						Min: glyphTexture.Rectangle.Min.ToVec2f(),
+						Max: glyphTexture.Rectangle.Max.ToVec2f(),
+					}
+
+					transform := item.GlobalTransform.Mul(TransformFromXY(x, y))
+
+					sprites.Sprites = append(sprites.Sprites, ExtractedSprite{
+						Texture:      glyphTexture.Texture,
+						Color:        item.Text.Color,
+						RenderLayers: item.RenderLayers,
+						Transform:    transform,
+						Rect:         rect,
+						Size:         rect.Size(),
+						Anchor:       *AnchorBottomLeft,
+					})
 				}
 			}
 

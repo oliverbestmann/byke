@@ -34,7 +34,7 @@ func main() {
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, flipAllSpritesSystem)
-	app.AddSystems(Update, useSingleToQueryCameraSystem)
+	app.AddSystems(Update, System(rotateSpritesSystem).RunIf(KeyIsPressed(vyn.KeyR)))
 
 	app.MustRun()
 }
@@ -44,15 +44,16 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{Order: 1},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			// ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
-			ScalingMode: ScalingModeWindowSize{},
-			Scale:       4.0,
+			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
+			// ScalingMode: ScalingModeWindowSize{},
+			Scale: 4.0,
 		},
 	)
 
 	asset := assets.Texture("marker.png").Await()
 	commands.Spawn(
 		Sprite{Texture: asset},
+		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectFromXYWH[uint32](0, 0, 4, 32))},
 	)
 
 	commands.Spawn(
@@ -80,6 +81,11 @@ func flipAllSpritesSystem(keys Keys, query Query[struct {
 	}
 }
 
-func useSingleToQueryCameraSystem(single Single[*Camera]) {
-	// fmt.Println(single.Value)
+func rotateSpritesSystem(vt VirtualTime, query Query[struct {
+	Sprite    *Sprite
+	Transform *Transform
+}]) {
+	for item := range query.Items() {
+		item.Transform.Rotation += glm.Rad(3 * vt.DeltaSecs)
+	}
 }

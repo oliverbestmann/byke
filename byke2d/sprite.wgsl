@@ -57,8 +57,8 @@ fn mat3_translation(translation: vec2<f32>) -> mat3x3<f32> {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     let model_to_world = mat3_translation(in.i_translation)
-        * mat3_scale(in.i_scale)
-        * mat3_rotation(in.i_rotation);
+        * mat3_rotation(in.i_rotation)
+        * mat3_scale(in.i_scale);
 
     // between 0 and 1
     // index vertices as p00, p01, p10, p11, this way

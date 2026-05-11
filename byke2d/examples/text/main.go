@@ -8,6 +8,7 @@ import (
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
+	"github.com/oliverbestmann/pulse/glm"
 )
 
 //go:embed assets
@@ -35,13 +36,18 @@ func main() {
 	app.MustRun()
 }
 
-func setupSystem(commands *Commands, assets *Assets) {
+func setupSystem(commands *Commands) {
 	commands.Spawn(
 		Camera{},
+		OrthographicProjection{
+			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ScalingMode:    &ScalingModeFixedHorizontal{ViewportWidth: 1280},
+			Scale:          1,
+		},
 	)
 
 	commands.Spawn(
-		TransformFromXY(0, 200),
+		TransformFromXY(0, 200).WithRotation(3.14159*-0.1),
 		AnchorCenter,
 		UpdateTextMarker{},
 		Text{
@@ -51,7 +57,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXY(8, -80),
+		TransformFromXY(8, -80).WithRotation(3.14159*0.25),
 		AnchorTopLeft,
 		Text{
 			Size:  24.0,

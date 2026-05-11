@@ -14,7 +14,6 @@ import (
 var _ = byke.ValidateComponent[Sprite]()
 var _ = byke.ValidateComponent[Anchor]()
 
-var _ = byke.ValidateComponent[ExtractedSprite]()
 var _ = byke.ValidateComponent[bindGroupsSprites]()
 var _ = byke.ValidateComponent[metaSprites]()
 
@@ -169,7 +168,6 @@ func (r renderSpritePipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderP
 // ExtractedSprite got extracted from the World in Prepare and will be rendered
 // to the screen. Does not need to be backed by a real sprite.
 type ExtractedSprite struct {
-	byke.Component[ExtractedSprite]
 	Texture      *Texture
 	Transform    GlobalTransform
 	Color        Color
@@ -203,7 +201,6 @@ func clearExtractedSpritesSystem(
 // extractSpritesSystem adds the ExtractedSprite component to all renderable
 // entities that have a Sprite component.
 func extractSpritesSystem(
-	commands *byke.Commands,
 	spritesQuery byke.Query[extractSpriteValue],
 	sprites *ExtractedSprites,
 ) {
