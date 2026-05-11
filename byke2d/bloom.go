@@ -35,6 +35,7 @@ type Bloom struct {
 func (b Bloom) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		bloomTexture{},
+		bloomUniforms{},
 	}
 }
 
@@ -119,29 +120,46 @@ func (b bloomPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline
 	})
 }
 
-type bloomValuesQuery struct {
-	byke.EntityId
-	Bloom   Bloom
-	Texture bloomTexture
+func prepareBloomUniforms(
+	camerasQuery byke.Query[struct {
+		BloomUniforms *bloomUniforms
+		ViewTarget    *ViewTarget
+		Bloom         Bloom
+	}],
+) {
+	for camera := range camerasQuery.Items() {
+		*camera.BloomUniforms = bloomUniforms{
+			Viewport: glm.Vec4f{0, 0, 1, 1},
+			Scale:    camera.Bloom.Scale,
+			Aspect:   camera.ViewTarget.Size[0] / camera.ViewTarget.Size[1],
+		}
+	}
+}
+
+type bloomViewQuery struct {
+	Entity     byke.EntityId
+	Bloom      Bloom
+	Texture    bloomTexture
+	ViewTarget *ViewTarget
 }
 
 func applyBloomSystem(
 	commands *byke.Commands,
 	ctx *RenderContext,
-	camera *CurrentCamera,
-	bloomQuery byke.Query[bloomValuesQuery],
 	bloomPipeline Pipelines[bloomPipelineConfig],
 	uniforms *ComponentUniforms[bloomUniforms],
 	textureCache *TextureCache,
+	viewQuery ViewQuery[bloomViewQuery],
 ) {
-	bv, ok := bloomQuery.Get(camera.Entity)
-	if !ok || bv.Bloom.Intensity == 0 {
+	view := viewQuery.Get()
+
+	if view.Bloom.Intensity == 0 {
 		return
 	}
 
 	defer puffin.NewScope("byke2d.Bloom").End()
 
-	isUniformScale := bv.Bloom.Scale == glm.Vec2f{1, 1}
+	isUniformScale := view.Bloom.Scale == glm.Vec2f{1, 1}
 
 	downsample0 := bloomPipeline.Specialize(bloomPipelineConfig{
 		TargetFormat:    wgpu.TextureFormatRG11B10Ufloat,
@@ -161,25 +179,18 @@ func applyBloomSystem(
 	})
 
 	upsampleT := bloomPipeline.Specialize(bloomPipelineConfig{
-		TargetFormat: camera.ViewTarget.Format,
+		TargetFormat: view.ViewTarget.Format,
 		UniformScale: isUniformScale,
 		Upsample:     true,
 	})
 
-	bloomTexture := bloomGetTexture(commands, textureCache, bv, camera.ViewTarget.Size)
-
-	// FIXME
-	// uniforms.Write(ctx, bloomUniforms{
-	// 	Viewport: glm.Vec4f{0, 0, 1, 1},
-	// 	Scale:    bv.Bloom.Scale,
-	// 	Aspect:   camera.ViewTarget.Size[0] / camera.ViewTarget.Size[1],
-	// })
+	bloomTexture := bloomGetTexture(commands, textureCache, view)
 
 	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Bloom"})
 	defer enc.Release()
 
 	// downsample from screen to our texture
-	bloomDownsample(ctx, enc, downsample0, camera.ViewTarget.UnsampledTexture(), bloomTexture.Get(0), uniforms)
+	bloomDownsample(ctx, enc, downsample0, view.ViewTarget.UnsampledTexture(), bloomTexture.Get(0), uniforms)
 
 	// downsample mip levels
 	for level := uint32(1); level < bloomTexture.MipCount(); level++ {
@@ -190,12 +201,12 @@ func applyBloomSystem(
 	for level := bloomTexture.MipCount() - 1; level >= 1; level-- {
 		source := bloomTexture.Get(level)
 		target := bloomTexture.Get(level - 1)
-		bloomUpsample(ctx, enc, upsample, bv.Bloom, source, target, uniforms, level, bloomTexture.MipCount())
+		bloomUpsample(ctx, enc, upsample, view.Bloom, source, target, uniforms, level, bloomTexture.MipCount())
 	}
 
 	// final upsample step, render to main texture
 	source := bloomTexture.Get(0)
-	bloomUpsample(ctx, enc, upsampleT, bv.Bloom, source, camera.ViewTarget.UnsampledTexture(), uniforms, 0, bloomTexture.MipCount())
+	bloomUpsample(ctx, enc, upsampleT, view.Bloom, source, view.ViewTarget.UnsampledTexture(), uniforms, 0, bloomTexture.MipCount())
 
 	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "Bloom"})
 	ctx.Submit(buf)
@@ -261,12 +272,14 @@ func bloomPrepareRenderPass(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeli
 	return pass, bindGroup
 }
 
-func bloomGetTexture(commands *byke.Commands, cache *TextureCache, bloom bloomValuesQuery, cameraSize glm.Vec2f) bloomTexture {
-	mipCount := uint32(max(2, bits.Len32(bloom.Bloom.MaxMipDimension)) - 1)
+func bloomGetTexture(commands *byke.Commands, cache *TextureCache, bv bloomViewQuery) bloomTexture {
+	mipCount := uint32(max(2, bits.Len32(bv.Bloom.MaxMipDimension)) - 1)
+
+	cameraSize := bv.ViewTarget.Size
 
 	var mipHeightRatio float32
 	if h := cameraSize[1]; h != 0 {
-		mipHeightRatio = float32(bloom.Bloom.MaxMipDimension) / h
+		mipHeightRatio = float32(bv.Bloom.MaxMipDimension) / h
 	}
 
 	texture := cache.Allocate(&wgpu.TextureDescriptor{
@@ -283,17 +296,17 @@ func bloomGetTexture(commands *byke.Commands, cache *TextureCache, bloom bloomVa
 		SampleCount:   1,
 	})
 
-	if bloom.Texture.Texture == texture {
+	if bv.Texture.Texture == texture {
 		// reuse previous bloom texture
-		return bloom.Texture
+		return bv.Texture
 	}
 
 	// we can free the old views early
-	bloom.Texture.Release()
+	bv.Texture.Release()
 
 	// and now create new views
 	bloomTexture := makeBloomTexture(texture, mipCount)
-	commands.Entity(bloom.EntityId).Insert(bloomTexture)
+	commands.Entity(bv.Entity).Insert(bloomTexture)
 	return bloomTexture
 }
 

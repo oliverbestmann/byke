@@ -14,7 +14,7 @@ type HDR struct {
 func (HDR) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		DefaultColorGrading,
-		TonemappingSomewhatBoringDisplayTransform,
+		TonemappingTonyMcMapface,
 		DebandDitherOn,
 		BloomNatural,
 	}

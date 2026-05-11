@@ -38,9 +38,11 @@ var (
 	RenderPhasePrepareResources  = &byke.SystemSet{Name: "RenderPhasePrepareResources"}
 	RenderPhasePrepareBindGroups = &byke.SystemSet{Name: "RenderPhasePrepareBindGroups"}
 	RenderPhaseExecute           = &byke.SystemSet{Name: "RenderPhaseExecute"}
+	RenderPhaseCleanup           = &byke.SystemSet{Name: "RenderPhaseCleanup"}
 )
 
 var (
+	Core2dMain           = &byke.SystemSet{Name: "Core2dMain"}
 	Core2dPostProcessing = &byke.SystemSet{Name: "Core2dPostProcessing"}
 	Core2dBlit           = &byke.SystemSet{Name: "Core2dBlit"}
 )
@@ -63,12 +65,11 @@ func RenderPlugin(app *byke.App) {
 
 	app.InsertResource(byke.InitFromWorld[Pipelines[blitConfig]]())
 	app.InsertResource(byke.InitFromWorld[Pipelines[renderSpritePipelineConfig]]())
-
-	app.InsertResource(ComponentUniforms[bloomUniforms]{})
 	app.InsertResource(byke.InitFromWorld[Pipelines[bloomPipelineConfig]]())
-
-	app.InsertResource(ComponentUniforms[ColorGrading]{})
 	app.InsertResource(byke.InitFromWorld[Pipelines[tonemappingPipelineConfig]]())
+
+	app.AddPlugin(ComponentUniformsPlugin[bloomUniforms])
+	app.AddPlugin(ComponentUniformsPlugin[ColorGrading])
 
 	// input resources
 	app.InsertResource(Keys{})
@@ -105,16 +106,20 @@ func RenderPlugin(app *byke.App) {
 
 	app.AddSystems(byke.RenderMain, renderMainSystem)
 
-	app.AddSystems(byke.PostUpdate,
-		byke.System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
-			Chain().
-			InSet(AudioSystems))
+	app.AddSystems(byke.PostUpdate, byke.
+		System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
+		Chain().
+		InSet(AudioSystems))
 
-	// TODO enable again
-	// app.AddSystems(Render, byke.
-	// 	System(applyBloomSystem, tonemappingSystem).
-	// 	Chain().
-	// 	InSet(RenderPhaseExecutePostProcessing))
+	app.AddSystems(Render, byke.
+		System(prepareBloomUniforms).
+		Chain().
+		InSet(RenderPhasePrepare))
+
+	app.AddSystems(Core2d, byke.
+		System(applyBloomSystem, tonemappingSystem).
+		Chain().
+		InSet(Core2dPostProcessing))
 
 	// Adding new sprites must run before transform & visibility propagation
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(TransformSystems))
@@ -125,10 +130,12 @@ func RenderPlugin(app *byke.App) {
 		RenderPhasePrepare.Before(RenderPhasePrepareResources),
 		RenderPhasePrepareResources.Before(RenderPhasePrepareBindGroups),
 		RenderPhasePrepareBindGroups.Before(RenderPhaseExecute),
+		RenderPhaseExecute.Before(RenderPhaseCleanup),
 	)
 
 	app.ConfigureSystemSets(Core2d,
-		Core2dBlit.Before(Core2dPostProcessing))
+		Core2dMain.Before(Core2dPostProcessing),
+		Core2dPostProcessing.Before(Core2dBlit))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
@@ -411,26 +418,4 @@ func renderMainSystem(
 
 	// we do not need to release the surface texture if present was successful
 	surface = nil
-}
-
-// deprecated
-type CurrentCamera struct {
-	Entity       byke.EntityId
-	Projection   OrthographicProjection
-	Transform    GlobalTransform
-	RenderLayers RenderLayers
-	ViewTarget   *ViewTarget
-
-	ColorGrading Optional[ColorGrading]
-	Tonemapping  Optional[Tonemapping]
-	DebandDither Optional[DebandDither]
-}
-
-type cameraQueryValues struct {
-	EntityId     byke.EntityId
-	RenderTarget RenderTarget
-	ClearColor   ClearColor
-
-	MSAA byke.Has[MSAA]
-	HDR  byke.Has[HDR]
 }

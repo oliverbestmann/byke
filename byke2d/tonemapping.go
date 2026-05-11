@@ -291,28 +291,30 @@ func (c tonemappingPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPi
 
 func tonemappingSystem(
 	ctx *RenderContext,
-	camera *CurrentCamera,
 	pipelines Pipelines[tonemappingPipelineConfig],
 	uniforms *ComponentUniforms[ColorGrading],
 	luts *TonemappingLutTextures,
+	viewQuery ViewQuery[struct {
+		ColorGrading       ColorGrading
+		Tonemapping        Tonemapping
+		DebandDither       DebandDither
+		ViewTarget         *ViewTarget
+		ColorGradingOffset DynamicOffset[ColorGrading]
+	}],
 ) {
-	if !camera.ColorGrading.IsSet {
-		return
-	}
-
 	defer puffin.NewScope("Tonemapping").End()
 
-	pp := camera.ViewTarget.PostProcess()
+	view := viewQuery.Get()
 
-	cg := camera.ColorGrading.Value
+	pp := view.ViewTarget.PostProcess()
 
 	pipeline := pipelines.Specialize(tonemappingPipelineConfig{
-		TargetFormat:          camera.ViewTarget.Format,
-		Tonemapping:           camera.Tonemapping.OrZero(),
-		DebandDither:          camera.DebandDither.OrZero(),
-		HueRotate:             cg.Global.Hue != 0,
-		WhiteBalance:          cg.Global.Temperature != 0 || cg.Global.Tint != 0,
-		SectionalColorGrading: cg.HasSectionalColorGrading(),
+		TargetFormat:          view.ViewTarget.Format,
+		Tonemapping:           view.Tonemapping,
+		DebandDither:          view.DebandDither,
+		HueRotate:             view.ColorGrading.Global.Hue != 0,
+		WhiteBalance:          view.ColorGrading.Global.Temperature != 0 || view.ColorGrading.Global.Tint != 0,
+		SectionalColorGrading: view.ColorGrading.HasSectionalColorGrading(),
 	})
 
 	sampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
@@ -325,16 +327,13 @@ func tonemappingSystem(
 		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
 
-	// FIXME use ComponentUniforms
-	// uniforms.Write(ctx, cg)
-
 	bindGroupEntries := []wgpu.BindGroupEntry{
 		uniforms.Binding(),
 		BindingTextureView(pp.Source),
 		BindingSampler(sampler),
 	}
 
-	switch camera.Tonemapping.Value {
+	switch view.Tonemapping {
 	case TonemappingTonyMcMapface:
 		bindGroupEntries = append(bindGroupEntries,
 			BindingTextureView(luts.TonyMcMapface(ctx).TextureView),

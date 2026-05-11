@@ -2,7 +2,7 @@ package byke2d
 
 import (
 	_ "embed"
-	"slices"
+	"sort"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/spoke"
@@ -65,17 +65,19 @@ var (
 
 func pluginSprite(app *byke.App) {
 	app.InsertResource(staticSpriteUniforms{})
+	app.InsertResource(ExtractedSprites{})
 
 	app.AddSystems(Render,
 		byke.System(extractSpritesSystem).InSet(RenderPhaseExtract),
 		byke.System(uploadSpritesSystem).InSet(RenderPhasePrepareResources),
 		byke.System(prepareBindGroupsSpritesSystem).InSet(RenderPhasePrepareBindGroups),
+		byke.System(clearExtractedSpritesSystem).InSet(RenderPhaseCleanup),
 	)
 
 	app.AddSystems(Core2d,
 		byke.
 			System(renderSpritesSystem).
-			InSet(RenderPhaseExecute))
+			InSet(Core2dMain))
 }
 
 type renderSpritePipelineConfig struct {
@@ -188,19 +190,24 @@ type extractSpriteValue struct {
 	Anchor       Anchor
 }
 
+type ExtractedSprites struct {
+	Sprites []ExtractedSprite
+}
+
+func clearExtractedSpritesSystem(
+	sprites *ExtractedSprites,
+) {
+	sprites.Sprites = sprites.Sprites[:0]
+}
+
 // extractSpritesSystem adds the ExtractedSprite component to all renderable
 // entities that have a Sprite component.
 func extractSpritesSystem(
 	commands *byke.Commands,
-	sprites byke.Query[extractSpriteValue],
-	removed byke.RemovedComponents[Sprite],
+	spritesQuery byke.Query[extractSpriteValue],
+	sprites *ExtractedSprites,
 ) {
-	// TODO what if the entity does not exist?
-	// for removed := range removed.Read() {
-	// 	commands.Entity(removed).Update(byke.RemoveComponent[ExtractedSprite]())
-	// }
-
-	for sprite := range sprites.Items() {
+	for sprite := range spritesQuery.Items() {
 		if !sprite.Visibility.Visible {
 			continue
 		}
@@ -216,19 +223,17 @@ func extractSpritesSystem(
 			}
 		}
 
-		commands.Entity(sprite.EntityId).Insert(
-			ExtractedSprite{
-				Texture:      sprite.Sprite.Texture,
-				Color:        sprite.Sprite.Color,
-				Size:         sprite.Sprite.CustomSize.Or(rect.Size()),
-				FlipX:        sprite.Sprite.FlipX,
-				FlipY:        sprite.Sprite.FlipY,
-				RenderLayers: sprite.RenderLayers.Or(renderLayerAll),
-				Transform:    sprite.Transform,
-				Anchor:       sprite.Anchor,
-				Rect:         rect,
-			},
-		)
+		sprites.Sprites = append(sprites.Sprites, ExtractedSprite{
+			Texture:      sprite.Sprite.Texture,
+			Color:        sprite.Sprite.Color,
+			Size:         sprite.Sprite.CustomSize.Or(rect.Size()),
+			FlipX:        sprite.Sprite.FlipX,
+			FlipY:        sprite.Sprite.FlipY,
+			RenderLayers: sprite.RenderLayers.Or(renderLayerAll),
+			Transform:    sprite.Transform,
+			Anchor:       sprite.Anchor,
+			Rect:         rect,
+		})
 	}
 }
 
@@ -238,9 +243,6 @@ type metaSprites struct {
 	Buffer     *wgpu.Buffer
 	BufferSize int
 	Batches    []spritesBatch
-
-	// temporary space for sorting by z coordinate
-	Sprites []*ExtractedSprite
 }
 
 func (m metaSprites) RequireComponents() []spoke.ErasedComponent {
@@ -265,8 +267,15 @@ func uploadSpritesSystem(
 		Meta         byke.OptionMut[metaSprites]
 		RenderLayers RenderLayers
 	}],
-	spritesQuery byke.Query[*ExtractedSprite],
+	sprites *ExtractedSprites,
 ) {
+	// sort sprites by z-order
+	sort.Slice(sprites.Sprites, func(a, b int) bool {
+		aZ := sprites.Sprites[a].Transform.Translation[2]
+		bZ := sprites.Sprites[b].Transform.Translation[2]
+		return aZ < bZ
+	})
+
 	for view := range viewsQuery.Items() {
 		meta, metaSet := view.Meta.Get()
 		if !metaSet {
@@ -280,22 +289,6 @@ func uploadSpritesSystem(
 
 		meta.Batches = meta.Batches[:0]
 		meta.Instances.Clear()
-
-		meta.Sprites = spritesQuery.AppendTo(meta.Sprites[:0])
-
-		// sort sprites by z-order
-		slices.SortFunc(meta.Sprites, func(a, b *ExtractedSprite) int {
-			aZ := a.Transform.Translation[2]
-			bZ := b.Transform.Translation[2]
-			switch {
-			case aZ < bZ:
-				return -1
-			case aZ > bZ:
-				return 1
-			default:
-				return 0
-			}
-		})
 
 		var batchStart uint64
 		var batchTexture *Texture
@@ -321,7 +314,7 @@ func uploadSpritesSystem(
 			batchTexture = nextTexture
 		}
 
-		for _, sp := range meta.Sprites {
+		for _, sp := range sprites.Sprites {
 			if !view.RenderLayers.Intersects(sp.RenderLayers) {
 				// not rendered by this camera
 				continue

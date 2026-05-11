@@ -99,14 +99,16 @@ type ScalingModeAutoMin struct {
 	MinWidth, MinHeight float32
 }
 
-func (s ScalingModeAutoMin) ViewportSize(width, height float32) glm.Vec2f {
+func (s ScalingModeAutoMin) ViewportSize(width, height float32) (viewportSize glm.Vec2f) {
 	// Compare Pixels of current width and minimal height and Pixels of minimal width with current height.
 	// Then use bigger (min_height when true) as what it refers to (height when true) and calculate rest so it can't get under minimum.
 	if width*s.MinHeight > s.MinWidth*height {
-		return glm.Vec2f{width * s.MinHeight / height, s.MinHeight}
+		viewportSize = glm.Vec2f{width * s.MinHeight / height, s.MinHeight}
 	} else {
-		return glm.Vec2f{s.MinWidth, height * s.MinWidth / width}
+		viewportSize = glm.Vec2f{s.MinWidth, height * s.MinWidth / width}
 	}
+
+	return
 }
 
 // ScalingModeAutoMax keeps the aspect ratio while the axes can’t be bigger than given maximum.
@@ -114,14 +116,16 @@ type ScalingModeAutoMax struct {
 	MaxWidth, MaxHeight float32
 }
 
-func (s ScalingModeAutoMax) ViewportSize(width, height float32) glm.Vec2f {
+func (s ScalingModeAutoMax) ViewportSize(width, height float32) (viewportSize glm.Vec2f) {
 	// Compare Pixels of current width and maximal height and Pixels of maximal width with current height.
 	// Then use smaller (max_height when true) as what it refers to (height when true) and calculate rest so it can't get over maximum.
 	if width*s.MaxHeight < s.MaxWidth*height {
-		return glm.Vec2f{width * s.MaxHeight / height, s.MaxHeight}
+		viewportSize = glm.Vec2f{width * s.MaxHeight / height, s.MaxHeight}
 	} else {
-		return glm.Vec2f{s.MaxWidth, height * s.MaxWidth / width}
+		viewportSize = glm.Vec2f{s.MaxWidth, height * s.MaxWidth / width}
 	}
+
+	return
 }
 
 type ScalingModeFixedVertical struct {
@@ -187,7 +191,7 @@ func prepareViewUniformsSystem(
 		EntityId     byke.EntityId
 		Transform    GlobalTransform
 		Projection   OrthographicProjection
-		ViewTarget   ViewTarget
+		ViewTarget   *ViewTarget
 		ViewUniforms *viewUniforms
 	}],
 ) {
@@ -209,7 +213,13 @@ func updateCameraViewTargetSystem(
 	commands *byke.Commands,
 	textureCache *TextureCache,
 	surfaceValues currentSurfaceValues,
-	camerasQuery byke.Query[cameraQueryValues],
+	camerasQuery byke.Query[struct {
+		EntityId     byke.EntityId
+		RenderTarget RenderTarget
+		ClearColor   ClearColor
+		MSAA         byke.Has[MSAA]
+		HDR          byke.Has[HDR]
+	}],
 ) {
 	for camera := range camerasQuery.Items() {
 		viewTarget, hasViewTarget := buildCameraViewTarget(
@@ -234,34 +244,27 @@ func blitCameraToTargetSystem(
 	ctx *RenderContext,
 	blitPipelines Pipelines[blitConfig],
 
-	viewsQuery byke.Query[struct {
+	viewsQuery ViewQuery[struct {
 		Camera       Camera
 		ViewTarget   *ViewTarget
 		RenderTarget *RenderTarget
 	}],
 ) {
-	views := viewsQuery.AppendTo(nil)
+	view := viewsQuery.Get()
 
-	// sort cameras ascending
-	sort.Slice(views, func(i, j int) bool {
-		return views[i].Camera.Order < views[i].Camera.Order
-	})
+	blit := blitConfig{
+		TargetFormat: view.ViewTarget.SurfaceTextureFormat,
+	}
 
-	for _, view := range views {
-		blit := blitConfig{
-			TargetFormat: view.ViewTarget.SurfaceTextureFormat,
-		}
+	// blit into the target texture
+	blitTexture(ctx,
+		blitPipelines.Specialize(blit),
+		view.ViewTarget.UnsampledTexture(),
+		view.ViewTarget.SurfaceTextureView,
+	)
 
-		// blit into the target texture
-		blitTexture(ctx,
-			blitPipelines.Specialize(blit),
-			view.ViewTarget.UnsampledTexture(),
-			view.ViewTarget.SurfaceTextureView,
-		)
-
-		if view.RenderTarget.Texture != nil {
-			view.RenderTarget.Texture.Updated(ctx)
-		}
+	if view.RenderTarget.Texture != nil {
+		view.RenderTarget.Texture.Updated(ctx)
 	}
 }
 
