@@ -1,11 +1,16 @@
 package byke2d
 
 import (
+	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+var _ = byke.ValidateComponent[ViewTarget]()
+
 type ViewTarget struct {
+	byke.Component[ViewTarget]
+
 	Size glm.Vec2f
 
 	// The format to render to the color attachments

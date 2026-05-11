@@ -325,7 +325,8 @@ func tonemappingSystem(
 		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
 
-	uniforms.Write(ctx, cg)
+	// FIXME use ComponentUniforms
+	// uniforms.Write(ctx, cg)
 
 	bindGroupEntries := []wgpu.BindGroupEntry{
 		uniforms.Binding(),

@@ -44,7 +44,7 @@ func NewWorld() *World {
 	defaultMakeSystemParams := makeSystemParams{
 		makeWorldSystemParamState,
 		makeCommandsSystemStateParam,
-		forwardToNewStateOnPointer[queryT],
+		ForwardToNewStateOnPointer[queryT],
 		forwardToNewState[localT],
 		forwardToNewState[messageWriterT],
 		forwardToNewState[messageReaderT],
@@ -195,7 +195,7 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 		defer timings.MeasureSchedule(scheduleId).Stop()
 	}
 
-	for _, system := range schedule.systems {
+	for _, system := range schedule.Systems() {
 		w.runSystem(system, SystemContext{})
 	}
 }
@@ -530,6 +530,17 @@ func (w *World) removeComponent(entityId EntityId, componentType *spoke.Componen
 
 func (w *World) recheckComponents(query *spoke.CachedQuery, componentTypes []*spoke.ComponentType) {
 	w.storage.CheckChanged(w.currentTick, query, componentTypes)
+}
+
+func (w *World) DebugSystems() {
+	for id, schedule := range w.schedules {
+		fmt.Println()
+		fmt.Printf("Schedule %q:\n", id)
+
+		for _, sys := range schedule.Systems() {
+			fmt.Println(" ->", sys.Name)
+		}
+	}
 }
 
 type triggerObserverIn struct {

@@ -47,6 +47,11 @@ func (*Query[T]) newState(world *World, _ queryT) SystemParamState {
 	}
 }
 
+func NewQuerySystemParamState[T any](world *World) SystemParamState {
+	var q *Query[T]
+	return q.newState(world, q)
+}
+
 type queryT interface {
 	newState(world *World, _ queryT) SystemParamState
 }

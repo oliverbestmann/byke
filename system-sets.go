@@ -3,6 +3,7 @@ package byke
 // SystemSet groups multiple systems together within one ScheduleId.
 // SystemSet instances can be ordered between each other
 type SystemSet struct {
+	Name       string
 	after      []*SystemSet
 	before     []*SystemSet
 	predicates []AnySystem

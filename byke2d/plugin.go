@@ -7,7 +7,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"slices"
+	"time"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/puffin-go"
@@ -33,12 +33,16 @@ var (
 )
 
 var (
-	RenderPhaseExtract               = &byke.SystemSet{}
-	RenderPhasePrepare               = &byke.SystemSet{}
-	RenderPhasePrepareResources      = &byke.SystemSet{}
-	RenderPhasePrepareBindGroups     = &byke.SystemSet{}
-	RenderPhaseExecute               = &byke.SystemSet{}
-	RenderPhaseExecutePostProcessing = &byke.SystemSet{}
+	RenderPhaseExtract           = &byke.SystemSet{Name: "RenderPhaseExtract"}
+	RenderPhasePrepare           = &byke.SystemSet{Name: "RenderPhasePrepare"}
+	RenderPhasePrepareResources  = &byke.SystemSet{Name: "RenderPhasePrepareResources"}
+	RenderPhasePrepareBindGroups = &byke.SystemSet{Name: "RenderPhasePrepareBindGroups"}
+	RenderPhaseExecute           = &byke.SystemSet{Name: "RenderPhaseExecute"}
+)
+
+var (
+	Core2dPostProcessing = &byke.SystemSet{Name: "Core2dPostProcessing"}
+	Core2dBlit           = &byke.SystemSet{Name: "Core2dBlit"}
 )
 
 func RenderPlugin(app *byke.App) {
@@ -46,6 +50,8 @@ func RenderPlugin(app *byke.App) {
 	if !ok {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
 	}
+
+	app.AddMakeSystemParam(makeViewQuery)
 
 	app.InsertResource(RenderContext{})
 	app.InsertResource(DefaultWindowConfig())
@@ -104,30 +110,30 @@ func RenderPlugin(app *byke.App) {
 			Chain().
 			InSet(AudioSystems))
 
-	app.AddSystems(Render, byke.
-		System(renderSpriteSystem).
-		Chain().
-		InSet(RenderPhaseExecute))
-
-	app.AddSystems(Render, byke.
-		System(applyBloomSystem, tonemappingSystem).
-		Chain().
-		InSet(RenderPhaseExecutePostProcessing))
+	// TODO enable again
+	// app.AddSystems(Render, byke.
+	// 	System(applyBloomSystem, tonemappingSystem).
+	// 	Chain().
+	// 	InSet(RenderPhaseExecutePostProcessing))
 
 	// Adding new sprites must run before transform & visibility propagation
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(TransformSystems))
 	app.ConfigureSystemSets(byke.PostUpdate, DeriveSprites.Before(VisibilitySystems))
 
 	app.ConfigureSystemSets(Render,
-		RenderPhaseExtract.
-			Before(RenderPhasePrepare).
-			Before(RenderPhasePrepareResources).
-			Before(RenderPhasePrepareBindGroups).
-			Before(RenderPhaseExecute).
-			Before(RenderPhaseExecutePostProcessing),
+		RenderPhaseExtract.Before(RenderPhasePrepare),
+		RenderPhasePrepare.Before(RenderPhasePrepareResources),
+		RenderPhasePrepareResources.Before(RenderPhasePrepareBindGroups),
+		RenderPhasePrepareBindGroups.Before(RenderPhaseExecute),
 	)
 
+	app.ConfigureSystemSets(Core2d,
+		Core2dBlit.Before(Core2dPostProcessing))
+
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
+
+	app.AddPlugin(pluginCamera)
+	app.AddPlugin(pluginSprite)
 
 	app.RunWorld(runWorld)
 }
@@ -343,12 +349,24 @@ type appExitState struct {
 func renderMainSystem(
 	world *byke.World,
 	ctx *RenderContext,
+	textureCache *TextureCache,
 ) {
 	// get the surface texture (the actual screen)
-	surface := func() *wgpu.Texture {
+	surfaceTexture := func() wgpu.SurfaceTexture {
 		defer puffin.NewScope("surface.GetCurrentTexture").End()
 		return ctx.Surface.GetCurrentTexture()
 	}()
+
+	surface, ok := surfaceTexture.Get()
+	if !ok {
+		slog.Warn(
+			"Failed to get a current surface texture",
+			slog.String("status", surfaceTexture.Status.String()),
+		)
+
+		time.Sleep(16 * time.Millisecond)
+		return
+	}
 
 	surfaceWidth := surface.GetWidth()
 	surfaceHeight := surface.GetHeight()
@@ -378,8 +396,12 @@ func renderMainSystem(
 	})
 	defer world.RemoveResource(reflect.TypeFor[currentSurfaceValues]())
 
-	// drive the render schedule with this surface
-	world.RunSystem(driveRenderScheduleSystem)
+	// remove unused textures
+	textureCache.Reset()
+
+	world.RunSchedule(PreRender)
+	world.RunSchedule(Render)
+	world.RunSchedule(PostRender)
 
 	// present the current frame
 	puffin.Scoped("surface.Present", func() any {
@@ -391,88 +413,7 @@ func renderMainSystem(
 	surface = nil
 }
 
-func driveRenderScheduleSystem(world *byke.World,
-	ctx *RenderContext,
-	textureCache *TextureCache,
-	surfaceValues currentSurfaceValues,
-	camerasQuery byke.Query[cameraQueryValues],
-	blitPipelines Pipelines[blitConfig],
-) {
-	// TODO reuse allocation
-	cameras := camerasQuery.AppendTo(nil)
-
-	// sort cameras to render in ascending camera order
-	slices.SortFunc(cameras, func(a, b cameraQueryValues) int {
-		return b.Camera.Order - a.Camera.Order
-	})
-
-	// remove the camera value from the world after rendering
-	defer world.RemoveResource(reflect.TypeFor[CurrentCamera]())
-
-	textureCache.Reset()
-
-	for _, camera := range cameras {
-		puffin.Scoped("byke2d.RenderCamera", func() any {
-			if camera.Camera.Inactive {
-				return nil
-			}
-
-			viewTarget, hasViewTarget := buildCameraViewTarget(
-				textureCache,
-				surfaceValues,
-				camera.RenderTarget,
-				camera.ClearColor.Color,
-				camera.HDR.Exists(),
-				camera.MSAA.Exists(),
-			)
-
-			if !hasViewTarget {
-				return nil
-			}
-
-			currentCamera := CurrentCamera{
-				Entity:       camera.EntityId,
-				Projection:   camera.Projection,
-				Transform:    camera.Transform,
-				RenderLayers: camera.RenderLayers,
-				ViewTarget:   viewTarget,
-
-				ColorGrading: toOptional(camera.ColorGrading),
-				Tonemapping:  toOptional(camera.Tonemapping),
-				DebandDither: toOptional(camera.DebandDither),
-			}
-
-			world.InsertResource(currentCamera)
-
-			world.RunSchedule(PreRender)
-			world.RunSchedule(Render)
-			world.RunSchedule(PostRender)
-
-			blit := blitConfig{
-				TargetFormat: viewTarget.SurfaceTextureFormat,
-			}
-
-			// blit into the target texture
-			blitTexture(ctx,
-				blitPipelines.Specialize(blit),
-				viewTarget.UnsampledTexture(),
-				viewTarget.SurfaceTextureView,
-			)
-
-			if camera.RenderTarget.Texture != nil {
-				camera.RenderTarget.Texture.Updated(ctx)
-			}
-
-			return nil
-		})
-	}
-}
-
-func toOptional[T byke.IsComponent[T]](o byke.Option[T]) Optional[T] {
-	value, ok := o.Get()
-	return Optional[T]{Value: value, IsSet: ok}
-}
-
+// deprecated
 type CurrentCamera struct {
 	Entity       byke.EntityId
 	Projection   OrthographicProjection
@@ -487,17 +428,9 @@ type CurrentCamera struct {
 
 type cameraQueryValues struct {
 	EntityId     byke.EntityId
-	Camera       Camera
-	Projection   OrthographicProjection
-	Transform    GlobalTransform
-	RenderLayers RenderLayers
 	RenderTarget RenderTarget
 	ClearColor   ClearColor
 
 	MSAA byke.Has[MSAA]
-
-	HDR          byke.Has[HDR]
-	ColorGrading byke.Option[ColorGrading]
-	Tonemapping  byke.Option[Tonemapping]
-	DebandDither byke.Option[DebandDither]
+	HDR  byke.Has[HDR]
 }

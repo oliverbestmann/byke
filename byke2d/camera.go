@@ -1,6 +1,9 @@
 package byke2d
 
 import (
+	"reflect"
+	"sort"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/pulse/glm"
@@ -8,6 +11,26 @@ import (
 
 var _ = byke.ValidateComponent[Camera]()
 var _ = byke.ValidateComponent[OrthographicProjection]()
+
+func pluginCamera(app *byke.App) {
+	app.AddPlugin(ComponentUniformsPlugin[viewUniforms])
+
+	app.AddSystems(Render, byke.
+		System(prepareViewUniformsSystem).
+		InSet(RenderPhasePrepare))
+
+	app.AddSystems(Render, byke.
+		System(updateCameraViewTargetSystem).
+		InSet(RenderPhasePrepare))
+
+	app.AddSystems(Render, byke.
+		System(driveCameraSchedules).
+		InSet(RenderPhaseExecute))
+
+	app.AddSystems(Core2d, byke.
+		System(blitCameraToTargetSystem).
+		InSet(Core2dBlit))
+}
 
 type Camera struct {
 	byke.Component[Camera]
@@ -37,6 +60,8 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 			ScalingMode:    ScalingModeWindowSize{},
 			Scale:          1,
 		},
+
+		viewUniforms{},
 	}
 }
 
@@ -154,4 +179,111 @@ func (v *ViewValues) WorldToCamera() glm.Mat3f {
 	return glm.RotationMat3[float32](t.Rotation).
 		Scale(t.Scale.XY()).
 		Translate(t.Translation.Scale(-1).XY())
+}
+
+func prepareViewUniformsSystem(
+	viewsQuery byke.Query[struct {
+		_            byke.With[Camera]
+		EntityId     byke.EntityId
+		Transform    GlobalTransform
+		Projection   OrthographicProjection
+		ViewTarget   ViewTarget
+		ViewUniforms *viewUniforms
+	}],
+) {
+	for view := range viewsQuery.Items() {
+		vv := ViewValues{
+			Transform:   view.Transform,
+			Projection:  view.Projection,
+			SurfaceSize: view.ViewTarget.Size,
+		}
+
+		*view.ViewUniforms = viewUniforms{
+			ScreenToNDC:   vv.SurfaceToNDC(),
+			WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
+		}
+	}
+}
+
+func updateCameraViewTargetSystem(
+	commands *byke.Commands,
+	textureCache *TextureCache,
+	surfaceValues currentSurfaceValues,
+	camerasQuery byke.Query[cameraQueryValues],
+) {
+	for camera := range camerasQuery.Items() {
+		viewTarget, hasViewTarget := buildCameraViewTarget(
+			textureCache,
+			surfaceValues,
+			camera.RenderTarget,
+			camera.ClearColor.Color,
+			camera.HDR.Exists(),
+			camera.MSAA.Exists(),
+		)
+
+		if !hasViewTarget {
+			commands.Entity(camera.EntityId).Update(byke.RemoveComponent[ViewTarget]())
+			continue
+		}
+
+		commands.Entity(camera.EntityId).Insert(viewTarget)
+	}
+}
+
+func blitCameraToTargetSystem(
+	ctx *RenderContext,
+	blitPipelines Pipelines[blitConfig],
+
+	viewsQuery byke.Query[struct {
+		Camera       Camera
+		ViewTarget   *ViewTarget
+		RenderTarget *RenderTarget
+	}],
+) {
+	views := viewsQuery.AppendTo(nil)
+
+	// sort cameras ascending
+	sort.Slice(views, func(i, j int) bool {
+		return views[i].Camera.Order < views[i].Camera.Order
+	})
+
+	for _, view := range views {
+		blit := blitConfig{
+			TargetFormat: view.ViewTarget.SurfaceTextureFormat,
+		}
+
+		// blit into the target texture
+		blitTexture(ctx,
+			blitPipelines.Specialize(blit),
+			view.ViewTarget.UnsampledTexture(),
+			view.ViewTarget.SurfaceTextureView,
+		)
+
+		if view.RenderTarget.Texture != nil {
+			view.RenderTarget.Texture.Updated(ctx)
+		}
+	}
+}
+
+func driveCameraSchedules(
+	world *byke.World,
+	camerasQuery byke.Query[struct {
+		EntityId byke.EntityId
+		Camera   Camera
+	}],
+) {
+	// TODO reuse allocation
+	cameras := camerasQuery.AppendTo(nil)
+
+	// sort cameras to render in ascending camera order
+	sort.Slice(cameras, func(a, b int) bool {
+		return cameras[a].Camera.Order < cameras[b].Camera.Order
+	})
+
+	defer world.RemoveResource(reflect.TypeFor[CurrentView]())
+
+	for _, camera := range cameras {
+		world.InsertResource(CurrentView(camera.EntityId))
+		world.RunSchedule(Core2d)
+	}
 }

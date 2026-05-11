@@ -5,6 +5,7 @@ import "github.com/oliverbestmann/byke"
 var _ = byke.ValidateComponent[RenderLayers]()
 
 var renderLayerZero = RenderLayersOf(0)
+var renderLayerAll = RenderLayers{Layers: 0xffffffff}
 
 type RenderLayers struct {
 	byke.Component[RenderLayers]
@@ -15,7 +16,7 @@ func (r RenderLayers) Intersects(other RenderLayers) bool {
 	return r.Layers&other.Layers != 0
 }
 
-func RenderLayersOf(layers ...int) RenderLayers {
+func RenderLayersOf(layers ...uint32) RenderLayers {
 	var r RenderLayers
 
 	for _, layer := range layers {

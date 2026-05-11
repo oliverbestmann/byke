@@ -3,10 +3,9 @@ package byke2d
 import (
 	_ "embed"
 	"slices"
-	"strconv"
 
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/puffin-go"
+	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -14,6 +13,10 @@ import (
 
 var _ = byke.ValidateComponent[Sprite]()
 var _ = byke.ValidateComponent[Anchor]()
+
+var _ = byke.ValidateComponent[ExtractedSprite]()
+var _ = byke.ValidateComponent[bindGroupsSprites]()
+var _ = byke.ValidateComponent[metaSprites]()
 
 //go:embed sprite.wgsl
 var spritesShader string
@@ -59,6 +62,21 @@ var (
 	AnchorBottomCenter = &Anchor{Vec2f: glm.Vec2f{0.0, 0.5}}
 	AnchorBottomRight  = &Anchor{Vec2f: glm.Vec2f{0.5, 0.5}}
 )
+
+func pluginSprite(app *byke.App) {
+	app.InsertResource(staticSpriteUniforms{})
+
+	app.AddSystems(Render,
+		byke.System(extractSpritesSystem).InSet(RenderPhaseExtract),
+		byke.System(uploadSpritesSystem).InSet(RenderPhasePrepareResources),
+		byke.System(prepareBindGroupsSpritesSystem).InSet(RenderPhasePrepareBindGroups),
+	)
+
+	app.AddSystems(Core2d,
+		byke.
+			System(renderSpritesSystem).
+			InSet(RenderPhaseExecute))
+}
 
 type renderSpritePipelineConfig struct {
 	Format      wgpu.TextureFormat
@@ -146,7 +164,22 @@ func (r renderSpritePipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderP
 	})
 }
 
-type renderSpriteValue struct {
+// ExtractedSprite got extracted from the World in Prepare and will be rendered
+// to the screen. Does not need to be backed by a real sprite.
+type ExtractedSprite struct {
+	byke.Component[ExtractedSprite]
+	Texture      *Texture
+	Transform    GlobalTransform
+	Color        Color
+	Rect         glm.Rect2f
+	Size         glm.Vec2f
+	Anchor       Anchor
+	RenderLayers RenderLayers
+	FlipX, FlipY bool
+}
+
+type extractSpriteValue struct {
+	byke.EntityId
 	Sprite       Sprite
 	Transform    GlobalTransform
 	Visibility   ComputedVisibility
@@ -155,194 +188,25 @@ type renderSpriteValue struct {
 	Anchor       Anchor
 }
 
-type renderSpriteAllocations struct {
-	bufIndices        *wgpu.Buffer
-	bufView           *wgpu.Buffer
-	bufInstances      *wgpu.Buffer
-	bufAlphaOnlyTrue  *wgpu.Buffer
-	bufAlphaOnlyFalse *wgpu.Buffer
-
-	instances    wx.InstanceWriter
-	spritesSlice []renderSpriteValue
-}
-
-func renderSpriteSystem(
-	camera CurrentCamera,
-	spritesQuery byke.Query[renderSpriteValue],
-	ctx *RenderContext,
-	cachedAllocs *byke.Local[renderSpriteAllocations],
-	pipelines Pipelines[renderSpritePipelineConfig],
+// extractSpritesSystem adds the ExtractedSprite component to all renderable
+// entities that have a Sprite component.
+func extractSpritesSystem(
+	commands *byke.Commands,
+	sprites byke.Query[extractSpriteValue],
+	removed byke.RemovedComponents[Sprite],
 ) {
-	defer puffin.NewScope("byke2d.RenderSprites").End()
+	// TODO what if the entity does not exist?
+	// for removed := range removed.Read() {
+	// 	commands.Entity(removed).Update(byke.RemoveComponent[ExtractedSprite]())
+	// }
 
-	const bufInstancesSize = 1024 * 1024
-	allocs := &cachedAllocs.Value
-
-	if allocs.bufIndices == nil {
-		defer puffin.NewScope("allocate buffers").End()
-
-		allocs.bufIndices = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-			Label:    "Sprite.Indices",
-			Contents: wgpu.ToBytes([]uint16{2, 0, 1, 1, 3, 2}),
-			Usage:    wgpu.BufferUsageIndex,
-		})
-
-		allocs.bufView = ctx.CreateBuffer(&wgpu.BufferDescriptor{
-			Label: "Sprite.ViewUniform",
-			Usage: wgpu.BufferUsageUniform | wgpu.BufferUsageCopyDst,
-			Size:  max(96, uint64(len(new(viewUniform).ToWGPU()))),
-		})
-
-		allocs.bufInstances = ctx.CreateBuffer(&wgpu.BufferDescriptor{
-			Label: "Sprite.Instances",
-			Usage: wgpu.BufferUsageVertex | wgpu.BufferUsageCopyDst,
-			Size:  bufInstancesSize,
-		})
-
-		allocs.bufAlphaOnlyTrue = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-			Label:    "Sprite.AlphaOnlyTrueUniform",
-			Usage:    wgpu.BufferUsageUniform,
-			Contents: wgpu.ToBytes([]uint32{1}),
-		})
-
-		allocs.bufAlphaOnlyFalse = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-			Label:    "Sprite.AlphaOnlyFalseUniform",
-			Usage:    wgpu.BufferUsageUniform,
-			Contents: wgpu.ToBytes([]uint32{0}),
-		})
-	}
-
-	// collect instances values, reuse allocations
-	instances := &allocs.instances
-	instances.Clear()
-
-	const instanceSize = 52
-
-	conf := renderSpritePipelineConfig{
-		Format:      camera.ViewTarget.Format,
-		SampleCount: camera.ViewTarget.SampleCount,
-	}
-
-	pipeline := pipelines.Specialize(conf)
-
-	vv := ViewValues{
-		Transform:   camera.Transform,
-		Projection:  camera.Projection,
-		SurfaceSize: camera.ViewTarget.Size,
-	}
-
-	viewUniformValue := viewUniform{
-		ScreenToNDC:   vv.SurfaceToNDC(),
-		WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
-	}
-
-	// upload uniforms for this camera
-	ctx.Queue.WriteBuffer(allocs.bufView, 0, viewUniformValue.ToWGPU())
-
-	// bind ViewUniform
-	viewBindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Label:  "Sprite.ViewUniform.BindGroup",
-		Layout: pipeline.GetBindGroupLayout(0),
-		Entries: Sequential(
-			BindingBuffer(allocs.bufView),
-		),
-	})
-
-	type batchKey struct {
-		Texture *Texture
-	}
-
-	flush := func(key batchKey) {
-		defer puffin.NewScopeWithValue("Flush", strconv.Itoa(instances.Count())).End()
-
-		encoder := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Sprite.CommandEncoder"})
-		defer encoder.Release()
-
-		bytesInstances := instances.Bytes()
-		ctx.WriteBuffer(allocs.bufInstances, 0, bytesInstances)
-
-		// interpret one channel textures as alpha only
-		var bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyFalse
-		if key.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
-			bufAlphaOnly = cachedAllocs.Value.bufAlphaOnlyTrue
-		}
-
-		bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-			Label:  "Sprite.BindGroup",
-			Layout: pipeline.GetBindGroupLayout(1),
-			Entries: Sequential(
-				BindingTextureView(key.Texture.TextureView),
-				BindingSampler(key.Texture.Sampler),
-				BindingBuffer(bufAlphaOnly),
-			),
-		})
-
-		defer bindGroup.Release()
-
-		pass := encoder.BeginRenderPass(&wgpu.RenderPassDescriptor{
-			Label: "Sprite.RenderPass",
-			ColorAttachments: []wgpu.RenderPassColorAttachment{
-				camera.ViewTarget.Attachment(),
-			},
-		})
-		defer pass.Release()
-
-		pass.SetPipeline(pipeline.Get())
-		pass.SetBindGroup(0, viewBindGroup, nil)
-		pass.SetBindGroup(1, bindGroup, nil)
-		pass.SetVertexBuffer(0, allocs.bufInstances, 0, uint64(len(bytesInstances)))
-		pass.SetIndexBuffer(allocs.bufIndices, wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
-		pass.DrawIndexed(6, uint32(instances.Count()), 0, 0, 0)
-		pass.End()
-
-		ctx.Submit(encoder.Finish(nil))
-	}
-
-	var keyCurrent batchKey
-
-	sprites := spritesQuery.AppendTo(allocs.spritesSlice[:0])
-	allocs.spritesSlice = sprites
-
-	// sort sprites by z-order
-	slices.SortFunc(sprites, func(a, b renderSpriteValue) int {
-		aZ := a.Transform.Translation[2]
-		bZ := b.Transform.Translation[2]
-		switch {
-		case aZ < bZ:
-			return -1
-		case aZ > bZ:
-			return 1
-		default:
-			return 0
-		}
-	})
-
-	for _, sprite := range sprites {
+	for sprite := range sprites.Items() {
 		if !sprite.Visibility.Visible {
 			continue
 		}
 
-		if !camera.RenderLayers.Intersects(sprite.RenderLayers.Or(renderLayerZero)) {
-			continue
-		}
-
-		key := batchKey{
-			Texture: sprite.Sprite.Texture,
-		}
-
-		hasNoSpace := bufInstancesSize-len(instances.Bytes()) < instanceSize
-		hasNewTexture := instances.Count() > 0 && keyCurrent != key
-
-		if instances.Count() > 0 && (hasNewTexture || hasNoSpace) {
-			flush(keyCurrent)
-			instances.Clear()
-		}
-
-		keyCurrent = key
-
-		// display the full image by default
-		textureSize := sprite.Sprite.Texture.Size()
-		rect := glm.RectFromPoints(glm.Vec2f{}, textureSize)
+		// calculate size of the rect to display
+		rect := glm.RectFromSize(glm.Vec2f{}, sprite.Sprite.Texture.Size())
 
 		// but apply texture atlas if available
 		if ta, ok := sprite.TextureAtlas.Get(); ok {
@@ -352,47 +216,338 @@ func renderSpriteSystem(
 			}
 		}
 
-		// uv = offset + position * scale
-		uvOffset := rect.Min.Div(textureSize)
-		uvScale := rect.Size().Div(textureSize)
+		commands.Entity(sprite.EntityId).Insert(
+			ExtractedSprite{
+				Texture:      sprite.Sprite.Texture,
+				Color:        sprite.Sprite.Color,
+				Size:         sprite.Sprite.CustomSize.Or(rect.Size()),
+				FlipX:        sprite.Sprite.FlipX,
+				FlipY:        sprite.Sprite.FlipY,
+				RenderLayers: sprite.RenderLayers.Or(renderLayerAll),
+				Transform:    sprite.Transform,
+				Anchor:       sprite.Anchor,
+				Rect:         rect,
+			},
+		)
+	}
+}
 
-		if sprite.Sprite.FlipX {
-			// flip uv along the x axis
-			uvOffset[0] += uvScale[0]
-			uvScale[0] *= -1
+type metaSprites struct {
+	byke.Component[metaSprites]
+	Instances  wx.InstanceWriter
+	Buffer     *wgpu.Buffer
+	BufferSize int
+	Batches    []spritesBatch
+
+	// temporary space for sorting by z coordinate
+	Sprites []*ExtractedSprite
+}
+
+func (m metaSprites) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{
+		bindGroupsSprites{},
+	}
+}
+
+type spritesBatch struct {
+	Texture       *Texture
+	Offset        uint64
+	Size          uint64
+	InstanceCount uint32
+}
+
+func uploadSpritesSystem(
+	commands *byke.Commands,
+	ctx *RenderContext,
+	viewsQuery byke.Query[struct {
+		_            byke.With[Camera]
+		EntityId     byke.EntityId
+		Meta         byke.OptionMut[metaSprites]
+		RenderLayers RenderLayers
+	}],
+	spritesQuery byke.Query[*ExtractedSprite],
+) {
+	for view := range viewsQuery.Items() {
+		meta, metaSet := view.Meta.Get()
+		if !metaSet {
+			meta = &metaSprites{}
 		}
 
-		if !sprite.Sprite.FlipY {
-			// flip uv along the y axis
-			uvOffset[1] += uvScale[1]
-			uvScale[1] *= -1
+		// the size of one sprite instance in the wgpu instance buffer
+		const instanceSize = 52
+
+		instances := &meta.Instances
+
+		meta.Batches = meta.Batches[:0]
+		meta.Instances.Clear()
+
+		meta.Sprites = spritesQuery.AppendTo(meta.Sprites[:0])
+
+		// sort sprites by z-order
+		slices.SortFunc(meta.Sprites, func(a, b *ExtractedSprite) int {
+			aZ := a.Transform.Translation[2]
+			bZ := b.Transform.Translation[2]
+			switch {
+			case aZ < bZ:
+				return -1
+			case aZ > bZ:
+				return 1
+			default:
+				return 0
+			}
+		})
+
+		var batchStart uint64
+		var batchTexture *Texture
+
+		maybeFlush := func(nextTexture *Texture) {
+			if batchTexture == nextTexture {
+				return
+			}
+
+			byteCount := meta.Instances.ByteCount()
+
+			if batchStart != byteCount && batchTexture != nil {
+				// start a new batch, flush the previous one
+				meta.Batches = append(meta.Batches, spritesBatch{
+					Texture:       batchTexture,
+					Offset:        batchStart,
+					Size:          byteCount - batchStart,
+					InstanceCount: uint32((byteCount - batchStart) / instanceSize),
+				})
+			}
+
+			batchStart = byteCount
+			batchTexture = nextTexture
 		}
 
-		// calculate size of the sprite
-		baseSize := sprite.Sprite.CustomSize.Or(rect.Size())
-		scale := sprite.Transform.Scale.Truncate().Mul(baseSize)
-		anchorOffset := sprite.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
+		for _, sp := range meta.Sprites {
+			if !view.RenderLayers.Intersects(sp.RenderLayers) {
+				// not rendered by this camera
+				continue
+			}
 
-		instances.StartNew(instanceSize)
+			maybeFlush(sp.Texture)
 
-		// @location(0) i_translation: vec2<f32>,
-		instances.AppendVec2f(sprite.Transform.Translation.Truncate().Add(anchorOffset))
-		// @location(1) i_scale: vec2<f32>,
-		instances.AppendVec2f(scale)
-		// @location(2) i_rotation: f32,
-		instances.AppendFloat32(float32(sprite.Transform.Rotation))
-		// @location(3) i_uv_offset: vec2<f32>,
-		instances.AppendVec2f(uvOffset)
-		// @location(4) i_uv_scale: vec2<f32>,
-		instances.AppendVec2f(uvScale)
-		// @location(5) i_color: vec4<f32>,
-		instances.AppendVec4f(sprite.Sprite.Color.ToVec())
+			textureSize := sp.Texture.Size()
+
+			// uv = offset + position * scale
+			uvOffset := sp.Rect.Min.Div(textureSize)
+			uvScale := sp.Rect.Size().Div(textureSize)
+
+			if sp.FlipX {
+				// flip uv along the x axis
+				uvOffset[0] += uvScale[0]
+				uvScale[0] *= -1
+			}
+
+			if !sp.FlipY {
+				// flip uv along the y axis
+				uvOffset[1] += uvScale[1]
+				uvScale[1] *= -1
+			}
+
+			// calculate size of the sprite
+			baseSize := sp.Size
+			scale := sp.Transform.Scale.Truncate().Mul(baseSize)
+			anchorOffset := sp.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
+
+			instances.StartNew(instanceSize)
+
+			// @location(0) i_translation: vec2<f32>,
+			instances.AppendVec2f(sp.Transform.Translation.Truncate().Add(anchorOffset))
+			// @location(1) i_scale: vec2<f32>,
+			instances.AppendVec2f(scale)
+			// @location(2) i_rotation: f32,
+			instances.AppendFloat32(float32(sp.Transform.Rotation))
+			// @location(3) i_uv_offset: vec2<f32>,
+			instances.AppendVec2f(uvOffset)
+			// @location(4) i_uv_scale: vec2<f32>,
+			instances.AppendVec2f(uvScale)
+			// @location(5) i_color: vec4<f32>,
+			instances.AppendVec4f(sp.Color.ToVec())
+		}
+
+		// flush the last batch if needed
+		maybeFlush(nil)
+
+		data := instances.Bytes()
+
+		if meta.BufferSize < len(data) && meta.Buffer != nil {
+			meta.Buffer.Release()
+			meta.Buffer = nil
+			meta.BufferSize = 0
+		}
+
+		if meta.Buffer == nil {
+			meta.BufferSize = max(4096, len(data))
+
+			meta.Buffer = ctx.CreateBuffer(&wgpu.BufferDescriptor{
+				Label: "Sprite Instances",
+				Usage: wgpu.BufferUsageCopyDst | wgpu.BufferUsageVertex,
+				Size:  uint64(meta.BufferSize),
+			})
+		}
+
+		// upload data to buffer
+		ctx.WriteBuffer(meta.Buffer, 0, data)
+
+		if !metaSet {
+			commands.Entity(view.EntityId).Insert(meta)
+		}
+	}
+}
+
+type bindGroupsSprites struct {
+	byke.Component[bindGroupsSprites]
+	View    *wgpu.BindGroup
+	Batches []*wgpu.BindGroup
+}
+
+func (c *bindGroupsSprites) Reset() {
+	if c.View != nil {
+		// TODO somehow reuse if not changed
+		c.View.Release()
 	}
 
-	if instances.Count() > 0 {
-		flush(keyCurrent)
-		instances.Clear()
+	for _, batch := range c.Batches {
+		batch.Release()
 	}
 
-	viewBindGroup.Release()
+	// clear the pointers
+	clear(c.Batches)
+
+	c.Batches = c.Batches[:0]
+}
+
+type staticSpriteUniforms struct {
+	alphaOnlyFalse *wgpu.Buffer
+	alphaOnlyTrue  *wgpu.Buffer
+	index          *wgpu.Buffer
+}
+
+func (s *staticSpriteUniforms) AlphaOnly(ctx *RenderContext, value bool) wgpu.BindGroupEntry {
+	if s.alphaOnlyTrue == nil {
+		s.alphaOnlyTrue = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "Sprite Uniform AlphaOnlyTrue",
+			Usage:    wgpu.BufferUsageUniform,
+			Contents: wgpu.ToBytes([]uint32{1}),
+		})
+
+		s.alphaOnlyFalse = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "Sprite Uniform AlphaOnlyFalse",
+			Usage:    wgpu.BufferUsageUniform,
+			Contents: wgpu.ToBytes([]uint32{0}),
+		})
+	}
+
+	if value {
+		return BindingBuffer(s.alphaOnlyTrue)
+	}
+
+	return BindingBuffer(s.alphaOnlyFalse)
+}
+
+func (s *staticSpriteUniforms) Index(ctx *RenderContext) *wgpu.Buffer {
+	if !s.index.IsValid() {
+		s.index = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "Sprite.Indices",
+			Contents: wgpu.ToBytes([]uint16{2, 0, 1, 1, 3, 2}),
+			Usage:    wgpu.BufferUsageIndex,
+		})
+	}
+
+	return s.index
+}
+
+func prepareBindGroupsSpritesSystem(
+	ctx *RenderContext,
+	pipelines Pipelines[renderSpritePipelineConfig],
+	views byke.Query[struct {
+		ViewTarget *ViewTarget
+		Meta       *metaSprites
+		BindGroups *bindGroupsSprites
+	}],
+
+	viewUniforms *ComponentUniforms[viewUniforms],
+	staticSpriteUniforms *staticSpriteUniforms,
+) {
+	for view := range views.Items() {
+		pipeline := pipelines.Specialize(renderSpritePipelineConfig{
+			Format:      view.ViewTarget.Format,
+			SampleCount: view.ViewTarget.SampleCount,
+		})
+
+		view.BindGroups.View = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+			Label:  "Sprite.ViewUniform.BindGroup",
+			Layout: pipeline.GetBindGroupLayout(0),
+			Entries: Sequential(
+				viewUniforms.Binding(),
+			),
+		})
+
+		for _, batch := range view.Meta.Batches {
+			alphaOnly := batch.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm
+			bufAlphaOnly := staticSpriteUniforms.AlphaOnly(ctx, alphaOnly)
+
+			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+				Label:  "Sprite.BindGroup",
+				Layout: pipeline.GetBindGroupLayout(1),
+				Entries: Sequential(
+					BindingTextureView(batch.Texture.TextureView),
+					BindingSampler(batch.Texture.Sampler),
+					bufAlphaOnly,
+				),
+			})
+
+			view.BindGroups.Batches = append(view.BindGroups.Batches, bindGroup)
+		}
+	}
+}
+
+func renderSpritesSystem(
+	ctx *RenderContext,
+	pipelines Pipelines[renderSpritePipelineConfig],
+	bufs staticSpriteUniforms,
+	viewQuery ViewQuery[struct {
+		Camera     *Camera
+		ViewTarget *ViewTarget
+		Meta       *metaSprites
+		BindGroups *bindGroupsSprites
+	}],
+) {
+	view := viewQuery.Get()
+
+	if len(view.Meta.Batches) == 0 {
+		return
+	}
+
+	pipeline := pipelines.Specialize(renderSpritePipelineConfig{
+		Format:      view.ViewTarget.Format,
+		SampleCount: view.ViewTarget.SampleCount,
+	})
+
+	enc := ctx.CreateCommandEncoder(nil)
+	defer enc.Release()
+
+	pass := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
+		Label: "Sprites",
+		ColorAttachments: []wgpu.RenderPassColorAttachment{
+			view.ViewTarget.Attachment(),
+		},
+	})
+
+	pass.SetPipeline(pipeline.Get())
+	pass.SetBindGroup(0, view.BindGroups.View, nil)
+	pass.SetIndexBuffer(bufs.Index(ctx), wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
+
+	for idx, batch := range view.Meta.Batches {
+		pass.SetBindGroup(1, view.BindGroups.Batches[idx], nil)
+		pass.SetVertexBuffer(0, view.Meta.Buffer, batch.Offset, batch.Size)
+		pass.DrawIndexed(6, batch.InstanceCount, 0, 0, 0)
+	}
+
+	pass.End()
+
+	ctx.Submit(enc.Finish(nil))
 }

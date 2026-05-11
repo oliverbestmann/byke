@@ -77,7 +77,78 @@ func (s *schedule) UpdateSystemOrdering() error {
 	return nil
 }
 
+func dfs(startSet *SystemSet, next func(*SystemSet) []*SystemSet) iter.Seq[*SystemSet] {
+	return func(yield func(*SystemSet) bool) {
+		seen := map[*SystemSet]bool{}
+		stack := []*SystemSet{startSet}
+
+		for len(stack) > 0 {
+			currSet := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+
+			if !seen[currSet] {
+				seen[currSet] = true
+
+				if currSet != startSet && !yield(currSet) {
+					return
+				}
+
+				for _, node := range next(currSet) {
+					if !seen[node] {
+						stack = append(stack, node)
+					}
+				}
+			}
+		}
+	}
+}
+
+func addTransitiveEdgesToSets(sets []*SystemSet) {
+	for _, currSet := range sets {
+		for beforeSet := range dfs(currSet, func(s *SystemSet) []*SystemSet { return s.before }) {
+			if !slices.Contains(currSet.before, beforeSet) {
+				currSet.before = append(currSet.before, beforeSet)
+			}
+		}
+
+		for afterSet := range dfs(currSet, func(s *SystemSet) []*SystemSet { return s.after }) {
+			if !slices.Contains(currSet.after, afterSet) {
+				currSet.after = append(currSet.after, afterSet)
+			}
+		}
+	}
+}
+
+func collectReachableSystemsSets(systems []*systemConfig, knownSystemSets []*SystemSet) []*SystemSet {
+	var systemSets set.Set[*SystemSet]
+
+	reachable := func(knownSet *SystemSet) {
+		systemSets.Insert(knownSet)
+		systemSets.InsertAll(dfs(knownSet, func(s *SystemSet) []*SystemSet { return s.after }))
+		systemSets.InsertAll(dfs(knownSet, func(s *SystemSet) []*SystemSet { return s.before }))
+	}
+
+	for _, knownSet := range knownSystemSets {
+		reachable(knownSet)
+	}
+
+	for _, system := range systems {
+		for systemSet := range system.SystemSets.Values() {
+			reachable(systemSet)
+		}
+	}
+
+	return slices.Collect(systemSets.Values())
+}
+
 func topologicalSystemOrder(systems []*systemConfig, knownSystemSets []*SystemSet) ([]SystemId, error) {
+	// we need to know the full graph of system set edges to be able to decide if
+	// there is a transitive connection between two systems
+	knownSystemSets = collectReachableSystemsSets(systems, knownSystemSets)
+
+	// now add tarnsitive edges to all systems.
+	addTransitiveEdgesToSets(knownSystemSets)
+
 	// graph and in-degree count for topological sorting
 	graph := map[SystemId][]SystemId{}
 	inDegree := map[SystemId]int{}

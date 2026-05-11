@@ -168,11 +168,12 @@ func applyBloomSystem(
 
 	bloomTexture := bloomGetTexture(commands, textureCache, bv, camera.ViewTarget.Size)
 
-	uniforms.Write(ctx, bloomUniforms{
-		Viewport: glm.Vec4f{0, 0, 1, 1},
-		Scale:    bv.Bloom.Scale,
-		Aspect:   camera.ViewTarget.Size[0] / camera.ViewTarget.Size[1],
-	})
+	// FIXME
+	// uniforms.Write(ctx, bloomUniforms{
+	// 	Viewport: glm.Vec4f{0, 0, 1, 1},
+	// 	Scale:    bv.Bloom.Scale,
+	// 	Aspect:   camera.ViewTarget.Size[0] / camera.ViewTarget.Size[1],
+	// })
 
 	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Bloom"})
 	defer enc.Release()
@@ -361,51 +362,4 @@ func bloomComputeBlendFactor(bloom Bloom, mip float32, maxMip float32) float32 {
 	highPassLq := 1.0 - min(1.0, max(0.0, ((mip/maxMip)-bloom.HighPassFrequency)/bloom.HighPassFrequency))
 
 	return (bloom.Intensity + lfBoost) * highPassLq
-}
-
-type WGPUComponent[C byke.IsComponent[C]] interface {
-	byke.IsComponent[C]
-	comparable
-	ToWGPU() []byte
-}
-
-type ComponentUniforms[C WGPUComponent[C]] struct {
-	_ byke.NoCopy
-
-	value C
-
-	buffer     *wgpu.Buffer
-	bufferSize int
-}
-
-func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
-	return BindingBufferSize(c.buffer, 0, uint64(c.bufferSize))
-}
-
-func (c *ComponentUniforms[C]) Write(ctx *RenderContext, value C) {
-	if c.value == value && c.buffer != nil {
-		return
-	}
-
-	bytes := value.ToWGPU()
-	if c.bufferSize >= len(bytes) {
-		// re-use buffer, just update
-		ctx.WriteBuffer(c.buffer, 0, bytes)
-		return
-	}
-
-	// free existing buffer if any
-	if c.buffer != nil {
-		c.buffer.Release()
-		c.buffer = nil
-	}
-
-	c.bufferSize = len(bytes)
-
-	// allocate new buffer
-	c.buffer = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-		Label:    fmt.Sprintf("Uniform Buffer %T", value),
-		Contents: bytes,
-		Usage:    wgpu.BufferUsageUniform | wgpu.BufferUsageCopyDst,
-	})
 }

@@ -65,37 +65,50 @@ func TestSystemOrder(t *testing.T) {
 }
 
 func TestSystemOrderWithSets(t *testing.T) {
-	var SetA, SetB *SystemSet
+	for range 1024 {
+		var SetA, SetB, SetC *SystemSet
 
-	runTest := func(systems []*systemConfig, expected []SystemId) {
-		order, err := topologicalSystemOrder(systems, []*SystemSet{SetA, SetB})
-		require.NoError(t, err)
-		require.Equal(t, expected, order)
+		runTest := func(systems []*systemConfig, expected []SystemId) {
+			order, err := topologicalSystemOrder(systems, []*SystemSet{})
+			require.NoError(t, err)
+			require.Equal(t, expected, order)
+		}
+
+		SetA = &SystemSet{Name: "SetA"}
+		SetB = &SystemSet{Name: "SetB"}
+		SetC = &SystemSet{Name: "SetC"}
+
+		SetA.Before(SetB)
+		SetB.Before(SetC)
+
+		runTest(
+			asSystemConfigs(
+				System(a, b).Chain().InSet(SetB),
+				System(c).InSet(SetA),
+			),
+
+			systemIdsOf(c, a, b),
+		)
+
+		runTest(
+			asSystemConfigs(
+				System(b).InSet(SetB),
+				System(a).InSet(SetA),
+				System(c).After(b),
+			),
+
+			systemIdsOf(a, b, c),
+		)
+
+		runTest(
+			asSystemConfigs(
+				System(c).InSet(SetC),
+				System(a).InSet(SetA),
+			),
+
+			systemIdsOf(a, c),
+		)
 	}
-
-	SetA = &SystemSet{}
-	SetB = &SystemSet{}
-
-	SetA.Before(SetB)
-
-	runTest(
-		asSystemConfigs(
-			System(a, b).Chain().InSet(SetB),
-			System(c).InSet(SetA),
-		),
-
-		systemIdsOf(c, a, b),
-	)
-
-	runTest(
-		asSystemConfigs(
-			System(b).InSet(SetB),
-			System(a).InSet(SetA),
-			System(c).After(b),
-		),
-
-		systemIdsOf(a, b, c),
-	)
 }
 
 func a() int {

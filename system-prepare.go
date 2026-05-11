@@ -232,7 +232,8 @@ func forwardToNewState[T genericNewState[T]](world *World, pType reflect.Type) S
 	return t.newState(world, t)
 }
 
-// Same as forwardToNewState with the difference, that the genericT is implemented on *pType, not on pType directly.
-func forwardToNewStateOnPointer[T genericNewState[T]](world *World, pType reflect.Type) SystemParamState {
+// ForwardToNewStateOnPointer is the same as forwardToNewState with the difference,
+// that the genericT is implemented on *pType, not on pType directly.
+func ForwardToNewStateOnPointer[T genericNewState[T]](world *World, pType reflect.Type) SystemParamState {
 	return forwardToNewState[T](world, reflect.PointerTo(pType))
 }

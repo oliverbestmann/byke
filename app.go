@@ -87,6 +87,8 @@ func (a *App) Run() error {
 		}
 	}
 
+	a.World().DebugSystems()
+
 	return a.run(a.World())
 }
 
