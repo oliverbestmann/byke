@@ -473,7 +473,6 @@ func prepareBindGroupsSpritesSystem(
 func renderSpritesSystem(
 	ctx *RenderContext,
 	pipelines Pipelines[renderSpritePipelineConfig],
-	bufs staticSpriteUniforms,
 	viewQuery ViewQuery[struct {
 		Camera     *Camera
 		ViewTarget *ViewTarget
