@@ -13,7 +13,9 @@ type Transform struct {
 	byke.ComparableComponent[Transform]
 	Translation glm.Vec3f
 	Scale       glm.Vec3f
-	Rotation    glm.Rad
+
+	// TODO we need a something like glm.Quad4 at some point
+	Rotation glm.Rad
 }
 
 func NewTransform() Transform {
@@ -70,17 +72,23 @@ type GlobalTransform struct {
 	Rotation    glm.Rad
 }
 
-func (t GlobalTransform) AsMat3f() glm.Mat3f {
-	return glm.RotationMat3[float32](t.Rotation).
-		Scale(t.Scale.XY()).
-		Translate(t.Translation.Scale(1).XY())
+// Affine2 returns an affine transform as glm.Mat3f that represents this
+// GlobalTransform for 2d transformations.
+func (t GlobalTransform) Affine2() glm.Mat3f {
+	return glm.TranslationMat3(t.Translation.XY()).
+		Rotate(t.Rotation).
+		Scale(t.Scale.Truncate().XY())
+
+	// return glm.RotationMat3[float32](t.Rotation).
+	// 	Scale(t.Scale.XY()).
+	// 	Translate(t.Translation.Scale(1).XY())
 }
 
 func (t GlobalTransform) Mul(other Transform) GlobalTransform {
-	affine := t.AsMat3f()
-
 	// FIXME clean this up and do it correctly!
-	translation := affine.Transform(other.Translation.Truncate().Extend(1.0))
+	translation := t.
+		Affine2().
+		Transform(other.Translation.Truncate().Extend(1.0))
 
 	return GlobalTransform{
 		Translation: translation,
