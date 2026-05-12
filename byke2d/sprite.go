@@ -84,83 +84,80 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
-func (r renderSpritePipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
-	module := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
-		Label:      "SpriteShaderModule",
-		WGSLSource: &wgpu.ShaderSourceWGSL{Code: spritesShader},
-	})
-
-	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
-		Label: "SpriteRenderPipeline",
-		Vertex: wgpu.VertexState{
-			Module:     module,
-			EntryPoint: "vs_main",
-			Buffers: []wgpu.VertexBufferLayout{
-				{
-					ArrayStride: 60,
-					StepMode:    wgpu.VertexStepModeInstance,
-					Attributes: []wgpu.VertexAttribute{
-						{
-							ShaderLocation: 0,
-							Offset:         0,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 1,
-							Offset:         8,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 2,
-							Offset:         16,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 3,
-							Offset:         24,
-							Format:         wgpu.VertexFormatFloat32,
-						},
-						{
-							ShaderLocation: 4,
-							Offset:         28,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 5,
-							Offset:         36,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 6,
-							Offset:         44,
-							Format:         wgpu.VertexFormatFloat32x4,
+func (r renderSpritePipelineConfig) Specialize() SpecializedPipeline {
+	return SpecializedPipeline{
+		ShaderLabel: "Sprites",
+		Shader:      spritesShader,
+		Descriptor: wgpu.RenderPipelineDescriptor{
+			Label: "SpriteRenderPipeline",
+			Vertex: wgpu.VertexState{
+				EntryPoint: "vs_main",
+				Buffers: []wgpu.VertexBufferLayout{
+					{
+						ArrayStride: 60,
+						StepMode:    wgpu.VertexStepModeInstance,
+						Attributes: []wgpu.VertexAttribute{
+							{
+								ShaderLocation: 0,
+								Offset:         0,
+								Format:         wgpu.VertexFormatFloat32x2,
+							},
+							{
+								ShaderLocation: 1,
+								Offset:         8,
+								Format:         wgpu.VertexFormatFloat32x2,
+							},
+							{
+								ShaderLocation: 2,
+								Offset:         16,
+								Format:         wgpu.VertexFormatFloat32x2,
+							},
+							{
+								ShaderLocation: 3,
+								Offset:         24,
+								Format:         wgpu.VertexFormatFloat32,
+							},
+							{
+								ShaderLocation: 4,
+								Offset:         28,
+								Format:         wgpu.VertexFormatFloat32x2,
+							},
+							{
+								ShaderLocation: 5,
+								Offset:         36,
+								Format:         wgpu.VertexFormatFloat32x2,
+							},
+							{
+								ShaderLocation: 6,
+								Offset:         44,
+								Format:         wgpu.VertexFormatFloat32x4,
+							},
 						},
 					},
 				},
 			},
-		},
-		Fragment: &wgpu.FragmentState{
-			Module:     module,
-			EntryPoint: "fs_main",
-			Targets: []wgpu.ColorTargetState{
-				{
-					Format:    r.Format,
-					Blend:     &wgpu.BlendStateAlphaBlending,
-					WriteMask: wgpu.ColorWriteMaskAll,
+			Fragment: &wgpu.FragmentState{
+				EntryPoint: "fs_main",
+				Targets: []wgpu.ColorTargetState{
+					{
+						Format:    r.Format,
+						Blend:     &wgpu.BlendStateAlphaBlending,
+						WriteMask: wgpu.ColorWriteMaskAll,
+					},
 				},
 			},
+			Primitive: wgpu.PrimitiveState{
+				Topology:  wgpu.PrimitiveTopologyTriangleList,
+				FrontFace: wgpu.FrontFaceCW,
+				CullMode:  wgpu.CullModeNone,
+			},
+			Multisample: wgpu.MultisampleState{
+				Count:                  r.SampleCount,
+				Mask:                   0xffffffff,
+				AlphaToCoverageEnabled: false,
+			},
 		},
-		Primitive: wgpu.PrimitiveState{
-			Topology:  wgpu.PrimitiveTopologyTriangleList,
-			FrontFace: wgpu.FrontFaceCW,
-			CullMode:  wgpu.CullModeNone,
-		},
-		Multisample: wgpu.MultisampleState{
-			Count:                  r.SampleCount,
-			Mask:                   0xffffffff,
-			AlphaToCoverageEnabled: false,
-		},
-	})
+	}
 }
 
 // ExtractedSprite got extracted from the World in Prepare and will be rendered

@@ -14,36 +14,31 @@ type blitConfig struct {
 	TargetFormat wgpu.TextureFormat
 }
 
-func (b blitConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
-	vertexState, primitiveState := prepareFullscreenShader(ctx)
-
-	modFragment := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
-		Label:      "FullscreenShaderFragment",
-		WGSLSource: &wgpu.ShaderSourceWGSL{Code: blitShaderFragment},
-	})
-
-	defer modFragment.Release()
-
-	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
-		Label:     "Blit",
-		Vertex:    vertexState,
-		Primitive: primitiveState,
-		Fragment: &wgpu.FragmentState{
-			Module:     modFragment,
-			EntryPoint: "fs_main",
-			Targets: []wgpu.ColorTargetState{
-				{
-					Format:    b.TargetFormat,
-					Blend:     &wgpu.BlendStateReplace,
-					WriteMask: wgpu.ColorWriteMaskAll,
+func (b blitConfig) Specialize() SpecializedPipeline {
+	return SpecializedPipeline{
+		ShaderLabel:    "Blit",
+		Shader:         FullscreenVertexShader,
+		FragmentShader: blitShaderFragment,
+		Descriptor: wgpu.RenderPipelineDescriptor{
+			Label:     "Blit",
+			Vertex:    wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
+			Primitive: FullscreenShaderPrimitiveState,
+			Fragment: &wgpu.FragmentState{
+				EntryPoint: "fs_main",
+				Targets: []wgpu.ColorTargetState{
+					{
+						Format:    b.TargetFormat,
+						Blend:     &wgpu.BlendStateReplace,
+						WriteMask: wgpu.ColorWriteMaskAll,
+					},
 				},
 			},
+			Multisample: wgpu.MultisampleState{
+				Count: 1,
+				Mask:  0xffffffff,
+			},
 		},
-		Multisample: wgpu.MultisampleState{
-			Count: 1,
-			Mask:  0xffffffff,
-		},
-	})
+	}
 }
 
 func blitTexture(

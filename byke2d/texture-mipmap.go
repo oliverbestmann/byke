@@ -18,57 +18,50 @@ func mipmapLevelCount(width, height uint32) uint32 {
 type mipmapGenerator struct {
 	cache   Pipelines[mipmapPipelineConfig]
 	context *RenderContext
-	module  *wgpu.ShaderModule
 }
 
 func makeMipmapGenerator(ctx *RenderContext) *mipmapGenerator {
-	module := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
-		Label: "Texture.MipMap.Shader",
-		WGSLSource: &wgpu.ShaderSourceWGSL{
-			Code: mipmapShader,
-		},
-	})
-
 	return &mipmapGenerator{
 		context: ctx,
 		cache:   newPipelineCache[mipmapPipelineConfig](ctx),
-		module:  module,
 	}
 }
 
 type mipmapPipelineConfig struct {
-	Module      *wgpu.ShaderModule
 	Format      wgpu.TextureFormat
 	SampleCount uint32
 }
 
-func (m mipmapPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
-	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
-		Label: "Texture.MipMap.Pipeline",
-		Vertex: wgpu.VertexState{
-			Module:     m.Module,
-			EntryPoint: "vs_main",
-		},
-		Primitive: wgpu.PrimitiveState{
-			Topology:         wgpu.PrimitiveTopologyTriangleStrip,
-			StripIndexFormat: wgpu.IndexFormatUint16,
-		},
-		Multisample: wgpu.MultisampleState{
-			Count: m.SampleCount,
-			Mask:  0xffffffff,
-		},
-		Fragment: &wgpu.FragmentState{
-			Module:     m.Module,
-			EntryPoint: "fs_main",
-			Targets: []wgpu.ColorTargetState{
-				{
-					Format:    m.Format,
-					Blend:     &wgpu.BlendStateReplace,
-					WriteMask: wgpu.ColorWriteMaskAll,
+func (m mipmapPipelineConfig) Specialize() SpecializedPipeline {
+	return SpecializedPipeline{
+		ShaderLabel: "MipmapShader",
+		Shader:      mipmapShader,
+
+		Descriptor: wgpu.RenderPipelineDescriptor{
+			Label: "MipMapGenerator",
+			Vertex: wgpu.VertexState{
+				EntryPoint: "vs_main",
+			},
+			Primitive: wgpu.PrimitiveState{
+				Topology:         wgpu.PrimitiveTopologyTriangleStrip,
+				StripIndexFormat: wgpu.IndexFormatUint16,
+			},
+			Multisample: wgpu.MultisampleState{
+				Count: m.SampleCount,
+				Mask:  0xffffffff,
+			},
+			Fragment: &wgpu.FragmentState{
+				EntryPoint: "fs_main",
+				Targets: []wgpu.ColorTargetState{
+					{
+						Format:    m.Format,
+						Blend:     &wgpu.BlendStateReplace,
+						WriteMask: wgpu.ColorWriteMaskAll,
+					},
 				},
 			},
 		},
-	})
+	}
 }
 
 func (m *mipmapGenerator) Generate(texture *Texture) {
@@ -128,7 +121,6 @@ func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Textu
 	defer outView.Release()
 
 	pipeline := m.cache.Specialize(mipmapPipelineConfig{
-		Module:      m.module,
 		Format:      texture.Descriptor.Format,
 		SampleCount: texture.Descriptor.SampleCount,
 	})

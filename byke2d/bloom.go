@@ -55,10 +55,10 @@ type bloomPipelineConfig struct {
 	UniformScale    bool
 }
 
-func (b bloomPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
-	defs := pre.Values{}
-	defs.Define("UNIFORM_SCALE", b.UniformScale)
-	defs.Define("FIRST_DOWNSAMPLE", b.FirstDownsample)
+func (b bloomPipelineConfig) Specialize() SpecializedPipeline {
+	values := pre.Values{}
+	values.Define("UNIFORM_SCALE", b.UniformScale)
+	values.Define("FIRST_DOWNSAMPLE", b.FirstDownsample)
 
 	var entry string
 	switch {
@@ -69,18 +69,6 @@ func (b bloomPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline
 	default:
 		entry = "downsample"
 	}
-
-	shaderCode, err := pre.Process(bloomShader, defs)
-	if err != nil {
-		panic(fmt.Errorf("process bloom shader: %w", err))
-	}
-
-	module := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
-		Label:      "Bloom Shader",
-		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shaderCode},
-	})
-
-	vertexState, primitiveState := prepareFullscreenShader(ctx)
 
 	var blend *wgpu.BlendState
 	if b.Upsample {
@@ -98,26 +86,31 @@ func (b bloomPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline
 		}
 	}
 
-	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
-		Label:     fmt.Sprintf("%+v", b),
-		Vertex:    vertexState,
-		Primitive: primitiveState,
-		Fragment: &wgpu.FragmentState{
-			Module:     module,
-			EntryPoint: entry,
-			Targets: []wgpu.ColorTargetState{
-				{
-					Format:    b.TargetFormat,
-					Blend:     blend,
-					WriteMask: wgpu.ColorWriteMaskAll,
+	return SpecializedPipeline{
+		ShaderLabel:    "Bloom",
+		Shader:         FullscreenVertexShader,
+		FragmentShader: bloomShader,
+		ShaderValues:   values,
+		Descriptor: wgpu.RenderPipelineDescriptor{
+			Label:     fmt.Sprintf("%+v", b),
+			Vertex:    wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
+			Primitive: FullscreenShaderPrimitiveState,
+			Fragment: &wgpu.FragmentState{
+				EntryPoint: entry,
+				Targets: []wgpu.ColorTargetState{
+					{
+						Format:    b.TargetFormat,
+						Blend:     blend,
+						WriteMask: wgpu.ColorWriteMaskAll,
+					},
 				},
 			},
+			Multisample: wgpu.MultisampleState{
+				Count: 1,
+				Mask:  0xffffffff,
+			},
 		},
-		Multisample: wgpu.MultisampleState{
-			Count: 1,
-			Mask:  0xffffffff,
-		},
-	})
+	}
 }
 
 func prepareBloomUniforms(

@@ -227,66 +227,59 @@ type tonemappingPipelineConfig struct {
 	SectionalColorGrading bool
 }
 
-func (c tonemappingPipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderPipeline {
-	var defs = pre.Values{}
+func (c tonemappingPipelineConfig) Specialize() SpecializedPipeline {
+	var values = pre.Values{}
 
 	switch c.Tonemapping {
 	case TonemappingSomewhatBoringDisplayTransform:
-		defs.Define("TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM", true)
+		values.Define("TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM", true)
 	case TonemappingAcesFitted:
-		defs.Define("TONEMAP_METHOD_ACES_FITTED", true)
+		values.Define("TONEMAP_METHOD_ACES_FITTED", true)
 	case TonemappingReinhard:
-		defs.Define("TONEMAP_METHOD_REINHARD", true)
+		values.Define("TONEMAP_METHOD_REINHARD", true)
 	case TonemappingReinhardLuminance:
-		defs.Define("TONEMAP_METHOD_REINHARD_LUMINANCE", true)
+		values.Define("TONEMAP_METHOD_REINHARD_LUMINANCE", true)
 	case TonemappingTonyMcMapface:
-		defs.Define("TONEMAP_METHOD_TONY_MC_MAPFACE", true)
+		values.Define("TONEMAP_METHOD_TONY_MC_MAPFACE", true)
 	case TonemappingAgX:
-		defs.Define("TONEMAP_METHOD_AGX", true)
+		values.Define("TONEMAP_METHOD_AGX", true)
 	case TonemappingBlenderFilmic:
-		defs.Define("TONEMAP_METHOD_BLENDER_FILMIC", true)
+		values.Define("TONEMAP_METHOD_BLENDER_FILMIC", true)
 	default:
-		defs.Define("TONEMAP_METHOD_NONE", true)
+		values.Define("TONEMAP_METHOD_NONE", true)
 	}
 
-	defs.Define("DEBAND_DITHER", c.DebandDither.enable)
+	values.Define("DEBAND_DITHER", c.DebandDither.enable)
 
-	defs.Define("HUE_ROTATE", c.HueRotate)
-	defs.Define("WHITE_BALANCE", c.WhiteBalance)
-	defs.Define("SECTIONAL_COLOR_GRADING", c.SectionalColorGrading)
+	values.Define("HUE_ROTATE", c.HueRotate)
+	values.Define("WHITE_BALANCE", c.WhiteBalance)
+	values.Define("SECTIONAL_COLOR_GRADING", c.SectionalColorGrading)
 
-	shaderSource, err := pre.Process(tonemappingShader, defs)
-	if err != nil {
-		panic(err)
-	}
-
-	module := ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
-		Label:      "Tonemapping",
-		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shaderSource},
-	})
-
-	vertexState, primitiveState := prepareFullscreenShader(ctx)
-
-	return ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
-		Label: "",
-		Fragment: &wgpu.FragmentState{
-			Module:     module,
-			EntryPoint: "fragment",
-			Targets: []wgpu.ColorTargetState{
-				{
-					Format:    c.TargetFormat,
-					Blend:     &wgpu.BlendStateReplace,
-					WriteMask: wgpu.ColorWriteMaskAll,
+	return SpecializedPipeline{
+		ShaderLabel:    "Tonemapping",
+		Shader:         FullscreenVertexShader,
+		FragmentShader: tonemappingShader,
+		ShaderValues:   values,
+		Descriptor: wgpu.RenderPipelineDescriptor{
+			Label: "",
+			Fragment: &wgpu.FragmentState{
+				EntryPoint: "fragment",
+				Targets: []wgpu.ColorTargetState{
+					{
+						Format:    c.TargetFormat,
+						Blend:     &wgpu.BlendStateReplace,
+						WriteMask: wgpu.ColorWriteMaskAll,
+					},
 				},
 			},
+			Vertex:    wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
+			Primitive: FullscreenShaderPrimitiveState,
+			Multisample: wgpu.MultisampleState{
+				Count: 1,
+				Mask:  0xffffffff,
+			},
 		},
-		Vertex:    vertexState,
-		Primitive: primitiveState,
-		Multisample: wgpu.MultisampleState{
-			Count: 1,
-			Mask:  0xffffffff,
-		},
-	})
+	}
 }
 
 func tonemappingSystem(
