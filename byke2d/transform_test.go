@@ -44,21 +44,21 @@ func TestGlobalTransform_Mul(t *testing.T) {
 	}
 
 	// origin is exactly at the Translation value
-	pos = tr.Mul(TransformFromXY(0, 0)).Affine2().Transform(glm.Vec3f{})
+	pos = tr.Mul(TransformFromXY(0, 0)).Affine2().Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{10, 10, 1}, pos)
 
-	pos = tr.Mul(TransformFromXY(0, 1)).Affine2().Transform(glm.Vec3f{})
+	pos = tr.Mul(TransformFromXY(0, 1)).Affine2().Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{10, 11, 1}, pos)
 
-	pos = tr.Mul(TransformFromXY(1, 0)).Affine2().Transform(glm.Vec3f{})
+	pos = tr.Mul(TransformFromXY(1, 0)).Affine2().Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{15, 10, 1}, pos)
 
 	// now rotate 90 deg
 	tr.Rotation = glm.DegToRad(90)
 
-	pos = tr.Mul(TransformFromXY(0, 1)).Affine2().Transform(glm.Vec3f{})
+	pos = tr.Mul(TransformFromXY(0, 1)).Affine2().Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{9, 10, 1}, pos)
 
-	pos = tr.Mul(TransformFromXY(1, 0)).Affine2().Transform(glm.Vec3f{})
+	pos = tr.Mul(TransformFromXY(1, 0)).Affine2().Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{10, 15, 1}, pos)
 }
