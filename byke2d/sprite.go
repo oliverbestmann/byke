@@ -97,16 +97,9 @@ func (r renderSpritePipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderP
 			EntryPoint: "vs_main",
 			Buffers: []wgpu.VertexBufferLayout{
 				{
-					ArrayStride: 52,
+					ArrayStride: 60,
 					StepMode:    wgpu.VertexStepModeInstance,
 					Attributes: []wgpu.VertexAttribute{
-						// @location(0) i_translation: vec2<f32>,
-						// @location(1) i_scale: vec2<f32>,
-						// @location(2) i_rotation: f32,
-						// @location(3) i_uv_offset: vec2<f32>,
-						// @location(4) i_uv_scale: vec2<f32>,
-						// @location(5) i_color: vec4<f32>,
-
 						{
 							ShaderLocation: 0,
 							Offset:         0,
@@ -120,12 +113,12 @@ func (r renderSpritePipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderP
 						{
 							ShaderLocation: 2,
 							Offset:         16,
-							Format:         wgpu.VertexFormatFloat32,
+							Format:         wgpu.VertexFormatFloat32x2,
 						},
 						{
 							ShaderLocation: 3,
-							Offset:         20,
-							Format:         wgpu.VertexFormatFloat32x2,
+							Offset:         24,
+							Format:         wgpu.VertexFormatFloat32,
 						},
 						{
 							ShaderLocation: 4,
@@ -135,6 +128,11 @@ func (r renderSpritePipelineConfig) Specialize(ctx *RenderContext) *wgpu.RenderP
 						{
 							ShaderLocation: 5,
 							Offset:         36,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 6,
+							Offset:         44,
 							Format:         wgpu.VertexFormatFloat32x4,
 						},
 					},
@@ -280,7 +278,7 @@ func uploadSpritesSystem(
 		}
 
 		// the size of one sprite instance in the wgpu instance buffer
-		const instanceSize = 52
+		const instanceSize = 60
 
 		instances := &meta.Instances
 
@@ -340,21 +338,23 @@ func uploadSpritesSystem(
 			// calculate size of the sprite
 			baseSize := sp.Size
 			scale := sp.Transform.Scale.Truncate().Mul(baseSize)
-			anchorOffset := sp.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
+			// anchorOffset := sp.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
 
 			instances.StartNew(instanceSize)
 
 			// @location(0) i_translation: vec2<f32>,
-			instances.AppendVec2f(sp.Transform.Translation.Truncate().Add(anchorOffset))
+			instances.AppendVec2f(sp.Transform.Translation.Truncate())
 			// @location(1) i_scale: vec2<f32>,
 			instances.AppendVec2f(scale)
-			// @location(2) i_rotation: f32,
+			// @location(2) i_anchor: vec2<f32>,
+			instances.AppendVec2f(sp.Anchor.Vec2f)
+			// @location(3) i_rotation: f32,
 			instances.AppendFloat32(float32(sp.Transform.Rotation))
-			// @location(3) i_uv_offset: vec2<f32>,
+			// @location(4) i_uv_offset: vec2<f32>,
 			instances.AppendVec2f(uvOffset)
-			// @location(4) i_uv_scale: vec2<f32>,
+			// @location(5) i_uv_scale: vec2<f32>,
 			instances.AppendVec2f(uvScale)
-			// @location(5) i_color: vec4<f32>,
+			// @location(6) i_color: vec4<f32>,
 			instances.AppendVec4f(sp.Color.ToVec())
 		}
 

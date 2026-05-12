@@ -46,22 +46,25 @@ func setupSystem(commands *Commands, assets *Assets) {
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
 			// ScalingMode: ScalingModeWindowSize{},
-			Scale: 4.0,
+			Scale: 2.0,
 		},
 	)
 
 	asset := assets.Texture("marker.png").Await()
 	commands.Spawn(
+		TransformFromXY(0, 0),
 		Sprite{Texture: asset},
 		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectFromXYWH[uint32](0, 0, 4, 32))},
 	)
 
 	commands.Spawn(
+		TransformFromXY(-32, 0),
 		Sprite{Texture: asset, Color: ColorSRGBA(1, 0, 0, 0.5)},
 		AnchorTopLeft,
 	)
 
 	commands.Spawn(
+		TransformFromXY(32, 0),
 		Sprite{Texture: asset, Color: ColorSRGBA(0, 1, 0, 0.5)},
 		AnchorTopRight,
 	)

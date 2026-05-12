@@ -3,10 +3,11 @@ struct VertexInput {
 
     @location(0) i_translation: vec2<f32>,
     @location(1) i_scale: vec2<f32>,
-    @location(2) i_rotation: f32,
-    @location(3) i_uv_offset: vec2<f32>,
-    @location(4) i_uv_scale: vec2<f32>,
-    @location(5) i_color: vec4<f32>,
+    @location(2) i_anchor: vec2<f32>,
+    @location(3) i_rotation: f32,
+    @location(4) i_uv_offset: vec2<f32>,
+    @location(5) i_uv_scale: vec2<f32>,
+    @location(6) i_color: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -56,9 +57,19 @@ fn mat3_translation(translation: vec2<f32>) -> mat3x3<f32> {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-    let model_to_world = mat3_translation(in.i_translation)
+    let model_to_world =
+        // move the rotated sprite to its target position
+        mat3_translation(in.i_translation)
+
+        // rotate scaled sprite around the anchor
         * mat3_rotation(in.i_rotation)
-        * mat3_scale(in.i_scale);
+
+        // scale around the anchor
+        * mat3_scale(in.i_scale)
+
+        // move sprite anchor to the origin
+        * mat3_translation(in.i_anchor - vec2(0.5, 0.5))
+        ;
 
     // between 0 and 1
     // index vertices as p00, p01, p10, p11, this way
