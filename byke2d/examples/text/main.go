@@ -9,6 +9,7 @@ import (
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/pulse/glm"
+	"github.com/pkg/profile"
 )
 
 //go:embed assets
@@ -19,6 +20,8 @@ func main() {
 		AddSource: true,
 		Level:     slog.LevelDebug,
 	})
+
+	defer profile.Start(profile.CPUProfile).Stop()
 
 	slog.SetDefault(slog.New(handler))
 

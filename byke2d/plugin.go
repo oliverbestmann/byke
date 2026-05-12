@@ -107,6 +107,8 @@ func RenderPlugin(app *byke.App) {
 		Chain().
 		InSet(AudioSystems))
 
+	app.AddSystems(PreRender, cacheTextSystem)
+
 	app.AddSystems(Render, byke.
 		System(renderTextSystem).
 		InSet(RenderPhaseExtract))

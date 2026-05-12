@@ -24,7 +24,7 @@ import (
 
 var _ = byke.ValidateComponent[Text]()
 var _ = byke.ValidateComponent[Font]()
-var _ = byke.ValidateComponent[Glyph]()
+var _ = byke.ValidateComponent[textCache]()
 
 var sharedShaper shaping.HarfbuzzShaper
 var sharedSegmenter shaping.Segmenter
@@ -43,6 +43,7 @@ func (Text) RequireComponents() []spoke.ErasedComponent {
 		InheritVisibility,
 		AnchorCenter,
 		renderLayerZero,
+		textCache{},
 	}
 }
 
@@ -51,10 +52,37 @@ type Font struct {
 	Faces Faces
 }
 
-type Glyph struct {
-	byke.ImmutableComponent[Glyph]
-	glyph     shaping.Glyph
-	charValue rune
+type textCache struct {
+	byke.Component[textCache]
+	Text   []rune
+	Layout textLayout
+	Size   float32
+}
+
+func cacheTextSystem(
+	ctx *RenderContext,
+	textQuery byke.Query[struct {
+		_     byke.Changed[Text]
+		Text  Text
+		Font  Font
+		Cache *textCache
+	}],
+) {
+	for item := range textQuery.Items() {
+		text := []rune(item.Text.Text)
+		layout := layoutText(text, item.Font.Faces, item.Text.Size)
+
+		// cache values
+		item.Cache.Layout = layout
+		item.Cache.Text = text
+		item.Cache.Size = item.Text.Size
+
+		for _, line := range layout.Lines {
+			for idx, output := range line.Outputs {
+				cacheGlyphs(ctx, item.Text.Size, line.Inputs[idx], output)
+			}
+		}
+	}
 }
 
 type renderTextValue struct {
@@ -64,18 +92,17 @@ type renderTextValue struct {
 	Font            Font
 	RenderLayers    RenderLayers
 	GlobalTransform GlobalTransform
+	Cache           textCache
 }
 
-func renderTextSystem(ctx *RenderContext,
+func renderTextSystem(
 	textQuery byke.Query[renderTextValue],
 	sprites *ExtractedSprites,
 ) {
 	for item := range textQuery.Items() {
-		scope := puffin.NewScopeWithValue("text.ToSprites", item.Text.Text)
-
-		text := []rune(item.Text.Text)
-
-		layout := layoutText(text, item.Font.Faces, item.Text.Size)
+		text := item.Cache.Text
+		layout := item.Cache.Layout
+		textSize := item.Cache.Size
 
 		// calculate origin for the text
 		offset := layout.Size.Mul(item.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}))
@@ -86,9 +113,7 @@ func renderTextSystem(ctx *RenderContext,
 		for idx := len(layout.Lines) - 1; idx >= 0; idx-- {
 			line := layout.Lines[idx]
 
-			for idx, output := range line.Outputs {
-				cacheGlyphs(ctx, item.Text.Size, line.Inputs[idx], output)
-
+			for _, output := range line.Outputs {
 				for _, glyph := range output.Glyphs {
 					x := posX + floatOf(glyph.XOffset) + offset[0]
 					y := posY + floatOf(glyph.YOffset) + offset[1]
@@ -101,7 +126,7 @@ func renderTextSystem(ctx *RenderContext,
 						continue
 					}
 
-					glyphTexture, ok := glyphCache.Lookup(output.Face, item.Text.Size, glyph.GlyphID)
+					glyphTexture, ok := glyphCache.Lookup(output.Face, textSize, glyph.GlyphID)
 					if !ok {
 						continue
 					}
@@ -133,8 +158,6 @@ func renderTextSystem(ctx *RenderContext,
 			posX = 0
 			posY += line.Size[1]
 		}
-
-		scope.End()
 	}
 }
 
