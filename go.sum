@@ -17,8 +17,6 @@ github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLA
 github.com/felixge/fgprof v0.9.3/go.mod h1:RdbpDgzqYVh/T9fPELJyV7EYJuHB55UTEULNun8eiPw=
 github.com/felixge/fgprof v0.9.5 h1:8+vR6yu2vvSKn08urWyEuxx75NWPEvybbkBirEpsbVY=
 github.com/felixge/fgprof v0.9.5/go.mod h1:yKl+ERSa++RYOs32d8K6WEXCB4uXdLls4ZaZPpayhMM=
-github.com/go-gl/glfw/v3.3/glfw v0.0.0-20260406072232-3ac4aa2bb164 h1:ddtotcEXIT7dFhSeXIWjK8YMFYl5bB2NdYQwgv6Uqjk=
-github.com/go-gl/glfw/v3.3/glfw v0.0.0-20260406072232-3ac4aa2bb164/go.mod h1:SyRD8YfuKk+ZXlDqYiqe1qMSqjNgtHzBTG810KUagMc=
 github.com/go-text/render v0.2.1 h1:qwHhxqGUjjg4L0XyJWj7M7bpY75NZM+kBpv2Yfw5mcg=
 github.com/go-text/render v0.2.1/go.mod h1:HCCAq8MUlm/WRcXshBb4K/n+IkjeXQ1c2Ba+yICSm0A=
 github.com/go-text/typesetting v0.3.4 h1:YYurUOtEb9kGSOz4uE3k4OpBGsp1dDL8+fjCeaFamAU=
@@ -54,8 +52,8 @@ github.com/oliverbestmann/puffin-go v1.0.0 h1:8Aqa/u7SCot/yTMaVnMwzgWE6VEYgmWUdX
 github.com/oliverbestmann/puffin-go v1.0.0/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
 github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200 h1:LN84M+o+N53IlfC7OJURU7GaVMsoKkjYeE9AGHkJQdk=
 github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200/go.mod h1:0QB2q27wI/SPVbI7+7O2+WTdj6d256fntzHemMuLzeo=
-github.com/oliverbestmann/webgpu v1.30.2 h1:q1aNF1rOXn58tLDIGusFawANuAAwafbN3rIQX+//cxA=
-github.com/oliverbestmann/webgpu v1.30.2/go.mod h1:pQ2kXthpbcJRpygGQ7nw43FDfGHQ6CjdqMJ/JJatfsg=
+github.com/oliverbestmann/webgpu v1.33.2 h1:uDs3Fx4uAiUs8E4QytblofDpLtqBRGX3pfnLZzlhWGY=
+github.com/oliverbestmann/webgpu v1.33.2/go.mod h1:0UEcoJ8VnwnAqo3JfzdFptplxtjhaQasc3n/nYZOrPA=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15 h1:HPxVSV8C8JaxGfa9hjDhzNmryoqPF3EwESBTFWpxNBo=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15/go.mod h1:tczQXCdsoFy+FTJVsZSve/vF8cmWEkxhvjcyY2Rujp8=
 github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260509160802-b09403b07cd3 h1:NbBG2+pwqKcNfKUKtjWOj+02RkXSUWVkxY3hqzgyjSA=

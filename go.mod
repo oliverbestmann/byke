@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oliverbestmann/puffin-go v1.0.0
 	github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200
-	github.com/oliverbestmann/webgpu v1.30.2
+	github.com/oliverbestmann/webgpu v1.33.2
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/image v0.40.0
@@ -20,7 +20,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
-	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20260406072232-3ac4aa2bb164 // indirect
 	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.1.0.20260406072232-3ac4aa2bb164 // indirect
 	github.com/google/pprof v0.0.0-20260507013755-92041b743c96 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
