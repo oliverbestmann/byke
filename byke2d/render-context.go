@@ -2,6 +2,7 @@ package byke2d
 
 import (
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -16,9 +17,9 @@ type RenderContext struct {
 	*wx.Context
 }
 
-func (rc *RenderContext) init(ctx *wx.Context) {
+func (rc *RenderContext) init(ctx *wx.Context, preCompiler *pre.Compiler) {
 	rc.Context = ctx
-	rc.MipmapGenerator = makeMipmapGenerator(rc)
+	rc.MipmapGenerator = makeMipmapGenerator(rc, preCompiler)
 	rc.samplerCache, _ = lru.NewWithEvict[wgpu.SamplerDescriptor, *wgpu.Sampler](16, samplerCacheOnEvict)
 }
 

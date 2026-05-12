@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/golang-lru/v2"
 	"github.com/oliverbestmann/byke"
@@ -33,22 +32,25 @@ type SpecializedPipeline struct {
 
 type Pipelines[C PipelineConfig] struct {
 	renderContext *RenderContext
+	preCompiler   *pre.Compiler
 	cache         *lru.Cache[C, Pipeline]
 	defines       pre.Values
 }
 
-func newPipelineCache[C PipelineConfig](renderContext *RenderContext) Pipelines[C] {
+func newPipelineCache[C PipelineConfig](renderContext *RenderContext, preCompiler *pre.Compiler) Pipelines[C] {
 	cache, _ := lru.NewWithEvict[C, Pipeline](32, releasePipelineOnEvict)
 
 	return Pipelines[C]{
 		renderContext: renderContext,
+		preCompiler:   preCompiler,
 		cache:         cache,
 	}
 }
 
 func (Pipelines[C]) FromWorld(world *byke.World) Pipelines[C] {
 	renderContext := byke.RequireResourceOf[RenderContext](world)
-	return newPipelineCache[C](renderContext)
+	preCompiler := byke.RequireResourceOf[pre.Compiler](world)
+	return newPipelineCache[C](renderContext, preCompiler)
 }
 
 func (p Pipelines[C]) Specialize(config C) Pipeline {
@@ -95,17 +97,14 @@ func (p Pipelines[C]) Specialize(config C) Pipeline {
 }
 
 func (p Pipelines[C]) compileShader(label, shaderCode string, values ShaderValues) *wgpu.ShaderModule {
-	if strings.Contains(shaderCode, "#") {
-		code, err := pre.Process(shaderCode, values)
-		if err != nil {
-			panic(fmt.Errorf("preprocessing shader %q", label))
-		}
-		shaderCode = code
+	shadeCode, err := p.preCompiler.PreCompile(shaderCode, values)
+	if err != nil {
+		panic(fmt.Errorf("preprocessing shader %q: %w", label, err))
 	}
 
 	return p.renderContext.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      label,
-		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shaderCode},
+		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shadeCode},
 	})
 }
 

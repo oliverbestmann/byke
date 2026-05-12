@@ -1,3 +1,5 @@
+#module byke2d::fullscreen
+
 struct FullscreenVertexOutput {
     @builtin(position)
     position: vec4<f32>,

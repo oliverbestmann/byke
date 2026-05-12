@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
@@ -53,6 +54,9 @@ func RenderPlugin(app *byke.App) {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
 	}
 
+	preCompiler := pre.New()
+	registerShaderModules(preCompiler)
+
 	app.AddMakeSystemParam(makeViewQuery)
 
 	app.InsertResource(RenderContext{})
@@ -62,6 +66,8 @@ func RenderPlugin(app *byke.App) {
 	app.InsertResource(surfaceConfigState{})
 
 	app.InsertResource(byke.InitFromWorld[TextureCache]())
+
+	app.InsertResource(preCompiler)
 
 	app.InsertResource(byke.InitFromWorld[Pipelines[blitConfig]]())
 	app.InsertResource(byke.InitFromWorld[Pipelines[renderSpritePipelineConfig]]())
@@ -201,8 +207,9 @@ func runWorld(world *byke.World) error {
 
 	world.InsertResource(PrimaryWindow{window: win})
 
+	preCompiler := byke.RequireResourceOf[pre.Compiler](world)
 	renderContext := byke.RequireResourceOf[RenderContext](world)
-	renderContext.init(ctx)
+	renderContext.init(ctx, preCompiler)
 
 	err = win.Run(func(state vyn.UpdateInputState) error {
 		return updateWorld(world, state)

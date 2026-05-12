@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"math/bits"
 
+	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -20,10 +21,10 @@ type mipmapGenerator struct {
 	context *RenderContext
 }
 
-func makeMipmapGenerator(ctx *RenderContext) *mipmapGenerator {
+func makeMipmapGenerator(ctx *RenderContext, preCompiler *pre.Compiler) *mipmapGenerator {
 	return &mipmapGenerator{
 		context: ctx,
-		cache:   newPipelineCache[mipmapPipelineConfig](ctx),
+		cache:   newPipelineCache[mipmapPipelineConfig](ctx, preCompiler),
 	}
 }
 

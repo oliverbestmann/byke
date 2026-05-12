@@ -256,10 +256,9 @@ func (c tonemappingPipelineConfig) Specialize() SpecializedPipeline {
 	values.Define("SECTIONAL_COLOR_GRADING", c.SectionalColorGrading)
 
 	return SpecializedPipeline{
-		ShaderLabel:    "Tonemapping",
-		Shader:         FullscreenVertexShader,
-		FragmentShader: tonemappingShader,
-		ShaderValues:   values,
+		ShaderLabel:  "Tonemapping",
+		Shader:       tonemappingShader,
+		ShaderValues: values,
 		Descriptor: wgpu.RenderPipelineDescriptor{
 			Label: "Tonemapping",
 			Fragment: &wgpu.FragmentState{
@@ -272,7 +271,7 @@ func (c tonemappingPipelineConfig) Specialize() SpecializedPipeline {
 					},
 				},
 			},
-			Vertex:      wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
+			Vertex:      FullscreenShaderVertexState,
 			Multisample: multisampleStateOne,
 		},
 	}

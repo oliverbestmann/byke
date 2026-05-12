@@ -1,3 +1,5 @@
+#import byke2d::fullscreen
+
 // Bloom works by creating an intermediate texture with a bunch of mip levels, each half the size of the previous.
 // You then downsample each mip (starting with the original texture) to the lower resolution mip under it, going in order.
 // You then upsample each mip (starting from the smallest mip) and blend with the higher resolution mip above it (ending on the original texture).

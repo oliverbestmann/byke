@@ -1,11 +1,4 @@
-// must match fullscreen_vertex.wgsl
-struct FullscreenVertexOutput {
-    @builtin(position)
-    position: vec4<f32>,
-
-    @location(0)
-    uv: vec2<f32>,
-};
+#import byke2d::fullscreen
 
 @group(0) @binding(0) var in_texture: texture_2d<f32>;
 @group(0) @binding(1) var in_sampler: sampler;

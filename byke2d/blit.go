@@ -8,7 +8,7 @@ import (
 )
 
 //go:embed blit.wgsl
-var blitShaderFragment string
+var blitShader string
 
 type blitConfig struct {
 	TargetFormat wgpu.TextureFormat
@@ -16,12 +16,10 @@ type blitConfig struct {
 
 func (b blitConfig) Specialize() SpecializedPipeline {
 	return SpecializedPipeline{
-		ShaderLabel:    "Blit",
-		Shader:         FullscreenVertexShader,
-		FragmentShader: blitShaderFragment,
+		ShaderLabel: "Blit",
+		Shader:      blitShader,
 		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label:  "Blit",
-			Vertex: wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
+			Label: "Blit",
 			Fragment: &wgpu.FragmentState{
 				EntryPoint: "fs_main",
 				Targets: []wgpu.ColorTargetState{
@@ -32,6 +30,7 @@ func (b blitConfig) Specialize() SpecializedPipeline {
 					},
 				},
 			},
+			Vertex:      FullscreenShaderVertexState,
 			Multisample: multisampleStateOne,
 		},
 	}
