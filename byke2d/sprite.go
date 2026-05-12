@@ -146,16 +146,7 @@ func (r renderSpritePipelineConfig) Specialize() SpecializedPipeline {
 					},
 				},
 			},
-			Primitive: wgpu.PrimitiveState{
-				Topology:  wgpu.PrimitiveTopologyTriangleList,
-				FrontFace: wgpu.FrontFaceCW,
-				CullMode:  wgpu.CullModeNone,
-			},
-			Multisample: wgpu.MultisampleState{
-				Count:                  r.SampleCount,
-				Mask:                   0xffffffff,
-				AlphaToCoverageEnabled: false,
-			},
+			Multisample: multisampleState(r.SampleCount),
 		},
 	}
 }
@@ -410,7 +401,6 @@ func (c *bindGroupsSprites) Reset() {
 type staticSpriteUniforms struct {
 	alphaOnlyFalse *wgpu.Buffer
 	alphaOnlyTrue  *wgpu.Buffer
-	index          *wgpu.Buffer
 }
 
 func (s *staticSpriteUniforms) AlphaOnly(ctx *RenderContext, value bool) wgpu.BindGroupEntry {
@@ -433,18 +423,6 @@ func (s *staticSpriteUniforms) AlphaOnly(ctx *RenderContext, value bool) wgpu.Bi
 	}
 
 	return BindingBuffer(s.alphaOnlyFalse)
-}
-
-func (s *staticSpriteUniforms) Index(ctx *RenderContext) *wgpu.Buffer {
-	if !s.index.IsValid() {
-		s.index = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-			Label:    "Sprite.Indices",
-			Contents: wgpu.ToBytes([]uint16{2, 0, 1, 1, 3, 2}),
-			Usage:    wgpu.BufferUsageIndex,
-		})
-	}
-
-	return s.index
 }
 
 func prepareBindGroupsSpritesSystem(
@@ -526,12 +504,11 @@ func renderSpritesSystem(
 
 	pass.SetPipeline(pipeline.Get())
 	pass.SetBindGroup(0, view.BindGroups.View, nil)
-	pass.SetIndexBuffer(bufs.Index(ctx), wgpu.IndexFormatUint16, 0, wgpu.WholeSize)
 
 	for idx, batch := range view.Meta.Batches {
 		pass.SetBindGroup(1, view.BindGroups.Batches[idx], nil)
 		pass.SetVertexBuffer(0, view.Meta.Buffer, batch.Offset, batch.Size)
-		pass.DrawIndexed(6, batch.InstanceCount, 0, 0, 0)
+		pass.Draw(6, batch.InstanceCount, 0, 0)
 	}
 
 	pass.End()

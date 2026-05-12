@@ -92,9 +92,8 @@ func (b bloomPipelineConfig) Specialize() SpecializedPipeline {
 		FragmentShader: bloomShader,
 		ShaderValues:   values,
 		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label:     fmt.Sprintf("%+v", b),
-			Vertex:    wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
-			Primitive: FullscreenShaderPrimitiveState,
+			Label:  fmt.Sprintf("%+v", b),
+			Vertex: wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
 			Fragment: &wgpu.FragmentState{
 				EntryPoint: entry,
 				Targets: []wgpu.ColorTargetState{
@@ -105,10 +104,7 @@ func (b bloomPipelineConfig) Specialize() SpecializedPipeline {
 					},
 				},
 			},
-			Multisample: wgpu.MultisampleState{
-				Count: 1,
-				Mask:  0xffffffff,
-			},
+			Multisample: multisampleStateOne,
 		},
 	}
 }

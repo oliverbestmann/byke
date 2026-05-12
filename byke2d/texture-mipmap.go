@@ -42,14 +42,7 @@ func (m mipmapPipelineConfig) Specialize() SpecializedPipeline {
 			Vertex: wgpu.VertexState{
 				EntryPoint: "vs_main",
 			},
-			Primitive: wgpu.PrimitiveState{
-				Topology:         wgpu.PrimitiveTopologyTriangleStrip,
-				StripIndexFormat: wgpu.IndexFormatUint16,
-			},
-			Multisample: wgpu.MultisampleState{
-				Count: m.SampleCount,
-				Mask:  0xffffffff,
-			},
+			Multisample: multisampleState(m.SampleCount),
 			Fragment: &wgpu.FragmentState{
 				EntryPoint: "fs_main",
 				Targets: []wgpu.ColorTargetState{

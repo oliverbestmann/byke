@@ -5,8 +5,12 @@ struct VertexOutput {
 };
 
 
+const indices = array<u32, 6>(2, 0, 1, 1, 3, 2);
+
 @vertex
-fn vs_main(@builtin(vertex_index) index: u32) -> VertexOutput {
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
+    let index = indices[vertex_index];
+
     // between 0 and 1
     // index vertices as p00, p01, p10, p11, this way
     // x and y can be derived from the lower bit of index

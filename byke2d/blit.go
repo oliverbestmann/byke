@@ -20,9 +20,8 @@ func (b blitConfig) Specialize() SpecializedPipeline {
 		Shader:         FullscreenVertexShader,
 		FragmentShader: blitShaderFragment,
 		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label:     "Blit",
-			Vertex:    wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
-			Primitive: FullscreenShaderPrimitiveState,
+			Label:  "Blit",
+			Vertex: wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
 			Fragment: &wgpu.FragmentState{
 				EntryPoint: "fs_main",
 				Targets: []wgpu.ColorTargetState{
@@ -33,10 +32,7 @@ func (b blitConfig) Specialize() SpecializedPipeline {
 					},
 				},
 			},
-			Multisample: wgpu.MultisampleState{
-				Count: 1,
-				Mask:  0xffffffff,
-			},
+			Multisample: multisampleStateOne,
 		},
 	}
 }

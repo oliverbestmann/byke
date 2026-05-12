@@ -261,7 +261,7 @@ func (c tonemappingPipelineConfig) Specialize() SpecializedPipeline {
 		FragmentShader: tonemappingShader,
 		ShaderValues:   values,
 		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label: "",
+			Label: "Tonemapping",
 			Fragment: &wgpu.FragmentState{
 				EntryPoint: "fragment",
 				Targets: []wgpu.ColorTargetState{
@@ -272,12 +272,8 @@ func (c tonemappingPipelineConfig) Specialize() SpecializedPipeline {
 					},
 				},
 			},
-			Vertex:    wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
-			Primitive: FullscreenShaderPrimitiveState,
-			Multisample: wgpu.MultisampleState{
-				Count: 1,
-				Mask:  0xffffffff,
-			},
+			Vertex:      wgpu.VertexState{EntryPoint: FullscreenShaderEntryPoint},
+			Multisample: multisampleStateOne,
 		},
 	}
 }
