@@ -17,9 +17,6 @@ var _ = byke.ValidateComponent[Anchor]()
 var _ = byke.ValidateComponent[bindGroupsSprites]()
 var _ = byke.ValidateComponent[metaSprites]()
 
-//go:embed sprite.wgsl
-var spritesShader string
-
 type Sprite struct {
 	byke.ComparableComponent[Sprite]
 
@@ -80,18 +77,30 @@ func pluginSprite(app *byke.App) {
 }
 
 type renderSpritePipelineConfig struct {
+	Shader      *ShaderDef
 	Format      wgpu.TextureFormat
 	SampleCount uint32
 }
 
 func (r renderSpritePipelineConfig) Specialize() SpecializedPipeline {
+	var shaderSource = "#import byke2d::sprite"
+	var entryVertex = "vs_main"
+	var entryFragment = "fs_main"
+
+	if r.Shader != nil {
+		shaderSource = r.Shader.Source
+		entryVertex = valueOr(r.Shader.VertexEntry, entryVertex)
+		entryFragment = valueOr(r.Shader.FragmentEntry, entryFragment)
+	}
+
 	return SpecializedPipeline{
 		ShaderLabel: "Sprites",
-		Shader:      spritesShader,
+		Shader:      shaderSource,
 		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label: "SpriteRenderPipeline",
+			Label:  "SpriteRenderPipeline",
+			Layout: layout,
 			Vertex: wgpu.VertexState{
-				EntryPoint: "vs_main",
+				EntryPoint: entryVertex,
 				Buffers: []wgpu.VertexBufferLayout{
 					{
 						ArrayStride: 60,
@@ -137,7 +146,7 @@ func (r renderSpritePipelineConfig) Specialize() SpecializedPipeline {
 				},
 			},
 			Fragment: &wgpu.FragmentState{
-				EntryPoint: "fs_main",
+				EntryPoint: entryFragment,
 				Targets: []wgpu.ColorTargetState{
 					{
 						Format:    r.Format,
@@ -151,6 +160,15 @@ func (r renderSpritePipelineConfig) Specialize() SpecializedPipeline {
 	}
 }
 
+func valueOr[T comparable](first, fallback T) T {
+	var zero T
+	if first != zero {
+		return first
+	}
+
+	return fallback
+}
+
 // ExtractedSprite got extracted from the World in Prepare and will be rendered
 // to the screen. Does not need to be backed by a real sprite.
 type ExtractedSprite struct {
@@ -162,16 +180,10 @@ type ExtractedSprite struct {
 	Anchor       Anchor
 	RenderLayers RenderLayers
 	FlipX, FlipY bool
-}
 
-type extractSpriteValue struct {
-	byke.EntityId
-	Sprite       Sprite
-	Transform    GlobalTransform
-	Visibility   ComputedVisibility
-	TextureAtlas byke.Option[TextureAtlas]
-	RenderLayers byke.Option[RenderLayers]
-	Anchor       Anchor
+	// optional custom shader definition to replace or extend the
+	// sprites default shader.
+	CustomShader *ShaderDef
 }
 
 type ExtractedSprites struct {
@@ -187,8 +199,17 @@ func clearExtractedSpritesSystem(
 // extractSpritesSystem adds the ExtractedSprite component to all renderable
 // entities that have a Sprite component.
 func extractSpritesSystem(
-	spritesQuery byke.Query[extractSpriteValue],
 	sprites *ExtractedSprites,
+	spritesQuery byke.Query[struct {
+		byke.EntityId
+		Sprite       Sprite
+		Transform    GlobalTransform
+		Visibility   ComputedVisibility
+		TextureAtlas byke.Option[TextureAtlas]
+		RenderLayers byke.Option[RenderLayers]
+		CustomShader byke.Option[CustomShader]
+		Anchor       Anchor
+	}],
 ) {
 	for sprite := range spritesQuery.Items() {
 		if !sprite.Visibility.Visible {
@@ -216,6 +237,7 @@ func extractSpritesSystem(
 			Transform:    sprite.Transform,
 			Anchor:       sprite.Anchor,
 			Rect:         rect,
+			CustomShader: sprite.CustomShader.OrZero().Shader,
 		})
 	}
 }
@@ -235,6 +257,7 @@ func (m metaSprites) RequireComponents() []spoke.ErasedComponent {
 }
 
 type spritesBatch struct {
+	Shader        *ShaderDef
 	Texture       *Texture
 	Offset        uint64
 	Size          uint64
@@ -275,9 +298,10 @@ func uploadSpritesSystem(
 
 		var batchStart uint64
 		var batchTexture *Texture
+		var batchShader *ShaderDef
 
-		maybeFlush := func(nextTexture *Texture) {
-			if batchTexture == nextTexture {
+		maybeFlush := func(nextTexture *Texture, nextShader *ShaderDef) {
+			if batchTexture == nextTexture && batchShader == nextShader {
 				return
 			}
 
@@ -286,6 +310,7 @@ func uploadSpritesSystem(
 			if batchStart != byteCount && batchTexture != nil {
 				// start a new batch, flush the previous one
 				meta.Batches = append(meta.Batches, spritesBatch{
+					Shader:        batchShader,
 					Texture:       batchTexture,
 					Offset:        batchStart,
 					Size:          byteCount - batchStart,
@@ -295,6 +320,7 @@ func uploadSpritesSystem(
 
 			batchStart = byteCount
 			batchTexture = nextTexture
+			batchShader = nextShader
 		}
 
 		for _, sp := range sprites.Sprites {
@@ -303,7 +329,7 @@ func uploadSpritesSystem(
 				continue
 			}
 
-			maybeFlush(sp.Texture)
+			maybeFlush(sp.Texture, sp.CustomShader)
 
 			textureSize := sp.Texture.Size()
 
@@ -347,7 +373,7 @@ func uploadSpritesSystem(
 		}
 
 		// flush the last batch if needed
-		maybeFlush(nil)
+		maybeFlush(nil, nil)
 
 		data := instances.Bytes()
 
@@ -425,9 +451,12 @@ func (s *staticSpriteUniforms) AlphaOnly(ctx *RenderContext, value bool) wgpu.Bi
 	return BindingBuffer(s.alphaOnlyFalse)
 }
 
+var layout *wgpu.PipelineLayout
+var layoutView, layoutTextures *wgpu.BindGroupLayout
+
 func prepareBindGroupsSpritesSystem(
 	ctx *RenderContext,
-	pipelines Pipelines[renderSpritePipelineConfig],
+
 	views byke.Query[struct {
 		ViewTarget *ViewTarget
 		Meta       *metaSprites
@@ -437,15 +466,12 @@ func prepareBindGroupsSpritesSystem(
 	viewUniforms *ComponentUniforms[viewUniforms],
 	staticSpriteUniforms *staticSpriteUniforms,
 ) {
-	for view := range views.Items() {
-		pipeline := pipelines.Specialize(renderSpritePipelineConfig{
-			Format:      view.ViewTarget.Format,
-			SampleCount: view.ViewTarget.SampleCount,
-		})
+	layoutView, layoutTextures := initSpriteLayout(ctx)
 
+	for view := range views.Items() {
 		view.BindGroups.View = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 			Label:  "Sprite.ViewUniform.BindGroup",
-			Layout: pipeline.GetBindGroupLayout(0),
+			Layout: layoutView,
 			Entries: Sequential(
 				viewUniforms.Binding(),
 			),
@@ -457,7 +483,7 @@ func prepareBindGroupsSpritesSystem(
 
 			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 				Label:  "Sprite.BindGroup",
-				Layout: pipeline.GetBindGroupLayout(1),
+				Layout: layoutTextures,
 				Entries: Sequential(
 					BindingTextureView(batch.Texture.TextureView),
 					BindingSampler(batch.Texture.Sampler),
@@ -468,6 +494,64 @@ func prepareBindGroupsSpritesSystem(
 			view.BindGroups.Batches = append(view.BindGroups.Batches, bindGroup)
 		}
 	}
+}
+
+func initSpriteLayout(ctx *RenderContext) (*wgpu.BindGroupLayout, *wgpu.BindGroupLayout) {
+	if layout != nil {
+		return layoutView, layoutTextures
+	}
+
+	layoutView = ctx.CreateBindGroupLayout(&wgpu.BindGroupLayoutDescriptor{
+		Label: "Sprite View BindGroup",
+		Entries: []wgpu.BindGroupLayoutEntry{
+			{
+				Binding:    0,
+				Visibility: wgpu.ShaderStageVertex,
+				Buffer: wgpu.BufferBindingLayout{
+					Type: wgpu.BufferBindingTypeUniform,
+				},
+			},
+		},
+	})
+
+	layoutTextures = ctx.CreateBindGroupLayout(&wgpu.BindGroupLayoutDescriptor{
+		Label: "Sprite Textures BindGroup",
+		Entries: []wgpu.BindGroupLayoutEntry{
+			{
+				Binding:    0,
+				Visibility: wgpu.ShaderStageFragment,
+				Texture: wgpu.TextureBindingLayout{
+					SampleType:    wgpu.TextureSampleTypeFloat,
+					ViewDimension: wgpu.TextureViewDimension2D,
+					Multisampled:  false,
+				},
+			},
+			{
+				Binding:    1,
+				Visibility: wgpu.ShaderStageFragment,
+				Sampler: wgpu.SamplerBindingLayout{
+					Type: wgpu.SamplerBindingTypeFiltering,
+				},
+			},
+			{
+				Binding:    2,
+				Visibility: wgpu.ShaderStageFragment,
+				Buffer: wgpu.BufferBindingLayout{
+					Type: wgpu.BufferBindingTypeUniform,
+				},
+			},
+		},
+	})
+
+	layout = ctx.CreatePipelineLayout(&wgpu.PipelineLayoutDescriptor{
+		Label: "Sprite Pipeline Layout",
+		BindGroupLayouts: []*wgpu.BindGroupLayout{
+			layoutView,
+			layoutTextures,
+		},
+	})
+
+	return layoutView, layoutTextures
 }
 
 func renderSpritesSystem(
@@ -486,11 +570,6 @@ func renderSpritesSystem(
 		return
 	}
 
-	pipeline := pipelines.Specialize(renderSpritePipelineConfig{
-		Format:      view.ViewTarget.Format,
-		SampleCount: view.ViewTarget.SampleCount,
-	})
-
 	enc := ctx.CreateCommandEncoder(nil)
 	defer enc.Release()
 
@@ -501,10 +580,16 @@ func renderSpritesSystem(
 		},
 	})
 
-	pass.SetPipeline(pipeline.Get())
 	pass.SetBindGroup(0, view.BindGroups.View, nil)
 
 	for idx, batch := range view.Meta.Batches {
+		pipeline := pipelines.Specialize(renderSpritePipelineConfig{
+			Shader:      batch.Shader,
+			Format:      view.ViewTarget.Format,
+			SampleCount: view.ViewTarget.SampleCount,
+		})
+
+		pass.SetPipeline(pipeline.Get())
 		pass.SetBindGroup(1, view.BindGroups.Batches[idx], nil)
 		pass.SetVertexBuffer(0, view.Meta.Buffer, batch.Offset, batch.Size)
 		pass.Draw(6, batch.InstanceCount, 0, 0)

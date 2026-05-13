@@ -54,9 +54,6 @@ func RenderPlugin(app *byke.App) {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
 	}
 
-	preCompiler := pre.New()
-	registerShaderModules(preCompiler)
-
 	app.AddMakeSystemParam(makeViewQuery)
 
 	app.InsertResource(RenderContext{})
@@ -65,9 +62,9 @@ func RenderPlugin(app *byke.App) {
 	app.InsertResource(TonemappingLutTextures{})
 	app.InsertResource(surfaceConfigState{})
 
-	app.InsertResource(byke.InitFromWorld[TextureCache]())
+	app.AddPlugin(pluginShader)
 
-	app.InsertResource(preCompiler)
+	app.InsertResource(byke.InitFromWorld[TextureCache]())
 
 	app.InsertResource(byke.InitFromWorld[Pipelines[blitConfig]]())
 	app.InsertResource(byke.InitFromWorld[Pipelines[renderSpritePipelineConfig]]())

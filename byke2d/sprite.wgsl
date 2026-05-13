@@ -1,3 +1,5 @@
+#module byke2d::sprite
+
 struct VertexInput {
     @builtin(vertex_index) index: u32,
 
@@ -98,6 +100,17 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     return out;
 }
 
+fn default_sprite_fragment(vertex: VertexOutput) -> vec4f {
+    let tex = textureSample(texture, texture_sampler, vertex.uv);
+
+    if red_as_alpha != 0 {
+        // use the red channel of the texture as alpha
+        return vec4(vertex.color.rgb, tex.r * vertex.color.a);
+    }
+
+    return tex * vertex.color;
+}
+
 @group(1)
 @binding(0)
 var texture: texture_2d<f32>;
@@ -112,12 +125,5 @@ var<uniform> red_as_alpha: u32;
 
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4f {
-    let tex = textureSample(texture, texture_sampler, vertex.uv);
-
-    if red_as_alpha != 0 {
-        // use the red channel of the texture as alpha
-        return vec4(vertex.color.rgb, tex.r * vertex.color.a);
-    }
-
-    return tex * vertex.color;
+    return default_sprite_fragment(vertex);
 }
