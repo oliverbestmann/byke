@@ -13,12 +13,14 @@ struct VertexInput {
     @location(4) i_uv_offset: vec2<f32>,
     @location(5) i_uv_scale: vec2<f32>,
     @location(6) i_color: vec4<f32>,
+    @location(7) i_flags: u32,
 }
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(flat) color: vec4<f32>,
     @location(1) uv: vec2<f32>,
+    @location(2) flags: u32,
 };
 
 fn mat3_scale(scale: vec2<f32>) -> mat3x3<f32> {
@@ -89,6 +91,7 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     out.position = vec4(position.xy, 0.0, 1.0);
     out.uv = vertex_position * in.i_uv_scale + in.i_uv_offset;
     out.color = in.i_color;
+    out.flags = in.i_flags;
 
     return out;
 }
@@ -96,7 +99,7 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
 fn default_sprite_fragment(vertex: VertexOutput) -> vec4f {
     let tex = textureSample(texture, texture_sampler, vertex.uv);
 
-    if red_as_alpha != 0 {
+    if (vertex.flags & 1) != 0 {
         // use the red channel of the texture as alpha
         return vec4(vertex.color.rgb, tex.r * vertex.color.a);
     }
@@ -111,10 +114,6 @@ var texture: texture_2d<f32>;
 @group(1)
 @binding(1)
 var texture_sampler: sampler;
-
-@group(1)
-@binding(2)
-var<uniform> red_as_alpha: u32;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {

@@ -60,7 +60,6 @@ var (
 )
 
 func pluginSprite(app *byke.App) {
-	app.InsertResource(staticSpriteUniforms{})
 	app.InsertResource(ExtractedSprites{})
 
 	app.AddSystems(Render,
@@ -110,7 +109,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 			EntryPoint: entryVertex,
 			Buffers: []wgpu.VertexBufferLayout{
 				{
-					ArrayStride: 60,
+					ArrayStride: 64,
 					StepMode:    wgpu.VertexStepModeInstance,
 					Attributes: []wgpu.VertexAttribute{
 						{
@@ -147,6 +146,11 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 							ShaderLocation: 6,
 							Offset:         44,
 							Format:         wgpu.VertexFormatFloat32x4,
+						},
+						{
+							ShaderLocation: 7,
+							Offset:         60,
+							Format:         wgpu.VertexFormatUint32,
 						},
 					},
 				},
@@ -297,7 +301,7 @@ func uploadSpritesSystem(
 		}
 
 		// the size of one sprite instance in the wgpu instance buffer
-		const instanceSize = 60
+		const instanceSize = 64
 
 		instances := &meta.Instances
 
@@ -362,6 +366,11 @@ func uploadSpritesSystem(
 			scale := sp.Transform.Scale.Truncate().Mul(baseSize)
 			// anchorOffset := sp.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
 
+			var flags uint32
+			if sp.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
+				flags |= 1
+			}
+
 			instances.StartNew(instanceSize)
 
 			// @location(0) i_translation: vec2<f32>,
@@ -378,6 +387,8 @@ func uploadSpritesSystem(
 			instances.AppendVec2f(uvScale)
 			// @location(6) i_color: vec4<f32>,
 			instances.AppendVec4f(sp.Color.ToVec())
+			// @location(7) i_flags: u32,
+			instances.AppendUint(flags)
 		}
 
 		// flush the last batch if needed
@@ -432,33 +443,6 @@ func (c *bindGroupsSprites) Reset() {
 	c.Batches = c.Batches[:0]
 }
 
-type staticSpriteUniforms struct {
-	alphaOnlyFalse *wgpu.Buffer
-	alphaOnlyTrue  *wgpu.Buffer
-}
-
-func (s *staticSpriteUniforms) AlphaOnly(ctx *RenderContext, value bool) wgpu.BindGroupEntry {
-	if s.alphaOnlyTrue == nil {
-		s.alphaOnlyTrue = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-			Label:    "Sprite Uniform AlphaOnlyTrue",
-			Usage:    wgpu.BufferUsageUniform,
-			Contents: wgpu.ToBytes([]uint32{1}),
-		})
-
-		s.alphaOnlyFalse = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-			Label:    "Sprite Uniform AlphaOnlyFalse",
-			Usage:    wgpu.BufferUsageUniform,
-			Contents: wgpu.ToBytes([]uint32{0}),
-		})
-	}
-
-	if value {
-		return BindingBuffer(s.alphaOnlyTrue)
-	}
-
-	return BindingBuffer(s.alphaOnlyFalse)
-}
-
 var layoutView = SequentialLayoutWithLabel("ViewUniforms",
 	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
 )
@@ -466,7 +450,6 @@ var layoutView = SequentialLayoutWithLabel("ViewUniforms",
 var layoutTextures = SequentialLayoutWithLabel("Spite Textures",
 	BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
 	BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
-	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false),
 )
 
 func prepareBindGroupsSpritesSystem(
@@ -480,7 +463,6 @@ func prepareBindGroupsSpritesSystem(
 
 	pipelines *PipelineCache,
 	viewUniforms *ComponentUniforms[ViewUniforms],
-	staticSpriteUniforms *staticSpriteUniforms,
 ) {
 	for view := range views.Items() {
 		view.BindGroups.View = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
@@ -492,16 +474,12 @@ func prepareBindGroupsSpritesSystem(
 		})
 
 		for _, batch := range view.Meta.Batches {
-			alphaOnly := batch.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm
-			bufAlphaOnly := staticSpriteUniforms.AlphaOnly(ctx, alphaOnly)
-
 			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 				Label:  "Sprite.BindGroup",
 				Layout: pipelines.BindGroupLayout(layoutTextures),
 				Entries: Sequential(
 					BindingTextureView(batch.Texture.TextureView),
 					BindingSampler(batch.Texture.Sampler),
-					bufAlphaOnly,
 				),
 			})
 
