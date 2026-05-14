@@ -50,7 +50,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 
 	commands.Spawn(
 		Camera{},
-		// MsaaOn,
+		MSAA{},
 		RenderTarget{Texture: AsRenderTexture(cameraTexture)},
 	)
 
@@ -62,7 +62,6 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	commands.Spawn(
 		NewTransform().WithScaleXY(4, 4),
 		Camera{Order: 1},
-		// MsaaOn,
 		RenderLayersOf(1),
 	)
 

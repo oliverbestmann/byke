@@ -11,38 +11,44 @@ import (
 var blitShader string
 
 type blitConfig struct {
-	TargetFormat wgpu.TextureFormat
+	Format wgpu.TextureFormat
 }
 
-func (b blitConfig) Specialize() SpecializedPipeline {
-	return SpecializedPipeline{
-		ShaderLabel: "Blit",
-		Shader:      blitShader,
-		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label: "Blit",
-			Fragment: &wgpu.FragmentState{
-				EntryPoint: "fs_main",
-				Targets: []wgpu.ColorTargetState{
-					{
-						Format:    b.TargetFormat,
-						Blend:     &wgpu.BlendStateReplace,
-						WriteMask: wgpu.ColorWriteMaskAll,
-					},
+func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
+	shader := ctx.Shader("Blit", blitShader, nil)
+
+	return RenderPipelineDescriptor{
+		Label: "Blit",
+
+		Layout: []wgpu.BindGroupLayoutDescriptor{
+			SequentialLayout(
+				BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
+				BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
+			),
+		},
+
+		Fragment: &wgpu.FragmentState{
+			Module:     shader,
+			EntryPoint: "fs_main",
+			Targets: []wgpu.ColorTargetState{
+				{
+					Format:    b.Format,
+					Blend:     &wgpu.BlendStateReplace,
+					WriteMask: wgpu.ColorWriteMaskAll,
 				},
 			},
-			Vertex:      FullscreenShaderVertexState,
-			Multisample: multisampleStateOne,
 		},
+
+		Vertex:      FullscreenShaderVertexState(shader),
+		Multisample: multisampleStateOne,
 	}
 }
 
-func blitTexture(
+func blitTextureSimple(
 	ctx *RenderContext,
 	pipeline Pipeline,
 	sourceView, targetView *wgpu.TextureView,
 ) {
-	defer puffin.NewScope("byke2d.blitTexture").End()
-
 	sampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
 		Label:        "Blit",
 		AddressModeU: wgpu.AddressModeClampToEdge,
@@ -52,9 +58,25 @@ func blitTexture(
 		MinFilter:    wgpu.FilterModeNearest,
 		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
+
+	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Blit"})
+	defer enc.Release()
+
+	blitTexture(ctx, enc, pipeline, sampler, sourceView, targetView)
+
+	// encode into a command buffer
+	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "Blit"})
+	defer buf.Release()
+
+	ctx.Submit(buf)
+}
+
+func blitTexture(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeline, sampler *wgpu.Sampler, sourceView, targetView *wgpu.TextureView) {
+	defer puffin.NewScope("byke2d.blitTexture").End()
+
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Blit",
-		Layout: pipeline.GetBindGroupLayout(0),
+		Layout: pipeline.BindGroupLayout(0),
 		Entries: Sequential(
 			BindingTextureView(sourceView),
 			BindingSampler(sampler),
@@ -63,11 +85,8 @@ func blitTexture(
 
 	defer bindGroup.Release()
 
-	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "BlitTexture"})
-	defer enc.Release()
-
 	desc := &wgpu.RenderPassDescriptor{
-		Label: "BlitTexture",
+		Label: "Blit",
 		ColorAttachments: []wgpu.RenderPassColorAttachment{
 			{
 				View:    targetView,
@@ -84,10 +103,4 @@ func blitTexture(
 	pass.SetBindGroup(0, bindGroup, nil)
 	pass.Draw(3, 1, 0, 0)
 	pass.End()
-
-	// encode into a command buffer
-	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "ResolveTexture"})
-	defer buf.Release()
-
-	ctx.Submit(buf)
 }

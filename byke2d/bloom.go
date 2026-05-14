@@ -48,6 +48,12 @@ var BloomNatural = Bloom{
 	Scale:                      glm.Vec2f{1, 1},
 }
 
+var bloomBindGroupLayout = SequentialLayout(
+	BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
+	BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
+	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false), // TODO actually probably "true" here
+)
+
 type bloomPipelineConfig struct {
 	TargetFormat    wgpu.TextureFormat
 	FirstDownsample bool
@@ -55,7 +61,7 @@ type bloomPipelineConfig struct {
 	UniformScale    bool
 }
 
-func (b bloomPipelineConfig) Specialize() SpecializedPipeline {
+func (b bloomPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	values := pre.Values{}
 	values.Define("UNIFORM_SCALE", b.UniformScale)
 	values.Define("FIRST_DOWNSAMPLE", b.FirstDownsample)
@@ -86,25 +92,29 @@ func (b bloomPipelineConfig) Specialize() SpecializedPipeline {
 		}
 	}
 
-	return SpecializedPipeline{
-		ShaderLabel:  "Bloom",
-		Shader:       bloomShader,
-		ShaderValues: values,
-		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label: fmt.Sprintf("%+v", b),
-			Fragment: &wgpu.FragmentState{
-				EntryPoint: entry,
-				Targets: []wgpu.ColorTargetState{
-					{
-						Format:    b.TargetFormat,
-						Blend:     blend,
-						WriteMask: wgpu.ColorWriteMaskAll,
-					},
+	module := ctx.Shader("Bloom", bloomShader, values)
+
+	return RenderPipelineDescriptor{
+		Label: fmt.Sprintf("%+v", b),
+
+		Layout: []wgpu.BindGroupLayoutDescriptor{
+			bloomBindGroupLayout,
+		},
+
+		Fragment: &wgpu.FragmentState{
+			Module:     module,
+			EntryPoint: entry,
+			Targets: []wgpu.ColorTargetState{
+				{
+					Format:    b.TargetFormat,
+					Blend:     blend,
+					WriteMask: wgpu.ColorWriteMaskAll,
 				},
 			},
-			Vertex:      FullscreenShaderVertexState,
-			Multisample: multisampleStateOne,
 		},
+
+		Vertex:      FullscreenShaderVertexState(module),
+		Multisample: multisampleStateOne,
 	}
 }
 
@@ -238,7 +248,7 @@ func bloomPrepareRenderPass(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeli
 
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "Bloom Bindgroup",
-		Layout: pipeline.GetBindGroupLayout(0),
+		Layout: pipeline.BindGroupLayout(0),
 		Entries: Sequential(
 			BindingTextureView(source),
 			BindingSampler(bloomSampler),

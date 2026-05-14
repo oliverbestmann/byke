@@ -6,15 +6,15 @@ import (
 	"github.com/oliverbestmann/pulse/wx"
 )
 
-var _ = byke.ValidateComponent[viewUniforms]()
+var _ = byke.ValidateComponent[ViewUniforms]()
 
-type viewUniforms struct {
-	byke.Component[viewUniforms]
+type ViewUniforms struct {
+	byke.Component[ViewUniforms]
 	ScreenToNDC   glm.Mat3f
 	WorldToScreen glm.Mat3f
 }
 
-func (v viewUniforms) ToWGPU() []byte {
+func (v ViewUniforms) ToWGPU() []byte {
 	var w wx.StructWriter
 	w.AppendMat3f(v.ScreenToNDC)
 	w.AppendMat3f(v.WorldToScreen)

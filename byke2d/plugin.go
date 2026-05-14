@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/vyn"
@@ -63,6 +62,8 @@ func RenderPlugin(app *byke.App) {
 	app.InsertResource(surfaceConfigState{})
 
 	app.AddPlugin(pluginShader)
+
+	app.InsertResource(byke.InitFromWorld[PipelineCache]())
 
 	app.InsertResource(byke.InitFromWorld[TextureCache]())
 
@@ -193,20 +194,19 @@ func runWorld(world *byke.World) error {
 
 	defer win.Terminate()
 
-	ctx, err := wx.New(win.SurfaceDescriptor())
+	wctx, err := wx.New(win.SurfaceDescriptor())
 	if err != nil {
 		return fmt.Errorf("initialize wgpu: %w", err)
 	}
 
-	defer ctx.Release()
+	defer wctx.Release()
 
-	dumpContextInfo(ctx)
+	dumpContextInfo(wctx)
 
 	world.InsertResource(PrimaryWindow{window: win})
 
-	preCompiler := byke.RequireResourceOf[pre.Compiler](world)
 	renderContext := byke.RequireResourceOf[RenderContext](world)
-	renderContext.init(ctx, preCompiler)
+	renderContext.init(world, wctx)
 
 	err = win.Run(func(state vyn.UpdateInputState) error {
 		return updateWorld(world, state)

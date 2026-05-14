@@ -82,81 +82,89 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
-func (r renderSpritePipelineConfig) Specialize() SpecializedPipeline {
+func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
+	var shaderLabel = "Sprite"
 	var shaderSource = "#import byke2d::sprite"
 	var entryVertex = "vs_main"
 	var entryFragment = "fs_main"
+	var shaderValues ShaderValues
 
 	if r.Shader != nil {
+		shaderLabel = valueOr(r.Shader.Label, "Custom Sprite Shader")
 		shaderSource = r.Shader.Source
+		shaderValues = r.Shader.Values
 		entryVertex = valueOr(r.Shader.VertexEntry, entryVertex)
 		entryFragment = valueOr(r.Shader.FragmentEntry, entryFragment)
 	}
 
-	return SpecializedPipeline{
-		ShaderLabel: "Sprites",
-		Shader:      shaderSource,
-		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label:  "SpriteRenderPipeline",
-			Layout: layout,
-			Vertex: wgpu.VertexState{
-				EntryPoint: entryVertex,
-				Buffers: []wgpu.VertexBufferLayout{
-					{
-						ArrayStride: 60,
-						StepMode:    wgpu.VertexStepModeInstance,
-						Attributes: []wgpu.VertexAttribute{
-							{
-								ShaderLocation: 0,
-								Offset:         0,
-								Format:         wgpu.VertexFormatFloat32x2,
-							},
-							{
-								ShaderLocation: 1,
-								Offset:         8,
-								Format:         wgpu.VertexFormatFloat32x2,
-							},
-							{
-								ShaderLocation: 2,
-								Offset:         16,
-								Format:         wgpu.VertexFormatFloat32x2,
-							},
-							{
-								ShaderLocation: 3,
-								Offset:         24,
-								Format:         wgpu.VertexFormatFloat32,
-							},
-							{
-								ShaderLocation: 4,
-								Offset:         28,
-								Format:         wgpu.VertexFormatFloat32x2,
-							},
-							{
-								ShaderLocation: 5,
-								Offset:         36,
-								Format:         wgpu.VertexFormatFloat32x2,
-							},
-							{
-								ShaderLocation: 6,
-								Offset:         44,
-								Format:         wgpu.VertexFormatFloat32x4,
-							},
+	var module = ctx.Shader(shaderLabel, shaderSource, shaderValues)
+
+	return RenderPipelineDescriptor{
+		Label: "SpriteRenderPipeline",
+		Layout: []wgpu.BindGroupLayoutDescriptor{
+			layoutView,
+			layoutTextures,
+		},
+		Vertex: wgpu.VertexState{
+			Module:     module,
+			EntryPoint: entryVertex,
+			Buffers: []wgpu.VertexBufferLayout{
+				{
+					ArrayStride: 60,
+					StepMode:    wgpu.VertexStepModeInstance,
+					Attributes: []wgpu.VertexAttribute{
+						{
+							ShaderLocation: 0,
+							Offset:         0,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 1,
+							Offset:         8,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 2,
+							Offset:         16,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 3,
+							Offset:         24,
+							Format:         wgpu.VertexFormatFloat32,
+						},
+						{
+							ShaderLocation: 4,
+							Offset:         28,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 5,
+							Offset:         36,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 6,
+							Offset:         44,
+							Format:         wgpu.VertexFormatFloat32x4,
 						},
 					},
 				},
 			},
-			Fragment: &wgpu.FragmentState{
-				EntryPoint: entryFragment,
-				Targets: []wgpu.ColorTargetState{
-					{
-						Format:    r.Format,
-						Blend:     &wgpu.BlendStateAlphaBlending,
-						WriteMask: wgpu.ColorWriteMaskAll,
-					},
+		},
+		Fragment: &wgpu.FragmentState{
+			Module:     module,
+			EntryPoint: entryFragment,
+			Targets: []wgpu.ColorTargetState{
+				{
+					Format:    r.Format,
+					Blend:     &wgpu.BlendStateAlphaBlending,
+					WriteMask: wgpu.ColorWriteMaskAll,
 				},
 			},
-			Multisample: multisampleState(r.SampleCount),
 		},
+
+		Multisample: multisampleState(r.SampleCount),
 	}
 }
 
@@ -451,8 +459,15 @@ func (s *staticSpriteUniforms) AlphaOnly(ctx *RenderContext, value bool) wgpu.Bi
 	return BindingBuffer(s.alphaOnlyFalse)
 }
 
-var layout *wgpu.PipelineLayout
-var layoutView, layoutTextures *wgpu.BindGroupLayout
+var layoutView = SequentialLayoutWithLabel("ViewUniforms",
+	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
+)
+
+var layoutTextures = SequentialLayoutWithLabel("Spite Textures",
+	BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
+	BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
+	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false),
+)
 
 func prepareBindGroupsSpritesSystem(
 	ctx *RenderContext,
@@ -463,15 +478,14 @@ func prepareBindGroupsSpritesSystem(
 		BindGroups *bindGroupsSprites
 	}],
 
-	viewUniforms *ComponentUniforms[viewUniforms],
+	pipelines *PipelineCache,
+	viewUniforms *ComponentUniforms[ViewUniforms],
 	staticSpriteUniforms *staticSpriteUniforms,
 ) {
-	layoutView, layoutTextures := initSpriteLayout(ctx)
-
 	for view := range views.Items() {
 		view.BindGroups.View = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 			Label:  "Sprite.ViewUniform.BindGroup",
-			Layout: layoutView,
+			Layout: pipelines.BindGroupLayout(layoutView),
 			Entries: Sequential(
 				viewUniforms.Binding(),
 			),
@@ -483,7 +497,7 @@ func prepareBindGroupsSpritesSystem(
 
 			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 				Label:  "Sprite.BindGroup",
-				Layout: layoutTextures,
+				Layout: pipelines.BindGroupLayout(layoutTextures),
 				Entries: Sequential(
 					BindingTextureView(batch.Texture.TextureView),
 					BindingSampler(batch.Texture.Sampler),
@@ -496,72 +510,15 @@ func prepareBindGroupsSpritesSystem(
 	}
 }
 
-func initSpriteLayout(ctx *RenderContext) (*wgpu.BindGroupLayout, *wgpu.BindGroupLayout) {
-	if layout != nil {
-		return layoutView, layoutTextures
-	}
-
-	layoutView = ctx.CreateBindGroupLayout(&wgpu.BindGroupLayoutDescriptor{
-		Label: "Sprite View BindGroup",
-		Entries: []wgpu.BindGroupLayoutEntry{
-			{
-				Binding:    0,
-				Visibility: wgpu.ShaderStageVertex,
-				Buffer: wgpu.BufferBindingLayout{
-					Type: wgpu.BufferBindingTypeUniform,
-				},
-			},
-		},
-	})
-
-	layoutTextures = ctx.CreateBindGroupLayout(&wgpu.BindGroupLayoutDescriptor{
-		Label: "Sprite Textures BindGroup",
-		Entries: []wgpu.BindGroupLayoutEntry{
-			{
-				Binding:    0,
-				Visibility: wgpu.ShaderStageFragment,
-				Texture: wgpu.TextureBindingLayout{
-					SampleType:    wgpu.TextureSampleTypeFloat,
-					ViewDimension: wgpu.TextureViewDimension2D,
-					Multisampled:  false,
-				},
-			},
-			{
-				Binding:    1,
-				Visibility: wgpu.ShaderStageFragment,
-				Sampler: wgpu.SamplerBindingLayout{
-					Type: wgpu.SamplerBindingTypeFiltering,
-				},
-			},
-			{
-				Binding:    2,
-				Visibility: wgpu.ShaderStageFragment,
-				Buffer: wgpu.BufferBindingLayout{
-					Type: wgpu.BufferBindingTypeUniform,
-				},
-			},
-		},
-	})
-
-	layout = ctx.CreatePipelineLayout(&wgpu.PipelineLayoutDescriptor{
-		Label: "Sprite Pipeline Layout",
-		BindGroupLayouts: []*wgpu.BindGroupLayout{
-			layoutView,
-			layoutTextures,
-		},
-	})
-
-	return layoutView, layoutTextures
-}
-
 func renderSpritesSystem(
 	ctx *RenderContext,
 	pipelines Pipelines[renderSpritePipelineConfig],
 	viewQuery ViewQuery[struct {
-		Camera     *Camera
-		ViewTarget *ViewTarget
-		Meta       *metaSprites
-		BindGroups *bindGroupsSprites
+		Camera             *Camera
+		ViewTarget         *ViewTarget
+		Meta               *metaSprites
+		BindGroups         *bindGroupsSprites
+		ViewUniformsOffset DynamicOffset[ViewUniforms]
 	}],
 ) {
 	view := viewQuery.Get()
@@ -580,7 +537,8 @@ func renderSpritesSystem(
 		},
 	})
 
-	pass.SetBindGroup(0, view.BindGroups.View, nil)
+	// bind the view uniforms
+	pass.SetBindGroup(0, view.BindGroups.View, []uint32{view.ViewUniformsOffset.Offset})
 
 	for idx, batch := range view.Meta.Batches {
 		pipeline := pipelines.Specialize(renderSpritePipelineConfig{

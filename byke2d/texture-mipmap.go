@@ -4,62 +4,28 @@ import (
 	_ "embed"
 	"math/bits"
 
-	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
-
-//go:embed texture-mipmap.wgsl
-var mipmapShader string
 
 func mipmapLevelCount(width, height uint32) uint32 {
 	return uint32(bits.Len32(max(width, height)))
 }
 
 type mipmapGenerator struct {
-	cache   Pipelines[mipmapPipelineConfig]
+	cache   Pipelines[blitConfig]
 	context *RenderContext
 }
 
-func makeMipmapGenerator(ctx *RenderContext, preCompiler *pre.Compiler) *mipmapGenerator {
+func makeMipmapGenerator(ctx *RenderContext, pipelineCache *PipelineCache) *mipmapGenerator {
 	return &mipmapGenerator{
 		context: ctx,
-		cache:   newPipelineCache[mipmapPipelineConfig](ctx, preCompiler),
-	}
-}
-
-type mipmapPipelineConfig struct {
-	Format      wgpu.TextureFormat
-	SampleCount uint32
-}
-
-func (m mipmapPipelineConfig) Specialize() SpecializedPipeline {
-	return SpecializedPipeline{
-		ShaderLabel: "MipmapShader",
-		Shader:      mipmapShader,
-
-		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label: "MipMapGenerator",
-			Vertex: wgpu.VertexState{
-				EntryPoint: "vs_main",
-			},
-			Multisample: multisampleState(m.SampleCount),
-			Fragment: &wgpu.FragmentState{
-				EntryPoint: "fs_main",
-				Targets: []wgpu.ColorTargetState{
-					{
-						Format:    m.Format,
-						Blend:     &wgpu.BlendStateReplace,
-						WriteMask: wgpu.ColorWriteMaskAll,
-					},
-				},
-			},
-		},
+		cache:   newPipelines[blitConfig](ctx, pipelineCache),
 	}
 }
 
 func (m *mipmapGenerator) Generate(texture *Texture) {
-	if texture.Descriptor.MipLevelCount <= 1 {
+	if texture.Descriptor.MipLevelCount <= 1 || texture.Descriptor.SampleCount != 1 {
 		return
 	}
 
@@ -80,16 +46,6 @@ func (m *mipmapGenerator) Generate(texture *Texture) {
 }
 
 func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Texture, level uint32) {
-	inSampler := m.context.CreateSampler(wgpu.SamplerDescriptor{
-		Label:        "Texture.MipMap.Sampler",
-		AddressModeU: wgpu.AddressModeClampToEdge,
-		AddressModeV: wgpu.AddressModeClampToEdge,
-		AddressModeW: wgpu.AddressModeClampToEdge,
-		MagFilter:    wgpu.FilterModeLinear,
-		MinFilter:    wgpu.FilterModeLinear,
-		MipmapFilter: wgpu.MipmapFilterModeNearest,
-	})
-
 	inView := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Texture.MipMap.In",
 		Format:          texture.Descriptor.Format,
@@ -114,38 +70,19 @@ func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Textu
 
 	defer outView.Release()
 
-	pipeline := m.cache.Specialize(mipmapPipelineConfig{
-		Format:      texture.Descriptor.Format,
-		SampleCount: texture.Descriptor.SampleCount,
+	pipeline := m.cache.Specialize(blitConfig{
+		Format: texture.Descriptor.Format,
 	})
 
-	bindGroup := m.context.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Label:  "Texture.MipMap.BindGroup",
-		Layout: pipeline.GetBindGroupLayout(0),
-		Entries: Sequential(
-			BindingTextureView(inView),
-			BindingSampler(inSampler),
-		),
+	inSampler := m.context.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        "Mipmap",
+		AddressModeU: wgpu.AddressModeClampToEdge,
+		AddressModeV: wgpu.AddressModeClampToEdge,
+		AddressModeW: wgpu.AddressModeClampToEdge,
+		MagFilter:    wgpu.FilterModeLinear,
+		MinFilter:    wgpu.FilterModeLinear,
+		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
 
-	defer bindGroup.Release()
-
-	pass := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
-		Label: "Texture.MipMap.RenderPass",
-		ColorAttachments: []wgpu.RenderPassColorAttachment{
-			{
-				View:    outView,
-				LoadOp:  wgpu.LoadOpClear,
-				StoreOp: wgpu.StoreOpStore,
-			},
-		},
-	})
-
-	defer pass.Release()
-
-	pass.SetPipeline(pipeline.Get())
-	pass.SetBindGroup(0, bindGroup, nil)
-	pass.Draw(6, 1, 0, 0)
-	pass.End()
-
+	blitTexture(m.context, enc, pipeline, inSampler, inView, outView)
 }

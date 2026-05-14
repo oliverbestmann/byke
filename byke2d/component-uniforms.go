@@ -8,7 +8,7 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-var _ = byke.ValidateComponent[DynamicOffset[viewUniforms]]()
+var _ = byke.ValidateComponent[DynamicOffset[ViewUniforms]]()
 
 func ComponentUniformsPlugin[C WGPUComponent[C]](app *byke.App) {
 	app.InsertResource(ComponentUniforms[C]{})
@@ -24,10 +24,9 @@ type WGPUComponent[C byke.IsComponent[C]] interface {
 	ToWGPU() []byte
 }
 
-// TODO would be good if we can Remove this one using component hooks
 type DynamicOffset[C WGPUComponent[C]] struct {
 	byke.Component[DynamicOffset[C]]
-	Offset uint64
+	Offset uint32
 }
 
 type ComponentUniforms[C WGPUComponent[C]] struct {
@@ -37,6 +36,8 @@ type ComponentUniforms[C WGPUComponent[C]] struct {
 
 	buffer     *wgpu.Buffer
 	bufferSize uint64
+
+	elementSize uint64
 }
 
 func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
@@ -44,7 +45,7 @@ func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
 		panic(fmt.Errorf("not initialized: %T", c))
 	}
 
-	return BindingBufferSize(c.buffer, 0, c.bufferSize)
+	return BindingBufferSize(c.buffer, 0, c.elementSize)
 }
 
 func (c *ComponentUniforms[C]) upload(ctx *RenderContext) {
@@ -73,13 +74,33 @@ func (c *ComponentUniforms[C]) upload(ctx *RenderContext) {
 }
 
 func (c *ComponentUniforms[C]) push(value *C) DynamicOffset[C] {
-	offset := uint64(len(c.bytes))
-	c.bytes = append(c.bytes, (*value).ToWGPU()...)
+	// align offset to a multiple of 256
+	if v := c.elementSize % 256; v > 0 {
+		c.bytes = append(c.bytes, make([]byte, 256-v)...)
+	}
+
+	buf := (*value).ToWGPU()
+
+	// remember element size and ensure all elements have the same size
+	if len(c.bytes) == 0 {
+		c.elementSize = uint64(len(buf))
+	} else if uint64(len(buf)) != c.elementSize {
+		panic(
+			fmt.Errorf(
+				"%T: all elements must have the same size, got %d, expected %d",
+				*value, len(buf), c.elementSize,
+			),
+		)
+	}
+
+	offset := uint32(len(c.bytes))
+	c.bytes = append(c.bytes, buf...)
 	return DynamicOffset[C]{Offset: offset}
 }
 
 func (c *ComponentUniforms[C]) reset() {
 	c.bytes = c.bytes[:0]
+	c.elementSize = 0
 }
 
 func writeComponentUniformsSystem[C WGPUComponent[C]](

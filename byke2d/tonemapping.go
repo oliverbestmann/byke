@@ -227,7 +227,7 @@ type tonemappingPipelineConfig struct {
 	SectionalColorGrading bool
 }
 
-func (c tonemappingPipelineConfig) Specialize() SpecializedPipeline {
+func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	var values = pre.Values{}
 
 	switch c.Tonemapping {
@@ -255,25 +255,46 @@ func (c tonemappingPipelineConfig) Specialize() SpecializedPipeline {
 	values.Define("WHITE_BALANCE", c.WhiteBalance)
 	values.Define("SECTIONAL_COLOR_GRADING", c.SectionalColorGrading)
 
-	return SpecializedPipeline{
-		ShaderLabel:  "Tonemapping",
-		Shader:       tonemappingShader,
-		ShaderValues: values,
-		Descriptor: wgpu.RenderPipelineDescriptor{
-			Label: "Tonemapping",
-			Fragment: &wgpu.FragmentState{
-				EntryPoint: "fragment",
-				Targets: []wgpu.ColorTargetState{
-					{
-						Format:    c.TargetFormat,
-						Blend:     &wgpu.BlendStateReplace,
-						WriteMask: wgpu.ColorWriteMaskAll,
-					},
+	module := ctx.Shader("Tonemapping", tonemappingShader, values)
+
+	bgl := []wgpu.BindGroupLayoutEntry{
+		BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false), // TOOD true?
+		BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
+		BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
+	}
+
+	switch c.Tonemapping {
+	case TonemappingTonyMcMapface, TonemappingAgX, TonemappingBlenderFilmic:
+		bgl = append(bgl,
+			BindingLayoutTexture3D(wgpu.TextureSampleTypeFloat, false),
+			BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
+		)
+	}
+
+	// @group(0) @binding(1) var hdr_texture: texture_2d<f32>;
+	// @group(0) @binding(0) var<uniform> color_grading: ColorGrading;
+	// @group(0) @binding(2) var hdr_sampler: sampler;
+	// @group(0) @binding(3) var dt_lut_texture: texture_3d<f32>;
+	// @group(0) @binding(4) var dt_lut_sampler: sampler;
+
+	return RenderPipelineDescriptor{
+		Label: "Tonemapping",
+		Layout: []wgpu.BindGroupLayoutDescriptor{
+			SequentialLayout(bgl...),
+		},
+		Fragment: &wgpu.FragmentState{
+			Module:     module,
+			EntryPoint: "fragment",
+			Targets: []wgpu.ColorTargetState{
+				{
+					Format:    c.TargetFormat,
+					Blend:     &wgpu.BlendStateReplace,
+					WriteMask: wgpu.ColorWriteMaskAll,
 				},
 			},
-			Vertex:      FullscreenShaderVertexState,
-			Multisample: multisampleStateOne,
 		},
+		Vertex:      FullscreenShaderVertexState(module),
+		Multisample: multisampleStateOne,
 	}
 }
 
@@ -341,7 +362,7 @@ func tonemappingSystem(
 
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:   "Tonemapping",
-		Layout:  pipeline.GetBindGroupLayout(0),
+		Layout:  pipeline.BindGroupLayout(0),
 		Entries: Sequential(bindGroupEntries...),
 	})
 

@@ -13,7 +13,7 @@ var _ = byke.ValidateComponent[Camera]()
 var _ = byke.ValidateComponent[OrthographicProjection]()
 
 func pluginCamera(app *byke.App) {
-	app.AddPlugin(ComponentUniformsPlugin[viewUniforms])
+	app.AddPlugin(ComponentUniformsPlugin[ViewUniforms])
 
 	app.AddSystems(Render, byke.
 		System(prepareViewUniformsSystem).
@@ -61,7 +61,7 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 			Scale:          1,
 		},
 
-		viewUniforms{},
+		ViewUniforms{},
 	}
 }
 
@@ -192,7 +192,7 @@ func prepareViewUniformsSystem(
 		Transform    GlobalTransform
 		Projection   OrthographicProjection
 		ViewTarget   *ViewTarget
-		ViewUniforms *viewUniforms
+		ViewUniforms *ViewUniforms
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -202,7 +202,7 @@ func prepareViewUniformsSystem(
 			SurfaceSize: view.ViewTarget.Size,
 		}
 
-		*view.ViewUniforms = viewUniforms{
+		*view.ViewUniforms = ViewUniforms{
 			ScreenToNDC:   vv.SurfaceToNDC(),
 			WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
 		}
@@ -253,11 +253,11 @@ func blitCameraToTargetSystem(
 	view := viewsQuery.Get()
 
 	blit := blitConfig{
-		TargetFormat: view.ViewTarget.SurfaceTextureFormat,
+		Format: view.ViewTarget.SurfaceTextureFormat,
 	}
 
 	// blit into the target texture
-	blitTexture(ctx,
+	blitTextureSimple(ctx,
 		blitPipelines.Specialize(blit),
 		view.ViewTarget.UnsampledTexture(),
 		view.ViewTarget.SurfaceTextureView,

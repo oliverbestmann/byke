@@ -5,6 +5,7 @@ import (
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/pre"
+	shaders_lib "github.com/oliverbestmann/byke/byke2d/shaders-lib"
 )
 
 var _ = byke.ValidateComponent[CustomShader]()
@@ -15,23 +16,10 @@ func pluginShader(app *byke.App) {
 	app.InsertResource(preCompiler)
 }
 
-//go:embed fullscreen.wgsl
-var fullscreenShader string
-
-//go:embed shaders-lib/colors.wgsl
-var colorsShader string
-
-//go:embed shaders-lib/math.wgsl
-var mathShader string
-
-//go:embed sprite.wgsl
-var spritesShader string
-
 func registerShaderModules(preCompiler pre.Compiler) {
-	preCompiler.MustAdd(mathShader)
-	preCompiler.MustAdd(colorsShader)
-	preCompiler.MustAdd(fullscreenShader)
-	preCompiler.MustAdd(spritesShader)
+	for _, shader := range shaders_lib.All() {
+		preCompiler.MustAdd(shader)
+	}
 }
 
 type CustomShader struct {
@@ -43,6 +31,7 @@ type CustomShader struct {
 }
 
 type ShaderDef struct {
+	Label         string
 	Source        string
 	VertexEntry   string
 	FragmentEntry string

@@ -2,6 +2,8 @@ package byke2d
 
 import (
 	"fmt"
+	"log/slog"
+	"slices"
 
 	"github.com/hashicorp/golang-lru/v2"
 	"github.com/oliverbestmann/byke"
@@ -11,46 +13,46 @@ import (
 
 type ShaderValues = pre.Values
 
-type PipelineConfig interface {
-	comparable
-	Specialize() SpecializedPipeline
+type PipelineContext interface {
+	// Shader compiles a shader to a *wgpu.ShaderModule.
+	Shader(label, shaderCode string, values ShaderValues) *wgpu.ShaderModule
 }
 
-type SpecializedPipeline struct {
-	ShaderLabel string
-	Shader      string
+type PipelineConfig interface {
+	comparable
+	Specialize(ctx PipelineContext) RenderPipelineDescriptor
+}
 
-	// If empty, the vertex shader will be re-used for the fragment shader module
-	FragmentShader string
-
-	// will be used for the shader preprocessor
-	ShaderValues ShaderValues
-
-	// Pipeline descriptor
-	Descriptor wgpu.RenderPipelineDescriptor
+type RenderPipelineDescriptor struct {
+	Label        string
+	Layout       []wgpu.BindGroupLayoutDescriptor
+	Vertex       wgpu.VertexState
+	Primitive    wgpu.PrimitiveState
+	DepthStencil *wgpu.DepthStencilState
+	Multisample  wgpu.MultisampleState
+	Fragment     *wgpu.FragmentState
 }
 
 type Pipelines[C PipelineConfig] struct {
 	renderContext *RenderContext
-	preCompiler   *pre.Compiler
+	pipelineCache *PipelineCache
 	cache         *lru.Cache[C, Pipeline]
-	defines       pre.Values
 }
 
-func newPipelineCache[C PipelineConfig](renderContext *RenderContext, preCompiler *pre.Compiler) Pipelines[C] {
+func newPipelines[C PipelineConfig](renderContext *RenderContext, pipelineCache *PipelineCache) Pipelines[C] {
 	cache, _ := lru.NewWithEvict[C, Pipeline](32, releasePipelineOnEvict)
 
 	return Pipelines[C]{
 		renderContext: renderContext,
-		preCompiler:   preCompiler,
 		cache:         cache,
+		pipelineCache: pipelineCache,
 	}
 }
 
 func (Pipelines[C]) FromWorld(world *byke.World) Pipelines[C] {
 	renderContext := byke.RequireResourceOf[RenderContext](world)
-	preCompiler := byke.RequireResourceOf[pre.Compiler](world)
-	return newPipelineCache[C](renderContext, preCompiler)
+	pipelineCache := byke.RequireResourceOf[PipelineCache](world)
+	return newPipelines[C](renderContext, pipelineCache)
 }
 
 func (p Pipelines[C]) Specialize(config C) Pipeline {
@@ -59,36 +61,38 @@ func (p Pipelines[C]) Specialize(config C) Pipeline {
 		return cached
 	}
 
-	bglCache, _ := lru.NewWithEvict[uint32, *wgpu.BindGroupLayout](32, releaseBindGroupLayoutOnEvict)
+	// create the pipeline descriptor
+	desc := config.Specialize(p.pipelineCache)
 
-	// create the deferred pipeline descriptor
-	dp := config.Specialize()
-
-	// compile the vertex shader, apply preprocessor if necessary
-	vertexShader := p.compileShader(dp.ShaderLabel, dp.Shader, dp.ShaderValues)
-	defer vertexShader.Release()
-
-	desc := dp.Descriptor
-	desc.Vertex.Module = vertexShader
-
-	if desc.Fragment != nil {
-		// re-use the vertexShader module for the fragment shader
-		// if no extra fragment shader is provided
-		fragmentShader := vertexShader
-		if dp.FragmentShader != "" {
-			fragmentShader = p.compileShader(dp.ShaderLabel, dp.FragmentShader, dp.ShaderValues)
-			defer fragmentShader.Release()
-		}
-
-		desc.Fragment.Module = fragmentShader
+	// create bind group layouts
+	var bgls []*wgpu.BindGroupLayout
+	for _, bgld := range desc.Layout {
+		bgl := p.pipelineCache.BindGroupLayout(bgld)
+		bgls = append(bgls, bgl)
 	}
 
+	// create the pipeline layout
+	layout := p.renderContext.CreatePipelineLayout(&wgpu.PipelineLayoutDescriptor{
+		Label:            desc.Label,
+		BindGroupLayouts: bgls,
+	})
+
+	defer layout.Release()
+
 	// now create the actual pipeline
-	pipe := p.renderContext.CreateRenderPipeline(&desc)
+	pipe := p.renderContext.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
+		Label:        desc.Label,
+		Layout:       layout,
+		Vertex:       desc.Vertex,
+		Primitive:    desc.Primitive,
+		DepthStencil: desc.DepthStencil,
+		Multisample:  desc.Multisample,
+		Fragment:     desc.Fragment,
+	})
 
 	pipeline := Pipeline{
-		pipeline:    pipe,
-		layoutCache: bglCache,
+		pipeline:         pipe,
+		bindGroupLayouts: bgls,
 	}
 
 	p.cache.Add(config, pipeline)
@@ -96,21 +100,9 @@ func (p Pipelines[C]) Specialize(config C) Pipeline {
 	return pipeline
 }
 
-func (p Pipelines[C]) compileShader(label, shaderCode string, values ShaderValues) *wgpu.ShaderModule {
-	shadeCode, err := p.preCompiler.PreCompile(shaderCode, values)
-	if err != nil {
-		panic(fmt.Errorf("preprocessing shader %q: %w", label, err))
-	}
-
-	return p.renderContext.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
-		Label:      label,
-		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shadeCode},
-	})
-}
-
 type Pipeline struct {
-	pipeline    *wgpu.RenderPipeline
-	layoutCache *lru.Cache[uint32, *wgpu.BindGroupLayout]
+	pipeline         *wgpu.RenderPipeline
+	bindGroupLayouts []*wgpu.BindGroupLayout
 }
 
 // Get returns the actual WGPU pipeline.
@@ -123,29 +115,70 @@ func (pc *Pipeline) Get() *wgpu.RenderPipeline {
 	return pc.pipeline
 }
 
-// GetBindGroupLayout returns a cached bind group layout.
+// BindGroupLayout returns a cached bind group layout.
 // You must NOT release the returned wgpu.BindGroupLayout.
-func (pc *Pipeline) GetBindGroupLayout(idx uint32) *wgpu.BindGroupLayout {
-	bindGroup, ok := pc.layoutCache.Get(idx)
-	if ok {
-		if !bindGroup.IsValid() {
-			panic("cached bindGroup was released")
-		}
-
-		return bindGroup
+func (pc *Pipeline) BindGroupLayout(idx uint32) *wgpu.BindGroupLayout {
+	if !pc.bindGroupLayouts[idx].IsValid() {
+		panic("BindGroupLayout not valid anymore")
 	}
 
-	bindGroup = pc.pipeline.GetBindGroupLayout(idx)
-	pc.layoutCache.Add(idx, bindGroup)
-
-	return bindGroup
+	return pc.bindGroupLayouts[idx]
 }
 
 func releasePipelineOnEvict[C any](_ C, pipe Pipeline) {
-	pipe.layoutCache.Purge()
 	pipe.pipeline.Release()
 }
 
-func releaseBindGroupLayoutOnEvict(_ uint32, ev *wgpu.BindGroupLayout) {
-	ev.Release()
+// PipelineCache caches render pipelines & bind group layout
+type PipelineCache struct {
+	ctx                  *RenderContext
+	bindGroupLayoutCache []cachedBindGroupLayout
+	preCompiler          *pre.Compiler
+}
+
+//goland:noinspection GoMixedReceiverTypes
+func (PipelineCache) FromWorld(world *byke.World) PipelineCache {
+	return PipelineCache{
+		ctx:         byke.RequireResourceOf[RenderContext](world),
+		preCompiler: byke.RequireResourceOf[pre.Compiler](world),
+	}
+}
+
+func (p *PipelineCache) Shader(label, shaderCode string, values ShaderValues) *wgpu.ShaderModule {
+	shaderCode, err := p.preCompiler.PreCompile(shaderCode, values)
+	if err != nil {
+		panic(fmt.Errorf("prepare shader %q: %w", label, err))
+	}
+
+	return p.ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
+		Label:      label,
+		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shaderCode},
+	})
+}
+
+func (p *PipelineCache) BindGroupLayout(desc wgpu.BindGroupLayoutDescriptor) *wgpu.BindGroupLayout {
+	for _, cached := range p.bindGroupLayoutCache {
+		if cached.Matches(desc) {
+			return cached.BindGroupLayout
+		}
+	}
+
+	slog.Debug("Create BindGroupLayout", slog.String("label", desc.Label))
+	bindGroupLayout := p.ctx.CreateBindGroupLayout(new(desc))
+
+	p.bindGroupLayoutCache = append(p.bindGroupLayoutCache, cachedBindGroupLayout{
+		Descriptor:      desc,
+		BindGroupLayout: bindGroupLayout,
+	})
+
+	return bindGroupLayout
+}
+
+type cachedBindGroupLayout struct {
+	Descriptor      wgpu.BindGroupLayoutDescriptor
+	BindGroupLayout *wgpu.BindGroupLayout
+}
+
+func (c *cachedBindGroupLayout) Matches(desc wgpu.BindGroupLayoutDescriptor) bool {
+	return desc.Label == c.Descriptor.Label && slices.Equal(desc.Entries, c.Descriptor.Entries)
 }
