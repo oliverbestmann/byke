@@ -10,7 +10,7 @@ import (
 func TestGlobalTransform_Affine2(t *testing.T) {
 	var pos glm.Vec3f
 
-	tr := GlobalTransform{
+	tr := Transform{
 		Translation: glm.Vec3f{10, 10, 0},
 		Scale:       glm.Vec3f{5, 1},
 	}
@@ -38,27 +38,32 @@ func TestGlobalTransform_Affine2(t *testing.T) {
 func TestGlobalTransform_Mul(t *testing.T) {
 	var pos glm.Vec3f
 
-	tr := GlobalTransform{
+	base := Transform{
 		Translation: glm.Vec3f{10, 10, 0},
 		Scale:       glm.Vec3f{5, 1},
 	}
 
+	tr := GlobalTransform{
+		Affine: base.Affine2(),
+	}
+
 	// origin is exactly at the Translation value
-	pos = tr.Mul(TransformFromXY(0, 0)).Affine2().Transform(glm.Vec3f{0, 0, 1})
+	pos = tr.Mul(TransformFromXY(0, 0)).Affine.Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{10, 10, 1}, pos)
 
-	pos = tr.Mul(TransformFromXY(0, 1)).Affine2().Transform(glm.Vec3f{0, 0, 1})
+	pos = tr.Mul(TransformFromXY(0, 1)).Affine.Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{10, 11, 1}, pos)
 
-	pos = tr.Mul(TransformFromXY(1, 0)).Affine2().Transform(glm.Vec3f{0, 0, 1})
+	pos = tr.Mul(TransformFromXY(1, 0)).Affine.Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{15, 10, 1}, pos)
 
 	// now rotate 90 deg
-	tr.Rotation = glm.DegToRad(90)
+	base.Rotation = glm.DegToRad(90)
+	tr.Affine = base.Affine2()
 
-	pos = tr.Mul(TransformFromXY(0, 1)).Affine2().Transform(glm.Vec3f{0, 0, 1})
+	pos = tr.Mul(TransformFromXY(0, 1)).Affine.Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{9, 10, 1}, pos)
 
-	pos = tr.Mul(TransformFromXY(1, 0)).Affine2().Transform(glm.Vec3f{0, 0, 1})
+	pos = tr.Mul(TransformFromXY(1, 0)).Affine.Transform(glm.Vec3f{0, 0, 1})
 	require.Equal(t, glm.Vec3f{10, 15, 1}, pos)
 }
