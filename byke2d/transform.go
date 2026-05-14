@@ -59,40 +59,29 @@ func (t Transform) WithRotation(rotation glm.Rad) Transform {
 	return t
 }
 
-func (Transform) RequireComponents() []spoke.ErasedComponent {
-	return []spoke.ErasedComponent{
-		GlobalTransform{Scale: glm.Vec3f{1, 1, 1}},
-	}
-}
-
-type GlobalTransform struct {
-	byke.ComparableComponent[GlobalTransform]
-	Translation glm.Vec3f
-	Scale       glm.Vec3f
-	Rotation    glm.Rad
-}
-
-// Affine2 returns an affine transform as glm.Mat3f that represents this
-// GlobalTransform for 2d transformations.
-func (t GlobalTransform) Affine2() glm.Mat3f {
-	return glm.TranslationMat3(t.Translation.XY()).
+func (t Transform) Affine2() glm.Mat3f {
+	return glm.TranslationMat3[float32](t.Translation.XY()).
 		Rotate(t.Rotation).
-		Scale(t.Scale.Truncate().XY())
+		Scale(t.Scale.XY())
 
 	// return glm.RotationMat3[float32](t.Rotation).
 	// 	Scale(t.Scale.XY()).
 	// 	Translate(t.Translation.Scale(1).XY())
 }
 
-func (t GlobalTransform) Mul(other Transform) GlobalTransform {
-	// FIXME clean this up and do it correctly!
-	translation := t.
-		Affine2().
-		Transform(other.Translation.Truncate().Extend(1.0))
+func (Transform) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{
+		GlobalTransform{},
+	}
+}
 
+type GlobalTransform struct {
+	byke.ComparableComponent[GlobalTransform]
+	Affine glm.Mat3f
+}
+
+func (t GlobalTransform) Mul(other Transform) GlobalTransform {
 	return GlobalTransform{
-		Translation: translation,
-		Scale:       t.Scale.Mul(other.Scale),
-		Rotation:    t.Rotation + other.Rotation,
+		Affine: t.Affine.Mul(other.Affine2()),
 	}
 }

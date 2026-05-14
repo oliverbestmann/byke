@@ -109,47 +109,42 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 			EntryPoint: entryVertex,
 			Buffers: []wgpu.VertexBufferLayout{
 				{
-					ArrayStride: 64,
+					ArrayStride: 72,
 					StepMode:    wgpu.VertexStepModeInstance,
 					Attributes: []wgpu.VertexAttribute{
 						{
 							ShaderLocation: 0,
 							Offset:         0,
-							Format:         wgpu.VertexFormatFloat32x2,
+							Format:         wgpu.VertexFormatFloat32x3,
 						},
 						{
 							ShaderLocation: 1,
-							Offset:         8,
-							Format:         wgpu.VertexFormatFloat32x2,
+							Offset:         12,
+							Format:         wgpu.VertexFormatFloat32x3,
 						},
 						{
 							ShaderLocation: 2,
-							Offset:         16,
-							Format:         wgpu.VertexFormatFloat32x2,
+							Offset:         24,
+							Format:         wgpu.VertexFormatFloat32x3,
 						},
 						{
 							ShaderLocation: 3,
-							Offset:         24,
-							Format:         wgpu.VertexFormatFloat32,
-						},
-						{
-							ShaderLocation: 4,
-							Offset:         28,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 5,
 							Offset:         36,
 							Format:         wgpu.VertexFormatFloat32x2,
 						},
 						{
-							ShaderLocation: 6,
+							ShaderLocation: 4,
 							Offset:         44,
+							Format:         wgpu.VertexFormatFloat32x2,
+						},
+						{
+							ShaderLocation: 5,
+							Offset:         52,
 							Format:         wgpu.VertexFormatFloat32x4,
 						},
 						{
-							ShaderLocation: 7,
-							Offset:         60,
+							ShaderLocation: 6,
+							Offset:         68,
 							Format:         wgpu.VertexFormatUint32,
 						},
 					},
@@ -289,8 +284,9 @@ func uploadSpritesSystem(
 ) {
 	// sort sprites by z-order
 	sort.Slice(sprites.Sprites, func(a, b int) bool {
-		aZ := sprites.Sprites[a].Transform.Translation[2]
-		bZ := sprites.Sprites[b].Transform.Translation[2]
+		// FIXME need to have Affine3 for this
+		aZ := 0 // sprites.Sprites[a].Transform.Translation[2]
+		bZ := 0 // sprites.Sprites[b].Transform.Translation[2]
 		return aZ < bZ
 	})
 
@@ -301,7 +297,7 @@ func uploadSpritesSystem(
 		}
 
 		// the size of one sprite instance in the wgpu instance buffer
-		const instanceSize = 64
+		const instanceSize = 72
 
 		instances := &meta.Instances
 
@@ -362,25 +358,27 @@ func uploadSpritesSystem(
 			}
 
 			// calculate size of the sprite
-			baseSize := sp.Size
-			scale := sp.Transform.Scale.Truncate().Mul(baseSize)
-			// anchorOffset := sp.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}).Mul(scale)
+			transform := sp.Transform.Affine.Mul(
+				glm.Mat3f{}.
+					Scale(sp.Size.XY()).
+					Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5),
+			)
 
 			var flags uint32
 			if sp.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
 				flags |= 1
 			}
 
+			columns := transform.Components()
+
 			instances.StartNew(instanceSize)
 
-			// @location(0) i_translation: vec2<f32>,
-			instances.AppendVec2f(sp.Transform.Translation.Truncate())
-			// @location(1) i_scale: vec2<f32>,
-			instances.AppendVec2f(scale)
-			// @location(2) i_anchor: vec2<f32>,
-			instances.AppendVec2f(sp.Anchor.Vec2f)
-			// @location(3) i_rotation: f32,
-			instances.AppendFloat32(float32(sp.Transform.Rotation))
+			// @location(0) i_affine_0: mat3<f32>,
+			instances.AppendVec3f(columns[0])
+			// @location(1) i_affine_1: mat3<f32>,
+			instances.AppendVec3f(columns[1])
+			// @location(2) i_affine_2: mat3<f32>,
+			instances.AppendVec3f(columns[2])
 			// @location(4) i_uv_offset: vec2<f32>,
 			instances.AppendVec2f(uvOffset)
 			// @location(5) i_uv_scale: vec2<f32>,

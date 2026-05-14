@@ -6,14 +6,13 @@
 struct VertexInput {
     @builtin(vertex_index) index: u32,
 
-    @location(0) i_translation: vec2<f32>,
-    @location(1) i_scale: vec2<f32>,
-    @location(2) i_anchor: vec2<f32>,
-    @location(3) i_rotation: f32,
-    @location(4) i_uv_offset: vec2<f32>,
-    @location(5) i_uv_scale: vec2<f32>,
-    @location(6) i_color: vec4<f32>,
-    @location(7) i_flags: u32,
+    @location(0) i_affine_0: vec3<f32>,
+    @location(1) i_affine_1: vec3<f32>,
+    @location(2) i_affine_2: vec3<f32>,
+    @location(3) i_uv_offset: vec2<f32>,
+    @location(4) i_uv_scale: vec2<f32>,
+    @location(5) i_color: vec4<f32>,
+    @location(6) i_flags: u32,
 }
 
 struct VertexOutput {
@@ -58,19 +57,8 @@ const indices = array<u32, 6>(2, 0, 1, 1, 3, 2);
 fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     let index = indices[in.index];
 
-    let model_to_world =
-        // move the rotated sprite to its target position
-        mat3_translation(in.i_translation)
-
-        // rotate scaled sprite around the anchor
-        * mat3_rotation(in.i_rotation)
-
-        // scale around the anchor
-        * mat3_scale(in.i_scale)
-
-        // move sprite anchor to the origin
-        * mat3_translation(in.i_anchor - vec2(0.5, 0.5))
-        ;
+    // transforms the unit square to its target coordinates
+    let model_to_world = mat3x3f(in.i_affine_0, in.i_affine_1, in.i_affine_2);
 
     // between 0 and 1
     // index vertices as p00, p01, p10, p11, this way

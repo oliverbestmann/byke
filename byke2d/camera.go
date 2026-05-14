@@ -178,11 +178,7 @@ func (v *ViewValues) CameraToSurface() glm.Mat3f {
 // This just applies the Cameras position. It does not apply the
 // cameras projection.
 func (v *ViewValues) WorldToCamera() glm.Mat3f {
-	t := v.Transform
-
-	return glm.RotationMat3[float32](t.Rotation).
-		Scale(t.Scale.XY()).
-		Translate(t.Translation.Scale(-1).XY())
+	return v.Transform.Affine
 }
 
 func prepareViewUniformsSystem(

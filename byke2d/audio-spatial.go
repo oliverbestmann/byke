@@ -44,7 +44,7 @@ func adjustSpatialAudioVolume(
 		return
 	}
 
-	micTr := mic.Transform.Affine2()
+	micTr := mic.Transform.Affine
 	leftGlobal := micTr.Transform(mic.Microphone.LeftEarOffset)
 	rightGlobal := micTr.Transform(mic.Microphone.RightEarOffset)
 
@@ -53,7 +53,7 @@ func adjustSpatialAudioVolume(
 
 		leftScaled := leftGlobal.Mul(spatialScale)
 		rightScaled := rightGlobal.Mul(spatialScale)
-		emitter := item.Transform.Translation.Mul(spatialScale)
+		emitter := item.Transform.Affine.Transform(glm.Vec3f{0, 0, 1}).Mul(spatialScale)
 
 		leftVolume, rightVolume := calculateSpatialVolume(emitter, leftScaled, rightScaled)
 
