@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"runtime"
 	"slices"
 
 	. "github.com/oliverbestmann/byke"
@@ -24,7 +25,9 @@ func main() {
 		Level:     slog.LevelDebug,
 	})
 
-	defer profile.Start(profile.MemProfileRate(512)).Stop()
+	if runtime.GOOS != "js" {
+		defer profile.Start(profile.MemProfileRate(512)).Stop()
+	}
 
 	slog.SetDefault(slog.New(handler))
 

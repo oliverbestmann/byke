@@ -23,7 +23,7 @@ func (rc *RenderContext) init(world *byke.World, ctx *wx.Context) {
 	pipelineCache := byke.RequireResourceOf[PipelineCache](world)
 	rc.MipmapGenerator = makeMipmapGenerator(rc, pipelineCache)
 
-	rc.samplerCache, _ = lru.NewWithEvict[wgpu.SamplerDescriptor, *wgpu.Sampler](16, samplerCacheOnEvict)
+	rc.samplerCache, _ = lru.New[wgpu.SamplerDescriptor, *wgpu.Sampler](32)
 }
 
 // CreateSampler returns a sampler matching your description. The sampler is cached,
@@ -48,7 +48,7 @@ func (rc *RenderContext) CreateSampler(desc wgpu.SamplerDescriptor) *wgpu.Sample
 	sampler := rc.Context.CreateSampler(new(desc))
 
 	// and cache it for the next access
-	rc.samplerCache.Add(desc, sampler)
+	rc.samplerCache.Add(desc, wgpu.Share(sampler))
 
 	return sampler
 }
@@ -101,8 +101,4 @@ func (rc *RenderContext) Create(desc *wgpu.BindGroupLayoutDescriptor) *wgpu.Bind
 func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescriptor) *wgpu.CommandEncoder {
 	rc.Metrics.CreateCommandEncoder += 1
 	return rc.Context.CreateCommandEncoder(desc)
-}
-
-func samplerCacheOnEvict(_ wgpu.SamplerDescriptor, value *wgpu.Sampler) {
-	value.Release()
 }

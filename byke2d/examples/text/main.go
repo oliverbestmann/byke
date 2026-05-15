@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
@@ -21,7 +22,9 @@ func main() {
 		Level:     slog.LevelDebug,
 	})
 
-	defer profile.Start(profile.CPUProfile).Stop()
+	if runtime.GOOS != "js" {
+		defer profile.Start(profile.CPUProfile).Stop()
+	}
 
 	slog.SetDefault(slog.New(handler))
 

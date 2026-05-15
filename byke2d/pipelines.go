@@ -40,7 +40,7 @@ type Pipelines[C PipelineConfig] struct {
 }
 
 func newPipelines[C PipelineConfig](renderContext *RenderContext, pipelineCache *PipelineCache) Pipelines[C] {
-	cache, _ := lru.NewWithEvict[C, Pipeline](32, releasePipelineOnEvict)
+	cache, _ := lru.New[C, Pipeline](32)
 
 	return Pipelines[C]{
 		renderContext: renderContext,
@@ -91,7 +91,7 @@ func (p Pipelines[C]) Specialize(config C) Pipeline {
 	})
 
 	pipeline := Pipeline{
-		pipeline:         pipe,
+		pipeline:         wgpu.Share(pipe),
 		bindGroupLayouts: bgls,
 	}
 
@@ -123,10 +123,6 @@ func (pc *Pipeline) BindGroupLayout(idx uint32) *wgpu.BindGroupLayout {
 	}
 
 	return pc.bindGroupLayouts[idx]
-}
-
-func releasePipelineOnEvict[C any](_ C, pipe Pipeline) {
-	pipe.pipeline.Release()
 }
 
 // PipelineCache caches render pipelines & bind group layout
@@ -164,7 +160,7 @@ func (p *PipelineCache) BindGroupLayout(desc wgpu.BindGroupLayoutDescriptor) *wg
 	}
 
 	slog.Debug("Create BindGroupLayout", slog.String("label", desc.Label))
-	bindGroupLayout := p.ctx.CreateBindGroupLayout(new(desc))
+	bindGroupLayout := wgpu.Share(p.ctx.CreateBindGroupLayout(new(desc)))
 
 	p.bindGroupLayoutCache = append(p.bindGroupLayoutCache, cachedBindGroupLayout{
 		Descriptor:      desc,
@@ -180,5 +176,12 @@ type cachedBindGroupLayout struct {
 }
 
 func (c *cachedBindGroupLayout) Matches(desc wgpu.BindGroupLayoutDescriptor) bool {
-	return desc.Label == c.Descriptor.Label && slices.Equal(desc.Entries, c.Descriptor.Entries)
+	return desc.Label == c.Descriptor.Label && slices.EqualFunc(desc.Entries, c.Descriptor.Entries, func(lhs, rhs wgpu.BindGroupLayoutEntry) bool {
+		return lhs.Binding == rhs.Binding &&
+			lhs.Visibility == rhs.Visibility &&
+			lhs.Buffer == rhs.Buffer &&
+			lhs.Sampler == rhs.Sampler &&
+			lhs.Texture == rhs.Texture &&
+			lhs.StorageTexture == rhs.StorageTexture
+	})
 }

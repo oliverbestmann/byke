@@ -167,7 +167,7 @@ func DefaultWindowConfig() WindowConfig {
 
 func DefaultSurfaceConfig() SurfaceConfig {
 	return SurfaceConfig{
-		Format:      wgpu.TextureFormatBGRA8UnormSrgb,
+		Format:      wgpu.TextureFormatBGRA8Unorm,
 		PresentMode: wgpu.PresentModeFifo,
 	}
 }
@@ -258,6 +258,7 @@ type currentSurfaceValues struct {
 	Texture     *wgpu.Texture
 	TextureView *wgpu.TextureView
 	Size        glm.Vec2f
+	Format      wgpu.TextureFormat
 }
 
 func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
@@ -323,7 +324,7 @@ func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth
 		PresentMode: surfaceConfig.PresentMode,
 		AlphaMode:   wgpu.CompositeAlphaModeOpaque,
 		ViewFormats: []wgpu.TextureFormat{
-			surfaceConfig.Format,
+			wgpu.TextureFormatBGRA8UnormSrgb,
 		},
 
 		DesiredMaximumFrameLatency: 1,
@@ -391,9 +392,12 @@ func renderMainSystem(
 		}
 	}()
 
+	surfaceViewFormat := wgpu.TextureFormatBGRA8UnormSrgb
+
 	// create a view we can render to
 	surfaceTextureView := surface.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Surface",
+		Format:          surfaceViewFormat,
 		MipLevelCount:   1,
 		ArrayLayerCount: 1,
 		Aspect:          wgpu.TextureAspectAll,
@@ -404,6 +408,7 @@ func renderMainSystem(
 	world.InsertResource(currentSurfaceValues{
 		Texture:     surface,
 		TextureView: surfaceTextureView,
+		Format:      surfaceViewFormat,
 		Size:        glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)},
 	})
 	defer world.RemoveResource(reflect.TypeFor[currentSurfaceValues]())
