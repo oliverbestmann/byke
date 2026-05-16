@@ -157,27 +157,27 @@ type ViewValues struct {
 
 // SurfaceToNDC maps from Surface pixel coordinates to NDC (normalized device coordinates).
 // NDC is from -1 to +1 on both axis.
-func (v *ViewValues) SurfaceToNDC() glm.Mat3f {
-	return glm.Mat3f{}.
-		Scale(2.0, 2.0).
-		Translate(-0.5, -0.5)
+func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
+	return glm.Mat4f{}.
+		Scale(2.0, 2.0, 1.0).
+		Translate(-0.5, -0.5, 0)
 }
 
 // CameraToSurface maps a value from Camera space to a Surface space. Surface
 // space is described by pixel coordinates with origin at 0 in the lower left corner.
-func (v *ViewValues) CameraToSurface() glm.Mat3f {
+func (v *ViewValues) CameraToSurface() glm.Mat4f {
 	viewportSize := v.Projection.ScalingMode.ViewportSize(v.SurfaceSize.XY())
 
-	return glm.Mat3f{}.
-		Translate(v.Projection.ViewportOrigin.XY()).
-		Scale(v.Projection.Scale, v.Projection.Scale).
-		Scale(viewportSize.Reciprocal().XY())
+	return glm.Mat4f{}.
+		Translate(v.Projection.ViewportOrigin.Extend(1.0).XYZ()).
+		Scale(v.Projection.Scale, v.Projection.Scale, 1).
+		Scale(viewportSize.Reciprocal().Extend(1.0).XYZ())
 }
 
 // WorldToCamera maps a point from World space into Camera space.
 // This just applies the Cameras position. It does not apply the
 // cameras projection.
-func (v *ViewValues) WorldToCamera() glm.Mat3f {
+func (v *ViewValues) WorldToCamera() glm.Mat4f {
 	return v.Transform.Affine
 }
 

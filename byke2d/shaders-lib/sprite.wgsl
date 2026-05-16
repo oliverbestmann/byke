@@ -6,13 +6,14 @@
 struct VertexInput {
     @builtin(vertex_index) index: u32,
 
-    @location(0) i_affine_0: vec3<f32>,
-    @location(1) i_affine_1: vec3<f32>,
-    @location(2) i_affine_2: vec3<f32>,
-    @location(3) i_uv_offset: vec2<f32>,
-    @location(4) i_uv_scale: vec2<f32>,
-    @location(5) i_color: vec4<f32>,
-    @location(6) i_flags: u32,
+    @location(0) i_affine_0: vec4<f32>,
+    @location(1) i_affine_1: vec4<f32>,
+    @location(2) i_affine_2: vec4<f32>,
+    @location(3) i_affine_3: vec4<f32>,
+    @location(4) i_uv_offset: vec2<f32>,
+    @location(5) i_uv_scale: vec2<f32>,
+    @location(6) i_color: vec4<f32>,
+    @location(7) i_flags: u32,
 }
 
 struct VertexOutput {
@@ -58,7 +59,7 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     let index = indices[in.index];
 
     // transforms the unit square to its target coordinates
-    let model_to_world = mat3x3f(in.i_affine_0, in.i_affine_1, in.i_affine_2);
+    let model_to_world = mat4x4f(in.i_affine_0, in.i_affine_1, in.i_affine_2, in.i_affine_3);
 
     // between 0 and 1
     // index vertices as p00, p01, p10, p11, this way
@@ -67,12 +68,12 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     let y = f32(index & 1);
     let vertex_position = vec2f(x, y);
 
-    let identity = mat3x3f(1, 0, 0,  0, 1, 0,  0, 0, 1);
+    let identity = mat4x4f(1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1);
     let position = identity
         * view.screen_to_ndc
         * view.world_to_screen
         * model_to_world
-        * vec3<f32>(vertex_position, 1.0);
+        * vec4f(vertex_position, 0.0, 1.0);
 
     // move the vertex to the world
     var out: VertexOutput;

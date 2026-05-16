@@ -10,13 +10,13 @@ var _ = byke.ValidateComponent[ViewUniforms]()
 
 type ViewUniforms struct {
 	byke.Component[ViewUniforms]
-	ScreenToNDC   glm.Mat3f
-	WorldToScreen glm.Mat3f
+	ScreenToNDC   glm.Mat4f
+	WorldToScreen glm.Mat4f
 }
 
 func (v ViewUniforms) ToWGPU() []byte {
 	var w wx.StructWriter
-	w.AppendMat3f(v.ScreenToNDC)
-	w.AppendMat3f(v.WorldToScreen)
+	w.AppendMat4f(v.ScreenToNDC)
+	w.AppendMat4f(v.WorldToScreen)
 	return w.Bytes()
 }

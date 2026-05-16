@@ -110,6 +110,8 @@ func renderTextSystem(
 		var posX float32
 		var posY float32
 
+		zSort := item.GlobalTransform.Affine.TranslateZ()
+
 		for idx := len(layout.Lines) - 1; idx >= 0; idx-- {
 			line := layout.Lines[idx]
 
@@ -147,10 +149,11 @@ func renderTextSystem(
 						Texture:      glyphTexture.Texture,
 						Color:        item.Text.Color,
 						RenderLayers: item.RenderLayers,
-						Transform:    transform,
+						Transform:    transform.Affine,
 						Rect:         rect,
 						Size:         rect.Size(),
 						Anchor:       *AnchorBottomLeft,
+						ZSort:        zSort,
 					})
 				}
 			}

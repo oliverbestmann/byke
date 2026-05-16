@@ -59,14 +59,10 @@ func (t Transform) WithRotation(rotation glm.Rad) Transform {
 	return t
 }
 
-func (t Transform) Affine2() glm.Mat3f {
-	return glm.TranslationMat3[float32](t.Translation.XY()).
-		Rotate(t.Rotation).
-		Scale(t.Scale.XY())
-
-	// return glm.RotationMat3[float32](t.Rotation).
-	// 	Scale(t.Scale.XY()).
-	// 	Translate(t.Translation.Scale(1).XY())
+func (t Transform) Affine3() glm.Mat4f {
+	return glm.TranslationMat4[float32](t.Translation.XYZ()).
+		Mul(glm.RotationZMat4[float32](t.Rotation)).
+		Mul(glm.ScaleMat4(t.Scale.XYZ()))
 }
 
 func (Transform) RequireComponents() []spoke.ErasedComponent {
@@ -77,11 +73,11 @@ func (Transform) RequireComponents() []spoke.ErasedComponent {
 
 type GlobalTransform struct {
 	byke.ComparableComponent[GlobalTransform]
-	Affine glm.Mat3f
+	Affine glm.Mat4f
 }
 
 func (t GlobalTransform) Mul(other Transform) GlobalTransform {
 	return GlobalTransform{
-		Affine: t.Affine.Mul(other.Affine2()),
+		Affine: t.Affine.Mul(other.Affine3()),
 	}
 }

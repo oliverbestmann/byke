@@ -36,7 +36,7 @@ type transformItem struct {
 
 func syncSimpleTransformSystem(query byke.Query[simpleTransformItems]) {
 	for item := range query.Items() {
-		item.GlobalTransform.Affine = item.Transform.Affine2()
+		item.GlobalTransform.Affine = item.Transform.Affine3()
 	}
 }
 
@@ -71,7 +71,7 @@ func propagateTransformSystem(
 
 	for root := range rootItemsQuery.Items() {
 		// copy directly on root level
-		root.GlobalTransform.Affine = root.Transform.Affine2()
+		root.GlobalTransform.Affine = root.Transform.Affine3()
 
 		// recurse into children
 		children, ok := root.Children.Get()

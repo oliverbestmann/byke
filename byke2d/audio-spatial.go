@@ -45,15 +45,15 @@ func adjustSpatialAudioVolume(
 	}
 
 	micTr := mic.Transform.Affine
-	leftGlobal := micTr.Transform(mic.Microphone.LeftEarOffset)
-	rightGlobal := micTr.Transform(mic.Microphone.RightEarOffset)
+	leftGlobal := micTr.Transform3(mic.Microphone.LeftEarOffset)
+	rightGlobal := micTr.Transform3(mic.Microphone.RightEarOffset)
 
 	for item := range sinksQuery.Items() {
 		spatialScale := item.Sink.ps.SpatialScale
 
 		leftScaled := leftGlobal.Mul(spatialScale)
 		rightScaled := rightGlobal.Mul(spatialScale)
-		emitter := item.Transform.Affine.Transform(glm.Vec3f{0, 0, 1}).Mul(spatialScale)
+		emitter := item.Transform.Affine.Transform3(glm.Vec3f{}).Mul(spatialScale)
 
 		leftVolume, rightVolume := calculateSpatialVolume(emitter, leftScaled, rightScaled)
 

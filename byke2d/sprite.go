@@ -2,8 +2,8 @@ package byke2d
 
 import (
 	_ "embed"
-	"sort"
 
+	"github.com/Kaidzen-62/radixsort"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/pulse/glm"
@@ -81,6 +81,24 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
+type offsetCalc struct {
+	index  uint32
+	offset uint64
+}
+
+func (o *offsetCalc) Inc(size uint64, fmt wgpu.VertexFormat) wgpu.VertexAttribute {
+	attr := wgpu.VertexAttribute{
+		ShaderLocation: o.index,
+		Offset:         o.offset,
+		Format:         fmt,
+	}
+
+	o.index += 1
+	o.offset += size
+
+	return attr
+}
+
 func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	var shaderLabel = "Sprite"
 	var shaderSource = "#import byke2d::sprite"
@@ -98,6 +116,8 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 
 	var module = ctx.Shader(shaderLabel, shaderSource, shaderValues)
 
+	var offset offsetCalc
+
 	return RenderPipelineDescriptor{
 		Label: "SpriteRenderPipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
@@ -109,44 +129,17 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 			EntryPoint: entryVertex,
 			Buffers: []wgpu.VertexBufferLayout{
 				{
-					ArrayStride: 72,
+					ArrayStride: 100,
 					StepMode:    wgpu.VertexStepModeInstance,
 					Attributes: []wgpu.VertexAttribute{
-						{
-							ShaderLocation: 0,
-							Offset:         0,
-							Format:         wgpu.VertexFormatFloat32x3,
-						},
-						{
-							ShaderLocation: 1,
-							Offset:         12,
-							Format:         wgpu.VertexFormatFloat32x3,
-						},
-						{
-							ShaderLocation: 2,
-							Offset:         24,
-							Format:         wgpu.VertexFormatFloat32x3,
-						},
-						{
-							ShaderLocation: 3,
-							Offset:         36,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 4,
-							Offset:         44,
-							Format:         wgpu.VertexFormatFloat32x2,
-						},
-						{
-							ShaderLocation: 5,
-							Offset:         52,
-							Format:         wgpu.VertexFormatFloat32x4,
-						},
-						{
-							ShaderLocation: 6,
-							Offset:         68,
-							Format:         wgpu.VertexFormatUint32,
-						},
+						offset.Inc(16, wgpu.VertexFormatFloat32x4),
+						offset.Inc(16, wgpu.VertexFormatFloat32x4),
+						offset.Inc(16, wgpu.VertexFormatFloat32x4),
+						offset.Inc(16, wgpu.VertexFormatFloat32x4),
+						offset.Inc(8, wgpu.VertexFormatFloat32x2),
+						offset.Inc(8, wgpu.VertexFormatFloat32x2),
+						offset.Inc(16, wgpu.VertexFormatFloat32x4),
+						offset.Inc(4, wgpu.VertexFormatUint32),
 					},
 				},
 			},
@@ -179,22 +172,25 @@ func valueOr[T comparable](first, fallback T) T {
 // ExtractedSprite got extracted from the World in Prepare and will be rendered
 // to the screen. Does not need to be backed by a real sprite.
 type ExtractedSprite struct {
-	Texture      *Texture
-	Transform    GlobalTransform
+	Texture *Texture
+
+	// optional custom shader definition to replace or extend the
+	// sprites default shader.
+	CustomShader *ShaderDef
+
+	Transform    glm.Mat4f
 	Color        Color
 	Rect         glm.Rect2f
 	Size         glm.Vec2f
 	Anchor       Anchor
 	RenderLayers RenderLayers
+	ZSort        float32
 	FlipX, FlipY bool
-
-	// optional custom shader definition to replace or extend the
-	// sprites default shader.
-	CustomShader *ShaderDef
 }
 
 type ExtractedSprites struct {
-	Sprites []ExtractedSprite
+	Sprites    []ExtractedSprite
+	forSorting []ExtractedSprite
 }
 
 func clearExtractedSpritesSystem(
@@ -236,15 +232,16 @@ func extractSpritesSystem(
 
 		sprites.Sprites = append(sprites.Sprites, ExtractedSprite{
 			Texture:      sprite.Sprite.Texture,
+			CustomShader: sprite.CustomShader.OrZero().Shader,
 			Color:        sprite.Sprite.Color,
 			Size:         sprite.Sprite.CustomSize.Or(rect.Size()),
 			FlipX:        sprite.Sprite.FlipX,
 			FlipY:        sprite.Sprite.FlipY,
 			RenderLayers: sprite.RenderLayers.Or(renderLayerAll),
-			Transform:    sprite.Transform,
+			Transform:    sprite.Transform.Affine,
 			Anchor:       sprite.Anchor,
 			Rect:         rect,
-			CustomShader: sprite.CustomShader.OrZero().Shader,
+			ZSort:        sprite.Transform.Affine.TranslateZ(),
 		})
 	}
 }
@@ -282,13 +279,7 @@ func uploadSpritesSystem(
 	}],
 	sprites *ExtractedSprites,
 ) {
-	// sort sprites by z-order
-	sort.Slice(sprites.Sprites, func(a, b int) bool {
-		// FIXME need to have Affine3 for this
-		aZ := 0 // sprites.Sprites[a].Transform.Translation[2]
-		bZ := 0 // sprites.Sprites[b].Transform.Translation[2]
-		return aZ < bZ
-	})
+	sortSprites(sprites)
 
 	for view := range viewsQuery.Items() {
 		meta, metaSet := view.Meta.Get()
@@ -297,7 +288,7 @@ func uploadSpritesSystem(
 		}
 
 		// the size of one sprite instance in the wgpu instance buffer
-		const instanceSize = 72
+		const instanceSize = 100
 
 		instances := &meta.Instances
 
@@ -331,7 +322,9 @@ func uploadSpritesSystem(
 			batchShader = nextShader
 		}
 
-		for _, sp := range sprites.Sprites {
+		for idx := range sprites.Sprites {
+			sp := &sprites.Sprites[idx]
+
 			if !view.RenderLayers.Intersects(sp.RenderLayers) {
 				// not rendered by this camera
 				continue
@@ -358,10 +351,9 @@ func uploadSpritesSystem(
 			}
 
 			// calculate size of the sprite
-			transform := sp.Transform.Affine.Mul(
-				glm.Mat3f{}.
-					Scale(sp.Size.XY()).
-					Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5),
+			transform := sp.Transform.Mul(
+				glm.ScaleMat4[float32](sp.Size.Extend(1.0).XYZ()).
+					Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0),
 			)
 
 			var flags uint32
@@ -374,11 +366,13 @@ func uploadSpritesSystem(
 			instances.StartNew(instanceSize)
 
 			// @location(0) i_affine_0: mat3<f32>,
-			instances.AppendVec3f(columns[0])
+			instances.AppendVec4f(columns[0])
 			// @location(1) i_affine_1: mat3<f32>,
-			instances.AppendVec3f(columns[1])
+			instances.AppendVec4f(columns[1])
 			// @location(2) i_affine_2: mat3<f32>,
-			instances.AppendVec3f(columns[2])
+			instances.AppendVec4f(columns[2])
+			// @location(3) i_affine_3: mat3<f32>,
+			instances.AppendVec4f(columns[3])
 			// @location(4) i_uv_offset: vec2<f32>,
 			instances.AppendVec2f(uvOffset)
 			// @location(5) i_uv_scale: vec2<f32>,
@@ -417,6 +411,18 @@ func uploadSpritesSystem(
 			commands.Entity(view.EntityId).Insert(meta)
 		}
 	}
+}
+
+func sortSprites(sprites *ExtractedSprites) {
+	if cap(sprites.forSorting) < len(sprites.Sprites) {
+		sprites.forSorting = make([]ExtractedSprite, len(sprites.Sprites))
+	}
+
+	sprites.forSorting = sprites.forSorting[:len(sprites.Sprites)]
+
+	_ = radixsort.Generic[ExtractedSprite, float32](sprites.Sprites, sprites.forSorting, func(a ExtractedSprite) float32 {
+		return a.ZSort
+	})
 }
 
 type bindGroupsSprites struct {
