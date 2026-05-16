@@ -2,8 +2,8 @@ package byke2d
 
 import (
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/spoke"
-	"github.com/oliverbestmann/pulse/glm"
 )
 
 var _ = byke.ValidateComponent[Transform]()
@@ -60,9 +60,9 @@ func (t Transform) WithRotation(rotation glm.Rad) Transform {
 }
 
 func (t Transform) Affine3() glm.Mat4f {
-	return glm.TranslationMat4[float32](t.Translation.XYZ()).
-		Mul(glm.RotationZMat4[float32](t.Rotation)).
-		Mul(glm.ScaleMat4(t.Scale.XYZ()))
+	return glm.TranslationMat4f(t.Translation.XYZ()).
+		Mul(glm.RotationZMat4f(t.Rotation)).
+		Mul(glm.ScaleMat4f(t.Scale.XYZ()))
 }
 
 func (Transform) RequireComponents() []spoke.ErasedComponent {

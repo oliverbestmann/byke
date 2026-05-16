@@ -8,7 +8,7 @@ import (
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
-	"github.com/oliverbestmann/pulse/glm"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/pulse/vyn"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )

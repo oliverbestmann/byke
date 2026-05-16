@@ -1,6 +1,6 @@
 package byke2d
 
-import "github.com/oliverbestmann/pulse/glm"
+import "github.com/oliverbestmann/byke/byke2d/glm"
 
 type MouseCursor struct {
 	glm.Vec2f

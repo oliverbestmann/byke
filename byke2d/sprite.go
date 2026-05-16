@@ -4,10 +4,11 @@ import (
 	_ "embed"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/radix"
+	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/spoke"
-	"github.com/oliverbestmann/pulse/glm"
-	"github.com/oliverbestmann/pulse/wx"
+	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -180,7 +181,7 @@ type ExtractedSprite struct {
 
 	Transform    glm.Mat4f
 	Color        Color
-	Rect         glm.Rect2f
+	Rect         glm.Rectf
 	Size         glm.Vec2f
 	Anchor       Anchor
 	RenderLayers RenderLayers
@@ -222,7 +223,7 @@ func extractSpritesSystem(
 		}
 
 		// calculate size of the rect to display
-		rect := glm.RectFromSize(glm.Vec2f{}, sprite.Sprite.Texture.Size())
+		rect := glm.Rectf{Max: sprite.Sprite.Texture.Size()}
 
 		// but apply texture atlas if available
 		if ta, ok := sprite.TextureAtlas.Get(); ok {
@@ -250,7 +251,7 @@ func extractSpritesSystem(
 
 type metaSprites struct {
 	byke.Component[metaSprites]
-	Instances  wx.InstanceWriter
+	Instances  wgsl.InstanceWriter
 	Buffer     *wgpu.Buffer
 	BufferSize int
 	Batches    []spritesBatch
@@ -355,10 +356,9 @@ func uploadSpritesSystem(
 			}
 
 			// calculate size of the sprite
-			transform := sp.Transform.Mul(
-				glm.ScaleMat4[float32](sp.Size.Extend(1.0).XYZ()).
-					Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0),
-			)
+			transform := sp.Transform.
+				Scale(sp.Size.Extend(1.0).XYZ()).
+				Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0)
 
 			var flags uint32
 			if sp.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
@@ -418,6 +418,8 @@ func uploadSpritesSystem(
 }
 
 func sortSprites(sprites *ExtractedSprites) {
+	defer puffin.NewScope("Sort Sprites").End()
+
 	n := len(sprites.Sprites)
 	if n == 0 {
 		sprites.indices = sprites.indices[:0]

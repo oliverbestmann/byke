@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/oliverbestmann/pulse/glm"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -14,7 +14,7 @@ type TextureAtlasAllocator struct {
 	textures      []textureWithSlices
 }
 
-func (t *TextureAtlasAllocator) Allocate(ctx *RenderContext, width, height uint32) (*Texture, glm.Rect2u) {
+func (t *TextureAtlasAllocator) Allocate(ctx *RenderContext, width, height uint32) (*Texture, glm.Rectu) {
 	// round height up to next multiple of 4 to reduce number of bins
 	var height4 = height
 	if d := height4 % 4; d > 0 {
@@ -25,7 +25,7 @@ func (t *TextureAtlasAllocator) Allocate(ctx *RenderContext, width, height uint3
 	tex, slice := t.findSlice(ctx, height4, width)
 
 	// extract the target region
-	region := glm.RectFromXYWH(slice.NextX, slice.Y, width, height)
+	region := glm.RectuFromXYWH(slice.NextX, slice.Y, width, height)
 
 	// consume space in this new slice
 	slice.NextX += width

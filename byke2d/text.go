@@ -15,9 +15,9 @@ import (
 	"github.com/go-text/typesetting/segmenter"
 	"github.com/go-text/typesetting/shaping"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/puffin-go"
-	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 	"golang.org/x/image/math/fixed"
 )
@@ -138,7 +138,7 @@ func renderTextSystem(
 					y -= glyphTexture.Offset[1]
 
 					// rectangle within the texture
-					rect := glm.Rect2f{
+					rect := glm.Rectf{
 						Min: glyphTexture.Rectangle.Min.ToVec2f(),
 						Max: glyphTexture.Rectangle.Max.ToVec2f(),
 					}
@@ -322,7 +322,7 @@ func cacheGlyphs(ctx *RenderContext, fontSize float32, input shaping.Input, outp
 
 type GlyphTexture struct {
 	Texture   *Texture
-	Rectangle glm.Rect2u
+	Rectangle glm.Rectu
 	Offset    glm.Vec2f
 }
 

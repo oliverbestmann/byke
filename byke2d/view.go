@@ -2,7 +2,7 @@ package byke2d
 
 import (
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/pulse/glm"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 

@@ -3,7 +3,7 @@ package byke2d
 import (
 	"math"
 
-	"github.com/oliverbestmann/pulse/glm"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 )
 
 var ColorWhite = ColorLinearRGBA(1, 1, 1, 1)

@@ -7,7 +7,7 @@ import (
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
-	"github.com/oliverbestmann/pulse/glm"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/pulse/vyn"
 )
 
@@ -54,7 +54,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		TransformFromXY(0, 0),
 		Sprite{Texture: asset},
-		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectFromXYWH[uint32](0, 0, 4, 32))},
+		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectuFromXYWH(0, 0, 4, 32))},
 	)
 
 	commands.Spawn(

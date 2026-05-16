@@ -7,11 +7,11 @@ import (
 	"math/bits"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/pre"
+	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/puffin-go"
-	"github.com/oliverbestmann/pulse/glm"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -355,7 +355,7 @@ type bloomUniforms struct {
 }
 
 func (b bloomUniforms) ToWGPU() []byte {
-	var w wx.StructWriter
+	var w wgsl.StructWriter
 	w.AppendVec4f(b.Viewport)
 	w.AppendVec2f(b.Scale)
 	w.AppendFloat32(b.Aspect)

@@ -3,7 +3,7 @@ package byke2d
 import (
 	"testing"
 
-	"github.com/oliverbestmann/pulse/glm"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/stretchr/testify/require"
 )
 

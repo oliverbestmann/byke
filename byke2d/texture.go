@@ -6,8 +6,8 @@ import (
 	"image"
 	"image/draw"
 
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/puffin-go"
-	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -34,7 +34,7 @@ func (t *Texture) Height() uint32 {
 }
 
 func (t *Texture) WritePixels(ctx *RenderContext, pixels []byte) {
-	rect := glm.RectFromXYWH(0, 0, t.Width(), t.Height())
+	rect := glm.RectuFromXYWH(0, 0, t.Width(), t.Height())
 
 	t.WritePixelsToRect(ctx, WritePixelsOptions{
 		Pixels: pixels,
@@ -44,7 +44,7 @@ func (t *Texture) WritePixels(ctx *RenderContext, pixels []byte) {
 
 type WritePixelsOptions struct {
 	Pixels   []byte
-	Region   glm.Rect2u
+	Region   glm.Rectu
 	Stride   uint32
 	MipLevel uint32
 }
@@ -52,7 +52,7 @@ type WritePixelsOptions struct {
 func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts WritePixelsOptions) {
 	defer puffin.NewScope("texture.WritePixels").End()
 
-	region := glm.RectFromXYWH(0, 0, t.Width(), t.Height())
+	region := glm.RectuFromXYWH(0, 0, t.Width(), t.Height())
 
 	// fail if not in rect
 	if !region.Contains(opts.Region) {

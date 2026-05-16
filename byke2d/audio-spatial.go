@@ -4,8 +4,8 @@ import (
 	"math"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/spoke"
-	"github.com/oliverbestmann/pulse/glm"
 )
 
 var _ = byke.ValidateComponent[Microphone]()
