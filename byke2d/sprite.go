@@ -3,8 +3,8 @@ package byke2d
 import (
 	_ "embed"
 
-	"github.com/Kaidzen-62/radixsort"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/radix"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/pulse/glm"
 	"github.com/oliverbestmann/pulse/wx"
@@ -189,8 +189,10 @@ type ExtractedSprite struct {
 }
 
 type ExtractedSprites struct {
-	Sprites    []ExtractedSprite
-	forSorting []ExtractedSprite
+	Sprites []ExtractedSprite
+
+	sortCache radix.Cache
+	indices   []radix.Value
 }
 
 func clearExtractedSpritesSystem(
@@ -322,8 +324,8 @@ func uploadSpritesSystem(
 			batchShader = nextShader
 		}
 
-		for idx := range sprites.Sprites {
-			sp := &sprites.Sprites[idx]
+		for _, v := range sprites.indices {
+			sp := &sprites.Sprites[v.Index]
 
 			if !view.RenderLayers.Intersects(sp.RenderLayers) {
 				// not rendered by this camera
@@ -336,7 +338,9 @@ func uploadSpritesSystem(
 
 			// uv = offset + position * scale
 			uvOffset := sp.Rect.Min.Div(textureSize)
-			uvScale := sp.Rect.Size().Div(textureSize)
+
+			// TODO: profile again Rect.Size() seems to be slower
+			uvScale := sp.Rect.Max.Sub(sp.Rect.Min).Div(textureSize)
 
 			if sp.FlipX {
 				// flip uv along the x axis
@@ -414,15 +418,28 @@ func uploadSpritesSystem(
 }
 
 func sortSprites(sprites *ExtractedSprites) {
-	if cap(sprites.forSorting) < len(sprites.Sprites) {
-		sprites.forSorting = make([]ExtractedSprite, len(sprites.Sprites))
+	n := len(sprites.Sprites)
+	if n == 0 {
+		sprites.indices = sprites.indices[:0]
+		return
 	}
 
-	sprites.forSorting = sprites.forSorting[:len(sprites.Sprites)]
+	if cap(sprites.indices) < n {
+		// not enough space, need to allocate
+		sprites.indices = make([]radix.Value, n)
+	} else {
+		// enough space, we can re-use
+		sprites.indices = sprites.indices[:n]
+	}
 
-	_ = radixsort.Generic[ExtractedSprite, float32](sprites.Sprites, sprites.forSorting, func(a ExtractedSprite) float32 {
-		return a.ZSort
-	})
+	_ = sprites.indices[n-1]
+
+	for idx := range n {
+		sprites.indices[idx].Key = sprites.Sprites[idx].ZSort
+		sprites.indices[idx].Index = uint32(idx)
+	}
+
+	radix.Sort(&sprites.sortCache, sprites.indices)
 }
 
 type bindGroupsSprites struct {

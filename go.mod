@@ -3,7 +3,6 @@ module github.com/oliverbestmann/byke
 go 1.26.1
 
 require (
-	github.com/Kaidzen-62/radixsort v0.2.0
 	github.com/ebitengine/oto/v3 v3.4.0
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.4
@@ -32,7 +31,6 @@ require (
 	github.com/oliverbestmann/webgpu/libs-linux v0.0.0-20260509160809-2fefaf7c9ead // indirect
 	github.com/oliverbestmann/webgpu/libs-windows v0.0.0-20260509160807-0bc32b12c7bc // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/sagernet/sing v0.7.10 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/timandy/routine v1.1.6 // indirect
