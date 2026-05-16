@@ -8,7 +8,7 @@ import (
 )
 
 func TestQuatRotate(t *testing.T) {
-	q := RotationZQuat[float32](math.Pi / 2)
+	q := RotationZQuat(math.Pi / 2)
 
 	res := q.Transform(Vec3f{1, 0, 0})
 	require.InDelta(t, 0, res[0], 1e-5)
