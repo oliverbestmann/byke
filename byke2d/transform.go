@@ -62,7 +62,7 @@ func (t Transform) WithRotation(rotation glm.Rad) Transform {
 func (t Transform) Affine3() glm.Mat4f {
 	return glm.TranslationMat4f(t.Translation.XYZ()).
 		Mul(glm.RotationZMat4f(t.Rotation)).
-		Mul(glm.ScaleMat4f(t.Scale.XYZ()))
+		Scale(t.Scale.XYZ())
 }
 
 func (Transform) RequireComponents() []spoke.ErasedComponent {

@@ -172,9 +172,7 @@ func NewTextureFromDesc(ctx *RenderContext, sampleConfig SamplerConfig, desc *wg
 	textureView := texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           desc.Label,
 		Format:          desc.Format,
-		BaseMipLevel:    0,
 		MipLevelCount:   desc.MipLevelCount,
-		BaseArrayLayer:  0,
 		ArrayLayerCount: 1,
 		Aspect:          wgpu.TextureAspectAll,
 	})
