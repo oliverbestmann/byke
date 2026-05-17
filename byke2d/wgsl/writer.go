@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/oliverbestmann/byke/byke2d/glm"
+	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
 type StructWriter struct {
@@ -121,6 +122,35 @@ func (s *InstanceWriter) AppendVec3f(value glm.Vec3f) {
 
 func (s *InstanceWriter) AppendVec4f(value glm.Vec4f) {
 	appendTo(&s.writer, value, 1, 16)
+}
+
+type RenderContext interface {
+	CreateBuffer(descriptor *wgpu.BufferDescriptor) *wgpu.Buffer
+	WriteBuffer(buffer *wgpu.Buffer, offset uint64, data []byte)
+}
+
+func (s *InstanceWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer) {
+	data := s.Bytes()
+
+	buf := *bufRef
+
+	if buf == nil || int(buf.GetSize()) < len(data) {
+		buf.Release()
+
+		bufferSize := max(256, len(data))
+
+		buf = ctx.CreateBuffer(&wgpu.BufferDescriptor{
+			Label: "Sprite Instances",
+			Usage: wgpu.BufferUsageCopyDst | wgpu.BufferUsageVertex,
+			Size:  uint64(bufferSize),
+		})
+
+		*bufRef = buf
+	}
+
+	// upload data to buffer
+	ctx.WriteBuffer(buf, 0, data)
+
 }
 
 type writer struct {

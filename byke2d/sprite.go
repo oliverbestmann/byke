@@ -7,8 +7,6 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/radix"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
-	"github.com/oliverbestmann/byke/spoke"
-	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -16,7 +14,6 @@ var _ = byke.ValidateComponent[Sprite]()
 var _ = byke.ValidateComponent[Anchor]()
 
 var _ = byke.ValidateComponent[bindGroupsSprites]()
-var _ = byke.ValidateComponent[metaSprites]()
 
 type Sprite struct {
 	byke.ComparableComponent[Sprite]
@@ -63,17 +60,15 @@ var (
 func pluginSprite(app *byke.App) {
 	app.InsertResource(ExtractedSprites{})
 
+	app.InsertResource(spriteTextureBindGroupCache{})
+	app.InsertResource(metaSprites{})
+
 	app.AddSystems(Render,
 		byke.System(extractSpritesSystem).InSet(RenderPhaseExtract),
-		byke.System(uploadSpritesSystem).InSet(RenderPhasePrepareResources),
-		byke.System(prepareBindGroupsSpritesSystem).InSet(RenderPhasePrepareBindGroups),
+		byke.System(queueSpritesSystem).InSet(RenderPhaseQueue),
+		byke.System(prepareSpriteBindGroupsSystem).InSet(RenderPhasePrepareBindGroups),
 		byke.System(clearExtractedSpritesSystem).InSet(RenderPhaseCleanup),
 	)
-
-	app.AddSystems(Core2d,
-		byke.
-			System(renderSpritesSystem).
-			InSet(Core2dMain))
 }
 
 type renderSpritePipelineConfig struct {
@@ -122,8 +117,10 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 	return RenderPipelineDescriptor{
 		Label: "SpriteRenderPipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
-			layoutView,
-			layoutTextures,
+			SequentialLayoutWithLabel("ViewUniforms",
+				BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
+			),
+			layoutSpriteTextures,
 		},
 		Vertex: wgpu.VertexState{
 			Module:     module,
@@ -185,7 +182,7 @@ type ExtractedSprite struct {
 	Size         glm.Vec2f
 	Anchor       Anchor
 	RenderLayers RenderLayers
-	ZSort        float32
+	PosZ         float32
 	FlipX, FlipY bool
 }
 
@@ -244,204 +241,241 @@ func extractSpritesSystem(
 			Transform:    sprite.Transform.Affine,
 			Anchor:       sprite.Anchor,
 			Rect:         rect,
-			ZSort:        sprite.Transform.Affine.TranslateZ(),
+			PosZ:         sprite.Transform.Affine.TranslateZ(),
 		})
 	}
 }
 
-type metaSprites struct {
-	byke.Component[metaSprites]
-	Instances  wgsl.InstanceWriter
-	Buffer     *wgpu.Buffer
-	BufferSize int
-	Batches    []spritesBatch
-}
-
-func (m metaSprites) RequireComponents() []spoke.ErasedComponent {
-	return []spoke.ErasedComponent{
-		bindGroupsSprites{},
-	}
-}
-
-type spritesBatch struct {
-	Shader        *ShaderDef
-	Texture       *Texture
-	Offset        uint64
-	Size          uint64
-	InstanceCount uint32
-}
-
-func uploadSpritesSystem(
-	commands *byke.Commands,
-	ctx *RenderContext,
+func queueSpritesSystem(
+	sprites *ExtractedSprites,
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
-		EntityId     byke.EntityId
-		Meta         byke.OptionMut[metaSprites]
 		RenderLayers RenderLayers
+		RenderPhase  *RenderPhase
 	}],
-	sprites *ExtractedSprites,
 ) {
-	sortSprites(sprites)
-
 	for view := range viewsQuery.Items() {
-		meta, metaSet := view.Meta.Get()
-		if !metaSet {
-			meta = &metaSprites{}
-		}
-
-		// the size of one sprite instance in the wgpu instance buffer
-		const instanceSize = 100
-
-		instances := &meta.Instances
-
-		meta.Batches = meta.Batches[:0]
-		meta.Instances.Clear()
-
-		var batchStart uint64
-		var batchTexture *Texture
-		var batchShader *ShaderDef
-
-		maybeFlush := func(nextTexture *Texture, nextShader *ShaderDef) {
-			if batchTexture == nextTexture && batchShader == nextShader {
-				return
-			}
-
-			byteCount := meta.Instances.ByteCount()
-
-			if batchStart != byteCount && batchTexture != nil {
-				// start a new batch, flush the previous one
-				meta.Batches = append(meta.Batches, spritesBatch{
-					Shader:        batchShader,
-					Texture:       batchTexture,
-					Offset:        batchStart,
-					Size:          byteCount - batchStart,
-					InstanceCount: uint32((byteCount - batchStart) / instanceSize),
-				})
-			}
-
-			batchStart = byteCount
-			batchTexture = nextTexture
-			batchShader = nextShader
-		}
-
-		for _, v := range sprites.indices {
-			sp := &sprites.Sprites[v.Index]
-
+		for idx := range sprites.Sprites {
+			sp := &sprites.Sprites[idx]
 			if !view.RenderLayers.Intersects(sp.RenderLayers) {
-				// not rendered by this camera
 				continue
 			}
 
-			maybeFlush(sp.Texture, sp.CustomShader)
-
-			textureSize := sp.Texture.Size()
-
-			// uv = offset + position * scale
-			uvOffset := sp.Rect.Min.Div(textureSize)
-
-			// TODO: profile again Rect.Size() seems to be slower
-			uvScale := sp.Rect.Max.Sub(sp.Rect.Min).Div(textureSize)
-
-			if sp.FlipX {
-				// flip uv along the x axis
-				uvOffset[0] += uvScale[0]
-				uvScale[0] *= -1
-			}
-
-			if !sp.FlipY {
-				// flip uv along the y axis
-				uvOffset[1] += uvScale[1]
-				uvScale[1] *= -1
-			}
-
-			// calculate size of the sprite
-			transform := sp.Transform.
-				Scale(sp.Size.Extend(1.0).XYZ()).
-				Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0)
-
-			var flags uint32
-			if sp.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
-				flags |= 1
-			}
-
-			columns := transform.Components()
-
-			instances.StartNew(instanceSize)
-
-			// @location(0) i_affine_0: mat3<f32>,
-			instances.AppendVec4f(columns[0])
-			// @location(1) i_affine_1: mat3<f32>,
-			instances.AppendVec4f(columns[1])
-			// @location(2) i_affine_2: mat3<f32>,
-			instances.AppendVec4f(columns[2])
-			// @location(3) i_affine_3: mat3<f32>,
-			instances.AppendVec4f(columns[3])
-			// @location(4) i_uv_offset: vec2<f32>,
-			instances.AppendVec2f(uvOffset)
-			// @location(5) i_uv_scale: vec2<f32>,
-			instances.AppendVec2f(uvScale)
-			// @location(6) i_color: vec4<f32>,
-			instances.AppendVec4f(sp.Color.ToVec())
-			// @location(7) i_flags: u32,
-			instances.AppendUint(flags)
-		}
-
-		// flush the last batch if needed
-		maybeFlush(nil, nil)
-
-		data := instances.Bytes()
-
-		if meta.BufferSize < len(data) && meta.Buffer != nil {
-			meta.Buffer.Release()
-			meta.Buffer = nil
-			meta.BufferSize = 0
-		}
-
-		if meta.Buffer == nil {
-			meta.BufferSize = max(4096, len(data))
-
-			meta.Buffer = ctx.CreateBuffer(&wgpu.BufferDescriptor{
-				Label: "Sprite Instances",
-				Usage: wgpu.BufferUsageCopyDst | wgpu.BufferUsageVertex,
-				Size:  uint64(meta.BufferSize),
+			view.RenderPhase.Append(RenderPhaseItem{
+				Type:           &spriteRenderPhaseItem{},
+				Draw:           drawSpriteBatch,
+				SortValue:      sp.PosZ,
+				ExtractedIndex: uint32(idx),
 			})
-		}
-
-		// upload data to buffer
-		ctx.WriteBuffer(meta.Buffer, 0, data)
-
-		if !metaSet {
-			commands.Entity(view.EntityId).Insert(meta)
 		}
 	}
 }
 
-func sortSprites(sprites *ExtractedSprites) {
-	defer puffin.NewScope("Sort Sprites").End()
+type metaSprites struct {
+	Instances wgsl.InstanceWriter
+	Buffer    *wgpu.Buffer
+}
 
-	n := len(sprites.Sprites)
-	if n == 0 {
-		sprites.indices = sprites.indices[:0]
-		return
+type spriteTextureBindGroupCache struct {
+	BindGroups map[*Texture]*wgpu.BindGroup
+}
+
+func (c *spriteTextureBindGroupCache) Clear() {
+	for _, bg := range c.BindGroups {
+		bg.Release()
 	}
 
-	if cap(sprites.indices) < n {
-		// not enough space, need to allocate
-		sprites.indices = make([]radix.Value, n)
-	} else {
-		// enough space, we can re-use
-		sprites.indices = sprites.indices[:n]
+	clear(c.BindGroups)
+}
+
+func (c *spriteTextureBindGroupCache) Add(texture *Texture, bindGroup *wgpu.BindGroup) {
+	if c.BindGroups == nil {
+		c.BindGroups = map[*Texture]*wgpu.BindGroup{}
 	}
 
-	_ = sprites.indices[n-1]
+	c.BindGroups[texture] = bindGroup
+}
 
-	for idx := range n {
-		sprites.indices[idx].Key = sprites.Sprites[idx].ZSort
-		sprites.indices[idx].Index = uint32(idx)
+func (c *spriteTextureBindGroupCache) Get(texture *Texture) (*wgpu.BindGroup, bool) {
+	bindGroup, ok := c.BindGroups[texture]
+	return bindGroup, ok
+}
+
+type spriteRenderPhaseItem struct{}
+
+func prepareSpriteBindGroupsSystem(
+	ctx *RenderContext,
+	pipelineCache *PipelineCache,
+	viewsQuery byke.Query[struct {
+		_     byke.With[Camera]
+		Phase RenderPhase
+	}],
+	sprites *ExtractedSprites,
+	meta *metaSprites,
+	bindGroups *spriteTextureBindGroupCache,
+) {
+	meta.Instances.Clear()
+	bindGroups.Clear()
+
+	instances := &meta.Instances
+
+	for view := range viewsQuery.Items() {
+		if view.Phase.IsEmpty() {
+			continue
+		}
+
+		var current *RenderPhaseItem
+		var currentSprite *ExtractedSprite
+
+		for idx := range view.Phase.Len() {
+			item := view.Phase.Get(idx)
+
+			_, isSprite := item.Type.(*spriteRenderPhaseItem)
+
+			if !isSprite {
+				// not a sprite, end the current batch,
+				current = nil
+				currentSprite = nil
+				continue
+			}
+
+			itemSprite := &sprites.Sprites[item.ExtractedIndex]
+
+			//goland:noinspection GoMaybeNil
+			if current == nil || currentSprite.Texture != itemSprite.Texture {
+				// we begin a new sprite batch here
+				current = item
+				currentSprite = itemSprite
+
+				// record begin of batch
+				current.BatchBegin = uint32(instances.InstanceCount())
+				current.BatchCount = 0
+
+				// ensure bindgroup for image exists
+				if _, ok := bindGroups.Get(itemSprite.Texture); !ok {
+					bindGroups.Add(itemSprite.Texture,
+						ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+							Label:  "Sprite Texture",
+							Layout: pipelineCache.BindGroupLayout(layoutSpriteTextures),
+							Entries: Sequential(
+								BindingTextureView(itemSprite.Texture.TextureView),
+								BindingSampler(itemSprite.Texture.Sampler),
+							),
+						}),
+					)
+				}
+			}
+
+			// write sprite vertex data
+			writeSpriteInstanceValues(instances, itemSprite)
+			current.BatchCount += 1
+		}
 	}
 
-	radix.Sort(&sprites.sortCache, sprites.indices)
+	// upload buffer to gpu
+	instances.WriteTo(ctx, &meta.Buffer)
+}
+
+func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSprite) {
+	// the size of one sprite instance in the wgpu instance buffer
+	const instanceSize = 100
+
+	textureSize := sp.Texture.Size()
+
+	// uv = offset + position * scale
+	uvOffset := sp.Rect.Min.Div(textureSize)
+
+	// TODO: profile again Rect.Size() seems to be slower
+	uvScale := sp.Rect.Max.Sub(sp.Rect.Min).Div(textureSize)
+
+	if sp.FlipX {
+		// flip uv along the x axis
+		uvOffset[0] += uvScale[0]
+		uvScale[0] *= -1
+	}
+
+	if !sp.FlipY {
+		// flip uv along the y axis
+		uvOffset[1] += uvScale[1]
+		uvScale[1] *= -1
+	}
+
+	// calculate size of the sprite
+	transform := sp.Transform.
+		Scale(sp.Size.Extend(1.0).XYZ()).
+		Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0)
+
+	var flags uint32
+	if sp.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
+		flags |= 1
+	}
+
+	columns := transform.Components()
+
+	instances.StartNew(instanceSize)
+
+	// @location(0) i_affine_0: mat3<f32>,
+	instances.AppendVec4f(columns[0])
+	// @location(1) i_affine_1: mat3<f32>,
+	instances.AppendVec4f(columns[1])
+	// @location(2) i_affine_2: mat3<f32>,
+	instances.AppendVec4f(columns[2])
+	// @location(3) i_affine_3: mat3<f32>,
+	instances.AppendVec4f(columns[3])
+	// @location(4) i_uv_offset: vec2<f32>,
+	instances.AppendVec2f(uvOffset)
+	// @location(5) i_uv_scale: vec2<f32>,
+	instances.AppendVec2f(uvScale)
+	// @location(6) i_color: vec4<f32>,
+	instances.AppendVec4f(sp.Color.ToVec())
+	// @location(7) i_flags: u32,
+	instances.AppendUint(flags)
+}
+
+type RenderTask struct {
+	Pass *wgpu.RenderPassEncoder
+	Item RenderPhaseItem
+}
+
+func drawSpriteBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderPhaseItem) (ok bool) {
+	world.RunSystemWithInValue(drawSpriteBatchSystem, RenderTask{
+		Pass: pass,
+		Item: item,
+	})
+
+	return true
+}
+
+func drawSpriteBatchSystem(
+	viewBindGroup ViewBindGroup,
+	textureBindGroups spriteTextureBindGroupCache,
+	pipelines Pipelines[renderSpritePipelineConfig],
+	meta metaSprites,
+	viewQuery ViewQuery[struct {
+		ViewTarget         *ViewTarget
+		ViewUniformsOffset DynamicOffset[ViewUniforms]
+	}],
+	extractedSprites ExtractedSprites,
+	task byke.In[RenderTask],
+) {
+	view := viewQuery.Get()
+	pass, item := task.Value.Pass, task.Value.Item
+
+	sprite := &extractedSprites.Sprites[task.Value.Item.ExtractedIndex]
+
+	pipeline := pipelines.Specialize(renderSpritePipelineConfig{
+		Format:      view.ViewTarget.Format,
+		SampleCount: view.ViewTarget.SampleCount,
+	})
+
+	// get the bind group for the texture for this batch
+	textureBindGroup, _ := textureBindGroups.Get(sprite.Texture)
+
+	pass.SetPipeline(pipeline.Get())
+	pass.SetBindGroup(0, viewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset})
+	pass.SetBindGroup(1, textureBindGroup, nil)
+	pass.SetVertexBuffer(0, meta.Buffer, 0, wgpu.WholeSize)
+	pass.Draw(6, item.BatchCount, 0, item.BatchBegin)
 }
 
 type bindGroupsSprites struct {
@@ -466,95 +500,7 @@ func (c *bindGroupsSprites) Reset() {
 	c.Batches = c.Batches[:0]
 }
 
-var layoutView = SequentialLayoutWithLabel("ViewUniforms",
-	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
-)
-
-var layoutTextures = SequentialLayoutWithLabel("Spite Textures",
+var layoutSpriteTextures = SequentialLayoutWithLabel("Spite Textures",
 	BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
 	BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
 )
-
-func prepareBindGroupsSpritesSystem(
-	ctx *RenderContext,
-
-	views byke.Query[struct {
-		ViewTarget *ViewTarget
-		Meta       *metaSprites
-		BindGroups *bindGroupsSprites
-	}],
-
-	pipelines *PipelineCache,
-	viewUniforms *ComponentUniforms[ViewUniforms],
-) {
-	for view := range views.Items() {
-		view.BindGroups.View = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-			Label:  "Sprite.ViewUniform.BindGroup",
-			Layout: pipelines.BindGroupLayout(layoutView),
-			Entries: Sequential(
-				viewUniforms.Binding(),
-			),
-		})
-
-		for _, batch := range view.Meta.Batches {
-			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-				Label:  "Sprite.BindGroup",
-				Layout: pipelines.BindGroupLayout(layoutTextures),
-				Entries: Sequential(
-					BindingTextureView(batch.Texture.TextureView),
-					BindingSampler(batch.Texture.Sampler),
-				),
-			})
-
-			view.BindGroups.Batches = append(view.BindGroups.Batches, bindGroup)
-		}
-	}
-}
-
-func renderSpritesSystem(
-	ctx *RenderContext,
-	pipelines Pipelines[renderSpritePipelineConfig],
-	viewQuery ViewQuery[struct {
-		Camera             *Camera
-		ViewTarget         *ViewTarget
-		Meta               *metaSprites
-		BindGroups         *bindGroupsSprites
-		ViewUniformsOffset DynamicOffset[ViewUniforms]
-	}],
-) {
-	view := viewQuery.Get()
-
-	if len(view.Meta.Batches) == 0 {
-		return
-	}
-
-	enc := ctx.CreateCommandEncoder(nil)
-	defer enc.Release()
-
-	pass := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
-		Label: "Sprites",
-		ColorAttachments: []wgpu.RenderPassColorAttachment{
-			view.ViewTarget.Attachment(),
-		},
-	})
-
-	// bind the view uniforms
-	pass.SetBindGroup(0, view.BindGroups.View, []uint32{view.ViewUniformsOffset.Offset})
-
-	for idx, batch := range view.Meta.Batches {
-		pipeline := pipelines.Specialize(renderSpritePipelineConfig{
-			Shader:      batch.Shader,
-			Format:      view.ViewTarget.Format,
-			SampleCount: view.ViewTarget.SampleCount,
-		})
-
-		pass.SetPipeline(pipeline.Get())
-		pass.SetBindGroup(1, view.BindGroups.Batches[idx], nil)
-		pass.SetVertexBuffer(0, view.Meta.Buffer, batch.Offset, batch.Size)
-		pass.Draw(6, batch.InstanceCount, 0, 0)
-	}
-
-	pass.End()
-
-	ctx.Submit(enc.Finish(nil))
-}

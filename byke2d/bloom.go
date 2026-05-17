@@ -118,7 +118,7 @@ func (b bloomPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescr
 	}
 }
 
-func prepareBloomUniforms(
+func prepareBloomUniformsSystem(
 	camerasQuery byke.Query[struct {
 		BloomUniforms *bloomUniforms
 		ViewTarget    *ViewTarget

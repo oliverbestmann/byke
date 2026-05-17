@@ -15,6 +15,8 @@ import (
 	"github.com/pkg/profile"
 )
 
+const SpriteCount = 100_000
+
 //go:embed assets
 var assets embed.FS
 
@@ -59,9 +61,12 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	asset := assets.Texture("circle.png").Await()
 
-	for range 100_000 {
+	for range SpriteCount {
 		commands.Spawn(
-			TransformFromXYZ(rand.Float32()*1000, rand.Float32()*600, rand.Float32()),
+			TransformFromXYZ(rand.Float32()*1000, rand.Float32()*600, rand.Float32()).
+				WithRotation(glm.Rad(rand.Float32())).
+				WithScaleXY(rand.Float32()+0.1, rand.Float32()+0.1),
+
 			Sprite{
 				Texture:    asset,
 				CustomSize: Some(glm.Vec2f{32, 32}),

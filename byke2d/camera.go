@@ -7,6 +7,7 @@ import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/spoke"
+	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
 var _ = byke.ValidateComponent[Camera]()
@@ -15,6 +16,8 @@ var _ = byke.ValidateComponent[OrthographicProjection]()
 func pluginCamera(app *byke.App) {
 	app.AddPlugin(ComponentUniformsPlugin[ViewUniforms])
 
+	app.InsertResource(ViewBindGroup{})
+
 	app.AddSystems(Render, byke.
 		System(prepareViewUniformsSystem).
 		InSet(RenderPhasePrepare))
@@ -22,6 +25,10 @@ func pluginCamera(app *byke.App) {
 	app.AddSystems(Render, byke.
 		System(updateCameraViewTargetSystem).
 		InSet(RenderPhasePrepare))
+
+	app.AddSystems(Render, byke.
+		System(createViewUniformsBindGroup).
+		InSet(RenderPhasePrepareBindGroups))
 
 	app.AddSystems(Render, byke.
 		System(driveCameraSchedules).
@@ -62,6 +69,7 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 		},
 
 		ViewUniforms{},
+		RenderPhase{},
 	}
 }
 
@@ -203,6 +211,33 @@ func prepareViewUniformsSystem(
 			WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
 		}
 	}
+}
+
+type ViewBindGroup struct {
+	BindGroup *wgpu.BindGroup
+	buffer    *wgpu.Buffer
+}
+
+var ViewBindGroupLayout = SequentialLayoutWithLabel("ViewUniforms",
+	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
+)
+
+func createViewUniformsBindGroup(
+	ctx *RenderContext,
+	pipelineCache *PipelineCache,
+	viewBindGroup *ViewBindGroup,
+	viewUniforms *ComponentUniforms[ViewUniforms],
+) {
+	binding := viewUniforms.Binding()
+	if binding.Buffer != viewBindGroup.buffer {
+		viewBindGroup.BindGroup.Release()
+	}
+
+	viewBindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		Label:   "View Uniforms",
+		Layout:  pipelineCache.BindGroupLayout(ViewBindGroupLayout),
+		Entries: Sequential(binding),
+	})
 }
 
 func updateCameraViewTargetSystem(

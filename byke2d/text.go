@@ -153,7 +153,7 @@ func renderTextSystem(
 						Rect:         rect,
 						Size:         rect.Size(),
 						Anchor:       *AnchorBottomLeft,
-						ZSort:        zSort,
+						PosZ:         zSort,
 					})
 				}
 			}

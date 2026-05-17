@@ -34,6 +34,8 @@ var (
 
 var (
 	RenderPhaseExtract           = &byke.SystemSet{Name: "RenderPhaseExtract"}
+	RenderPhaseQueue             = &byke.SystemSet{Name: "RenderPhaseQueue"}
+	RenderPhaseSort              = &byke.SystemSet{Name: "RenderPhaseSort"}
 	RenderPhasePrepare           = &byke.SystemSet{Name: "RenderPhasePrepare"}
 	RenderPhasePrepareResources  = &byke.SystemSet{Name: "RenderPhasePrepareResources"}
 	RenderPhasePrepareBindGroups = &byke.SystemSet{Name: "RenderPhasePrepareBindGroups"}
@@ -118,7 +120,7 @@ func RenderPlugin(app *byke.App) {
 		InSet(RenderPhaseExtract))
 
 	app.AddSystems(Render, byke.
-		System(prepareBloomUniforms).
+		System(prepareBloomUniformsSystem).
 		Chain().
 		InSet(RenderPhasePrepare))
 
@@ -130,12 +132,16 @@ func RenderPlugin(app *byke.App) {
 	app.ConfigureSystemSets(byke.PostUpdate, TransformSystems)
 	app.ConfigureSystemSets(byke.PostUpdate, VisibilitySystems)
 
-	app.ConfigureSystemSets(Render,
-		RenderPhaseExtract.Before(RenderPhasePrepare),
-		RenderPhasePrepare.Before(RenderPhasePrepareResources),
-		RenderPhasePrepareResources.Before(RenderPhasePrepareBindGroups),
-		RenderPhasePrepareBindGroups.Before(RenderPhaseExecute),
-		RenderPhaseExecute.Before(RenderPhaseCleanup),
+	app.ConfigureSystemSets(Render, ChainSystemSets(
+		RenderPhaseExtract,
+		RenderPhaseQueue,
+		RenderPhaseSort,
+		RenderPhasePrepare,
+		RenderPhasePrepareResources,
+		RenderPhasePrepareBindGroups,
+		RenderPhaseExecute,
+		RenderPhaseCleanup,
+	),
 	)
 
 	app.ConfigureSystemSets(Core2d,
@@ -144,10 +150,22 @@ func RenderPlugin(app *byke.App) {
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
+	app.AddPlugin(pluginRenderPhases)
 	app.AddPlugin(pluginCamera)
 	app.AddPlugin(pluginSprite)
 
 	app.RunWorld(runWorld)
+}
+
+func ChainSystemSets(first *byke.SystemSet, rest ...*byke.SystemSet) *byke.SystemSet {
+	curr := first
+
+	for _, set := range rest {
+		set.After(curr)
+		curr = set
+	}
+
+	return first
 }
 
 type WindowConfig struct {

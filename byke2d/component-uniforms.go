@@ -14,7 +14,7 @@ func ComponentUniformsPlugin[C WGPUComponent[C]](app *byke.App) {
 	app.InsertResource(ComponentUniforms[C]{})
 
 	app.AddSystems(Render, byke.
-		System(writeComponentUniformsSystem[C]).
+		System(uploadComponentUniformsSystem[C]).
 		InSet(RenderPhasePrepareResources))
 }
 
@@ -103,7 +103,7 @@ func (c *ComponentUniforms[C]) reset() {
 	c.elementSize = 0
 }
 
-func writeComponentUniformsSystem[C WGPUComponent[C]](
+func uploadComponentUniformsSystem[C WGPUComponent[C]](
 	commands *byke.Commands,
 	ctx *RenderContext,
 	uniforms *ComponentUniforms[C],

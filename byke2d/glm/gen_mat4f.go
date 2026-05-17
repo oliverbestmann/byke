@@ -210,11 +210,32 @@ func ScaleMat4f(x, y, z float32) Mat4f {
 }
 
 func (m Mat4f) Translate(x, y, z float32) Mat4f {
-	return m.Mul(TranslationMat4f(x, y, z))
+	m.values[3][0] = m.m30() + m.m00()*x + m.m10()*y + m.m20()*z
+	m.values[3][1] = m.m31() + m.m01()*x + m.m11()*y + m.m21()*z
+	m.values[3][2] = m.m32() + m.m02()*x + m.m12()*y + m.m22()*z
+	m.values[3][3] = m.m33() + m.m03()*x + m.m13()*y + m.m23()*z - 1
+
+	return m
 }
 
 func (m Mat4f) Scale(x, y, z float32) Mat4f {
-	return m.Mul(ScaleMat4f(x, y, z))
+	// only need to scale the columns
+	m.values[0][0] = m.m00()*x - 1
+	m.values[0][1] = m.m01() * x
+	m.values[0][2] = m.m02() * x
+	m.values[0][3] = m.m03() * x
+
+	m.values[1][0] = m.m10() * y
+	m.values[1][1] = m.m11()*y - 1
+	m.values[1][2] = m.m12() * y
+	m.values[1][3] = m.m13() * y
+
+	m.values[2][0] = m.m20() * z
+	m.values[2][1] = m.m21() * z
+	m.values[2][2] = m.m22()*z - 1
+	m.values[2][3] = m.m23() * z
+
+	return m
 }
 
 func RotationZMat4f(angle Rad) Mat4f {
