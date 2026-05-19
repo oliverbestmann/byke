@@ -67,9 +67,11 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	asset := assets.Texture("circle.png").Await()
 
-	for range SpriteCount {
+	for idx := range SpriteCount {
+		z := float32(idx) / SpriteCount
+
 		commands.Spawn(
-			TransformFromXYZ(rand.Float32()*1000, rand.Float32()*600, rand.Float32()).
+			TransformFromXYZ(rand.Float32()*1000, rand.Float32()*600, z).
 				WithRotationZ(glm.Rad(rand.Float32())).
 				WithScaleXY(rand.Float32()+0.1, rand.Float32()+0.1),
 

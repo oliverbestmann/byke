@@ -1,14 +1,14 @@
 package glm
 
 func (m *Mat4f) TranslateAssign(x, y, z float32) {
-	mat4fTranslateAssign(
+	mat4fTranslate(
 		(*mat4f)(m),
 		x, y, z,
 	)
 }
 
 func (m *Mat4f) ScaleAssign(x, y, z float32) {
-	mat4fScaleAssign(
+	mat4fScale(
 		(*mat4f)(m),
 		x, y, z,
 	)

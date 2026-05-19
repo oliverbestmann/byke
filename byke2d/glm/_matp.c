@@ -38,7 +38,7 @@ void mat4f_mul_assign(struct mat4 *restrict m, struct mat4 *restrict o) {
   }
 }
 
-void mat4f_fast_translate(struct mat4 *m, float x, float y, float z) {
+void mat4f_translate(struct mat4 *m, float x, float y, float z) {
   for (int i = 0; i < 4; i++) {
     m->columns[W][i] = m->columns[X][i] * x + //
                        m->columns[Y][i] * y + //
@@ -47,7 +47,7 @@ void mat4f_fast_translate(struct mat4 *m, float x, float y, float z) {
   }
 }
 
-void mat4f_fast_scale(struct mat4 *m, float x, float y, float z) {
+void mat4f_scale(struct mat4 *m, float x, float y, float z) {
   m->columns[0][X] = m->columns[0][X] * x;
   m->columns[0][Y] = m->columns[0][Y] * x;
   m->columns[0][Z] = m->columns[0][Z] * x;

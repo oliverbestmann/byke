@@ -8,7 +8,7 @@ package glm
 func mat4fMulAssign(m, o *mat4f)
 
 //go:noescape
-func mat4fScaleAssign(m *mat4f, x, y, z float32)
+func mat4fScale(m *mat4f, x, y, z float32)
 
 //go:noescape
-func mat4fTranslateAssign(m *mat4f, x, y, z float32)
+func mat4fTranslate(m *mat4f, x, y, z float32)

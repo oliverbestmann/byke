@@ -26,7 +26,7 @@ func mat4fMulGo(m, o, res *mat4f) {
 }
 
 //goland:noinspection DuplicatedCode
-func mat4fTranslateAssignGo(m *mat4f, x, y, z float32) {
+func mat4fTranslateGo(m *mat4f, x, y, z float32) {
 	m[3][0] = m[3][0] + m[0][0]*x + m[1][0]*y + m[2][0]*z
 	m[3][1] = m[3][1] + m[0][1]*x + m[1][1]*y + m[2][1]*z
 	m[3][2] = m[3][2] + m[0][2]*x + m[1][2]*y + m[2][2]*z
@@ -34,7 +34,7 @@ func mat4fTranslateAssignGo(m *mat4f, x, y, z float32) {
 }
 
 //goland:noinspection DuplicatedCode
-func mat4fScaleAssignGo(m *mat4f, x, y, z float32) {
+func mat4fScaleGo(m *mat4f, x, y, z float32) {
 	m[0][0] = m[0][0] * x
 	m[0][1] = m[0][1] * x
 	m[0][2] = m[0][2] * x
