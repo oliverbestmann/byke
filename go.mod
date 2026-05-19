@@ -10,10 +10,12 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oliverbestmann/puffin-go v1.0.0
 	github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200
-	github.com/oliverbestmann/webgpu v1.33.2
+	github.com/oliverbestmann/webgpu v1.33.4
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 	golang.org/x/image v0.40.0
+	golang.org/x/mobile v0.0.0-20260508232728-bebd421c7fa8
 )
 
 require (
@@ -35,8 +37,6 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/timandy/routine v1.1.6 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
-	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
-	golang.org/x/mobile v0.0.0-20260508232728-bebd421c7fa8 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
