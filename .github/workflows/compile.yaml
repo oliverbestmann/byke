@@ -40,7 +40,7 @@ jobs:
 
       - name: Build Examples
         run: |
-          cd byke/byke2d
+          cd byke2d
           go build -v ./examples/*
 
   CompileWASM:
@@ -60,5 +60,5 @@ jobs:
 
       - name: Compile examples
         run: |
-          cd byke/byke2d
+          cd byke2d
           go build -v ./examples/*
