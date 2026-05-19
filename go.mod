@@ -50,6 +50,6 @@ require (
 // The current glfw/v3.4 bindings are broken when trying to use wayland and x11 at the same time.
 // This is a fix for that.
 // See https://github.com/go-gl/glfw/pull/420 for more information
-replace github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.1.0.20260406072232-3ac4aa2bb164 => github.com/oliverbestmann/go-gl-glfw/v3.4/glfw v0.0.0-20260510101646-c1f83c493fe1
+// replace github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.1.0.20260406072232-3ac4aa2bb164 => github.com/oliverbestmann/go-gl-glfw/v3.4/glfw v0.0.0-20260510101646-c1f83c493fe1
 
 tool golang.org/x/tools/cmd/godoc
