@@ -20,7 +20,9 @@ func TestMulSimd(t *testing.T) {
 
 		var expected, res mat4f
 		mat4fMulGo(&m, &m, &expected)
-		mat4fMul(&m, &m, &res)
+
+		res = m
+		mat4fMulAssign(&res, &m)
 
 		for i := range 4 {
 			require.InEpsilon(t, expected[i][0], res[i][0], 1e-5)
@@ -58,8 +60,8 @@ func BenchmarkMultiplyMat4NewSimd(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		var out mat4f
-		mat4fMul(&m, &m, &out)
+		mCopy := m
+		mat4fMulAssign(&m, &mCopy)
 	}
 }
 
