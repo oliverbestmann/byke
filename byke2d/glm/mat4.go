@@ -1,62 +1,52 @@
 package glm
 
-type vec4f struct {
-	X, Y, Z, W float32
-}
+type mat4f = [4][4]float32
 
-func (a *vec4f) Dot(b *vec4f) float32 {
-	return a.X*b.X + a.Y*b.Y + a.Z*b.Z + a.W*b.W
-}
-
-type mat4f [4]vec4f
-
-func (m mat4f) Column(idx int) vec4f {
-	return m[idx]
-}
-
-func (m mat4f) Mul(o mat4f) mat4f {
-	var res mat4f
-	mat4fMulGo(&m, &o, &res)
-	return res
-}
-
-func (m mat4f) MulSimd(o mat4f) mat4f {
-	var res mat4f
-	mat4fMulSimd(&m, &o, &res)
-	return res
-}
-
-func mat4Scale(x, y, z float32) mat4f {
-	var m mat4f
-	m[0].X = x
-	m[1].Y = y
-	m[2].Z = z
-	m[3].W = 1
-	return m
-}
-
-// Pure go implementation of matrix multiplication. We use this to check
-// the simd implementation
-//
 //goland:noinspection DuplicatedCode
 func mat4fMulGo(m, o, res *mat4f) {
-	res[0].X = m[0].X*o[0].X + m[1].X*o[0].Y + m[2].X*o[0].Z + m[3].X*o[0].W
-	res[0].Y = m[0].Y*o[0].X + m[1].Y*o[0].Y + m[2].Y*o[0].Z + m[3].Y*o[0].W
-	res[0].Z = m[0].Z*o[0].X + m[1].Z*o[0].Y + m[2].Z*o[0].Z + m[3].Z*o[0].W
-	res[0].W = m[0].W*o[0].X + m[1].W*o[0].Y + m[2].W*o[0].Z + m[3].W*o[0].W
+	res[0][0] = m[0][0]*o[0][0] + m[1][0]*o[0][1] + m[2][0]*o[0][2] + m[3][0]*o[0][3]
+	res[0][1] = m[0][1]*o[0][0] + m[1][1]*o[0][1] + m[2][1]*o[0][2] + m[3][1]*o[0][3]
+	res[0][2] = m[0][2]*o[0][0] + m[1][2]*o[0][1] + m[2][2]*o[0][2] + m[3][2]*o[0][3]
+	res[0][3] = m[0][3]*o[0][0] + m[1][3]*o[0][1] + m[2][3]*o[0][2] + m[3][3]*o[0][3]
 
-	res[1].X = m[0].X*o[1].X + m[1].X*o[1].Y + m[2].X*o[1].Z + m[3].X*o[1].W
-	res[1].Y = m[0].Y*o[1].X + m[1].Y*o[1].Y + m[2].Y*o[1].Z + m[3].Y*o[1].W
-	res[1].Z = m[0].Z*o[1].X + m[1].Z*o[1].Y + m[2].Z*o[1].Z + m[3].Z*o[1].W
-	res[1].W = m[0].W*o[1].X + m[1].W*o[1].Y + m[2].W*o[1].Z + m[3].W*o[1].W
+	res[1][0] = m[0][0]*o[1][0] + m[1][0]*o[1][1] + m[2][0]*o[1][2] + m[3][0]*o[1][3]
+	res[1][1] = m[0][1]*o[1][0] + m[1][1]*o[1][1] + m[2][1]*o[1][2] + m[3][1]*o[1][3]
+	res[1][2] = m[0][2]*o[1][0] + m[1][2]*o[1][1] + m[2][2]*o[1][2] + m[3][2]*o[1][3]
+	res[1][3] = m[0][3]*o[1][0] + m[1][3]*o[1][1] + m[2][3]*o[1][2] + m[3][3]*o[1][3]
 
-	res[2].X = m[0].X*o[2].X + m[1].X*o[2].Y + m[2].X*o[2].Z + m[3].X*o[2].W
-	res[2].Y = m[0].Y*o[2].X + m[1].Y*o[2].Y + m[2].Y*o[2].Z + m[3].Y*o[2].W
-	res[2].Z = m[0].Z*o[2].X + m[1].Z*o[2].Y + m[2].Z*o[2].Z + m[3].Z*o[2].W
-	res[2].W = m[0].W*o[2].X + m[1].W*o[2].Y + m[2].W*o[2].Z + m[3].W*o[2].W
+	res[2][0] = m[0][0]*o[2][0] + m[1][0]*o[2][1] + m[2][0]*o[2][2] + m[3][0]*o[2][3]
+	res[2][1] = m[0][1]*o[2][0] + m[1][1]*o[2][1] + m[2][1]*o[2][2] + m[3][1]*o[2][3]
+	res[2][2] = m[0][2]*o[2][0] + m[1][2]*o[2][1] + m[2][2]*o[2][2] + m[3][2]*o[2][3]
+	res[2][3] = m[0][3]*o[2][0] + m[1][3]*o[2][1] + m[2][3]*o[2][2] + m[3][3]*o[2][3]
 
-	res[3].X = m[0].X*o[3].X + m[1].X*o[3].Y + m[2].X*o[3].Z + m[3].X*o[3].W
-	res[3].Y = m[0].Y*o[3].X + m[1].Y*o[3].Y + m[2].Y*o[3].Z + m[3].Y*o[3].W
-	res[3].Z = m[0].Z*o[3].X + m[1].Z*o[3].Y + m[2].Z*o[3].Z + m[3].Z*o[3].W
-	res[3].W = m[0].W*o[3].X + m[1].W*o[3].Y + m[2].W*o[3].Z + m[3].W*o[3].W
+	res[3][0] = m[0][0]*o[3][0] + m[1][0]*o[3][1] + m[2][0]*o[3][2] + m[3][0]*o[3][3]
+	res[3][1] = m[0][1]*o[3][0] + m[1][1]*o[3][1] + m[2][1]*o[3][2] + m[3][1]*o[3][3]
+	res[3][2] = m[0][2]*o[3][0] + m[1][2]*o[3][1] + m[2][2]*o[3][2] + m[3][2]*o[3][3]
+	res[3][3] = m[0][3]*o[3][0] + m[1][3]*o[3][1] + m[2][3]*o[3][2] + m[3][3]*o[3][3]
+}
+
+//goland:noinspection DuplicatedCode
+func mat4fTranslateAssignGo(m *mat4f, x, y, z float32) {
+	m[3][0] = m[3][0] + m[0][0]*x + m[1][0]*y + m[2][0]*z
+	m[3][1] = m[3][1] + m[0][1]*x + m[1][1]*y + m[2][1]*z
+	m[3][2] = m[3][2] + m[0][2]*x + m[1][2]*y + m[2][2]*z
+	m[3][3] = m[3][3] + m[0][3]*x + m[1][3]*y + m[2][3]*z
+}
+
+//goland:noinspection DuplicatedCode
+func mat4fScaleAssignGo(m *mat4f, x, y, z float32) {
+	m[0][0] = m[0][0] * x
+	m[0][1] = m[0][1] * x
+	m[0][2] = m[0][2] * x
+	m[0][3] = m[0][3] * x
+
+	m[1][0] = m[1][0] * y
+	m[1][1] = m[1][1] * y
+	m[1][2] = m[1][2] * y
+	m[1][3] = m[1][3] * y
+
+	m[2][0] = m[2][0] * z
+	m[2][1] = m[2][1] * z
+	m[2][2] = m[2][2] * z
+	m[2][3] = m[2][3] * z
 }

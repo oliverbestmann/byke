@@ -53,7 +53,7 @@ func setupSystem(commands *Commands) {
 	)
 
 	commands.Spawn(
-		TransformFromXY(0, 200).WithRotation(3.14159*-0.1),
+		TransformFromXY(0, 200).WithRotationZ(3.14159*-0.1),
 		AnchorCenter,
 		UpdateTextMarker{},
 		Text{
@@ -63,7 +63,7 @@ func setupSystem(commands *Commands) {
 	)
 
 	commands.Spawn(
-		TransformFromXY(8, -80).WithRotation(3.14159*0.25),
+		TransformFromXY(8, -80).WithRotationZ(3.14159*0.25),
 		AnchorTopLeft,
 		Text{
 			Size:  24.0,

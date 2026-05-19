@@ -12,21 +12,21 @@ func TestMulSimd(t *testing.T) {
 
 	for range 250_000 {
 		m := mat4f{
-			vec4f{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
-			vec4f{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
-			vec4f{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
-			vec4f{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
+			{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
+			{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
+			{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
+			{r.Float32(), r.Float32(), r.Float32(), r.Float32()},
 		}
 
 		var expected, res mat4f
 		mat4fMulGo(&m, &m, &expected)
-		mat4fMulSimd(&m, &m, &res)
+		mat4fMul(&m, &m, &res)
 
 		for i := range 4 {
-			require.InEpsilon(t, expected[i].X, res[i].X, 1e-5)
-			require.InEpsilon(t, expected[i].Y, res[i].Y, 1e-5)
-			require.InEpsilon(t, expected[i].Z, res[i].Z, 1e-5)
-			require.InEpsilon(t, expected[i].W, res[i].W, 1e-5)
+			require.InEpsilon(t, expected[i][0], res[i][0], 1e-5)
+			require.InEpsilon(t, expected[i][1], res[i][1], 1e-5)
+			require.InEpsilon(t, expected[i][2], res[i][2], 1e-5)
+			require.InEpsilon(t, expected[i][3], res[i][3], 1e-5)
 		}
 	}
 }
@@ -47,7 +47,8 @@ func BenchmarkMultiplyMat4New(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		_ = m.Mul(m)
+		var out mat4f
+		mat4fMulGo(&m, &m, &out)
 	}
 }
 
@@ -57,6 +58,16 @@ func BenchmarkMultiplyMat4NewSimd(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		_ = m.MulSimd(m)
+		var out mat4f
+		mat4fMul(&m, &m, &out)
 	}
+}
+
+func mat4Scale(x, y, z float32) mat4f {
+	var m mat4f
+	m[0][0] = x
+	m[1][1] = y
+	m[2][2] = z
+	m[3][3] = 1
+	return m
 }

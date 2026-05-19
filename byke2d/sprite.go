@@ -7,6 +7,7 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/radix"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
+	"github.com/oliverbestmann/byke/internal/query"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -127,13 +128,13 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 			EntryPoint: entryVertex,
 			Buffers: []wgpu.VertexBufferLayout{
 				{
-					ArrayStride: 100,
+					ArrayStride: 84,
 					StepMode:    wgpu.VertexStepModeInstance,
 					Attributes: []wgpu.VertexAttribute{
-						offset.Inc(16, wgpu.VertexFormatFloat32x4),
-						offset.Inc(16, wgpu.VertexFormatFloat32x4),
-						offset.Inc(16, wgpu.VertexFormatFloat32x4),
-						offset.Inc(16, wgpu.VertexFormatFloat32x4),
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
 						offset.Inc(8, wgpu.VertexFormatFloat32x2),
 						offset.Inc(8, wgpu.VertexFormatFloat32x2),
 						offset.Inc(16, wgpu.VertexFormatFloat32x4),
@@ -182,7 +183,6 @@ type ExtractedSprite struct {
 	Size         glm.Vec2f
 	Anchor       Anchor
 	RenderLayers RenderLayers
-	PosZ         float32
 	FlipX, FlipY bool
 }
 
@@ -205,25 +205,26 @@ func extractSpritesSystem(
 	sprites *ExtractedSprites,
 	spritesQuery byke.Query[struct {
 		byke.EntityId
-		Sprite       Sprite
-		Transform    GlobalTransform
-		Visibility   ComputedVisibility
+		Sprite       query.Ref[Sprite]
+		Transform    query.Ref[GlobalTransform]
 		TextureAtlas byke.Option[TextureAtlas]
 		RenderLayers byke.Option[RenderLayers]
 		CustomShader byke.Option[CustomShader]
 		Anchor       Anchor
+		Visibility   ComputedVisibility
 	}],
 ) {
-	for sprite := range spritesQuery.Items() {
-		if !sprite.Visibility.Visible {
+	for item := range spritesQuery.Items() {
+		if !item.Visibility.Visible {
 			continue
 		}
 
 		// calculate size of the rect to display
-		rect := glm.Rectf{Max: sprite.Sprite.Texture.Size()}
+		sprite := item.Sprite.Value
+		rect := glm.Rectf{Max: sprite.Texture.Size()}
 
 		// but apply texture atlas if available
-		if ta, ok := sprite.TextureAtlas.Get(); ok {
+		if ta, ok := item.TextureAtlas.Get(); ok {
 			if current, ok := ta.Current(); ok {
 				rect.Min = current.Min.ToVec2f()
 				rect.Max = current.Max.ToVec2f()
@@ -231,17 +232,16 @@ func extractSpritesSystem(
 		}
 
 		sprites.Sprites = append(sprites.Sprites, ExtractedSprite{
-			Texture:      sprite.Sprite.Texture,
-			CustomShader: sprite.CustomShader.OrZero().Shader,
-			Color:        sprite.Sprite.Color,
-			Size:         sprite.Sprite.CustomSize.Or(rect.Size()),
-			FlipX:        sprite.Sprite.FlipX,
-			FlipY:        sprite.Sprite.FlipY,
-			RenderLayers: sprite.RenderLayers.Or(renderLayerAll),
-			Transform:    sprite.Transform.Affine,
-			Anchor:       sprite.Anchor,
+			Texture:      sprite.Texture,
+			CustomShader: item.CustomShader.OrZero().Shader,
+			Color:        sprite.Color,
+			Size:         sprite.CustomSize.Or(rect.Size()),
+			FlipX:        sprite.FlipX,
+			FlipY:        sprite.FlipY,
+			RenderLayers: item.RenderLayers.Or(renderLayerAll),
+			Transform:    item.Transform.Value.Affine,
+			Anchor:       item.Anchor,
 			Rect:         rect,
-			PosZ:         sprite.Transform.Affine.TranslateZ(),
 		})
 	}
 }
@@ -264,7 +264,7 @@ func queueSpritesSystem(
 			view.RenderPhase.Append(RenderPhaseItem{
 				Type:           &spriteRenderPhaseItem{},
 				Draw:           drawSpriteBatch,
-				SortValue:      sp.PosZ,
+				SortValue:      sp.Transform.TranslateZ(),
 				ExtractedIndex: uint32(idx),
 			})
 		}
@@ -314,10 +314,10 @@ func prepareSpriteBindGroupsSystem(
 	meta *metaSprites,
 	bindGroups *spriteTextureBindGroupCache,
 ) {
-	meta.Instances.Clear()
 	bindGroups.Clear()
 
 	instances := &meta.Instances
+	instances.Clear()
 
 	for view := range viewsQuery.Items() {
 		if view.Phase.IsEmpty() {
@@ -342,7 +342,10 @@ func prepareSpriteBindGroupsSystem(
 			itemSprite := &sprites.Sprites[item.ExtractedIndex]
 
 			//goland:noinspection GoMaybeNil
-			if current == nil || currentSprite.Texture != itemSprite.Texture {
+			if current == nil ||
+				currentSprite.Texture != itemSprite.Texture ||
+				currentSprite.CustomShader != itemSprite.CustomShader {
+
 				// we begin a new sprite batch here
 				current = item
 				currentSprite = itemSprite
@@ -378,7 +381,7 @@ func prepareSpriteBindGroupsSystem(
 
 func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSprite) {
 	// the size of one sprite instance in the wgpu instance buffer
-	const instanceSize = 100
+	const instanceSize = 84
 
 	textureSize := sp.Texture.Size()
 
@@ -401,27 +404,25 @@ func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSpri
 	}
 
 	// calculate size of the sprite
-	transform := sp.Transform.
-		Scale(sp.Size.Extend(1.0).XYZ()).
-		Translate(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0)
+	transform := sp.Transform
+	transform.ScaleAssign(sp.Size.Extend(1.0).XYZ())
+	transform.TranslateAssign(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0)
 
 	var flags uint32
 	if sp.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
 		flags |= 1
 	}
 
-	columns := transform.Components()
-
 	instances.StartNew(instanceSize)
 
 	// @location(0) i_affine_0: mat3<f32>,
-	instances.AppendVec4f(columns[0])
+	instances.AppendVec3f(transform.Column(0).Truncate())
 	// @location(1) i_affine_1: mat3<f32>,
-	instances.AppendVec4f(columns[1])
+	instances.AppendVec3f(transform.Column(1).Truncate())
 	// @location(2) i_affine_2: mat3<f32>,
-	instances.AppendVec4f(columns[2])
+	instances.AppendVec3f(transform.Column(2).Truncate())
 	// @location(3) i_affine_3: mat3<f32>,
-	instances.AppendVec4f(columns[3])
+	instances.AppendVec3f(transform.Column(3).Truncate())
 	// @location(4) i_uv_offset: vec2<f32>,
 	instances.AppendVec2f(uvOffset)
 	// @location(5) i_uv_scale: vec2<f32>,
@@ -466,6 +467,7 @@ func drawSpriteBatchSystem(
 	pipeline := pipelines.Specialize(renderSpritePipelineConfig{
 		Format:      view.ViewTarget.Format,
 		SampleCount: view.ViewTarget.SampleCount,
+		Shader:      sprite.CustomShader,
 	})
 
 	// get the bind group for the texture for this batch

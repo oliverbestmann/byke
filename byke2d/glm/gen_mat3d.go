@@ -2,145 +2,86 @@
 
 package glm
 
-// Mat3d is a 3x3 matrix.
-// The default value is the identity matrix.
-type Mat3d struct {
-	values [3][3]float64
-}
+import "unsafe"
 
-func Mat3dOf(values [3][3]float64) Mat3d {
-	return Mat3d{
-		values: [3][3]float64{
-			{
-				values[0][0] - 1,
-				values[0][1],
-				values[0][2],
-			},
-			{
-				values[1][0],
-				values[1][1] - 1,
-				values[1][2],
-			},
-			{
-				values[2][0],
-				values[2][1],
-				values[2][2] - 1,
-			},
-		},
-	}
-}
+type _ = unsafe.Pointer
+
+// Mat3d is a 3x3 matrix.
+// The default value is filled with all zero values.
+type Mat3d [3][3]float64
 
 func IdentityMat3d() Mat3d {
-	return Mat3d{}
+	var m Mat3d
+	m[0][0] = 1
+	m[1][1] = 1
+	m[2][2] = 1
+	return m
 }
 
 func (m Mat3d) Mul(o Mat3d) Mat3d {
-	mv := &m.values
-	ov := &o.values
+	mv := &m
+	ov := &o
 
 	return Mat3d{
-		values: [3][3]float64{
-			{
-				(mv[0][0]+1)*(ov[0][0]+1) + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2] - 1,
-				mv[0][1]*(ov[0][0]+1) + (mv[1][1]+1)*ov[0][1] + mv[2][1]*ov[0][2],
-				mv[0][2]*(ov[0][0]+1) + mv[1][2]*ov[0][1] + (mv[2][2]+1)*ov[0][2],
-			},
-			{
-				(mv[0][0]+1)*ov[1][0] + mv[1][0]*(ov[1][1]+1) + mv[2][0]*ov[1][2],
-				mv[0][1]*ov[1][0] + (mv[1][1]+1)*(ov[1][1]+1) + mv[2][1]*ov[1][2] - 1,
-				mv[0][2]*ov[1][0] + mv[1][2]*(ov[1][1]+1) + (mv[2][2]+1)*ov[1][2],
-			},
-			{
-				(mv[0][0]+1)*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*(ov[2][2]+1),
-				mv[0][1]*ov[2][0] + (mv[1][1]+1)*ov[2][1] + mv[2][1]*(ov[2][2]+1),
-				mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + (mv[2][2]+1)*(ov[2][2]+1) - 1,
-			},
+		{
+			mv[0][0]*ov[0][0] + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2],
+			mv[0][1]*ov[0][0] + mv[1][1]*ov[0][1] + mv[2][1]*ov[0][2],
+			mv[0][2]*ov[0][0] + mv[1][2]*ov[0][1] + mv[2][2]*ov[0][2],
+		},
+		{
+			mv[0][0]*ov[1][0] + mv[1][0]*ov[1][1] + mv[2][0]*ov[1][2],
+			mv[0][1]*ov[1][0] + mv[1][1]*ov[1][1] + mv[2][1]*ov[1][2],
+			mv[0][2]*ov[1][0] + mv[1][2]*ov[1][1] + mv[2][2]*ov[1][2],
+		},
+		{
+			mv[0][0]*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*ov[2][2],
+			mv[0][1]*ov[2][0] + mv[1][1]*ov[2][1] + mv[2][1]*ov[2][2],
+			mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + mv[2][2]*ov[2][2],
 		},
 	}
 }
 
 func (m Mat3d) Transpose() Mat3d {
-	mv := &m.values
+	mv := &m
 
 	return Mat3d{
-		values: [3][3]float64{
-			{
-				mv[0][0],
-				mv[1][0],
-				mv[2][0],
-			},
-			{
-				mv[0][1],
-				mv[1][1],
-				mv[2][1],
-			},
-			{
-				mv[0][2],
-				mv[1][2],
-				mv[2][2],
-			},
+		{
+			mv[0][0],
+			mv[1][0],
+			mv[2][0],
+		},
+		{
+			mv[0][1],
+			mv[1][1],
+			mv[2][1],
+		},
+		{
+			mv[0][2],
+			mv[1][2],
+			mv[2][2],
 		},
 	}
 }
 
-func (m Mat3d) Components() [3][3]float64 {
-	values := m.values
-	values[0][0] += 1
-	values[1][1] += 1
-	values[2][2] += 1
-	return values
-}
-
-func (m *Mat3d) m00() float64 {
-	return (m.values[0][0] + 1)
-}
-
-func (m *Mat3d) m01() float64 {
-	return m.values[0][1]
-}
-
-func (m *Mat3d) m02() float64 {
-	return m.values[0][2]
-}
-
-func (m *Mat3d) m10() float64 {
-	return m.values[1][0]
-}
-
-func (m *Mat3d) m11() float64 {
-	return (m.values[1][1] + 1)
-}
-
-func (m *Mat3d) m12() float64 {
-	return m.values[1][2]
-}
-
-func (m *Mat3d) m20() float64 {
-	return m.values[2][0]
-}
-
-func (m *Mat3d) m21() float64 {
-	return m.values[2][1]
-}
-
-func (m *Mat3d) m22() float64 {
-	return (m.values[2][2] + 1)
+// Column returns a reference to the given column
+func (m *Mat3d) Column(idx int) Vec3d {
+	return *(*Vec3d)(&m[idx])
 }
 
 func TranslationMat3d(x, y float64) Mat3d {
-	return Mat3dOf([3][3]float64{
+	return Mat3d{
 		{1, 0, 0},
 		{0, 1, 0},
 		{x, y, 1},
-	})
+	}
 }
 
 func ScaleMat3d(x, y float64) Mat3d {
-	return Mat3dOf([3][3]float64{
-		{x, 0, 0},
-		{0, y, 0},
-		{0, 0, 1},
-	})
+	var res Mat3d
+	res[0][0] = x
+	res[1][1] = y
+	res[2][2] = 1
+	return res
 }
 
 func (m Mat3d) Translate(x, y float64) Mat3d {
@@ -154,11 +95,11 @@ func (m Mat3d) Scale(x, y float64) Mat3d {
 func RotationMat3d(angle Rad) Mat3d {
 	s, c := fastSincos(angle)
 
-	return Mat3dOf([3][3]float64{
+	return Mat3d{
 		{float64(c), float64(s), 0},
 		{-float64(s), float64(c), 0},
 		{0, 0, 1},
-	})
+	}
 }
 
 func (m Mat3d) Rotate(angle Rad) Mat3d {
@@ -168,31 +109,23 @@ func (m Mat3d) Rotate(angle Rad) Mat3d {
 func (m Mat3d) Row(i int) Vec3d {
 	if i == 0 {
 		return Vec3d{
-			m.m00(),
-			m.m10(),
-			m.m20(),
+			m[0][0],
+			m[1][0],
+			m[2][0],
 		}
 	}
 	if i == 1 {
-		return Vec3d{m.m01(), m.m11(), m.m21()}
+		return Vec3d{m[0][1], m[1][1], m[2][1]}
 	}
 	if i == 2 {
 		return Vec3d{
-			m.m02(),
-			m.m12(),
-			m.m22(),
+			m[0][2],
+			m[1][2],
+			m[2][2],
 		}
 	}
 
 	panic(i)
-}
-
-func (m Mat3d) ToWGPU() [12]float32 {
-	return [12]float32{
-		float32(m.m00()), float32(m.m01()), float32(m.m02()), 0,
-		float32(m.m10()), float32(m.m11()), float32(m.m12()), 0,
-		float32(m.m20()), float32(m.m21()), float32(m.m22()), 0,
-	}
 }
 
 func (m Mat3d) Invert() Mat3d {
@@ -205,44 +138,44 @@ func (m Mat3d) Invert() Mat3d {
 }
 
 func (m Mat3d) TryInvert() (Mat3d, bool) {
-	var inv [3][3]float64
+	var inv Mat3d
 
 	// determinant
-	det := m.m00()*(m.m11()*m.m22()-m.m12()*m.m21()) -
-		m.m01()*(m.m10()*m.m22()-m.m12()*m.m20()) +
-		m.m02()*(m.m10()*m.m21()-m.m11()*m.m20())
+	det := m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1]) -
+		m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) +
+		m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0])
 
 	if det == 0 {
 		// singular
 		return Mat3d{}, false
 	}
 
-	inv[0][0] = (m.m11()*m.m22() - m.m12()*m.m21()) / det
-	inv[0][1] = (m.m02()*m.m21() - m.m01()*m.m22()) / det
-	inv[0][2] = (m.m01()*m.m12() - m.m02()*m.m11()) / det
+	inv[0][0] = (m[1][1]*m[2][2] - m[1][2]*m[2][1]) / det
+	inv[0][1] = (m[0][2]*m[2][1] - m[0][1]*m[2][2]) / det
+	inv[0][2] = (m[0][1]*m[1][2] - m[0][2]*m[1][1]) / det
 
-	inv[1][0] = (m.m12()*m.m20() - m.m10()*m.m22()) / det
-	inv[1][1] = (m.m00()*m.m22() - m.m02()*m.m20()) / det
-	inv[1][2] = (m.m02()*m.m10() - m.m00()*m.m12()) / det
+	inv[1][0] = (m[1][2]*m[2][0] - m[1][0]*m[2][2]) / det
+	inv[1][1] = (m[0][0]*m[2][2] - m[0][2]*m[2][0]) / det
+	inv[1][2] = (m[0][2]*m[1][0] - m[0][0]*m[1][2]) / det
 
-	inv[2][0] = (m.m10()*m.m21() - m.m11()*m.m20()) / det
-	inv[2][1] = (m.m01()*m.m20() - m.m00()*m.m21()) / det
-	inv[2][2] = (m.m00()*m.m11() - m.m01()*m.m10()) / det
+	inv[2][0] = (m[1][0]*m[2][1] - m[1][1]*m[2][0]) / det
+	inv[2][1] = (m[0][1]*m[2][0] - m[0][0]*m[2][1]) / det
+	inv[2][2] = (m[0][0]*m[1][1] - m[0][1]*m[1][0]) / det
 
-	return Mat3dOf(inv), true
+	return inv, true
 }
 
 func (m Mat3d) Transform(vec Vec3d) Vec3d {
 	return Vec3d{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20())*vec[2],
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21())*vec[2],
-		(m.m02())*vec[0] + (m.m12())*vec[1] + (m.m22())*vec[2],
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2],
+		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2],
 	}
 }
 
 func (m Mat3d) Transform2(vec Vec2d) Vec2d {
 	return Vec2d{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20()),
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21()),
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0]),
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1]),
 	}
 }

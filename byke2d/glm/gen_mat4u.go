@@ -2,211 +2,107 @@
 
 package glm
 
-// Mat4u is a 4x4 matrix.
-// The default value is the identity matrix.
-type Mat4u struct {
-	values [4][4]uint32
-}
+import "unsafe"
 
-func Mat4uOf(values [4][4]uint32) Mat4u {
-	return Mat4u{
-		values: [4][4]uint32{
-			{
-				values[0][0] - 1,
-				values[0][1],
-				values[0][2],
-				values[0][3],
-			},
-			{
-				values[1][0],
-				values[1][1] - 1,
-				values[1][2],
-				values[1][3],
-			},
-			{
-				values[2][0],
-				values[2][1],
-				values[2][2] - 1,
-				values[2][3],
-			},
-			{
-				values[3][0],
-				values[3][1],
-				values[3][2],
-				values[3][3] - 1,
-			},
-		},
-	}
-}
+type _ = unsafe.Pointer
+
+// Mat4u is a 4x4 matrix.
+// The default value is filled with all zero values.
+type Mat4u [4][4]uint32
 
 func IdentityMat4u() Mat4u {
-	return Mat4u{}
+	var m Mat4u
+	m[0][0] = 1
+	m[1][1] = 1
+	m[2][2] = 1
+	m[3][3] = 1
+	return m
 }
 
 func (m Mat4u) Mul(o Mat4u) Mat4u {
-	mv := &m.values
-	ov := &o.values
+	mv := &m
+	ov := &o
 
 	return Mat4u{
-		values: [4][4]uint32{
-			{
-				(mv[0][0]+1)*(ov[0][0]+1) + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2] + mv[3][0]*ov[0][3] - 1,
-				mv[0][1]*(ov[0][0]+1) + (mv[1][1]+1)*ov[0][1] + mv[2][1]*ov[0][2] + mv[3][1]*ov[0][3],
-				mv[0][2]*(ov[0][0]+1) + mv[1][2]*ov[0][1] + (mv[2][2]+1)*ov[0][2] + mv[3][2]*ov[0][3],
-				mv[0][3]*(ov[0][0]+1) + mv[1][3]*ov[0][1] + mv[2][3]*ov[0][2] + (mv[3][3]+1)*ov[0][3],
-			},
-			{
-				(mv[0][0]+1)*ov[1][0] + mv[1][0]*(ov[1][1]+1) + mv[2][0]*ov[1][2] + mv[3][0]*ov[1][3],
-				mv[0][1]*ov[1][0] + (mv[1][1]+1)*(ov[1][1]+1) + mv[2][1]*ov[1][2] + mv[3][1]*ov[1][3] - 1,
-				mv[0][2]*ov[1][0] + mv[1][2]*(ov[1][1]+1) + (mv[2][2]+1)*ov[1][2] + mv[3][2]*ov[1][3],
-				mv[0][3]*ov[1][0] + mv[1][3]*(ov[1][1]+1) + mv[2][3]*ov[1][2] + (mv[3][3]+1)*ov[1][3],
-			},
-			{
-				(mv[0][0]+1)*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*(ov[2][2]+1) + mv[3][0]*ov[2][3],
-				mv[0][1]*ov[2][0] + (mv[1][1]+1)*ov[2][1] + mv[2][1]*(ov[2][2]+1) + mv[3][1]*ov[2][3],
-				mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + (mv[2][2]+1)*(ov[2][2]+1) + mv[3][2]*ov[2][3] - 1,
-				mv[0][3]*ov[2][0] + mv[1][3]*ov[2][1] + mv[2][3]*(ov[2][2]+1) + (mv[3][3]+1)*ov[2][3],
-			},
-			{
-				(mv[0][0]+1)*ov[3][0] + mv[1][0]*ov[3][1] + mv[2][0]*ov[3][2] + mv[3][0]*(ov[3][3]+1),
-				mv[0][1]*ov[3][0] + (mv[1][1]+1)*ov[3][1] + mv[2][1]*ov[3][2] + mv[3][1]*(ov[3][3]+1),
-				mv[0][2]*ov[3][0] + mv[1][2]*ov[3][1] + (mv[2][2]+1)*ov[3][2] + mv[3][2]*(ov[3][3]+1),
-				mv[0][3]*ov[3][0] + mv[1][3]*ov[3][1] + mv[2][3]*ov[3][2] + (mv[3][3]+1)*(ov[3][3]+1) - 1,
-			},
+		{
+			mv[0][0]*ov[0][0] + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2] + mv[3][0]*ov[0][3],
+			mv[0][1]*ov[0][0] + mv[1][1]*ov[0][1] + mv[2][1]*ov[0][2] + mv[3][1]*ov[0][3],
+			mv[0][2]*ov[0][0] + mv[1][2]*ov[0][1] + mv[2][2]*ov[0][2] + mv[3][2]*ov[0][3],
+			mv[0][3]*ov[0][0] + mv[1][3]*ov[0][1] + mv[2][3]*ov[0][2] + mv[3][3]*ov[0][3],
+		},
+		{
+			mv[0][0]*ov[1][0] + mv[1][0]*ov[1][1] + mv[2][0]*ov[1][2] + mv[3][0]*ov[1][3],
+			mv[0][1]*ov[1][0] + mv[1][1]*ov[1][1] + mv[2][1]*ov[1][2] + mv[3][1]*ov[1][3],
+			mv[0][2]*ov[1][0] + mv[1][2]*ov[1][1] + mv[2][2]*ov[1][2] + mv[3][2]*ov[1][3],
+			mv[0][3]*ov[1][0] + mv[1][3]*ov[1][1] + mv[2][3]*ov[1][2] + mv[3][3]*ov[1][3],
+		},
+		{
+			mv[0][0]*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*ov[2][2] + mv[3][0]*ov[2][3],
+			mv[0][1]*ov[2][0] + mv[1][1]*ov[2][1] + mv[2][1]*ov[2][2] + mv[3][1]*ov[2][3],
+			mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + mv[2][2]*ov[2][2] + mv[3][2]*ov[2][3],
+			mv[0][3]*ov[2][0] + mv[1][3]*ov[2][1] + mv[2][3]*ov[2][2] + mv[3][3]*ov[2][3],
+		},
+		{
+			mv[0][0]*ov[3][0] + mv[1][0]*ov[3][1] + mv[2][0]*ov[3][2] + mv[3][0]*ov[3][3],
+			mv[0][1]*ov[3][0] + mv[1][1]*ov[3][1] + mv[2][1]*ov[3][2] + mv[3][1]*ov[3][3],
+			mv[0][2]*ov[3][0] + mv[1][2]*ov[3][1] + mv[2][2]*ov[3][2] + mv[3][2]*ov[3][3],
+			mv[0][3]*ov[3][0] + mv[1][3]*ov[3][1] + mv[2][3]*ov[3][2] + mv[3][3]*ov[3][3],
 		},
 	}
 }
 
 func (m Mat4u) Transpose() Mat4u {
-	mv := &m.values
+	mv := &m
 
 	return Mat4u{
-		values: [4][4]uint32{
-			{
-				mv[0][0],
-				mv[1][0],
-				mv[2][0],
-				mv[3][0],
-			},
-			{
-				mv[0][1],
-				mv[1][1],
-				mv[2][1],
-				mv[3][1],
-			},
-			{
-				mv[0][2],
-				mv[1][2],
-				mv[2][2],
-				mv[3][2],
-			},
-			{
-				mv[0][3],
-				mv[1][3],
-				mv[2][3],
-				mv[3][3],
-			},
+		{
+			mv[0][0],
+			mv[1][0],
+			mv[2][0],
+			mv[3][0],
+		},
+		{
+			mv[0][1],
+			mv[1][1],
+			mv[2][1],
+			mv[3][1],
+		},
+		{
+			mv[0][2],
+			mv[1][2],
+			mv[2][2],
+			mv[3][2],
+		},
+		{
+			mv[0][3],
+			mv[1][3],
+			mv[2][3],
+			mv[3][3],
 		},
 	}
 }
 
-func (m Mat4u) Components() [4][4]uint32 {
-	values := m.values
-	values[0][0] += 1
-	values[1][1] += 1
-	values[2][2] += 1
-	values[3][3] += 1
-	return values
-}
-
-func (m *Mat4u) m00() uint32 {
-	return (m.values[0][0] + 1)
-}
-
-func (m *Mat4u) m01() uint32 {
-	return m.values[0][1]
-}
-
-func (m *Mat4u) m02() uint32 {
-	return m.values[0][2]
-}
-
-func (m *Mat4u) m03() uint32 {
-	return m.values[0][3]
-}
-
-func (m *Mat4u) m10() uint32 {
-	return m.values[1][0]
-}
-
-func (m *Mat4u) m11() uint32 {
-	return (m.values[1][1] + 1)
-}
-
-func (m *Mat4u) m12() uint32 {
-	return m.values[1][2]
-}
-
-func (m *Mat4u) m13() uint32 {
-	return m.values[1][3]
-}
-
-func (m *Mat4u) m20() uint32 {
-	return m.values[2][0]
-}
-
-func (m *Mat4u) m21() uint32 {
-	return m.values[2][1]
-}
-
-func (m *Mat4u) m22() uint32 {
-	return (m.values[2][2] + 1)
-}
-
-func (m *Mat4u) m23() uint32 {
-	return m.values[2][3]
-}
-
-func (m *Mat4u) m30() uint32 {
-	return m.values[3][0]
-}
-
-func (m *Mat4u) m31() uint32 {
-	return m.values[3][1]
-}
-
-func (m *Mat4u) m32() uint32 {
-	return m.values[3][2]
-}
-
-func (m *Mat4u) m33() uint32 {
-	return (m.values[3][3] + 1)
+// Column returns a reference to the given column
+func (m *Mat4u) Column(idx int) Vec4u {
+	return *(*Vec4u)(&m[idx])
 }
 
 func TranslationMat4u(x, y, z uint32) Mat4u {
 	return Mat4u{
-		values: [4][4]uint32{
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{x, y, z, 0},
-		},
+		{1, 0, 0, 0},
+		{0, 1, 0, 0},
+		{0, 0, 1, 0},
+		{x, y, z, 1},
 	}
 }
 
 func ScaleMat4u(x, y, z uint32) Mat4u {
-	x -= 1
-	y -= 1
-	z -= 1
-
-	return Mat4u{
-		values: [4][4]uint32{
-			{x, 0, 0, 0},
-			{0, y, 0, 0},
-			{0, 0, z, 0},
-			{0, 0, 0, 0},
-		},
-	}
+	var res Mat4u
+	res[0][0] = x
+	res[1][1] = y
+	res[2][2] = z
+	res[3][3] = 1
+	return res
 }
 
 func (m Mat4u) Translate(x, y, z uint32) Mat4u {
@@ -219,28 +115,28 @@ func (m Mat4u) Scale(x, y, z uint32) Mat4u {
 
 func (m Mat4u) Transform(vec Vec4u) Vec4u {
 	return Vec4u{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20())*vec[2] + (m.m30())*vec[3],
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21())*vec[2] + (m.m31())*vec[3],
-		(m.m02())*vec[0] + (m.m12())*vec[1] + (m.m22())*vec[2] + (m.m32())*vec[3],
-		(m.m03())*vec[0] + (m.m13())*vec[1] + (m.m23())*vec[2] + (m.m33())*vec[3],
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2] + (m[3][0])*vec[3],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2] + (m[3][1])*vec[3],
+		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2] + (m[3][2])*vec[3],
+		(m[0][3])*vec[0] + (m[1][3])*vec[1] + (m[2][3])*vec[2] + (m[3][3])*vec[3],
 	}
 }
 
 func (m Mat4u) Transform3(vec Vec3u) Vec3u {
 	return Vec3u{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20() * vec[2]) + m.m30(),
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21() * vec[2]) + m.m31(),
-		(m.m02())*vec[0] + (m.m12())*vec[1] + (m.m22() * vec[2]) + m.m32(),
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0] * vec[2]) + m[3][0],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1] * vec[2]) + m[3][1],
+		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2] * vec[2]) + m[3][2],
 	}
 }
 
 func (m Mat4u) Transform2(vec Vec2u) Vec2u {
 	return Vec2u{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + m.m30(),
-		(m.m01())*vec[0] + (m.m11())*vec[1] + m.m31(),
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + m[3][0],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + m[3][1],
 	}
 }
 
 func (m Mat4u) TranslateZ() uint32 {
-	return m.values[3][2]
+	return m[3][2]
 }

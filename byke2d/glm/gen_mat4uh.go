@@ -2,211 +2,107 @@
 
 package glm
 
-// Mat4uh is a 4x4 matrix.
-// The default value is the identity matrix.
-type Mat4uh struct {
-	values [4][4]uint16
-}
+import "unsafe"
 
-func Mat4uhOf(values [4][4]uint16) Mat4uh {
-	return Mat4uh{
-		values: [4][4]uint16{
-			{
-				values[0][0] - 1,
-				values[0][1],
-				values[0][2],
-				values[0][3],
-			},
-			{
-				values[1][0],
-				values[1][1] - 1,
-				values[1][2],
-				values[1][3],
-			},
-			{
-				values[2][0],
-				values[2][1],
-				values[2][2] - 1,
-				values[2][3],
-			},
-			{
-				values[3][0],
-				values[3][1],
-				values[3][2],
-				values[3][3] - 1,
-			},
-		},
-	}
-}
+type _ = unsafe.Pointer
+
+// Mat4uh is a 4x4 matrix.
+// The default value is filled with all zero values.
+type Mat4uh [4][4]uint16
 
 func IdentityMat4uh() Mat4uh {
-	return Mat4uh{}
+	var m Mat4uh
+	m[0][0] = 1
+	m[1][1] = 1
+	m[2][2] = 1
+	m[3][3] = 1
+	return m
 }
 
 func (m Mat4uh) Mul(o Mat4uh) Mat4uh {
-	mv := &m.values
-	ov := &o.values
+	mv := &m
+	ov := &o
 
 	return Mat4uh{
-		values: [4][4]uint16{
-			{
-				(mv[0][0]+1)*(ov[0][0]+1) + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2] + mv[3][0]*ov[0][3] - 1,
-				mv[0][1]*(ov[0][0]+1) + (mv[1][1]+1)*ov[0][1] + mv[2][1]*ov[0][2] + mv[3][1]*ov[0][3],
-				mv[0][2]*(ov[0][0]+1) + mv[1][2]*ov[0][1] + (mv[2][2]+1)*ov[0][2] + mv[3][2]*ov[0][3],
-				mv[0][3]*(ov[0][0]+1) + mv[1][3]*ov[0][1] + mv[2][3]*ov[0][2] + (mv[3][3]+1)*ov[0][3],
-			},
-			{
-				(mv[0][0]+1)*ov[1][0] + mv[1][0]*(ov[1][1]+1) + mv[2][0]*ov[1][2] + mv[3][0]*ov[1][3],
-				mv[0][1]*ov[1][0] + (mv[1][1]+1)*(ov[1][1]+1) + mv[2][1]*ov[1][2] + mv[3][1]*ov[1][3] - 1,
-				mv[0][2]*ov[1][0] + mv[1][2]*(ov[1][1]+1) + (mv[2][2]+1)*ov[1][2] + mv[3][2]*ov[1][3],
-				mv[0][3]*ov[1][0] + mv[1][3]*(ov[1][1]+1) + mv[2][3]*ov[1][2] + (mv[3][3]+1)*ov[1][3],
-			},
-			{
-				(mv[0][0]+1)*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*(ov[2][2]+1) + mv[3][0]*ov[2][3],
-				mv[0][1]*ov[2][0] + (mv[1][1]+1)*ov[2][1] + mv[2][1]*(ov[2][2]+1) + mv[3][1]*ov[2][3],
-				mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + (mv[2][2]+1)*(ov[2][2]+1) + mv[3][2]*ov[2][3] - 1,
-				mv[0][3]*ov[2][0] + mv[1][3]*ov[2][1] + mv[2][3]*(ov[2][2]+1) + (mv[3][3]+1)*ov[2][3],
-			},
-			{
-				(mv[0][0]+1)*ov[3][0] + mv[1][0]*ov[3][1] + mv[2][0]*ov[3][2] + mv[3][0]*(ov[3][3]+1),
-				mv[0][1]*ov[3][0] + (mv[1][1]+1)*ov[3][1] + mv[2][1]*ov[3][2] + mv[3][1]*(ov[3][3]+1),
-				mv[0][2]*ov[3][0] + mv[1][2]*ov[3][1] + (mv[2][2]+1)*ov[3][2] + mv[3][2]*(ov[3][3]+1),
-				mv[0][3]*ov[3][0] + mv[1][3]*ov[3][1] + mv[2][3]*ov[3][2] + (mv[3][3]+1)*(ov[3][3]+1) - 1,
-			},
+		{
+			mv[0][0]*ov[0][0] + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2] + mv[3][0]*ov[0][3],
+			mv[0][1]*ov[0][0] + mv[1][1]*ov[0][1] + mv[2][1]*ov[0][2] + mv[3][1]*ov[0][3],
+			mv[0][2]*ov[0][0] + mv[1][2]*ov[0][1] + mv[2][2]*ov[0][2] + mv[3][2]*ov[0][3],
+			mv[0][3]*ov[0][0] + mv[1][3]*ov[0][1] + mv[2][3]*ov[0][2] + mv[3][3]*ov[0][3],
+		},
+		{
+			mv[0][0]*ov[1][0] + mv[1][0]*ov[1][1] + mv[2][0]*ov[1][2] + mv[3][0]*ov[1][3],
+			mv[0][1]*ov[1][0] + mv[1][1]*ov[1][1] + mv[2][1]*ov[1][2] + mv[3][1]*ov[1][3],
+			mv[0][2]*ov[1][0] + mv[1][2]*ov[1][1] + mv[2][2]*ov[1][2] + mv[3][2]*ov[1][3],
+			mv[0][3]*ov[1][0] + mv[1][3]*ov[1][1] + mv[2][3]*ov[1][2] + mv[3][3]*ov[1][3],
+		},
+		{
+			mv[0][0]*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*ov[2][2] + mv[3][0]*ov[2][3],
+			mv[0][1]*ov[2][0] + mv[1][1]*ov[2][1] + mv[2][1]*ov[2][2] + mv[3][1]*ov[2][3],
+			mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + mv[2][2]*ov[2][2] + mv[3][2]*ov[2][3],
+			mv[0][3]*ov[2][0] + mv[1][3]*ov[2][1] + mv[2][3]*ov[2][2] + mv[3][3]*ov[2][3],
+		},
+		{
+			mv[0][0]*ov[3][0] + mv[1][0]*ov[3][1] + mv[2][0]*ov[3][2] + mv[3][0]*ov[3][3],
+			mv[0][1]*ov[3][0] + mv[1][1]*ov[3][1] + mv[2][1]*ov[3][2] + mv[3][1]*ov[3][3],
+			mv[0][2]*ov[3][0] + mv[1][2]*ov[3][1] + mv[2][2]*ov[3][2] + mv[3][2]*ov[3][3],
+			mv[0][3]*ov[3][0] + mv[1][3]*ov[3][1] + mv[2][3]*ov[3][2] + mv[3][3]*ov[3][3],
 		},
 	}
 }
 
 func (m Mat4uh) Transpose() Mat4uh {
-	mv := &m.values
+	mv := &m
 
 	return Mat4uh{
-		values: [4][4]uint16{
-			{
-				mv[0][0],
-				mv[1][0],
-				mv[2][0],
-				mv[3][0],
-			},
-			{
-				mv[0][1],
-				mv[1][1],
-				mv[2][1],
-				mv[3][1],
-			},
-			{
-				mv[0][2],
-				mv[1][2],
-				mv[2][2],
-				mv[3][2],
-			},
-			{
-				mv[0][3],
-				mv[1][3],
-				mv[2][3],
-				mv[3][3],
-			},
+		{
+			mv[0][0],
+			mv[1][0],
+			mv[2][0],
+			mv[3][0],
+		},
+		{
+			mv[0][1],
+			mv[1][1],
+			mv[2][1],
+			mv[3][1],
+		},
+		{
+			mv[0][2],
+			mv[1][2],
+			mv[2][2],
+			mv[3][2],
+		},
+		{
+			mv[0][3],
+			mv[1][3],
+			mv[2][3],
+			mv[3][3],
 		},
 	}
 }
 
-func (m Mat4uh) Components() [4][4]uint16 {
-	values := m.values
-	values[0][0] += 1
-	values[1][1] += 1
-	values[2][2] += 1
-	values[3][3] += 1
-	return values
-}
-
-func (m *Mat4uh) m00() uint16 {
-	return (m.values[0][0] + 1)
-}
-
-func (m *Mat4uh) m01() uint16 {
-	return m.values[0][1]
-}
-
-func (m *Mat4uh) m02() uint16 {
-	return m.values[0][2]
-}
-
-func (m *Mat4uh) m03() uint16 {
-	return m.values[0][3]
-}
-
-func (m *Mat4uh) m10() uint16 {
-	return m.values[1][0]
-}
-
-func (m *Mat4uh) m11() uint16 {
-	return (m.values[1][1] + 1)
-}
-
-func (m *Mat4uh) m12() uint16 {
-	return m.values[1][2]
-}
-
-func (m *Mat4uh) m13() uint16 {
-	return m.values[1][3]
-}
-
-func (m *Mat4uh) m20() uint16 {
-	return m.values[2][0]
-}
-
-func (m *Mat4uh) m21() uint16 {
-	return m.values[2][1]
-}
-
-func (m *Mat4uh) m22() uint16 {
-	return (m.values[2][2] + 1)
-}
-
-func (m *Mat4uh) m23() uint16 {
-	return m.values[2][3]
-}
-
-func (m *Mat4uh) m30() uint16 {
-	return m.values[3][0]
-}
-
-func (m *Mat4uh) m31() uint16 {
-	return m.values[3][1]
-}
-
-func (m *Mat4uh) m32() uint16 {
-	return m.values[3][2]
-}
-
-func (m *Mat4uh) m33() uint16 {
-	return (m.values[3][3] + 1)
+// Column returns a reference to the given column
+func (m *Mat4uh) Column(idx int) Vec4uh {
+	return *(*Vec4uh)(&m[idx])
 }
 
 func TranslationMat4uh(x, y, z uint16) Mat4uh {
 	return Mat4uh{
-		values: [4][4]uint16{
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{0, 0, 0, 0},
-			{x, y, z, 0},
-		},
+		{1, 0, 0, 0},
+		{0, 1, 0, 0},
+		{0, 0, 1, 0},
+		{x, y, z, 1},
 	}
 }
 
 func ScaleMat4uh(x, y, z uint16) Mat4uh {
-	x -= 1
-	y -= 1
-	z -= 1
-
-	return Mat4uh{
-		values: [4][4]uint16{
-			{x, 0, 0, 0},
-			{0, y, 0, 0},
-			{0, 0, z, 0},
-			{0, 0, 0, 0},
-		},
-	}
+	var res Mat4uh
+	res[0][0] = x
+	res[1][1] = y
+	res[2][2] = z
+	res[3][3] = 1
+	return res
 }
 
 func (m Mat4uh) Translate(x, y, z uint16) Mat4uh {
@@ -219,28 +115,28 @@ func (m Mat4uh) Scale(x, y, z uint16) Mat4uh {
 
 func (m Mat4uh) Transform(vec Vec4uh) Vec4uh {
 	return Vec4uh{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20())*vec[2] + (m.m30())*vec[3],
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21())*vec[2] + (m.m31())*vec[3],
-		(m.m02())*vec[0] + (m.m12())*vec[1] + (m.m22())*vec[2] + (m.m32())*vec[3],
-		(m.m03())*vec[0] + (m.m13())*vec[1] + (m.m23())*vec[2] + (m.m33())*vec[3],
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2] + (m[3][0])*vec[3],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2] + (m[3][1])*vec[3],
+		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2] + (m[3][2])*vec[3],
+		(m[0][3])*vec[0] + (m[1][3])*vec[1] + (m[2][3])*vec[2] + (m[3][3])*vec[3],
 	}
 }
 
 func (m Mat4uh) Transform3(vec Vec3uh) Vec3uh {
 	return Vec3uh{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20() * vec[2]) + m.m30(),
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21() * vec[2]) + m.m31(),
-		(m.m02())*vec[0] + (m.m12())*vec[1] + (m.m22() * vec[2]) + m.m32(),
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0] * vec[2]) + m[3][0],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1] * vec[2]) + m[3][1],
+		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2] * vec[2]) + m[3][2],
 	}
 }
 
 func (m Mat4uh) Transform2(vec Vec2uh) Vec2uh {
 	return Vec2uh{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + m.m30(),
-		(m.m01())*vec[0] + (m.m11())*vec[1] + m.m31(),
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + m[3][0],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + m[3][1],
 	}
 }
 
 func (m Mat4uh) TranslateZ() uint16 {
-	return m.values[3][2]
+	return m[3][2]
 }

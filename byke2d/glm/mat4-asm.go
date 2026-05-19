@@ -1,8 +1,14 @@
-//go:build (amd64 && !goexperiment.simd) || arm64
+//go:build !nosimd && ((amd64 && !goexperiment.simd) || arm64)
 
 package glm
 
-// mat4fMulSimd is defined in the corresponding assembly file
+// mat4fMul is defined in the corresponding assembly file
 //
 //go:noescape
-func mat4fMulSimd(m, o, res *mat4f)
+func mat4fMulAssign(m, o *mat4f)
+
+//go:noescape
+func mat4fScaleAssign(m *mat4f, x, y, z float32)
+
+//go:noescape
+func mat4fTranslateAssign(m *mat4f, x, y, z float32)

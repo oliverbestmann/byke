@@ -1,8 +1,8 @@
-//go:build amd64 && !goexperiment.simd
+//go:build !nosimd && (amd64 && !goexperiment.simd)
 
 #include "textflag.h"
 
-TEXT ·mat4fMulSimd(SB), NOSPLIT, $0-24
+TEXT ·mat4fMul(SB), NOSPLIT, $0-24
     // load arguments into registers
     MOVQ m+0(FP),    SI
     MOVQ o+8(FP),    DI

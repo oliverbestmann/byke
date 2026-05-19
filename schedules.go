@@ -108,7 +108,7 @@ func runFixedMainLoopSystem(world *World, ft *FixedTime, vt VirtualTime) {
 
 		ft.Elapsed += step
 		ft.Delta = step
-		ft.DeltaSecs = step.Seconds()
+		ft.DeltaSecs = float32(step.Seconds())
 
 		world.RunSchedule(FixedMain)
 	}

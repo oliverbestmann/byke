@@ -12,13 +12,12 @@ import (
 //
 // The default value of StepInterval is taken from bevy and is 1/64s.
 type FixedTime struct {
-	Elapsed   time.Duration
-	Delta     time.Duration
-	DeltaSecs float64
-
+	Elapsed      time.Duration
+	Delta        time.Duration
 	StepInterval time.Duration
+	overstep     time.Duration
 
-	overstep time.Duration
+	DeltaSecs float32
 }
 
 // VirtualTime tracks time.

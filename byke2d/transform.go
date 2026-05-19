@@ -13,9 +13,7 @@ type Transform struct {
 	byke.ComparableComponent[Transform]
 	Translation glm.Vec3f
 	Scale       glm.Vec3f
-
-	// TODO we need a something like glm.Quad4 at some point
-	Rotation glm.Rad
+	Rotation    glm.Quat
 }
 
 func NewTransform() Transform {
@@ -54,15 +52,31 @@ func (t Transform) WithScaleXYZ(x, y, z float32) Transform {
 	return t
 }
 
-func (t Transform) WithRotation(rotation glm.Rad) Transform {
+func (t Transform) WithRotation(rotation glm.Quat) Transform {
 	t.Rotation = rotation
 	return t
 }
 
+func (t Transform) WithRotationX(rotation glm.Rad) Transform {
+	t.Rotation = glm.RotationXQuat(rotation)
+	return t
+}
+
+func (t Transform) WithRotationY(rotation glm.Rad) Transform {
+	t.Rotation = glm.RotationYQuat(rotation)
+	return t
+}
+
+func (t Transform) WithRotationZ(rotation glm.Rad) Transform {
+	t.Rotation = glm.RotationZQuat(rotation)
+	return t
+}
+
 func (t Transform) Affine3() glm.Mat4f {
-	return glm.TranslationMat4f(t.Translation.XYZ()).
-		Mul(glm.RotationZMat4f(t.Rotation)).
-		Scale(t.Scale.XYZ())
+	mat := glm.TranslationMat4f(t.Translation.XYZ())
+	mat.RotateAssign(t.Rotation)
+	mat.ScaleAssign(t.Scale.XYZ())
+	return mat
 }
 
 func (Transform) RequireComponents() []spoke.ErasedComponent {
@@ -73,11 +87,16 @@ func (Transform) RequireComponents() []spoke.ErasedComponent {
 
 type GlobalTransform struct {
 	byke.ComparableComponent[GlobalTransform]
+
+	// TODO we should make this an actual "affine" type at some point
+	//  to ensure we can only do affine transformations here
 	Affine glm.Mat4f
 }
 
 func (t GlobalTransform) Mul(other Transform) GlobalTransform {
-	return GlobalTransform{
-		Affine: t.Affine.Mul(other.Affine3()),
-	}
+	mat := t.Affine
+	mat.TranslateAssign(other.Translation.XYZ())
+	mat.RotateAssign(other.Rotation)
+	mat.ScaleAssign(other.Scale.XYZ())
+	return GlobalTransform{Affine: mat}
 }

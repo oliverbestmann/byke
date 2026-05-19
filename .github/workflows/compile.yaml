@@ -1,26 +1,33 @@
 name: CI
 on:
   push:
+  pull_request:
 
 jobs:
-  run-tests:
-    runs-on: ubuntu-latest
+  CompileNative:
+    matrix:
+      config:
+        - runner: ubuntu-latest
+        - runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.config.runner }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.26.x
+        uses: actions/setup-go@v6
 
-      - name: Install dependencies for ebitengine
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -f -y libegl1-mesa-dev mesa-vulkan-drivers \
             libasound2-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev \
             libxkbcommon-dev libwayland-dev
+
+      - name: Environment
+        run: go env
 
       - name: Run tests
         run: |
@@ -29,3 +36,28 @@ jobs:
       - name: Lints
         run: |
           go vet -v ./...
+
+      - name: Build Examples
+        run: |
+          cd byke/byke2d
+          go build -v ./examples/*
+
+  CompileWASM:
+    runs-on: ubuntu-latest
+
+    env:
+      GOOS: js
+      GOARCH: wasm
+      CGO_ENABLED: "0"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+
+      - name: Compile examples
+        run: |
+          cd byke/byke2d
+          go build -v ./examples/*

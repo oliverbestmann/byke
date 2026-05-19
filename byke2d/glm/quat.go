@@ -21,7 +21,7 @@ func (q Quat) Values() Vec4f {
 func QuatFromAxisAngle(axis Vec3f, angleRad Rad) Quat {
 	// TODO validate
 
-	sin, cos := math.Sincos(float64(angleRad) * 0.5)
+	sin, cos := math.Sincos(float64(angleRad) * -0.5)
 	v := axis.Scale(float32(sin))
 	return QuatOf(v[0], v[1], v[2], float32(cos))
 }
@@ -122,29 +122,40 @@ func (q Quat) ToMat4() Mat4f {
 	z /= n
 	s /= n
 
-	return Mat4fOf([4][4]float32{
+	xx := x * x
+	yy := y * y
+	zz := z * z
+
+	xs := x * s
+	xy := x * y
+	xz := x * z
+	ys := y * s
+	yz := y * z
+	zs := z * s
+
+	return Mat4f{
 		{
-			1 - 2*(y*y+z*z),
-			2 * (x*y - z*s),
-			2 * (x*z + y*s),
+			1 - 2*(yy+zz),
+			2 * (xy - zs),
+			2 * (xz + ys),
 			0,
 		},
 		{
-			2 * (x*y + z*s),
-			1 - 2*(x*x+z*z),
-			2 * (y*z - x*s),
+			2 * (xy + zs),
+			1 - 2*(xx+zz),
+			2 * (yz - xs),
 			0,
 		},
 		{
-			2 * (x*z - y*s),
-			2 * (y*z + x*s),
-			1 - 2*(x*x+y*y),
+			2 * (xz - ys),
+			2 * (yz + xs),
+			1 - 2*(xx+yy),
 			0,
 		},
 		{
 			0, 0, 0, 1,
 		},
-	})
+	}
 }
 
 func (q Quat) Transform(p Vec3f) Vec3f {

@@ -8,6 +8,11 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+type RenderContext interface {
+	CreateBuffer(descriptor *wgpu.BufferDescriptor) *wgpu.Buffer
+	WriteBuffer(buffer *wgpu.Buffer, offset uint64, data []byte)
+}
+
 type StructWriter struct {
 	writer
 }
@@ -46,25 +51,34 @@ func (s *StructWriter) AppendVec4f(value glm.Vec4f) {
 }
 
 func (s *StructWriter) AppendMat2f(value glm.Mat4f) {
-	appendTo(&s.writer, value.Components(), 8, 16)
+	appendTo(&s.writer, value.Column(0), 8, 16)
+	appendTo(&s.writer, value.Column(1), 8, 16)
 }
 
 func (s *StructWriter) AppendMat3f(value glm.Mat3f) {
-	values := value.Components()
-	appendTo(&s.writer, values[0], 16, 16)
-	appendTo(&s.writer, values[1], 16, 16)
-	appendTo(&s.writer, values[2], 16, 16)
+	appendTo(&s.writer, value.Column(0), 16, 16)
+	appendTo(&s.writer, value.Column(1), 16, 16)
+	appendTo(&s.writer, value.Column(2), 16, 16)
 }
 
 func (s *StructWriter) AppendMat4f(value glm.Mat4f) {
-	appendTo(&s.writer, value.Components(), 16, 4*16)
+	appendTo(&s.writer, value.Column(0), 16, 16)
+	appendTo(&s.writer, value.Column(1), 16, 16)
+	appendTo(&s.writer, value.Column(2), 16, 16)
+	appendTo(&s.writer, value.Column(3), 16, 16)
 }
 
 type InstanceWriter struct {
-	writer
+	buf []byte
 
 	expectedSize int
 	count        int
+}
+
+func (s *InstanceWriter) Clear() {
+	s.buf = s.buf[:0]
+	s.count = 0
+	s.expectedSize = 0
 }
 
 func (s *InstanceWriter) StartNew(size int) {
@@ -73,20 +87,9 @@ func (s *InstanceWriter) StartNew(size int) {
 	s.count += 1
 }
 
-func (s *InstanceWriter) Clear() {
-	s.reset()
-	s.count = 0
-	s.expectedSize = 0
-}
-
 func (s *InstanceWriter) InstanceCount() int {
 	s.requireSize()
 	return s.count
-}
-
-func (s *InstanceWriter) ByteCount() uint64 {
-	s.requireSize()
-	return uint64(len(s.buf))
 }
 
 func (s *InstanceWriter) Bytes() []byte {
@@ -101,32 +104,27 @@ func (s *InstanceWriter) requireSize() {
 }
 
 func (s *InstanceWriter) AppendFloat32(value float32) {
-	appendTo(&s.writer, value, 1, 4)
+	s.buf = rawAppendTo(s.buf, value)
 }
 
 func (s *InstanceWriter) AppendInt(value int32) {
-	appendTo(&s.writer, value, 1, 4)
+	s.buf = rawAppendTo(s.buf, value)
 }
 
 func (s *InstanceWriter) AppendUint(value uint32) {
-	appendTo(&s.writer, value, 1, 4)
+	s.buf = rawAppendTo(s.buf, value)
 }
 
 func (s *InstanceWriter) AppendVec2f(value glm.Vec2f) {
-	appendTo(&s.writer, value, 1, 8)
+	s.buf = rawAppendTo(s.buf, value)
 }
 
 func (s *InstanceWriter) AppendVec3f(value glm.Vec3f) {
-	appendTo(&s.writer, value, 1, 12)
+	s.buf = rawAppendTo(s.buf, value)
 }
 
 func (s *InstanceWriter) AppendVec4f(value glm.Vec4f) {
-	appendTo(&s.writer, value, 1, 16)
-}
-
-type RenderContext interface {
-	CreateBuffer(descriptor *wgpu.BufferDescriptor) *wgpu.Buffer
-	WriteBuffer(buffer *wgpu.Buffer, offset uint64, data []byte)
+	s.buf = rawAppendTo(s.buf, value)
 }
 
 func (s *InstanceWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer) {
@@ -163,8 +161,9 @@ func (w *writer) reset() {
 }
 
 func (w *writer) alignTo(align int) {
-	for len(w.buf)%align != 0 {
-		w.buf = append(w.buf, 0)
+	if pad := len(w.buf) % align; pad != 0 {
+		var zero [16]byte
+		w.buf = append(w.buf, zero[pad&0xf:]...)
 	}
 }
 
@@ -186,4 +185,11 @@ func appendTo[T any](w *writer, value T, align, size int) {
 	}
 
 	w.align = max(w.align, align)
+}
+
+func rawAppendTo[T any](buf []byte, value T) []byte {
+	ptrValue := (*byte)(unsafe.Pointer(&value))
+	bufValue := unsafe.Slice(ptrValue, unsafe.Sizeof(value))
+	buf = append(buf, bufValue...)
+	return buf
 }

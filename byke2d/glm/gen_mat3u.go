@@ -2,145 +2,86 @@
 
 package glm
 
-// Mat3u is a 3x3 matrix.
-// The default value is the identity matrix.
-type Mat3u struct {
-	values [3][3]uint32
-}
+import "unsafe"
 
-func Mat3uOf(values [3][3]uint32) Mat3u {
-	return Mat3u{
-		values: [3][3]uint32{
-			{
-				values[0][0] - 1,
-				values[0][1],
-				values[0][2],
-			},
-			{
-				values[1][0],
-				values[1][1] - 1,
-				values[1][2],
-			},
-			{
-				values[2][0],
-				values[2][1],
-				values[2][2] - 1,
-			},
-		},
-	}
-}
+type _ = unsafe.Pointer
+
+// Mat3u is a 3x3 matrix.
+// The default value is filled with all zero values.
+type Mat3u [3][3]uint32
 
 func IdentityMat3u() Mat3u {
-	return Mat3u{}
+	var m Mat3u
+	m[0][0] = 1
+	m[1][1] = 1
+	m[2][2] = 1
+	return m
 }
 
 func (m Mat3u) Mul(o Mat3u) Mat3u {
-	mv := &m.values
-	ov := &o.values
+	mv := &m
+	ov := &o
 
 	return Mat3u{
-		values: [3][3]uint32{
-			{
-				(mv[0][0]+1)*(ov[0][0]+1) + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2] - 1,
-				mv[0][1]*(ov[0][0]+1) + (mv[1][1]+1)*ov[0][1] + mv[2][1]*ov[0][2],
-				mv[0][2]*(ov[0][0]+1) + mv[1][2]*ov[0][1] + (mv[2][2]+1)*ov[0][2],
-			},
-			{
-				(mv[0][0]+1)*ov[1][0] + mv[1][0]*(ov[1][1]+1) + mv[2][0]*ov[1][2],
-				mv[0][1]*ov[1][0] + (mv[1][1]+1)*(ov[1][1]+1) + mv[2][1]*ov[1][2] - 1,
-				mv[0][2]*ov[1][0] + mv[1][2]*(ov[1][1]+1) + (mv[2][2]+1)*ov[1][2],
-			},
-			{
-				(mv[0][0]+1)*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*(ov[2][2]+1),
-				mv[0][1]*ov[2][0] + (mv[1][1]+1)*ov[2][1] + mv[2][1]*(ov[2][2]+1),
-				mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + (mv[2][2]+1)*(ov[2][2]+1) - 1,
-			},
+		{
+			mv[0][0]*ov[0][0] + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2],
+			mv[0][1]*ov[0][0] + mv[1][1]*ov[0][1] + mv[2][1]*ov[0][2],
+			mv[0][2]*ov[0][0] + mv[1][2]*ov[0][1] + mv[2][2]*ov[0][2],
+		},
+		{
+			mv[0][0]*ov[1][0] + mv[1][0]*ov[1][1] + mv[2][0]*ov[1][2],
+			mv[0][1]*ov[1][0] + mv[1][1]*ov[1][1] + mv[2][1]*ov[1][2],
+			mv[0][2]*ov[1][0] + mv[1][2]*ov[1][1] + mv[2][2]*ov[1][2],
+		},
+		{
+			mv[0][0]*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*ov[2][2],
+			mv[0][1]*ov[2][0] + mv[1][1]*ov[2][1] + mv[2][1]*ov[2][2],
+			mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + mv[2][2]*ov[2][2],
 		},
 	}
 }
 
 func (m Mat3u) Transpose() Mat3u {
-	mv := &m.values
+	mv := &m
 
 	return Mat3u{
-		values: [3][3]uint32{
-			{
-				mv[0][0],
-				mv[1][0],
-				mv[2][0],
-			},
-			{
-				mv[0][1],
-				mv[1][1],
-				mv[2][1],
-			},
-			{
-				mv[0][2],
-				mv[1][2],
-				mv[2][2],
-			},
+		{
+			mv[0][0],
+			mv[1][0],
+			mv[2][0],
+		},
+		{
+			mv[0][1],
+			mv[1][1],
+			mv[2][1],
+		},
+		{
+			mv[0][2],
+			mv[1][2],
+			mv[2][2],
 		},
 	}
 }
 
-func (m Mat3u) Components() [3][3]uint32 {
-	values := m.values
-	values[0][0] += 1
-	values[1][1] += 1
-	values[2][2] += 1
-	return values
-}
-
-func (m *Mat3u) m00() uint32 {
-	return (m.values[0][0] + 1)
-}
-
-func (m *Mat3u) m01() uint32 {
-	return m.values[0][1]
-}
-
-func (m *Mat3u) m02() uint32 {
-	return m.values[0][2]
-}
-
-func (m *Mat3u) m10() uint32 {
-	return m.values[1][0]
-}
-
-func (m *Mat3u) m11() uint32 {
-	return (m.values[1][1] + 1)
-}
-
-func (m *Mat3u) m12() uint32 {
-	return m.values[1][2]
-}
-
-func (m *Mat3u) m20() uint32 {
-	return m.values[2][0]
-}
-
-func (m *Mat3u) m21() uint32 {
-	return m.values[2][1]
-}
-
-func (m *Mat3u) m22() uint32 {
-	return (m.values[2][2] + 1)
+// Column returns a reference to the given column
+func (m *Mat3u) Column(idx int) Vec3u {
+	return *(*Vec3u)(&m[idx])
 }
 
 func TranslationMat3u(x, y uint32) Mat3u {
-	return Mat3uOf([3][3]uint32{
+	return Mat3u{
 		{1, 0, 0},
 		{0, 1, 0},
 		{x, y, 1},
-	})
+	}
 }
 
 func ScaleMat3u(x, y uint32) Mat3u {
-	return Mat3uOf([3][3]uint32{
-		{x, 0, 0},
-		{0, y, 0},
-		{0, 0, 1},
-	})
+	var res Mat3u
+	res[0][0] = x
+	res[1][1] = y
+	res[2][2] = 1
+	return res
 }
 
 func (m Mat3u) Translate(x, y uint32) Mat3u {
@@ -154,44 +95,36 @@ func (m Mat3u) Scale(x, y uint32) Mat3u {
 func (m Mat3u) Row(i int) Vec3u {
 	if i == 0 {
 		return Vec3u{
-			m.m00(),
-			m.m10(),
-			m.m20(),
+			m[0][0],
+			m[1][0],
+			m[2][0],
 		}
 	}
 	if i == 1 {
-		return Vec3u{m.m01(), m.m11(), m.m21()}
+		return Vec3u{m[0][1], m[1][1], m[2][1]}
 	}
 	if i == 2 {
 		return Vec3u{
-			m.m02(),
-			m.m12(),
-			m.m22(),
+			m[0][2],
+			m[1][2],
+			m[2][2],
 		}
 	}
 
 	panic(i)
 }
 
-func (m Mat3u) ToWGPU() [12]float32 {
-	return [12]float32{
-		float32(m.m00()), float32(m.m01()), float32(m.m02()), 0,
-		float32(m.m10()), float32(m.m11()), float32(m.m12()), 0,
-		float32(m.m20()), float32(m.m21()), float32(m.m22()), 0,
-	}
-}
-
 func (m Mat3u) Transform(vec Vec3u) Vec3u {
 	return Vec3u{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20())*vec[2],
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21())*vec[2],
-		(m.m02())*vec[0] + (m.m12())*vec[1] + (m.m22())*vec[2],
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2],
+		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2],
 	}
 }
 
 func (m Mat3u) Transform2(vec Vec2u) Vec2u {
 	return Vec2u{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20()),
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21()),
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0]),
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1]),
 	}
 }

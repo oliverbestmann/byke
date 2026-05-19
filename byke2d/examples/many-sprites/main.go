@@ -41,12 +41,18 @@ func main() {
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, updateFpsCounterSystem)
+	app.AddSystems(FixedUpdate, moveSpritesSystem)
 
 	if runtime.GOOS != "js" {
 		defer profile.Start(profile.CPUProfile).Stop()
 	}
 
 	app.MustRun()
+}
+
+type Velocity struct {
+	Component[Velocity]
+	glm.Vec2f
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
@@ -64,7 +70,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	for range SpriteCount {
 		commands.Spawn(
 			TransformFromXYZ(rand.Float32()*1000, rand.Float32()*600, rand.Float32()).
-				WithRotation(glm.Rad(rand.Float32())).
+				WithRotationZ(glm.Rad(rand.Float32())).
 				WithScaleXY(rand.Float32()+0.1, rand.Float32()+0.1),
 
 			Sprite{
@@ -72,6 +78,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 				CustomSize: Some(glm.Vec2f{32, 32}),
 				Color:      ColorSRGBA(1, 1, 1, 0.01),
 			},
+
+			Velocity{Vec2f: glm.Vec2f{rand.Float32() - 0.5, rand.Float32() - 0.5}.Scale(32)},
 		)
 	}
 
@@ -80,6 +88,20 @@ func setupSystem(commands *Commands, assets *Assets) {
 		TransformFromXYZ(32, 32, 2),
 		Text{Text: "Hello", Size: 16.0, Color: ColorSRGBA(1, 0, 1, 1)},
 	)
+}
+
+func moveSpritesSystem(t FixedTime, query Query[struct {
+	Transform *Transform
+	Velocity  Velocity
+}]) {
+	for item := range query.Items() {
+		posNew := item.Transform.Translation.
+			Truncate().
+			Add(item.Velocity.Scale(t.DeltaSecs))
+
+		item.Transform.Translation[0] = posNew[0]
+		item.Transform.Translation[1] = posNew[1]
+	}
 }
 
 func updateFpsCounterSystem(

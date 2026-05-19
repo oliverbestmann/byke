@@ -166,8 +166,7 @@ type ViewValues struct {
 // SurfaceToNDC maps from Surface pixel coordinates to NDC (normalized device coordinates).
 // NDC is from -1 to +1 on both axis.
 func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
-	return glm.Mat4f{}.
-		Scale(2.0, 2.0, 1.0).
+	return glm.ScaleMat4f(2.0, 2.0, 1.0).
 		Translate(-0.5, -0.5, 0)
 }
 
@@ -176,7 +175,7 @@ func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
 func (v *ViewValues) CameraToSurface() glm.Mat4f {
 	viewportSize := v.Projection.ScalingMode.ViewportSize(v.SurfaceSize.XY())
 
-	return glm.Mat4f{}.
+	return glm.IdentityMat4f().
 		Translate(v.Projection.ViewportOrigin.Extend(1.0).XYZ()).
 		Scale(v.Projection.Scale, v.Projection.Scale, 1).
 		Scale(viewportSize.Reciprocal().Extend(1.0).XYZ())

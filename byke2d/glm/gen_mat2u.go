@@ -2,85 +2,53 @@
 
 package glm
 
-// Mat2u is a 2x2 matrix.
-// The default value is the identity matrix.
-type Mat2u struct {
-	values [2][2]uint32
-}
+import "unsafe"
 
-func Mat2uOf(values [2][2]uint32) Mat2u {
-	return Mat2u{
-		values: [2][2]uint32{
-			{
-				values[0][0] - 1,
-				values[0][1],
-			},
-			{
-				values[1][0],
-				values[1][1] - 1,
-			},
-		},
-	}
-}
+type _ = unsafe.Pointer
+
+// Mat2u is a 2x2 matrix.
+// The default value is filled with all zero values.
+type Mat2u [2][2]uint32
 
 func IdentityMat2u() Mat2u {
-	return Mat2u{}
+	var m Mat2u
+	m[0][0] = 1
+	m[1][1] = 1
+	return m
 }
 
 func (m Mat2u) Mul(o Mat2u) Mat2u {
-	mv := &m.values
-	ov := &o.values
+	mv := &m
+	ov := &o
 
 	return Mat2u{
-		values: [2][2]uint32{
-			{
-				(mv[0][0]+1)*(ov[0][0]+1) + mv[1][0]*ov[0][1] - 1,
-				mv[0][1]*(ov[0][0]+1) + (mv[1][1]+1)*ov[0][1],
-			},
-			{
-				(mv[0][0]+1)*ov[1][0] + mv[1][0]*(ov[1][1]+1),
-				mv[0][1]*ov[1][0] + (mv[1][1]+1)*(ov[1][1]+1) - 1,
-			},
+		{
+			mv[0][0]*ov[0][0] + mv[1][0]*ov[0][1],
+			mv[0][1]*ov[0][0] + mv[1][1]*ov[0][1],
+		},
+		{
+			mv[0][0]*ov[1][0] + mv[1][0]*ov[1][1],
+			mv[0][1]*ov[1][0] + mv[1][1]*ov[1][1],
 		},
 	}
 }
 
 func (m Mat2u) Transpose() Mat2u {
-	mv := &m.values
+	mv := &m
 
 	return Mat2u{
-		values: [2][2]uint32{
-			{
-				mv[0][0],
-				mv[1][0],
-			},
-			{
-				mv[0][1],
-				mv[1][1],
-			},
+		{
+			mv[0][0],
+			mv[1][0],
+		},
+		{
+			mv[0][1],
+			mv[1][1],
 		},
 	}
 }
 
-func (m Mat2u) Components() [2][2]uint32 {
-	values := m.values
-	values[0][0] += 1
-	values[1][1] += 1
-	return values
-}
-
-func (m *Mat2u) m00() uint32 {
-	return (m.values[0][0] + 1)
-}
-
-func (m *Mat2u) m01() uint32 {
-	return m.values[0][1]
-}
-
-func (m *Mat2u) m10() uint32 {
-	return m.values[1][0]
-}
-
-func (m *Mat2u) m11() uint32 {
-	return (m.values[1][1] + 1)
+// Column returns a reference to the given column
+func (m *Mat2u) Column(idx int) Vec2u {
+	return *(*Vec2u)(&m[idx])
 }

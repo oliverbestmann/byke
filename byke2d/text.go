@@ -110,8 +110,6 @@ func renderTextSystem(
 		var posX float32
 		var posY float32
 
-		zSort := item.GlobalTransform.Affine.TranslateZ()
-
 		for idx := len(layout.Lines) - 1; idx >= 0; idx-- {
 			line := layout.Lines[idx]
 
@@ -153,7 +151,6 @@ func renderTextSystem(
 						Rect:         rect,
 						Size:         rect.Size(),
 						Anchor:       *AnchorBottomLeft,
-						PosZ:         zSort,
 					})
 				}
 			}

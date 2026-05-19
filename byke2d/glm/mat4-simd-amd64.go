@@ -1,11 +1,11 @@
-//go:build amd64 && goexperiment.simd
+//go:build !nosimd && amd64 && goexperiment.simd
 
 package glm
 
 import "unsafe"
 import "simd/archsimd"
 
-func mat4fMulSimd(m, o, res *mat4f) {
+func mat4fMul(m, o, res *mat4f) {
 	// load columns of m
 	mc0 := archsimd.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&m[0])))
 	mc1 := archsimd.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&m[1])))

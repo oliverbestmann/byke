@@ -2,85 +2,53 @@
 
 package glm
 
-// Mat2d is a 2x2 matrix.
-// The default value is the identity matrix.
-type Mat2d struct {
-	values [2][2]float64
-}
+import "unsafe"
 
-func Mat2dOf(values [2][2]float64) Mat2d {
-	return Mat2d{
-		values: [2][2]float64{
-			{
-				values[0][0] - 1,
-				values[0][1],
-			},
-			{
-				values[1][0],
-				values[1][1] - 1,
-			},
-		},
-	}
-}
+type _ = unsafe.Pointer
+
+// Mat2d is a 2x2 matrix.
+// The default value is filled with all zero values.
+type Mat2d [2][2]float64
 
 func IdentityMat2d() Mat2d {
-	return Mat2d{}
+	var m Mat2d
+	m[0][0] = 1
+	m[1][1] = 1
+	return m
 }
 
 func (m Mat2d) Mul(o Mat2d) Mat2d {
-	mv := &m.values
-	ov := &o.values
+	mv := &m
+	ov := &o
 
 	return Mat2d{
-		values: [2][2]float64{
-			{
-				(mv[0][0]+1)*(ov[0][0]+1) + mv[1][0]*ov[0][1] - 1,
-				mv[0][1]*(ov[0][0]+1) + (mv[1][1]+1)*ov[0][1],
-			},
-			{
-				(mv[0][0]+1)*ov[1][0] + mv[1][0]*(ov[1][1]+1),
-				mv[0][1]*ov[1][0] + (mv[1][1]+1)*(ov[1][1]+1) - 1,
-			},
+		{
+			mv[0][0]*ov[0][0] + mv[1][0]*ov[0][1],
+			mv[0][1]*ov[0][0] + mv[1][1]*ov[0][1],
+		},
+		{
+			mv[0][0]*ov[1][0] + mv[1][0]*ov[1][1],
+			mv[0][1]*ov[1][0] + mv[1][1]*ov[1][1],
 		},
 	}
 }
 
 func (m Mat2d) Transpose() Mat2d {
-	mv := &m.values
+	mv := &m
 
 	return Mat2d{
-		values: [2][2]float64{
-			{
-				mv[0][0],
-				mv[1][0],
-			},
-			{
-				mv[0][1],
-				mv[1][1],
-			},
+		{
+			mv[0][0],
+			mv[1][0],
+		},
+		{
+			mv[0][1],
+			mv[1][1],
 		},
 	}
 }
 
-func (m Mat2d) Components() [2][2]float64 {
-	values := m.values
-	values[0][0] += 1
-	values[1][1] += 1
-	return values
-}
-
-func (m *Mat2d) m00() float64 {
-	return (m.values[0][0] + 1)
-}
-
-func (m *Mat2d) m01() float64 {
-	return m.values[0][1]
-}
-
-func (m *Mat2d) m10() float64 {
-	return m.values[1][0]
-}
-
-func (m *Mat2d) m11() float64 {
-	return (m.values[1][1] + 1)
+// Column returns a reference to the given column
+func (m *Mat2d) Column(idx int) Vec2d {
+	return *(*Vec2d)(&m[idx])
 }

@@ -55,7 +55,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXY(0, 0).WithScaleXY(0.5, 0.5).WithRotation(1),
+		TransformFromXY(0, 0).WithScaleXY(0.5, 0.5).WithRotationZ(1),
 		Sprite{Texture: asset},
 	)
 

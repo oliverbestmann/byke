@@ -44,19 +44,19 @@ var _D65Lms = glm.Vec3f{0.975538, 1.01648, 1.08475}
 // /
 // / [CIE 1931 XYZ]: https://en.wikipedia.org/wiki/CIE_1931_color_space
 // / [CAM16 standard matrix]: https://en.wikipedia.org/wiki/LMS_color_space
-var _rgbToLms = glm.Mat3fOf([3][3]float32{
+var _rgbToLms = glm.Mat3f{
 	{0.311692, 0.0905138, 0.00764433},
 	{0.652085, 0.901341, 0.0486554},
 	{0.0362225, 0.00814478, 0.943700},
-})
+}
 
 // / The inverse of the [`RGB_TO_LMS`] matrix, converting from the LMS color
 // / space back to RGB.
-var _lmsToRgb = glm.Mat3fOf([3][3]float32{
+var _lmsToRgb = glm.Mat3f{
 	{4.06305, -0.40791, -0.0118812},
 	{-2.93241, 1.40437, -0.0486532},
 	{-0.130646, 0.00353630, 1.0605344},
-})
+}
 
 type ColorGrading struct {
 	byke.Component[ColorGrading]
@@ -107,11 +107,11 @@ func (c ColorGrading) ToWGPU() []byte {
 
 	// Now that we're in LMS space, perform the white point scaling.
 	d := _D65Lms.Div(whitePointLMS)
-	whitePointAdjustment := glm.Mat3fOf([3][3]float32{
+	whitePointAdjustment := glm.Mat3f{
 		{d[0], 0, 0},
 		{0, d[1], 0},
 		{0, 0, d[2]},
-	})
+	}
 
 	// Finally, combine the RGB → LMS → corrected LMS → corrected RGB
 	// pipeline into a single 3×3 matrix.

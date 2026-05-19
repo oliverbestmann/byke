@@ -17,22 +17,22 @@ func TestGlobalTransform_Affine2(t *testing.T) {
 
 	// origin is exactly at the Translation value
 	pos = tr.Affine3().Transform(glm.Vec4f{0, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{10, 10, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{10, 10, 0, 1}, pos)
 
 	pos = tr.Affine3().Transform(glm.Vec4f{0, 1, 0, 1})
-	require.Equal(t, glm.Vec4f{10, 11, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{10, 11, 0, 1}, pos)
 
 	pos = tr.Affine3().Transform(glm.Vec4f{1, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{15, 10, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{15, 10, 0, 1}, pos)
 
 	// now rotate 90 deg
-	tr.Rotation = glm.DegToRad(90)
+	tr.Rotation = glm.RotationZQuat(glm.DegToRad(90))
 
 	pos = tr.Affine3().Transform(glm.Vec4f{0, 1, 0, 1})
-	require.Equal(t, glm.Vec4f{9, 10, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{9, 10, 0, 1}, pos)
 
 	pos = tr.Affine3().Transform(glm.Vec4f{1, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{10, 15, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{10, 15, 0, 1}, pos)
 }
 
 func TestGlobalTransform_Mul(t *testing.T) {
@@ -49,21 +49,27 @@ func TestGlobalTransform_Mul(t *testing.T) {
 
 	// origin is exactly at the Translation value
 	pos = tr.Mul(TransformFromXY(0, 0)).Affine.Transform(glm.Vec4f{0, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{10, 10, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{10, 10, 0, 1}, pos)
 
 	pos = tr.Mul(TransformFromXY(0, 1)).Affine.Transform(glm.Vec4f{0, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{10, 11, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{10, 11, 0, 1}, pos)
 
 	pos = tr.Mul(TransformFromXY(1, 0)).Affine.Transform(glm.Vec4f{0, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{15, 10, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{15, 10, 0, 1}, pos)
 
 	// now rotate 90 deg
-	base.Rotation = glm.DegToRad(90)
+	base.Rotation = glm.RotationZQuat(glm.DegToRad(90))
 	tr.Affine = base.Affine3()
 
 	pos = tr.Mul(TransformFromXY(0, 1)).Affine.Transform(glm.Vec4f{0, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{9, 10, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{9, 10, 0, 1}, pos)
 
 	pos = tr.Mul(TransformFromXY(1, 0)).Affine.Transform(glm.Vec4f{0, 0, 0, 1})
-	require.Equal(t, glm.Vec4f{10, 15, 0, 1}, pos)
+	equalVec(t, glm.Vec4f{10, 15, 0, 1}, pos)
+}
+
+func equalVec(t *testing.T, exp, actual glm.Vec4f) {
+	for i := range 4 {
+		require.InDelta(t, exp[i], actual[i], 1e-5)
+	}
 }

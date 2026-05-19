@@ -70,7 +70,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		TransformFromXY(0, 0),
 		Sprite{Texture: asset},
-		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectuFromXYWH[uint32](0, 0, 4, 32))},
+		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectuFromXYWH(0, 0, 4, 32))},
 	)
 
 	commands.Spawn(
@@ -107,6 +107,7 @@ func rotateSpritesSystem(vt VirtualTime, query Query[struct {
 	Transform *Transform
 }]) {
 	for item := range query.Items() {
-		item.Transform.Rotation += glm.Rad(3 * vt.DeltaSecs)
+		rot := glm.RotationZQuat(glm.Rad(3 * vt.DeltaSecs))
+		item.Transform.Rotation = item.Transform.Rotation.Mul(rot)
 	}
 }

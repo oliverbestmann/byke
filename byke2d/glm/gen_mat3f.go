@@ -2,145 +2,86 @@
 
 package glm
 
-// Mat3f is a 3x3 matrix.
-// The default value is the identity matrix.
-type Mat3f struct {
-	values [3][3]float32
-}
+import "unsafe"
 
-func Mat3fOf(values [3][3]float32) Mat3f {
-	return Mat3f{
-		values: [3][3]float32{
-			{
-				values[0][0] - 1,
-				values[0][1],
-				values[0][2],
-			},
-			{
-				values[1][0],
-				values[1][1] - 1,
-				values[1][2],
-			},
-			{
-				values[2][0],
-				values[2][1],
-				values[2][2] - 1,
-			},
-		},
-	}
-}
+type _ = unsafe.Pointer
+
+// Mat3f is a 3x3 matrix.
+// The default value is filled with all zero values.
+type Mat3f [3][3]float32
 
 func IdentityMat3f() Mat3f {
-	return Mat3f{}
+	var m Mat3f
+	m[0][0] = 1
+	m[1][1] = 1
+	m[2][2] = 1
+	return m
 }
 
 func (m Mat3f) Mul(o Mat3f) Mat3f {
-	mv := &m.values
-	ov := &o.values
+	mv := &m
+	ov := &o
 
 	return Mat3f{
-		values: [3][3]float32{
-			{
-				(mv[0][0]+1)*(ov[0][0]+1) + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2] - 1,
-				mv[0][1]*(ov[0][0]+1) + (mv[1][1]+1)*ov[0][1] + mv[2][1]*ov[0][2],
-				mv[0][2]*(ov[0][0]+1) + mv[1][2]*ov[0][1] + (mv[2][2]+1)*ov[0][2],
-			},
-			{
-				(mv[0][0]+1)*ov[1][0] + mv[1][0]*(ov[1][1]+1) + mv[2][0]*ov[1][2],
-				mv[0][1]*ov[1][0] + (mv[1][1]+1)*(ov[1][1]+1) + mv[2][1]*ov[1][2] - 1,
-				mv[0][2]*ov[1][0] + mv[1][2]*(ov[1][1]+1) + (mv[2][2]+1)*ov[1][2],
-			},
-			{
-				(mv[0][0]+1)*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*(ov[2][2]+1),
-				mv[0][1]*ov[2][0] + (mv[1][1]+1)*ov[2][1] + mv[2][1]*(ov[2][2]+1),
-				mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + (mv[2][2]+1)*(ov[2][2]+1) - 1,
-			},
+		{
+			mv[0][0]*ov[0][0] + mv[1][0]*ov[0][1] + mv[2][0]*ov[0][2],
+			mv[0][1]*ov[0][0] + mv[1][1]*ov[0][1] + mv[2][1]*ov[0][2],
+			mv[0][2]*ov[0][0] + mv[1][2]*ov[0][1] + mv[2][2]*ov[0][2],
+		},
+		{
+			mv[0][0]*ov[1][0] + mv[1][0]*ov[1][1] + mv[2][0]*ov[1][2],
+			mv[0][1]*ov[1][0] + mv[1][1]*ov[1][1] + mv[2][1]*ov[1][2],
+			mv[0][2]*ov[1][0] + mv[1][2]*ov[1][1] + mv[2][2]*ov[1][2],
+		},
+		{
+			mv[0][0]*ov[2][0] + mv[1][0]*ov[2][1] + mv[2][0]*ov[2][2],
+			mv[0][1]*ov[2][0] + mv[1][1]*ov[2][1] + mv[2][1]*ov[2][2],
+			mv[0][2]*ov[2][0] + mv[1][2]*ov[2][1] + mv[2][2]*ov[2][2],
 		},
 	}
 }
 
 func (m Mat3f) Transpose() Mat3f {
-	mv := &m.values
+	mv := &m
 
 	return Mat3f{
-		values: [3][3]float32{
-			{
-				mv[0][0],
-				mv[1][0],
-				mv[2][0],
-			},
-			{
-				mv[0][1],
-				mv[1][1],
-				mv[2][1],
-			},
-			{
-				mv[0][2],
-				mv[1][2],
-				mv[2][2],
-			},
+		{
+			mv[0][0],
+			mv[1][0],
+			mv[2][0],
+		},
+		{
+			mv[0][1],
+			mv[1][1],
+			mv[2][1],
+		},
+		{
+			mv[0][2],
+			mv[1][2],
+			mv[2][2],
 		},
 	}
 }
 
-func (m Mat3f) Components() [3][3]float32 {
-	values := m.values
-	values[0][0] += 1
-	values[1][1] += 1
-	values[2][2] += 1
-	return values
-}
-
-func (m *Mat3f) m00() float32 {
-	return (m.values[0][0] + 1)
-}
-
-func (m *Mat3f) m01() float32 {
-	return m.values[0][1]
-}
-
-func (m *Mat3f) m02() float32 {
-	return m.values[0][2]
-}
-
-func (m *Mat3f) m10() float32 {
-	return m.values[1][0]
-}
-
-func (m *Mat3f) m11() float32 {
-	return (m.values[1][1] + 1)
-}
-
-func (m *Mat3f) m12() float32 {
-	return m.values[1][2]
-}
-
-func (m *Mat3f) m20() float32 {
-	return m.values[2][0]
-}
-
-func (m *Mat3f) m21() float32 {
-	return m.values[2][1]
-}
-
-func (m *Mat3f) m22() float32 {
-	return (m.values[2][2] + 1)
+// Column returns a reference to the given column
+func (m *Mat3f) Column(idx int) Vec3f {
+	return *(*Vec3f)(&m[idx])
 }
 
 func TranslationMat3f(x, y float32) Mat3f {
-	return Mat3fOf([3][3]float32{
+	return Mat3f{
 		{1, 0, 0},
 		{0, 1, 0},
 		{x, y, 1},
-	})
+	}
 }
 
 func ScaleMat3f(x, y float32) Mat3f {
-	return Mat3fOf([3][3]float32{
-		{x, 0, 0},
-		{0, y, 0},
-		{0, 0, 1},
-	})
+	var res Mat3f
+	res[0][0] = x
+	res[1][1] = y
+	res[2][2] = 1
+	return res
 }
 
 func (m Mat3f) Translate(x, y float32) Mat3f {
@@ -154,11 +95,11 @@ func (m Mat3f) Scale(x, y float32) Mat3f {
 func RotationMat3f(angle Rad) Mat3f {
 	s, c := fastSincos(angle)
 
-	return Mat3fOf([3][3]float32{
+	return Mat3f{
 		{float32(c), float32(s), 0},
 		{-float32(s), float32(c), 0},
 		{0, 0, 1},
-	})
+	}
 }
 
 func (m Mat3f) Rotate(angle Rad) Mat3f {
@@ -168,31 +109,23 @@ func (m Mat3f) Rotate(angle Rad) Mat3f {
 func (m Mat3f) Row(i int) Vec3f {
 	if i == 0 {
 		return Vec3f{
-			m.m00(),
-			m.m10(),
-			m.m20(),
+			m[0][0],
+			m[1][0],
+			m[2][0],
 		}
 	}
 	if i == 1 {
-		return Vec3f{m.m01(), m.m11(), m.m21()}
+		return Vec3f{m[0][1], m[1][1], m[2][1]}
 	}
 	if i == 2 {
 		return Vec3f{
-			m.m02(),
-			m.m12(),
-			m.m22(),
+			m[0][2],
+			m[1][2],
+			m[2][2],
 		}
 	}
 
 	panic(i)
-}
-
-func (m Mat3f) ToWGPU() [12]float32 {
-	return [12]float32{
-		float32(m.m00()), float32(m.m01()), float32(m.m02()), 0,
-		float32(m.m10()), float32(m.m11()), float32(m.m12()), 0,
-		float32(m.m20()), float32(m.m21()), float32(m.m22()), 0,
-	}
 }
 
 func (m Mat3f) Invert() Mat3f {
@@ -205,44 +138,44 @@ func (m Mat3f) Invert() Mat3f {
 }
 
 func (m Mat3f) TryInvert() (Mat3f, bool) {
-	var inv [3][3]float32
+	var inv Mat3f
 
 	// determinant
-	det := m.m00()*(m.m11()*m.m22()-m.m12()*m.m21()) -
-		m.m01()*(m.m10()*m.m22()-m.m12()*m.m20()) +
-		m.m02()*(m.m10()*m.m21()-m.m11()*m.m20())
+	det := m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1]) -
+		m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) +
+		m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0])
 
 	if det == 0 {
 		// singular
 		return Mat3f{}, false
 	}
 
-	inv[0][0] = (m.m11()*m.m22() - m.m12()*m.m21()) / det
-	inv[0][1] = (m.m02()*m.m21() - m.m01()*m.m22()) / det
-	inv[0][2] = (m.m01()*m.m12() - m.m02()*m.m11()) / det
+	inv[0][0] = (m[1][1]*m[2][2] - m[1][2]*m[2][1]) / det
+	inv[0][1] = (m[0][2]*m[2][1] - m[0][1]*m[2][2]) / det
+	inv[0][2] = (m[0][1]*m[1][2] - m[0][2]*m[1][1]) / det
 
-	inv[1][0] = (m.m12()*m.m20() - m.m10()*m.m22()) / det
-	inv[1][1] = (m.m00()*m.m22() - m.m02()*m.m20()) / det
-	inv[1][2] = (m.m02()*m.m10() - m.m00()*m.m12()) / det
+	inv[1][0] = (m[1][2]*m[2][0] - m[1][0]*m[2][2]) / det
+	inv[1][1] = (m[0][0]*m[2][2] - m[0][2]*m[2][0]) / det
+	inv[1][2] = (m[0][2]*m[1][0] - m[0][0]*m[1][2]) / det
 
-	inv[2][0] = (m.m10()*m.m21() - m.m11()*m.m20()) / det
-	inv[2][1] = (m.m01()*m.m20() - m.m00()*m.m21()) / det
-	inv[2][2] = (m.m00()*m.m11() - m.m01()*m.m10()) / det
+	inv[2][0] = (m[1][0]*m[2][1] - m[1][1]*m[2][0]) / det
+	inv[2][1] = (m[0][1]*m[2][0] - m[0][0]*m[2][1]) / det
+	inv[2][2] = (m[0][0]*m[1][1] - m[0][1]*m[1][0]) / det
 
-	return Mat3fOf(inv), true
+	return inv, true
 }
 
 func (m Mat3f) Transform(vec Vec3f) Vec3f {
 	return Vec3f{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20())*vec[2],
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21())*vec[2],
-		(m.m02())*vec[0] + (m.m12())*vec[1] + (m.m22())*vec[2],
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2],
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2],
+		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2],
 	}
 }
 
 func (m Mat3f) Transform2(vec Vec2f) Vec2f {
 	return Vec2f{
-		(m.m00())*vec[0] + (m.m10())*vec[1] + (m.m20()),
-		(m.m01())*vec[0] + (m.m11())*vec[1] + (m.m21()),
+		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0]),
+		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1]),
 	}
 }
