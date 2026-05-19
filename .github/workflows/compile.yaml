@@ -5,10 +5,11 @@ on:
 
 jobs:
   CompileNative:
-    matrix:
-      config:
-        - runner: ubuntu-latest
-        - runner: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        config:
+          - runner: ubuntu-latest
+          - runner: ubuntu-24.04-arm
 
     runs-on: ${{ matrix.config.runner }}
 
