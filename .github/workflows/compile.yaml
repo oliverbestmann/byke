@@ -6,12 +6,21 @@ on:
 jobs:
   CompileNative:
     strategy:
+      fail-fast: false
+
       matrix:
         config:
           - runner: ubuntu-latest
+
+          - runner: ubuntu-latest
+            goexperiment: simd
+
           - runner: ubuntu-24.04-arm
 
-    runs-on: ${{ matrix.config.runner }}
+    runs-on: "${{ matrix.config.runner }}"
+
+    env:
+      GOEXPERIMENT: "${{ matrix.config.goexperiment }}"
 
     steps:
       - name: Checkout repository
@@ -36,6 +45,10 @@ jobs:
         run: |
           go test -v ./...
 
+      - name: Run tests with no simd
+        run: |
+          go test --tags=nosimd -v ./...
+
       - name: Lints
         run: |
           go vet -v ./...
@@ -49,8 +62,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GOOS: js
-      GOARCH: wasm
+      GOOS: "js"
+      GOARCH: "wasm"
       CGO_ENABLED: "0"
 
     steps:
