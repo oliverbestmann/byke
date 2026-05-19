@@ -2,9 +2,9 @@
 #include "textflag.h"
 
 
-TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-16
-    MOVD m+0(FP), R0
-    MOVD o+8(FP), R1
+TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
+    MOVQ m+0(FP), DI
+    MOVQ o+8(FP), SI
 
     BYTE $0xc5; BYTE $0xfc; BYTE $0x10; BYTE $0x06;    // vmovups (%rsi),%ymm0
     BYTE $0xc5; BYTE $0xfc; BYTE $0x10; BYTE $0x1f;    // vmovups (%rdi),%ymm3
@@ -44,11 +44,11 @@ TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-16
     BYTE $0x90;    // nop
 
 
-TEXT ·mat4fTranslate(SB), NOSPLIT, $0-16
-    MOVD m+0(FP),  R0
-    FMOVS x+8(FP), F0
-    FMOVS y+12(FP), F1
-    FMOVS z+16(FP), F2
+TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
+    MOVD m+0(FP),  DI
+    MOVSS x+8(FP), X0
+    MOVSS y+12(FP), X1
+    MOVSS z+16(FP), X2
 
     BYTE $0xc5; BYTE $0xe8; BYTE $0xc6; BYTE $0xd2; BYTE $0x00;    // vshufps $0x0,%xmm2,%xmm2,%xmm2
     BYTE $0xc5; BYTE $0xf0; BYTE $0xc6; BYTE $0xc9; BYTE $0x00;    // vshufps $0x0,%xmm1,%xmm1,%xmm1
@@ -64,11 +64,11 @@ TEXT ·mat4fTranslate(SB), NOSPLIT, $0-16
     RET
 
 
-TEXT ·mat4fScale(SB), NOSPLIT, $0-16
-    MOVD m+0(FP),  R0
-    FMOVS x+8(FP), F0
-    FMOVS y+12(FP), F1
-    FMOVS z+16(FP), F2
+TEXT ·mat4fScale(SB), NOSPLIT, $0-24
+    MOVQ m+0(FP),  DI
+    MOVSS x+8(FP), X0
+    MOVSS y+12(FP), X1
+    MOVSS z+16(FP), X2
 
     BYTE $0xc5; BYTE $0xf0; BYTE $0xc6; BYTE $0xc9; BYTE $0x00;    // vshufps $0x0,%xmm1,%xmm1,%xmm1
     BYTE $0xc5; BYTE $0xf8; BYTE $0xc6; BYTE $0xc0; BYTE $0x00;    // vshufps $0x0,%xmm0,%xmm0,%xmm0

@@ -3,47 +3,77 @@
 import re
 import sys
 
-mul4f_mul_assign = """
-TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-16
+arm64_mul4f_mul_assign = """
+TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
     MOVD m+0(FP), R0
     MOVD o+8(FP), R1
 """
 
-mul4f_scale_assign = """
-TEXT ·mat4fScale(SB), NOSPLIT, $0-16
+arm64_mul4f_scale_assign = """
+TEXT ·mat4fScale(SB), NOSPLIT, $0-24
     MOVD m+0(FP),  R0
     FMOVS x+8(FP), F0
     FMOVS y+12(FP), F1
     FMOVS z+16(FP), F2
 """
 
-mul4f_translate_assign = """
-TEXT ·mat4fTranslate(SB), NOSPLIT, $0-16
+arm64_mul4f_translate_assign = """
+TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
     MOVD m+0(FP),  R0
     FMOVS x+8(FP), F0
     FMOVS y+12(FP), F1
     FMOVS z+16(FP), F2
 """
 
-stubs = {
-    "mat4f_mul_assign": mul4f_mul_assign,
-    "mat4f_scale": mul4f_scale_assign,
-    "mat4f_translate": mul4f_translate_assign,
-}
+x64_mul4f_mul_assign = """
+TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
+    MOVQ m+0(FP), DI
+    MOVQ o+8(FP), SI
+"""
+
+x64_mul4f_scale_assign = """
+TEXT ·mat4fScale(SB), NOSPLIT, $0-24
+    MOVQ m+0(FP),  DI
+    MOVSS x+8(FP), X0
+    MOVSS y+12(FP), X1
+    MOVSS z+16(FP), X2
+"""
+
+x64_mul4f_translate_assign = """
+TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
+    MOVD m+0(FP),  DI
+    MOVSS x+8(FP), X0
+    MOVSS y+12(FP), X1
+    MOVSS z+16(FP), X2
+"""
 
 source = [line.strip() for line in sys.stdin]
 
-is_amd = any("elf64-x86-64" in line for line in source)
+is_x64 = any("elf64-x86-64" in line for line in source)
 is_arm = any("elf64-littleaarch64" in line for line in source)
 
-if is_amd:
+if is_x64:
     re_instr = re.compile(r"^\s*[a-f0-9]+:\s+([a-f0-9]{2}(?: [a-f0-9]{2})*)\s+(.*)")
     word = "BYTE"
     tags = "!nosimd && (amd64 && !goexperiment.simd)"
+
+    stubs = {
+        "mat4f_mul_assign": x64_mul4f_mul_assign,
+        "mat4f_scale": x64_mul4f_scale_assign,
+        "mat4f_translate": x64_mul4f_translate_assign,
+    }
+
 elif is_arm:
     re_instr = re.compile(r"^\s*[a-f0-9]+:\s+([a-f0-9]{8})\s+(.*)")
     word = "WORD"
     tags = "!nosimd && arm64"
+
+    stubs = {
+        "mat4f_mul_assign": arm64_mul4f_mul_assign,
+        "mat4f_scale": arm64_mul4f_scale_assign,
+        "mat4f_translate": arm64_mul4f_translate_assign,
+    }
+
 else:
     raise ValueError("unknown platform")
 
