@@ -238,7 +238,7 @@ func extractSpritesSystem(
 			Size:         sprite.CustomSize.Or(rect.Size()),
 			FlipX:        sprite.FlipX,
 			FlipY:        sprite.FlipY,
-			RenderLayers: item.RenderLayers.Or(renderLayerAll),
+			RenderLayers: item.RenderLayers.Or(renderLayerZero),
 			Transform:    item.Transform.Value.Affine,
 			Anchor:       item.Anchor,
 			Rect:         rect,

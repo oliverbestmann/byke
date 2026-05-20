@@ -7,6 +7,7 @@ import (
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -28,10 +29,14 @@ func main() {
 
 	app.AddPlugin(RenderPlugin)
 	app.AddSystems(Startup, setupSystem)
+	app.AddSystems(Update, rotateSpriteSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
-	// app.AddSystems(Update, rotateSystem)
 
 	app.MustRun()
+}
+
+type SpriteToRotate struct {
+	ImmutableComponent[SpriteToRotate]
 }
 
 func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
@@ -48,6 +53,9 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		MipmapLevels: 1,
 	})
 
+	_ = cameraTexture
+
+	// camera with MSAA activated
 	commands.Spawn(
 		Camera{},
 		MSAA{},
@@ -55,12 +63,17 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXY(0, 0).WithScaleXY(0.5, 0.5).WithRotationZ(1),
+		TransformFromXY(0, 0).
+			WithScaleXY(0.25, 0.25).
+			WithRotationZ(1),
 		Sprite{Texture: asset},
+		SpriteToRotate{},
 	)
 
+	// second camera:
+	// draw a scaled view of the first camera to show the antialiasing result
 	commands.Spawn(
-		NewTransform().WithScaleXY(4, 4),
+		NewTransform().WithScaleXY(8, 8),
 		Camera{Order: 1},
 		RenderLayersOf(1),
 	)
@@ -69,4 +82,14 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		Sprite{Texture: cameraTexture},
 		RenderLayersOf(1),
 	)
+}
+
+func rotateSpriteSystem(vt VirtualTime, sprites Query[struct {
+	_         With[SpriteToRotate]
+	Transform *Transform
+}]) {
+	for sprite := range sprites.Items() {
+		r := glm.RotationZQuat(glm.Rad(vt.DeltaSecs) * 0.01)
+		sprite.Transform.Rotation = sprite.Transform.Rotation.Mul(r)
+	}
 }

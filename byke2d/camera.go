@@ -189,6 +189,7 @@ func (v *ViewValues) WorldToCamera() glm.Mat4f {
 }
 
 func prepareViewUniformsSystem(
+	vt byke.VirtualTime,
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		EntityId     byke.EntityId
@@ -196,6 +197,7 @@ func prepareViewUniformsSystem(
 		Projection   OrthographicProjection
 		ViewTarget   *ViewTarget
 		ViewUniforms *ViewUniforms
+		TAAA         byke.Has[TAA]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -205,9 +207,16 @@ func prepareViewUniformsSystem(
 			SurfaceSize: view.ViewTarget.Size,
 		}
 
+		cameraToSurface := vv.CameraToSurface()
+
+		if view.TAAA.Exists() {
+			offset := taaaOffsets[vt.Frames%4]
+			cameraToSurface.TranslateAssign(offset[0], offset[1], 0)
+		}
+
 		*view.ViewUniforms = ViewUniforms{
 			ScreenToNDC:   vv.SurfaceToNDC(),
-			WorldToScreen: vv.CameraToSurface().Mul(vv.WorldToCamera()),
+			WorldToScreen: cameraToSurface.Mul(vv.WorldToCamera()),
 		}
 	}
 }
