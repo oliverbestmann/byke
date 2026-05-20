@@ -1,11 +1,15 @@
 package byke2d
 
 import (
+	"errors"
+	"os"
+
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
+
+var forceFallbackAdapter = os.Getenv("WGPU_FORCE_FALLBACK_ADAPTER") == "1"
 
 type RenderContext struct {
 	Metrics         RenderMetrics
@@ -14,11 +18,11 @@ type RenderContext struct {
 	// cache for samplers
 	samplerCache *lru.Cache[wgpu.SamplerDescriptor, *wgpu.Sampler]
 
-	*wx.Context
+	*wgpuContext
 }
 
-func (rc *RenderContext) init(world *byke.World, ctx *wx.Context) {
-	rc.Context = ctx
+func (rc *RenderContext) init(world *byke.World, ctx *wgpuContext) {
+	rc.wgpuContext = ctx
 
 	pipelineCache := byke.RequireResourceOf[PipelineCache](world)
 	rc.MipmapGenerator = makeMipmapGenerator(rc, pipelineCache)
@@ -45,7 +49,7 @@ func (rc *RenderContext) CreateSampler(desc wgpu.SamplerDescriptor) *wgpu.Sample
 	}
 
 	// create a new sampler
-	sampler := rc.Context.CreateSampler(new(desc))
+	sampler := rc.wgpuContext.CreateSampler(new(desc))
 
 	// and cache it for the next access
 	rc.samplerCache.Add(desc, wgpu.Share(sampler))
@@ -55,50 +59,129 @@ func (rc *RenderContext) CreateSampler(desc wgpu.SamplerDescriptor) *wgpu.Sample
 
 func (rc *RenderContext) Submit(commandBuffers ...*wgpu.CommandBuffer) wgpu.SubmissionIndex {
 	rc.Metrics.Submit += 1
-	return rc.Context.Submit(commandBuffers...)
+	return rc.wgpuContext.Submit(commandBuffers...)
 }
 
 func (rc *RenderContext) TryWriteBuffer(buffer *wgpu.Buffer, offset uint64, data []byte) (err error) {
 	rc.Metrics.WriteBuffer += 1
-	return rc.Context.TryWriteBuffer(buffer, offset, data)
+	return rc.wgpuContext.TryWriteBuffer(buffer, offset, data)
 }
 
 func (rc *RenderContext) TryWriteTexture(destination *wgpu.TexelCopyTextureInfo, data []byte, dataLayout *wgpu.TexelCopyBufferLayout, writeSize *wgpu.Extent3D) (err error) {
 	rc.Metrics.WriteTexture += 1
-	return rc.Context.TryWriteTexture(destination, data, dataLayout, writeSize)
+	return rc.wgpuContext.TryWriteTexture(destination, data, dataLayout, writeSize)
 }
 
 func (rc *RenderContext) WriteBuffer(buffer *wgpu.Buffer, bufferOffset uint64, data []byte) {
 	rc.Metrics.WriteBuffer += 1
-	rc.Context.WriteBuffer(buffer, bufferOffset, data)
+	rc.wgpuContext.WriteBuffer(buffer, bufferOffset, data)
 }
 
 func (rc *RenderContext) WriteTexture(destination *wgpu.TexelCopyTextureInfo, data []byte, dataLayout *wgpu.TexelCopyBufferLayout, writeSize *wgpu.Extent3D) {
 	rc.Metrics.WriteTexture += 1
-	rc.Context.WriteTexture(destination, data, dataLayout, writeSize)
+	rc.wgpuContext.WriteTexture(destination, data, dataLayout, writeSize)
 }
 
 func (rc *RenderContext) CreateRenderPipeline(desc *wgpu.RenderPipelineDescriptor) *wgpu.RenderPipeline {
 	rc.Metrics.CreateRenderPipeline += 1
-	return rc.Context.CreateRenderPipeline(desc)
+	return rc.wgpuContext.CreateRenderPipeline(desc)
 }
 
 func (rc *RenderContext) CreateBindGroup(desc *wgpu.BindGroupDescriptor) *wgpu.BindGroup {
 	rc.Metrics.CreateBindGroup += 1
-	return rc.Context.CreateBindGroup(desc)
+	return rc.wgpuContext.CreateBindGroup(desc)
 }
 
 func (rc *RenderContext) CreateShaderModule(desc *wgpu.ShaderModuleDescriptor) *wgpu.ShaderModule {
 	rc.Metrics.CreateShaderModule += 1
-	return rc.Context.CreateShaderModule(desc)
+	return rc.wgpuContext.CreateShaderModule(desc)
 }
 
 func (rc *RenderContext) Create(desc *wgpu.BindGroupLayoutDescriptor) *wgpu.BindGroupLayout {
 	rc.Metrics.CreateBindGroupLayout += 1
-	return rc.Context.CreateBindGroupLayout(desc)
+	return rc.wgpuContext.CreateBindGroupLayout(desc)
 }
 
 func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescriptor) *wgpu.CommandEncoder {
 	rc.Metrics.CreateCommandEncoder += 1
-	return rc.Context.CreateCommandEncoder(desc)
+	return rc.wgpuContext.CreateCommandEncoder(desc)
+}
+
+// Context encapsulates the low level state of the webgpu context,
+// this includes the Device, Surface and active Adapter
+type wgpuContext struct {
+	*wgpu.Device
+	*wgpu.Queue
+	Adapter *wgpu.Adapter
+	Surface *wgpu.Surface
+}
+
+// newContext creates a new Context for a wgpu.SurfaceDescriptor.
+func newContext(sd *wgpu.SurfaceDescriptor) (st *wgpuContext, err error) {
+	defer func() {
+		if err != nil && st != nil {
+			st.Release()
+			st = nil
+		}
+	}()
+
+	st = new(wgpuContext)
+
+	// create the webgpu instance
+	instance := wgpu.CreateInstance(nil)
+	defer instance.Release()
+
+	// create a Surface based on the window
+	st.Surface = instance.CreateSurface(sd)
+
+	// create an adapter that can render to the Surface
+	st.Adapter, err = instance.RequestAdapter(&wgpu.RequestAdapterOptions{
+		ForceFallbackAdapter: forceFallbackAdapter,
+		CompatibleSurface:    st.Surface,
+	})
+	if err != nil {
+		return
+	}
+
+	if !st.Adapter.HasFeature(wgpu.FeatureNameRG11B10UfloatRenderable) {
+		err = errors.New("missing feature RG11B10UfloatRenderable required for bloom")
+		return
+	}
+
+	// get a Device with the default settings
+	st.Device, err = st.Adapter.RequestDevice(&wgpu.DeviceDescriptor{
+		RequiredFeatures: []wgpu.FeatureName{
+			wgpu.FeatureNameRG11B10UfloatRenderable,
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	// cache a reference to the queue
+	st.Queue = st.Device.GetQueue()
+
+	return st, nil
+}
+
+func (wc *wgpuContext) Release() {
+	if wc.Queue != nil {
+		wc.Queue.Release()
+		wc.Queue = nil
+	}
+
+	if wc.Device != nil {
+		wc.Device.Release()
+		wc.Device = nil
+	}
+
+	if wc.Adapter != nil {
+		wc.Adapter.Release()
+		wc.Adapter = nil
+	}
+
+	if wc.Surface != nil {
+		wc.Surface.Release()
+		wc.Surface = nil
+	}
 }

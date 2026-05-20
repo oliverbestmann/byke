@@ -13,7 +13,6 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/pulse/vyn"
-	"github.com/oliverbestmann/pulse/wx"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -212,7 +211,7 @@ func runWorld(world *byke.World) error {
 
 	defer win.Terminate()
 
-	wctx, err := wx.New(win.SurfaceDescriptor())
+	wctx, err := newContext(win.SurfaceDescriptor())
 	if err != nil {
 		return fmt.Errorf("initialize wgpu: %w", err)
 	}
@@ -238,7 +237,7 @@ func runWorld(world *byke.World) error {
 	return err
 }
 
-func dumpContextInfo(ctx *wx.Context) {
+func dumpContextInfo(ctx *wgpuContext) {
 	if runtime.GOOS != "js" {
 		// print adapter info
 		adapterInfo := ctx.Adapter.GetInfo()
