@@ -2,19 +2,17 @@
 #include "textflag.h"
 
 
-TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
+TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-16
     MOVD m+0(FP), R0
     MOVD o+8(FP), R1
 
-    WORD $0xa9bf7bfd;    // stp x29, x30, [sp, #-16]!
-    WORD $0x910003fd;    // mov x29, sp
-    WORD $0xbd403c1f;    // ldr s31, [x0, #60]
     WORD $0x4c400839;    // ld4 {v25.4s-v28.4s}, [x1]
     WORD $0x2d42cc14;    // ldp s20, s19, [x0, #20]
     WORD $0x2d46f81d;    // ldp s29, s30, [x0, #52]
     WORD $0x2d43c412;    // ldp s18, s17, [x0, #28]
     WORD $0x2d41d416;    // ldp s22, s21, [x0, #12]
     WORD $0x2d459406;    // ldp s6, s5, [x0, #44]
+    WORD $0xbd403c1f;    // ldr s31, [x0, #60]
     WORD $0x2d40dc18;    // ldp s24, s23, [x0, #4]
     WORD $0x2d449c10;    // ldp s16, s7, [x0, #36]
     WORD $0x4f929352;    // fmul v18.4s, v26.4s, v18.s[0]
@@ -38,54 +36,41 @@ TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
     WORD $0x4e34d7bd;    // fadd v29.4s, v29.4s, v20.4s
     WORD $0x4e32d7ff;    // fadd v31.4s, v31.4s, v18.4s
     WORD $0x4e3ad79c;    // fadd v28.4s, v28.4s, v26.4s
-    WORD $0xa8c17bfd;    // ldp x29, x30, [sp], #16
     WORD $0x4c00081c;    // st4 {v28.4s-v31.4s}, [x0]
-    WORD $0xd2800000;    // mov x0, #0x0                    // #0
-    WORD $0xd2800001;    // mov x1, #0x0                    // #0
 
     RET
-    WORD $0xd503201f;    // nop
-    WORD $0xd503201f;    // nop
-    WORD $0xd503201f;    // nop
 
 
-TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
+TEXT ·mat4fTranslate(SB), NOSPLIT, $0-20
     MOVD m+0(FP),  R0
     FMOVS x+8(FP), F0
     FMOVS y+12(FP), F1
     FMOVS z+16(FP), F2
 
-    WORD $0xa9bf7bfd;    // stp x29, x30, [sp, #-16]!
-    WORD $0x910003fd;    // mov x29, sp
     WORD $0xad41701e;    // ldp q30, q28, [x0, #32]
     WORD $0xad407c1d;    // ldp q29, q31, [x0]
-    WORD $0xa8c17bfd;    // ldp x29, x30, [sp], #16
     WORD $0x4f8013bc;    // fmla v28.4s, v29.4s, v0.s[0]
     WORD $0x4f8113fc;    // fmla v28.4s, v31.4s, v1.s[0]
     WORD $0x4f8213dc;    // fmla v28.4s, v30.4s, v2.s[0]
     WORD $0x3d800c1c;    // str q28, [x0, #48]
-    WORD $0xd2800000;    // mov x0, #0x0                    // #0
 
     RET
+    WORD $0xd503201f;    // nop
 
 
-TEXT ·mat4fScale(SB), NOSPLIT, $0-24
+TEXT ·mat4fScale(SB), NOSPLIT, $0-20
     MOVD m+0(FP),  R0
     FMOVS x+8(FP), F0
     FMOVS y+12(FP), F1
     FMOVS z+16(FP), F2
 
-    WORD $0xa9bf7bfd;    // stp x29, x30, [sp, #-16]!
     WORD $0x1e204043;    // fmov s3, s2
-    WORD $0x910003fd;    // mov x29, sp
     WORD $0xad407c02;    // ldp q2, q31, [x0]
-    WORD $0xa8c17bfd;    // ldp x29, x30, [sp], #16
     WORD $0x4f8193ff;    // fmul v31.4s, v31.4s, v1.s[0]
     WORD $0x3dc00801;    // ldr q1, [x0, #32]
     WORD $0x4f809042;    // fmul v2.4s, v2.4s, v0.s[0]
     WORD $0x4f839021;    // fmul v1.4s, v1.4s, v3.s[0]
     WORD $0xad007c02;    // stp q2, q31, [x0]
     WORD $0x3d800801;    // str q1, [x0, #32]
-    WORD $0xd2800000;    // mov x0, #0x0                    // #0
 
     RET

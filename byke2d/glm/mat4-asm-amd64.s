@@ -2,7 +2,7 @@
 #include "textflag.h"
 
 
-TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
+TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-16
     MOVQ m+0(FP), DI
     MOVQ o+8(FP), SI
 
@@ -44,7 +44,7 @@ TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
     BYTE $0x90;    // nop
 
 
-TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
+TEXT ·mat4fTranslate(SB), NOSPLIT, $0-20
     MOVD m+0(FP),  DI
     MOVSS x+8(FP), X0
     MOVSS y+12(FP), X1
@@ -64,7 +64,7 @@ TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
     RET
 
 
-TEXT ·mat4fScale(SB), NOSPLIT, $0-24
+TEXT ·mat4fScale(SB), NOSPLIT, $0-20
     MOVQ m+0(FP),  DI
     MOVSS x+8(FP), X0
     MOVSS y+12(FP), X1

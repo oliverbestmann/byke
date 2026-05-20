@@ -4,13 +4,13 @@ import re
 import sys
 
 arm64_mul4f_mul_assign = """
-TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
+TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-16
     MOVD m+0(FP), R0
     MOVD o+8(FP), R1
 """
 
 arm64_mul4f_scale_assign = """
-TEXT ·mat4fScale(SB), NOSPLIT, $0-24
+TEXT ·mat4fScale(SB), NOSPLIT, $0-20
     MOVD m+0(FP),  R0
     FMOVS x+8(FP), F0
     FMOVS y+12(FP), F1
@@ -18,7 +18,7 @@ TEXT ·mat4fScale(SB), NOSPLIT, $0-24
 """
 
 arm64_mul4f_translate_assign = """
-TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
+TEXT ·mat4fTranslate(SB), NOSPLIT, $0-20
     MOVD m+0(FP),  R0
     FMOVS x+8(FP), F0
     FMOVS y+12(FP), F1
@@ -26,13 +26,13 @@ TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
 """
 
 x64_mul4f_mul_assign = """
-TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-24
+TEXT ·mat4fMulAssign(SB), NOSPLIT, $0-16
     MOVQ m+0(FP), DI
     MOVQ o+8(FP), SI
 """
 
 x64_mul4f_scale_assign = """
-TEXT ·mat4fScale(SB), NOSPLIT, $0-24
+TEXT ·mat4fScale(SB), NOSPLIT, $0-20
     MOVQ m+0(FP),  DI
     MOVSS x+8(FP), X0
     MOVSS y+12(FP), X1
@@ -40,7 +40,7 @@ TEXT ·mat4fScale(SB), NOSPLIT, $0-24
 """
 
 x64_mul4f_translate_assign = """
-TEXT ·mat4fTranslate(SB), NOSPLIT, $0-24
+TEXT ·mat4fTranslate(SB), NOSPLIT, $0-20
     MOVD m+0(FP),  DI
     MOVSS x+8(FP), X0
     MOVSS y+12(FP), X1
