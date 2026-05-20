@@ -50,8 +50,6 @@ github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80/go.mod h1:imJHygn/1
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
 github.com/oliverbestmann/puffin-go v1.0.0 h1:8Aqa/u7SCot/yTMaVnMwzgWE6VEYgmWUdXG3Y991quA=
 github.com/oliverbestmann/puffin-go v1.0.0/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
-github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200 h1:LN84M+o+N53IlfC7OJURU7GaVMsoKkjYeE9AGHkJQdk=
-github.com/oliverbestmann/pulse v0.0.0-20260511173117-ca9506c88200/go.mod h1:0QB2q27wI/SPVbI7+7O2+WTdj6d256fntzHemMuLzeo=
 github.com/oliverbestmann/webgpu v1.33.4 h1:+r4wFXfVFRo2U1NFlQlHgHKZqZrEUQZw4IHOhDRIGoI=
 github.com/oliverbestmann/webgpu v1.33.4/go.mod h1:vtdJTC9gIdqmU42NDGfsq70dco6K+dCYC2vkvE4RD2I=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15 h1:HPxVSV8C8JaxGfa9hjDhzNmryoqPF3EwESBTFWpxNBo=
@@ -87,8 +85,8 @@ golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a h1:+3jdDGGB8NGb1Zktc737jlt3/
 golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a/go.mod h1:d2fgXJLVs4dYDHUk5lwMIfzRzSrWCfGZb0ZqeLa/Vcw=
 golang.org/x/image v0.40.0 h1:Tw4GyDXMo+daZN1znreBRC3VayR1aLFUyUEOLUdW1a8=
 golang.org/x/image v0.40.0/go.mod h1:uIc348UZMSvS5Z65CVZ7iDPaNobNFEPeJ4kbqTOszmA=
-golang.org/x/mobile v0.0.0-20260508232728-bebd421c7fa8 h1:Rdmo5lL58MyzJamU436yZClTmhPhjCE+qrBk4LXicLc=
-golang.org/x/mobile v0.0.0-20260508232728-bebd421c7fa8/go.mod h1:ltIbhcRzKgwHa4ZxKJeiv0nyzcXUUYCqMyO0Y+vPmXw=
+golang.org/x/mobile v0.0.0-20260520154334-0e4426e1883d h1:pWrEKZvKeqE2xPrylgBjgCyJSpPPt3L2WG2DmA+Xccg=
+golang.org/x/mobile v0.0.0-20260520154334-0e4426e1883d/go.mod h1:ltIbhcRzKgwHa4ZxKJeiv0nyzcXUUYCqMyO0Y+vPmXw=
 golang.org/x/mod v0.36.0 h1:JJjpVx6myfUsUdAzZuOSTTmRE0PfZeNWzzvKrP7amb4=
 golang.org/x/mod v0.36.0/go.mod h1:moc6ELqsWcOw5Ef3xVprK5ul/MvtVvkIXLziUOICjUQ=
 golang.org/x/net v0.54.0 h1:2zJIZAxAHV/OHCDTCOHAYehQzLfSXuf/5SoL/Dv6w/w=

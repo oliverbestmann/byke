@@ -1,6 +1,6 @@
 package byke2d
 
-import "github.com/oliverbestmann/pulse/vyn"
+import "github.com/oliverbestmann/byke/byke2d/vyn"
 
 type Keys struct {
 	state vyn.KeysState

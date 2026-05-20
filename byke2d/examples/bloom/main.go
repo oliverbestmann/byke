@@ -12,7 +12,7 @@ import (
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/oliverbestmann/pulse/vyn"
+	"github.com/oliverbestmann/byke/byke2d/vyn"
 	"github.com/pkg/profile"
 )
 
