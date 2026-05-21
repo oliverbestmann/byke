@@ -152,6 +152,7 @@ func RenderPlugin(app *byke.App) {
 	app.AddPlugin(pluginRenderPhases)
 	app.AddPlugin(pluginCamera)
 	app.AddPlugin(pluginSprite)
+	app.AddPlugin(pluginMesh2d)
 
 	app.RunWorld(runWorld)
 }

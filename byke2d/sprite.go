@@ -5,7 +5,6 @@ import (
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/oliverbestmann/byke/byke2d/radix"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/internal/query"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -188,9 +187,6 @@ type ExtractedSprite struct {
 
 type ExtractedSprites struct {
 	Sprites []ExtractedSprite
-
-	sortCache radix.Cache
-	indices   []radix.Value
 }
 
 func clearExtractedSpritesSystem(
