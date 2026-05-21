@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -86,5 +89,18 @@ func (c *Compiler) PreCompile(source string, values Values) (string, error) {
 		return "", fmt.Errorf("pre-compile shader: %w", err)
 	}
 
-	return w.String(), nil
+	result := w.String()
+
+	// replace the defined values by their value
+	keysByLengthDesc := slices.SortedFunc(
+		maps.Keys(values),
+		func(a, b string) int { return len(b) - len(a) },
+	)
+
+	for _, key := range keysByLengthDesc {
+		re := regexp.MustCompile("\\b" + regexp.QuoteMeta(key) + "\\b")
+		result = re.ReplaceAllLiteralString(result, values[key])
+	}
+
+	return result, nil
 }

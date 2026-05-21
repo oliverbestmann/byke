@@ -15,7 +15,6 @@ func pluginMesh2d(app *byke.App) {
 	app.InsertResource(byke.InitFromWorld[mesh2dCache]())
 	app.InsertResource(byke.InitFromWorld[Pipelines[mesh2dPipelineConfig]]())
 
-	app.AddSystems(PreRender, meshSetIdOnChangeSystem)
 	app.AddSystems(Render, byke.System(extractMeshesSystem).InSet(RenderPhaseExtract))
 	app.AddSystems(Render, byke.System(queueMeshesSystem).InSet(RenderPhaseQueue))
 	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
@@ -24,15 +23,8 @@ func pluginMesh2d(app *byke.App) {
 }
 
 type ExtractedMesh struct {
-	MeshId uint32
-
+	Mesh    *Mesh
 	Texture *Texture
-
-	Indices  []uint32
-	Vertices []glm.Vec2f
-
-	// TODO other attributes
-	Colors []Color
 
 	// optional custom shader definition to replace or extend the
 	// mesh default shader.
@@ -45,23 +37,6 @@ type ExtractedMesh struct {
 
 type ExtractedMeshes struct {
 	Meshes []ExtractedMesh
-}
-
-func meshSetIdOnChangeSystem(
-	meshQuery byke.Query[struct {
-		_    byke.Changed[Mesh2d]
-		Mesh query.Ref[Mesh2d]
-	}],
-
-	meshId *byke.Local[uint32],
-) {
-	for mesh := range meshQuery.Items() {
-		mesh := mesh.Mesh.Get()
-		if mesh.id == 0 {
-			meshId.Value += 1
-			mesh.id = meshId.Value
-		}
-	}
 }
 
 func extractMeshesSystem(
@@ -83,10 +58,7 @@ func extractMeshesSystem(
 		mesh := item.Mesh.Value
 
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
-			MeshId:       mesh.id,
-			Indices:      mesh.Indices,
-			Vertices:     mesh.Vertices,
-			Colors:       mesh.Colors,
+			Mesh:         mesh.Mesh,
 			CustomShader: item.CustomShader.OrZero().Shader,
 			Transform:    item.Transform.Affine,
 			Color:        item.MeshColor.OrZero().Color,
@@ -136,8 +108,9 @@ func prepareMesh2dBuffers(
 	meshCache.Reset()
 
 	for idx := range meshes.Meshes {
-		mesh := &meshes.Meshes[idx]
-		meshCache.Upload(mesh.MeshId, mesh.Vertices, mesh.Indices, mesh.Colors)
+		mesh := meshes.Meshes[idx].Mesh
+		forceUpload := mesh.requireUpload()
+		meshCache.Upload(mesh, forceUpload)
 	}
 }
 
@@ -182,7 +155,7 @@ func prepareMeshInstances(
 
 			//goland:noinspection GoMaybeNil
 			if current == nil ||
-				currentMesh.MeshId != itemMesh.MeshId ||
+				currentMesh.Mesh != itemMesh.Mesh ||
 				currentMesh.Texture != itemMesh.Texture ||
 				currentMesh.CustomShader != itemMesh.CustomShader {
 
@@ -242,27 +215,35 @@ func drawMeshBatchSystem(
 
 	mesh := meshes.Meshes[item.ExtractedIndex]
 
-	buf, ok := meshCache.Get(mesh.MeshId)
+	buf, ok := meshCache.Get(mesh.Mesh)
 	if !ok {
 		// mesh not in cache, broken?
 		panic("mesh data not in cache")
 	}
 
-	indexCount := uint32(len(mesh.Indices))
+	indexCount := uint32(len(mesh.Mesh.indices))
 
-	pipeline := pipelines.Specialize(mesh2dPipelineConfig{
+	pipelineConfig := mesh2dPipelineConfig{
 		Format:      view.ViewTarget.Format,
 		SampleCount: view.ViewTarget.SampleCount,
-		HasColors:   buf.Colors != nil,
-	})
+	}
+
+	for idx := range buf.Attributes {
+		// tell the pipeline about the attributes we want to use
+		pipelineConfig.Attributes[idx] = buf.Attributes[idx].Attribute
+	}
+
+	pipeline := pipelines.Specialize(pipelineConfig)
 
 	pass.SetPipeline(pipeline.Get())
 	pass.SetBindGroup(0, viewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset})
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
 	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)
 
-	if buf.Colors != nil {
-		pass.SetVertexBuffer(2, buf.Colors, 0, wgpu.WholeSize)
+	// set vertex buffers for other attributes
+	for idx := range buf.Attributes {
+		buffer := buf.Attributes[idx].Buffer
+		pass.SetVertexBuffer(uint32(2+idx), buffer, 0, wgpu.WholeSize)
 	}
 
 	pass.SetIndexBuffer(buf.Indices, wgpu.IndexFormatUint32, 0, wgpu.WholeSize)

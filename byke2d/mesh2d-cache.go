@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -14,76 +13,96 @@ type mesh2dBuffers struct {
 	Indices *wgpu.Buffer
 
 	// Other vertex attributes
-	Colors *wgpu.Buffer
+	Attributes []vertexAttributeBuffer
 
 	InUse bool
 }
 
+func (m *mesh2dBuffers) ReleaseAll() {
+	m.Vertex.Release()
+	m.Indices.Release()
+
+	for _, buf := range m.Attributes {
+		buf.Buffer.Release()
+	}
+}
+
+type vertexAttributeBuffer struct {
+	Attribute VertexAttribute
+	Buffer    *wgpu.Buffer
+}
+
 type mesh2dCache struct {
 	Context *RenderContext
-	meshes  map[uint32]*mesh2dBuffers
+	meshes  map[*Mesh]*mesh2dBuffers
 }
 
 //goland:noinspection GoMixedReceiverTypes
 func (mesh2dCache) FromWorld(world *byke.World) mesh2dCache {
 	return mesh2dCache{
 		Context: byke.RequireResourceOf[RenderContext](world),
-		meshes:  map[uint32]*mesh2dBuffers{},
+		meshes:  map[*Mesh]*mesh2dBuffers{},
 	}
 }
 
-func (m *mesh2dCache) Upload(id uint32, vertices []glm.Vec2f, indices []uint32, colors []Color) *mesh2dBuffers {
-	if buf, ok := m.meshes[id]; ok {
-		buf.InUse = true
-		return buf
+func (m *mesh2dCache) Upload(mesh *Mesh, forceUpload bool) *mesh2dBuffers {
+	bufs, ok := m.meshes[mesh]
+	if ok {
+		if !forceUpload {
+			bufs.InUse = true
+			return bufs
+		}
+
+		// TODO re-use memory if possible
+		bufs.ReleaseAll()
+		bufs = &mesh2dBuffers{InUse: true}
+
+	} else {
+		bufs = &mesh2dBuffers{InUse: true}
 	}
 
-	bufVertex := m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
+	bufs.Vertex = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
 		Label:    "mesh2d vertex buffer",
 		Usage:    wgpu.BufferUsageVertex,
-		Contents: wgpu.ToBytes(vertices),
+		Contents: wgpu.ToBytes(mesh.vertices),
 	})
 
-	bufIndex := m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
+	bufs.Indices = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
 		Label:    "mesh2d index buffer",
 		Usage:    wgpu.BufferUsageIndex,
-		Contents: wgpu.ToBytes(indices),
+		Contents: wgpu.ToBytes(mesh.indices),
 	})
 
-	buf := &mesh2dBuffers{
-		Vertex:  bufVertex,
-		Indices: bufIndex,
-		InUse:   true,
-	}
-
-	if colors != nil {
-		buf.Colors = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
-			Label:    "mesh2d attr: colors",
-			Usage:    wgpu.BufferUsageVertex,
-			Contents: wgpu.ToBytes(colors),
+	for _, attr := range mesh.attributes {
+		bufs.Attributes = append(bufs.Attributes, vertexAttributeBuffer{
+			Attribute: attr.Attribute,
+			Buffer: m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
+				Label:    "mesh2d attr: " + attr.Attribute.Name,
+				Usage:    wgpu.BufferUsageVertex,
+				Contents: wgpu.ToBytes(attr.Value),
+			}),
 		})
 	}
 
-	m.meshes[id] = buf
+	m.meshes[mesh] = bufs
 
-	return buf
+	return bufs
 }
 
 func (m *mesh2dCache) Reset() {
 	for id, buf := range m.meshes {
 		if !buf.InUse {
 			delete(m.meshes, id)
-
-			buf.Indices.Release()
-			buf.Vertex.Release()
+			buf.ReleaseAll()
+			continue
 		}
 
 		buf.InUse = false
 	}
 }
 
-func (m *mesh2dCache) Get(id uint32) (*mesh2dBuffers, bool) {
-	buf, ok := m.meshes[id]
+func (m *mesh2dCache) Get(mesh *Mesh) (*mesh2dBuffers, bool) {
+	buf, ok := m.meshes[mesh]
 	if !ok {
 		return nil, false
 	}

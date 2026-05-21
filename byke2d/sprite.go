@@ -77,12 +77,12 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
-type offsetCalc struct {
+type vertexAttributeOffsets struct {
 	index  uint32
 	offset uint64
 }
 
-func (o *offsetCalc) Inc(size uint64, fmt wgpu.VertexFormat) wgpu.VertexAttribute {
+func (o *vertexAttributeOffsets) Inc(size uint64, fmt wgpu.VertexFormat) wgpu.VertexAttribute {
 	attr := wgpu.VertexAttribute{
 		ShaderLocation: o.index,
 		Offset:         o.offset,
@@ -112,7 +112,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 
 	var module = ctx.Shader(shaderLabel, shaderSource, shaderValues)
 
-	var offset offsetCalc
+	var offset vertexAttributeOffsets
 
 	return RenderPipelineDescriptor{
 		Label: "SpriteRenderPipeline",

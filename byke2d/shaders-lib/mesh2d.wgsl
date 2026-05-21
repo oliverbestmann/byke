@@ -14,11 +14,11 @@ struct VertexInput {
     @location(4) i_color: vec4f,
 
     // vertex position from per-vertex buffer
-    @location(10) v_position: vec2f,
+    @location(5) v_position: vec3f,
 
 #ifdef MESH2D_VERTEX_ATTRIBUTES_COLOR
     // vertex color from per-vertex buffer
-    @location(11) v_color: vec4f,
+    @location(MESH2D_VERTEX_ATTRIBUTES_COLOR) v_color: vec4f,
 #endif
 }
 
@@ -28,7 +28,7 @@ struct VertexOutput {
 };
 
 fn default_mesh2d_vertex(in: VertexInput) -> VertexOutput {
-    // transforms the
+    // transforms the four column vectors back to a full 4x4 matrix by adding the last row.
     let model_to_world = mat4x4f(
         vec4f(in.i_affine_0, 0),
         vec4f(in.i_affine_1, 0),
@@ -36,12 +36,10 @@ fn default_mesh2d_vertex(in: VertexInput) -> VertexOutput {
         vec4f(in.i_affine_3, 1),
     );
 
-    let identity = mat4x4f(1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1);
-    let position = identity
-        * view.screen_to_ndc
+    let position = view.screen_to_ndc
         * view.world_to_screen
         * model_to_world
-        * vec4f(in.v_position, 0.0, 1.0);
+        * vec4f(in.v_position, 1.0);
 
     // move the vertex to the world
     var out: VertexOutput;

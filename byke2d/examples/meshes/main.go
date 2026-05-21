@@ -10,6 +10,7 @@ import (
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
+	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
 //go:embed assets
@@ -34,14 +35,15 @@ func main() {
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)
-	app.AddSystems(Update, System(rotateSpritesSystem).RunIf(KeyIsPressed(vyn.KeyR)))
+	app.AddSystems(Update, System(rotateSystem).RunIf(KeyIsPressed(vyn.KeyR)))
 
 	app.MustRun()
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
-		Camera{Order: 1},
+		Camera{},
+		TransformFromXYZ(0, 0, -0.5),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
@@ -53,31 +55,35 @@ func setupSystem(commands *Commands, assets *Assets) {
 	asset := assets.Texture("marker.png").Await()
 
 	commands.Spawn(
-		TransformFromXY(0, 0),
+		TransformFromXYZ(0, 0, 0),
 		Sprite{Texture: asset},
 		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectuFromXYWH(0, 0, 4, 32))},
 	)
 
 	commands.Spawn(
-		TransformFromXY(-32, 0),
-		RegularPolygon(32, 3),
+		TransformFromXYZ(-24, 0, 0.1),
+		Mesh2d{Mesh: RegularPolygon(32, 3)},
+		MeshColor{Color: ColorSRGBA(1.0, 0.0, 0.5, 1.0)},
 	)
 
 	circle := Circle(32, 8)
 
 	// add random colors
-	for range circle.Vertices {
+	var colors []Color
+	for range circle.Vertices() {
 		color := ColorSRGBA(rand.Float32(), rand.Float32(), rand.Float32(), 1)
-		circle.Colors = append(circle.Colors, color)
+		colors = append(colors, color)
 	}
 
+	circle.WithAttributes(VertexAttributeColor, wgpu.ToBytes(colors))
+
 	commands.Spawn(
-		TransformFromXY(32, 0),
-		circle,
+		TransformFromXYZ(24, 0, -0.1),
+		Mesh2d{Mesh: circle},
 	)
 }
 
-func rotateSpritesSystem(vt VirtualTime, query Query[struct {
+func rotateSystem(vt VirtualTime, query Query[struct {
 	_         Or[With[Sprite], With[Mesh2d]]
 	Transform *Transform
 }]) {
