@@ -272,32 +272,11 @@ type metaSprites struct {
 	Buffer    *wgpu.Buffer
 }
 
-type spriteTextureBindGroupCache struct {
-	BindGroups map[*Texture]*wgpu.BindGroup
-}
-
-func (c *spriteTextureBindGroupCache) Clear() {
-	for _, bg := range c.BindGroups {
-		bg.Release()
-	}
-
-	clear(c.BindGroups)
-}
-
-func (c *spriteTextureBindGroupCache) Add(texture *Texture, bindGroup *wgpu.BindGroup) {
-	if c.BindGroups == nil {
-		c.BindGroups = map[*Texture]*wgpu.BindGroup{}
-	}
-
-	c.BindGroups[texture] = bindGroup
-}
-
-func (c *spriteTextureBindGroupCache) Get(texture *Texture) (*wgpu.BindGroup, bool) {
-	bindGroup, ok := c.BindGroups[texture]
-	return bindGroup, ok
-}
-
 type spriteRenderPhaseItem struct{}
+
+type spriteTextureBindGroupCache struct {
+	tickCache[*Texture, *wgpu.BindGroup]
+}
 
 func prepareSpriteBindGroupsSystem(
 	ctx *RenderContext,
@@ -310,7 +289,7 @@ func prepareSpriteBindGroupsSystem(
 	meta *metaSprites,
 	bindGroups *spriteTextureBindGroupCache,
 ) {
-	bindGroups.Clear()
+	bindGroups.Tick()
 
 	instances := &meta.Instances
 	instances.Clear()

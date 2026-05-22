@@ -46,24 +46,27 @@ func setupSystem(commands *Commands, assets *Assets) {
 		TransformFromXYZ(0, 0, -0.5),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
+			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 640},
 			// ScalingMode: ScalingModeWindowSize{},
 			Scale: 2.0,
 		},
 	)
 
-	asset := assets.Texture("marker.png").Await()
+	asset := assets.Texture("mazipan.jpg").Await()
 
 	commands.Spawn(
 		TransformFromXYZ(0, 0, 0),
 		Sprite{Texture: asset},
-		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectuFromXYWH(0, 0, 4, 32))},
+		TextureAtlas{Layout: TextureAtlasLayoutFromRect(glm.RectuFromXYWH(0, 0, 16, 32))},
 	)
 
 	commands.Spawn(
 		TransformFromXYZ(-24, 0, 0.1),
 		Mesh2d{Mesh: RegularPolygon(32, 3)},
-		MeshColor{Color: ColorSRGBA(1.0, 0.0, 0.5, 1.0)},
+		ColorMaterial{
+			Tint:    ColorSRGBA(1.0, 0.0, 0.5, 1.0),
+			Texture: asset,
+		},
 	)
 
 	circle := Circle(32, 8)
@@ -80,6 +83,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		TransformFromXYZ(24, 0, -0.1),
 		Mesh2d{Mesh: circle},
+		ColorMaterial{},
 	)
 }
 

@@ -12,11 +12,6 @@ import (
 	"golang.org/x/mobile/exp/f32"
 )
 
-type MeshColor struct {
-	byke.Component[MeshColor]
-	Color
-}
-
 type Mesh2d struct {
 	byke.Component[Mesh2d]
 	Mesh *Mesh

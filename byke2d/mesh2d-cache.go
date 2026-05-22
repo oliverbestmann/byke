@@ -14,11 +14,9 @@ type mesh2dBuffers struct {
 
 	// Other vertex attributes
 	Attributes []vertexAttributeBuffer
-
-	InUse bool
 }
 
-func (m *mesh2dBuffers) ReleaseAll() {
+func (m *mesh2dBuffers) Release() {
 	m.Vertex.Release()
 	m.Indices.Release()
 
@@ -34,31 +32,29 @@ type vertexAttributeBuffer struct {
 
 type mesh2dCache struct {
 	Context *RenderContext
-	meshes  map[*Mesh]*mesh2dBuffers
+	cache   tickCache[*Mesh, *mesh2dBuffers]
 }
 
 //goland:noinspection GoMixedReceiverTypes
 func (mesh2dCache) FromWorld(world *byke.World) mesh2dCache {
 	return mesh2dCache{
 		Context: byke.RequireResourceOf[RenderContext](world),
-		meshes:  map[*Mesh]*mesh2dBuffers{},
 	}
 }
 
 func (m *mesh2dCache) Upload(mesh *Mesh, forceUpload bool) *mesh2dBuffers {
-	bufs, ok := m.meshes[mesh]
+	bufs, ok := m.cache.Get(mesh)
 	if ok {
 		if !forceUpload {
-			bufs.InUse = true
 			return bufs
 		}
 
 		// TODO re-use memory if possible
-		bufs.ReleaseAll()
-		bufs = &mesh2dBuffers{InUse: true}
+		bufs.Release()
+		bufs = &mesh2dBuffers{}
 
 	} else {
-		bufs = &mesh2dBuffers{InUse: true}
+		bufs = &mesh2dBuffers{}
 	}
 
 	bufs.Vertex = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
@@ -84,29 +80,15 @@ func (m *mesh2dCache) Upload(mesh *Mesh, forceUpload bool) *mesh2dBuffers {
 		})
 	}
 
-	m.meshes[mesh] = bufs
+	m.cache.Add(mesh, bufs)
 
 	return bufs
 }
 
 func (m *mesh2dCache) Reset() {
-	for id, buf := range m.meshes {
-		if !buf.InUse {
-			delete(m.meshes, id)
-			buf.ReleaseAll()
-			continue
-		}
-
-		buf.InUse = false
-	}
+	m.cache.Tick()
 }
 
 func (m *mesh2dCache) Get(mesh *Mesh) (*mesh2dBuffers, bool) {
-	buf, ok := m.meshes[mesh]
-	if !ok {
-		return nil, false
-	}
-
-	buf.InUse = true
-	return buf, true
+	return m.cache.Get(mesh)
 }

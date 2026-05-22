@@ -29,6 +29,14 @@ func (v Values) Set(name string, value string) {
 	v[name] = value
 }
 
+func (v Values) Clone() Values {
+	if v == nil {
+		return Values{}
+	}
+
+	return maps.Clone(v)
+}
+
 type Compiler struct {
 	files *template.Template
 }

@@ -1,6 +1,8 @@
 package byke2d
 
 import (
+	"fmt"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
@@ -11,40 +13,50 @@ import (
 func pluginMesh2d(app *byke.App) {
 	app.InsertResource(ExtractedMeshes{})
 	app.InsertResource(meshInstances{})
+	app.InsertResource(materialBindGroupCache{})
 
 	app.InsertResource(byke.InitFromWorld[mesh2dCache]())
 	app.InsertResource(byke.InitFromWorld[Pipelines[mesh2dPipelineConfig]]())
 
-	app.AddSystems(Render, byke.System(extractMeshesSystem).InSet(RenderPhaseExtract))
 	app.AddSystems(Render, byke.System(queueMeshesSystem).InSet(RenderPhaseQueue))
 	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
-	app.AddSystems(Render, byke.System(prepareMeshInstances).InSet(RenderPhasePrepareResources))
+	app.AddSystems(Render, byke.System(prepareMesh2dInstances).InSet(RenderPhasePrepareResources))
 	app.AddSystems(Render, byke.System(clearExtractedMeshesSystem).InSet(RenderPhaseCleanup))
+
+	app.AddPlugin(PluginMaterial2d[ColorMaterial])
+}
+
+type ComparableMaterial interface {
+	comparable
+	Material
+}
+
+func PluginMaterial2d[M ComparableMaterial](app *byke.App) {
+	app.AddSystems(Render, byke.System(extractMeshesSystem[M]).InSet(RenderPhaseExtract))
+}
+
+type materialBindGroupCache struct {
+	tickCache[Material, *wgpu.BindGroup]
 }
 
 type ExtractedMesh struct {
-	Mesh    *Mesh
-	Texture *Texture
-
-	// optional custom shader definition to replace or extend the
-	// mesh default shader.
-	CustomShader *ShaderDef
+	Mesh *Mesh
 
 	Transform    glm.Mat4f
-	Color        Color
 	RenderLayers RenderLayers
+	Material     Material
 }
 
 type ExtractedMeshes struct {
 	Meshes []ExtractedMesh
 }
 
-func extractMeshesSystem(
+func extractMeshesSystem[M Material](
 	meshes *ExtractedMeshes,
 	meshQuery byke.Query[struct {
 		Mesh         query.Ref[Mesh2d]
 		Transform    GlobalTransform
-		MeshColor    byke.Option[MeshColor]
+		Material     M
 		RenderLayers byke.Option[RenderLayers]
 		CustomShader byke.Option[CustomShader]
 		Visibility   ComputedVisibility
@@ -59,9 +71,8 @@ func extractMeshesSystem(
 
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
 			Mesh:         mesh.Mesh,
-			CustomShader: item.CustomShader.OrZero().Shader,
 			Transform:    item.Transform.Affine,
-			Color:        item.MeshColor.OrZero().Color,
+			Material:     item.Material,
 			RenderLayers: item.RenderLayers.Or(renderLayerZero),
 		})
 	}
@@ -102,31 +113,36 @@ func queueMeshesSystem(
 }
 
 func prepareMesh2dBuffers(
-	meshes *ExtractedMeshes,
+	meshes byke.Query[*Mesh2d],
 	meshCache *mesh2dCache,
 ) {
 	meshCache.Reset()
 
-	for idx := range meshes.Meshes {
-		mesh := meshes.Meshes[idx].Mesh
+	for item := range meshes.Items() {
+		mesh := item.Mesh
 		forceUpload := mesh.requireUpload()
 		meshCache.Upload(mesh, forceUpload)
+		mesh.markUploaded()
 	}
 }
 
+// meshInstances stores the instance buffer for all per-instance
+// data of the meshes
 type meshInstances struct {
 	Buffer    *wgpu.Buffer
 	Instances wgsl.InstanceWriter
 }
 
-func prepareMeshInstances(
+func prepareMesh2dInstances(
 	ctx *RenderContext,
+	meshes *ExtractedMeshes,
+	pipelineCache *PipelineCache,
+	meshInstances *meshInstances,
+	bindGroups *materialBindGroupCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase RenderPhase
 	}],
-	meshes *ExtractedMeshes,
-	meshInstances *meshInstances,
 ) {
 	instances := &meshInstances.Instances
 	instances.Clear()
@@ -156,8 +172,7 @@ func prepareMeshInstances(
 			//goland:noinspection GoMaybeNil
 			if current == nil ||
 				currentMesh.Mesh != itemMesh.Mesh ||
-				currentMesh.Texture != itemMesh.Texture ||
-				currentMesh.CustomShader != itemMesh.CustomShader {
+				currentMesh.Material != itemMesh.Material {
 
 				// we begin a new mesh batch here
 				current = item
@@ -166,6 +181,12 @@ func prepareMeshInstances(
 				// record begin of batch
 				current.BatchBegin = uint32(instances.InstanceCount())
 				current.BatchCount = 0
+
+				// create a bindgroup for the material
+				if _, ok := bindGroups.Get(itemMesh.Material); !ok {
+					bindGroup := createMaterialBindGroup(ctx, pipelineCache, itemMesh.Material)
+					bindGroups.Add(itemMesh.Material, bindGroup)
+				}
 			}
 
 			// write sprite vertex data
@@ -179,12 +200,40 @@ func prepareMeshInstances(
 }
 
 func writeMeshInstanceValues(instances *wgsl.InstanceWriter, mesh *ExtractedMesh) {
-	instances.StartNew(64)
+	instances.StartNew(48)
 	instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
 	instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
 	instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
 	instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
-	instances.AppendVec4f(mesh.Color.ToVec())
+}
+
+func createMaterialBindGroup(ctx *RenderContext, pipelines *PipelineCache, material Material) *wgpu.BindGroup {
+	// TODO create buffer each time is not good, must be saved & reused somewhere.
+	//  we probably need to store BindGroup together with the buffer
+	var w wgsl.StructWriter
+	material.WriteUniforms(&w)
+
+	label := fmt.Sprintf("material group: %T", material)
+
+	buffer := ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+		Label:    label,
+		Usage:    wgpu.BufferUsageUniform,
+		Contents: w.Bytes(),
+	})
+
+	var bindings []wgpu.BindGroupEntry
+	bindings = append(bindings, BindingBuffer(buffer))
+	bindings = append(bindings, material.Bindings()...)
+
+	var layout []wgpu.BindGroupLayoutEntry
+	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false))
+	layout = append(layout, material.BindingsLayout()...)
+
+	return ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		Label:   label,
+		Layout:  pipelines.BindGroupLayout(SequentialLayout(layout...)),
+		Entries: Sequential(bindings...),
+	})
 }
 
 func drawMeshBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderPhaseItem) (ok bool) {
@@ -203,6 +252,7 @@ func drawMeshBatchSystem(
 	meshes *ExtractedMeshes,
 	instances *meshInstances,
 	meshCache *mesh2dCache,
+	bindGroupCache *materialBindGroupCache,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget
 		ViewUniformsOffset DynamicOffset[ViewUniforms]
@@ -223,20 +273,31 @@ func drawMeshBatchSystem(
 
 	indexCount := uint32(len(mesh.Mesh.indices))
 
+	var layout []wgpu.BindGroupLayoutEntry
+	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false))
+	layout = append(layout, mesh.Material.BindingsLayout()...)
+
 	pipelineConfig := mesh2dPipelineConfig{
-		Format:      view.ViewTarget.Format,
-		SampleCount: view.ViewTarget.SampleCount,
+		Format:           view.ViewTarget.Format,
+		SampleCount:      view.ViewTarget.SampleCount,
+		Shader:           mesh.Material.Shader(),
+		MaterialBindings: ArraySliceOf(layout),
 	}
 
 	for idx := range buf.Attributes {
 		// tell the pipeline about the attributes we want to use
-		pipelineConfig.Attributes[idx] = buf.Attributes[idx].Attribute
+		pipelineConfig.Attributes.Append(buf.Attributes[idx].Attribute)
 	}
 
 	pipeline := pipelines.Specialize(pipelineConfig)
 
+	bindGroup, _ := bindGroupCache.Get(mesh.Material)
+
 	pass.SetPipeline(pipeline.Get())
+
 	pass.SetBindGroup(0, viewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset})
+	pass.SetBindGroup(1, bindGroup, nil)
+
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
 	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)
 

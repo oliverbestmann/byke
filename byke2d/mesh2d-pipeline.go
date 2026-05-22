@@ -8,23 +8,22 @@ import (
 )
 
 type mesh2dPipelineConfig struct {
-	Format      wgpu.TextureFormat
-	SampleCount uint32
-	HasColors   bool
-
-	Attributes [8]VertexAttribute
+	Shader           *ShaderDef
+	Format           wgpu.TextureFormat
+	Attributes       ArraySlice[VertexAttribute]
+	MaterialBindings ArraySlice[wgpu.BindGroupLayoutEntry]
+	SampleCount      uint32
 }
 
 func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	var shaderSource = "#import byke2d::mesh2d"
-
-	values := ShaderValues{}
+	values := m.Shader.Values.Clone()
 
 	var instanceAttrs vertexAttributeOffsets
 
 	buffers := []wgpu.VertexBufferLayout{
 		{
-			ArrayStride: 64,
+			// per instance: model to world transform
+			ArrayStride: 48,
 			StepMode:    wgpu.VertexStepModeInstance,
 			Attributes: []wgpu.VertexAttribute{
 				// affine [4]vec3f
@@ -32,30 +31,24 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
 				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
 				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
-
-				// color
-				instanceAttrs.Inc(16, wgpu.VertexFormatFloat32x4),
 			},
 		},
 		{
+			// per vertex: x, y, z
 			ArrayStride: 12,
 			StepMode:    wgpu.VertexStepModeVertex,
 			Attributes: []wgpu.VertexAttribute{
 				{
 					Format:         wgpu.VertexFormatFloat32x3,
-					ShaderLocation: 5,
+					ShaderLocation: 4,
 					Offset:         0,
 				},
 			},
 		},
 	}
 
-	var attrShaderLocation uint32 = 6
-	for _, attr := range m.Attributes {
-		if attr.Name == "" {
-			continue
-		}
-
+	var attrShaderLocation uint32 = 5
+	for _, attr := range m.Attributes.AsSlice() {
 		buffers = append(buffers, wgpu.VertexBufferLayout{
 			ArrayStride: uint64(attr.Format.ByteSize()),
 			StepMode:    wgpu.VertexStepModeVertex,
@@ -75,17 +68,18 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		attrShaderLocation += 1
 	}
 
-	mod := ctx.Shader("mesh2d shader", shaderSource, values)
+	mod := ctx.Shader(m.Shader.Label, m.Shader.Source, values)
 
 	return RenderPipelineDescriptor{
 		Label: "mesh2d pipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
 			ViewBindGroupLayout,
+			SequentialLayout(m.MaterialBindings.AsSlice()...),
 			// no further bindings for now
 		},
 		Vertex: wgpu.VertexState{
 			Module:     mod,
-			EntryPoint: "vs_main",
+			EntryPoint: m.Shader.VertexEntry,
 			Buffers:    buffers,
 		},
 		Primitive: wgpu.PrimitiveState{
@@ -95,7 +89,7 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		Multisample: multisampleState(m.SampleCount),
 		Fragment: &wgpu.FragmentState{
 			Module:     mod,
-			EntryPoint: "fs_main",
+			EntryPoint: m.Shader.FragmentEntry,
 			Targets: []wgpu.ColorTargetState{
 				{
 					Format:    m.Format,
