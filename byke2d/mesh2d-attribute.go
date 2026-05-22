@@ -5,9 +5,6 @@ import "github.com/oliverbestmann/webgpu/wgpu"
 type VertexAttribute struct {
 	Name   string
 	Format wgpu.VertexFormat
-
-	// TODO derive from VertexFormat
-	Size uint32
 }
 
 func (v *VertexAttribute) EqualTo(other VertexAttribute) bool {
@@ -17,13 +14,11 @@ func (v *VertexAttribute) EqualTo(other VertexAttribute) bool {
 var VertexAttributeColor = VertexAttribute{
 	Name:   "Color",
 	Format: wgpu.VertexFormatFloat32x4,
-	Size:   4 * 4,
 }
 
 var VertexAttributeUV = VertexAttribute{
 	Name:   "UV",
 	Format: wgpu.VertexFormatFloat32x2,
-	Size:   2 * 4,
 }
 
 type VertexAttributeValue struct {

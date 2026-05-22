@@ -57,7 +57,7 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		}
 
 		buffers = append(buffers, wgpu.VertexBufferLayout{
-			ArrayStride: uint64(attr.Size),
+			ArrayStride: uint64(attr.Format.ByteSize()),
 			StepMode:    wgpu.VertexStepModeVertex,
 			Attributes: []wgpu.VertexAttribute{
 				{
