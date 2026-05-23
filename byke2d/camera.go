@@ -75,6 +75,7 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 
 type OrthographicProjection struct {
 	byke.Component[OrthographicProjection]
+
 	// Origin of the camera. Set this to (0.5, 0.5) to center the Camera.
 	ViewportOrigin glm.Vec2f
 
@@ -82,6 +83,18 @@ type OrthographicProjection struct {
 
 	// Extra scale to multiply on top of the ScalingMode. Can be used for zooming.
 	Scale float32
+
+	// Distance of the near and far plane in camera direction.
+	// If both values are set to zero, 0 and 1 is assumed.
+	Near, Far float32
+}
+
+func (o *OrthographicProjection) nearFar() (near float32, far float32) {
+	if o.Near == 0 && o.Far == 0 {
+		return 0, 1
+	}
+
+	return o.Near, o.Far
 }
 
 type ScalingMode interface {
@@ -175,9 +188,12 @@ func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
 func (v *ViewValues) CameraToSurface() glm.Mat4f {
 	viewportSize := v.Projection.ScalingMode.ViewportSize(v.SurfaceSize.XY())
 
+	near, far := v.Projection.nearFar()
+	r := 1.0 / (far - near)
+
 	return glm.IdentityMat4f().
 		Translate(v.Projection.ViewportOrigin.Extend(1.0).XYZ()).
-		Scale(v.Projection.Scale, v.Projection.Scale, 1).
+		Scale(v.Projection.Scale, v.Projection.Scale, r).
 		Scale(viewportSize.Reciprocal().Extend(1.0).XYZ())
 }
 
@@ -281,7 +297,7 @@ func updateCameraViewTargetSystem(
 
 func blitCameraToTargetSystem(
 	ctx *RenderContext,
-	pipelines PipelineCache,
+	pipelines *PipelineCache,
 
 	viewsQuery ViewQuery[struct {
 		Camera       Camera

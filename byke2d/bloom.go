@@ -8,7 +8,6 @@ import (
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/puffin-go"
@@ -66,7 +65,7 @@ func (b bloomPipelineConfig) EqualTo(other PipelineConfig) bool {
 }
 
 func (b bloomPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	values := pre.Values{}
+	values := ShaderValues{}
 	values.Define("UNIFORM_SCALE", b.UniformScale)
 	values.Define("FIRST_DOWNSAMPLE", b.FirstDownsample)
 
@@ -148,7 +147,7 @@ type bloomViewQuery struct {
 func applyBloomSystem(
 	commands *byke.Commands,
 	ctx *RenderContext,
-	pipelines PipelineCache,
+	pipelines *PipelineCache,
 	uniforms *ComponentUniforms[bloomUniforms],
 	textureCache *TextureCache,
 	viewQuery ViewQuery[bloomViewQuery],

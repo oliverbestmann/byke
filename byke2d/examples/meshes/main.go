@@ -5,12 +5,14 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"os"
+	"runtime"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
 	"github.com/oliverbestmann/webgpu/wgpu"
+	"github.com/pkg/profile"
 )
 
 //go:embed assets
@@ -36,6 +38,10 @@ func main() {
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, System(rotateSystem).RunIf(KeyIsPressed(vyn.KeyR)))
+
+	if runtime.GOOS != "js" {
+		defer profile.Start(profile.MemProfileRate(256)).Stop()
+	}
 
 	app.MustRun()
 }
@@ -69,7 +75,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		},
 	)
 
-	circle := Circle(32, 8)
+	circle := Circle(32, 64)
 
 	// add random colors
 	var colors []Color
@@ -80,11 +86,14 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	circle.WithAttributes(VertexAttributeColor, wgpu.ToBytes(colors))
 
-	commands.Spawn(
-		TransformFromXYZ(24, 0, -0.1),
-		Mesh2d{Mesh: circle},
-		ColorMaterial{},
-	)
+	for i := 0; i < 3; i++ {
+		// circle should be batched
+		commands.Spawn(
+			TransformFromXYZ(24, float32(-32*i), -0.1).WithScaleXY(0.5, 0.5),
+			Mesh2d{Mesh: circle},
+			ColorMaterial{},
+		)
+	}
 }
 
 func rotateSystem(vt VirtualTime, query Query[struct {

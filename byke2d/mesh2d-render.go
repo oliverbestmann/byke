@@ -246,7 +246,7 @@ func drawMeshBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderP
 
 func drawMeshBatchSystem(
 	viewBindGroup ViewBindGroup,
-	pipelines PipelineCache,
+	pipelines *PipelineCache,
 	task byke.In[RenderTask],
 	meshes *ExtractedMeshes,
 	instances *meshInstances,

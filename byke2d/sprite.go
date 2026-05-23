@@ -429,7 +429,7 @@ func drawSpriteBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item Rende
 func drawSpriteBatchSystem(
 	viewBindGroup ViewBindGroup,
 	textureBindGroups spriteTextureBindGroupCache,
-	pipelines PipelineCache,
+	pipelines *PipelineCache,
 	meta metaSprites,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget

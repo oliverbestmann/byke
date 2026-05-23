@@ -5,7 +5,6 @@ import (
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/puffin-go"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -232,7 +231,7 @@ func (c tonemappingPipelineConfig) EqualTo(other PipelineConfig) bool {
 }
 
 func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	var values = pre.Values{}
+	var values = ShaderValues{}
 
 	switch c.Tonemapping {
 	case TonemappingSomewhatBoringDisplayTransform:

@@ -35,6 +35,7 @@ type RenderPipelineDescriptor struct {
 
 // PipelineCache caches render pipelines & bind group layout
 type PipelineCache struct {
+	_                    byke.NoCopy
 	ctx                  *RenderContext
 	bindGroupLayoutCache []cachedBindGroupLayout
 	preCompiler          *pre.Compiler
@@ -86,7 +87,7 @@ func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
 	return pipeline
 }
 
-//goland:noinspection GoMixedReceiverTypes
+//goland:noinspection GoMixedReceiverTypes,GoVetCopyLock
 func (PipelineCache) FromWorld(world *byke.World) PipelineCache {
 	return PipelineCache{
 		ctx:         byke.RequireResourceOf[RenderContext](world),

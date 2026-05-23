@@ -35,7 +35,7 @@ type ShaderDef struct {
 	Source        string
 	VertexEntry   string
 	FragmentEntry string
-	Values        pre.Values
+	Values        ShaderValues
 }
 
 func (s *ShaderDef) EqualTo(other *ShaderDef) bool {

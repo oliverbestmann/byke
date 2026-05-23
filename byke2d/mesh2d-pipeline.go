@@ -85,7 +85,7 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		Label: "mesh2d pipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
 			ViewBindGroupLayout,
-			SequentialLayout(m.MaterialBindings...),
+			SequentialLayout(slices.Clone(m.MaterialBindings)...),
 			// no further bindings for now
 		},
 		Vertex: wgpu.VertexState{
