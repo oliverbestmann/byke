@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/hashicorp/golang-lru/v2"
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/meh"
 	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -19,8 +19,8 @@ type PipelineContext interface {
 }
 
 type PipelineConfig interface {
-	comparable
 	Specialize(ctx PipelineContext) RenderPipelineDescriptor
+	EqualTo(other PipelineConfig) bool
 }
 
 type RenderPipelineDescriptor struct {
@@ -33,46 +33,32 @@ type RenderPipelineDescriptor struct {
 	Fragment     *wgpu.FragmentState
 }
 
-type Pipelines[C PipelineConfig] struct {
-	renderContext *RenderContext
-	pipelineCache *PipelineCache
-	cache         *lru.Cache[C, Pipeline]
+// PipelineCache caches render pipelines & bind group layout
+type PipelineCache struct {
+	ctx                  *RenderContext
+	bindGroupLayoutCache []cachedBindGroupLayout
+	preCompiler          *pre.Compiler
+	pipelines            meh.Map[PipelineConfig, Pipeline]
 }
 
-func newPipelines[C PipelineConfig](renderContext *RenderContext, pipelineCache *PipelineCache) Pipelines[C] {
-	cache, _ := lru.New[C, Pipeline](32)
-
-	return Pipelines[C]{
-		renderContext: renderContext,
-		cache:         cache,
-		pipelineCache: pipelineCache,
-	}
-}
-
-func (Pipelines[C]) FromWorld(world *byke.World) Pipelines[C] {
-	renderContext := byke.RequireResourceOf[RenderContext](world)
-	pipelineCache := byke.RequireResourceOf[PipelineCache](world)
-	return newPipelines[C](renderContext, pipelineCache)
-}
-
-func (p Pipelines[C]) Specialize(config C) Pipeline {
-	cached, ok := p.cache.Get(config)
+func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
+	cached, ok := p.pipelines.Get(config)
 	if ok {
 		return cached
 	}
 
 	// create the pipeline descriptor
-	desc := config.Specialize(p.pipelineCache)
+	desc := config.Specialize(p)
 
 	// create bind group layouts
 	var bgls []*wgpu.BindGroupLayout
 	for _, bgld := range desc.Layout {
-		bgl := p.pipelineCache.BindGroupLayout(bgld)
+		bgl := p.BindGroupLayout(bgld)
 		bgls = append(bgls, bgl)
 	}
 
 	// create the pipeline layout
-	layout := p.renderContext.CreatePipelineLayout(&wgpu.PipelineLayoutDescriptor{
+	layout := p.ctx.CreatePipelineLayout(&wgpu.PipelineLayoutDescriptor{
 		Label:            desc.Label,
 		BindGroupLayouts: bgls,
 	})
@@ -80,7 +66,7 @@ func (p Pipelines[C]) Specialize(config C) Pipeline {
 	defer layout.Release()
 
 	// now create the actual pipeline
-	pipe := p.renderContext.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
+	pipe := p.ctx.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
 		Label:        desc.Label,
 		Layout:       layout,
 		Vertex:       desc.Vertex,
@@ -95,41 +81,9 @@ func (p Pipelines[C]) Specialize(config C) Pipeline {
 		bindGroupLayouts: bgls,
 	}
 
-	p.cache.Add(config, pipeline)
+	p.pipelines.Insert(config, pipeline)
 
 	return pipeline
-}
-
-type Pipeline struct {
-	pipeline         *wgpu.RenderPipeline
-	bindGroupLayouts []*wgpu.BindGroupLayout
-}
-
-// Get returns the actual WGPU pipeline.
-// You must NOT release the returned wgpu.RenderPipeline.
-func (pc *Pipeline) Get() *wgpu.RenderPipeline {
-	if !pc.pipeline.IsValid() {
-		panic("cached pipeline was released")
-	}
-
-	return pc.pipeline
-}
-
-// BindGroupLayout returns a cached bind group layout.
-// You must NOT release the returned wgpu.BindGroupLayout.
-func (pc *Pipeline) BindGroupLayout(idx uint32) *wgpu.BindGroupLayout {
-	if !pc.bindGroupLayouts[idx].IsValid() {
-		panic("BindGroupLayout not valid anymore")
-	}
-
-	return pc.bindGroupLayouts[idx]
-}
-
-// PipelineCache caches render pipelines & bind group layout
-type PipelineCache struct {
-	ctx                  *RenderContext
-	bindGroupLayoutCache []cachedBindGroupLayout
-	preCompiler          *pre.Compiler
 }
 
 //goland:noinspection GoMixedReceiverTypes
@@ -184,4 +138,29 @@ func (c *cachedBindGroupLayout) Matches(desc wgpu.BindGroupLayoutDescriptor) boo
 			lhs.Texture == rhs.Texture &&
 			lhs.StorageTexture == rhs.StorageTexture
 	})
+}
+
+type Pipeline struct {
+	pipeline         *wgpu.RenderPipeline
+	bindGroupLayouts []*wgpu.BindGroupLayout
+}
+
+// Get returns the actual WGPU pipeline.
+// You must NOT release the returned wgpu.RenderPipeline.
+func (pc *Pipeline) Get() *wgpu.RenderPipeline {
+	if !pc.pipeline.IsValid() {
+		panic("cached pipeline was released")
+	}
+
+	return pc.pipeline
+}
+
+// BindGroupLayout returns a cached bind group layout.
+// You must NOT release the returned wgpu.BindGroupLayout.
+func (pc *Pipeline) BindGroupLayout(idx uint32) *wgpu.BindGroupLayout {
+	if !pc.bindGroupLayouts[idx].IsValid() {
+		panic("BindGroupLayout not valid anymore")
+	}
+
+	return pc.bindGroupLayouts[idx]
 }

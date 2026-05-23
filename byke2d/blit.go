@@ -14,6 +14,10 @@ type blitConfig struct {
 	Format wgpu.TextureFormat
 }
 
+func (b blitConfig) EqualTo(other PipelineConfig) bool {
+	return b == other
+}
+
 func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	shader := ctx.Shader("Blit", blitShader, nil)
 

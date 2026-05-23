@@ -13,14 +13,14 @@ func mipmapLevelCount(width, height uint32) uint32 {
 }
 
 type mipmapGenerator struct {
-	cache   Pipelines[blitConfig]
+	cache   *PipelineCache
 	context *RenderContext
 }
 
 func makeMipmapGenerator(ctx *RenderContext, pipelineCache *PipelineCache) *mipmapGenerator {
 	return &mipmapGenerator{
 		context: ctx,
-		cache:   newPipelines[blitConfig](ctx, pipelineCache),
+		cache:   pipelineCache,
 	}
 }
 

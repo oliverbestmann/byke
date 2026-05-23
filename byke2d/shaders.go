@@ -37,3 +37,11 @@ type ShaderDef struct {
 	FragmentEntry string
 	Values        pre.Values
 }
+
+func (s *ShaderDef) EqualTo(other *ShaderDef) bool {
+	return s == other || (s.Label == other.Label &&
+		s.Source == other.Source &&
+		s.VertexEntry == other.VertexEntry &&
+		s.FragmentEntry == other.FragmentEntry &&
+		s.Values.EqualTo(other.Values))
+}

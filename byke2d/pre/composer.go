@@ -37,6 +37,10 @@ func (v Values) Clone() Values {
 	return maps.Clone(v)
 }
 
+func (v Values) EqualTo(other Values) bool {
+	return maps.Equal(v, other)
+}
+
 type Compiler struct {
 	files *template.Template
 }

@@ -281,7 +281,7 @@ func updateCameraViewTargetSystem(
 
 func blitCameraToTargetSystem(
 	ctx *RenderContext,
-	blitPipelines Pipelines[blitConfig],
+	pipelines PipelineCache,
 
 	viewsQuery ViewQuery[struct {
 		Camera       Camera
@@ -297,7 +297,7 @@ func blitCameraToTargetSystem(
 
 	// blit into the target texture
 	blitTextureSimple(ctx,
-		blitPipelines.Specialize(blit),
+		pipelines.Specialize(blit),
 		view.ViewTarget.UnsampledTexture(),
 		view.ViewTarget.SurfaceTextureView,
 	)

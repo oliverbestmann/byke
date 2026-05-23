@@ -16,7 +16,6 @@ func pluginMesh2d(app *byke.App) {
 	app.InsertResource(materialBindGroupCache{})
 
 	app.InsertResource(byke.InitFromWorld[mesh2dCache]())
-	app.InsertResource(byke.InitFromWorld[Pipelines[mesh2dPipelineConfig]]())
 
 	app.AddSystems(Render, byke.System(queueMeshesSystem).InSet(RenderPhaseQueue))
 	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
@@ -247,7 +246,7 @@ func drawMeshBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderP
 
 func drawMeshBatchSystem(
 	viewBindGroup ViewBindGroup,
-	pipelines Pipelines[mesh2dPipelineConfig],
+	pipelines PipelineCache,
 	task byke.In[RenderTask],
 	meshes *ExtractedMeshes,
 	instances *meshInstances,
@@ -281,12 +280,15 @@ func drawMeshBatchSystem(
 		Format:           view.ViewTarget.Format,
 		SampleCount:      view.ViewTarget.SampleCount,
 		Shader:           mesh.Material.Shader(),
-		MaterialBindings: ArraySliceOf(layout),
+		MaterialBindings: layout,
 	}
 
 	for idx := range buf.Attributes {
 		// tell the pipeline about the attributes we want to use
-		pipelineConfig.Attributes.Append(buf.Attributes[idx].Attribute)
+		pipelineConfig.Attributes = append(
+			pipelineConfig.Attributes,
+			buf.Attributes[idx].Attribute,
+		)
 	}
 
 	pipeline := pipelines.Specialize(pipelineConfig)

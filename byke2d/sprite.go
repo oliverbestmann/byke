@@ -77,6 +77,10 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
+func (r renderSpritePipelineConfig) EqualTo(other PipelineConfig) bool {
+	return r == other
+}
+
 type vertexAttributeOffsets struct {
 	index  uint32
 	offset uint64
@@ -425,7 +429,7 @@ func drawSpriteBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item Rende
 func drawSpriteBatchSystem(
 	viewBindGroup ViewBindGroup,
 	textureBindGroups spriteTextureBindGroupCache,
-	pipelines Pipelines[renderSpritePipelineConfig],
+	pipelines PipelineCache,
 	meta metaSprites,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget

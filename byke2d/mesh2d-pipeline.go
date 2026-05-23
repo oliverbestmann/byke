@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -10,9 +11,19 @@ import (
 type mesh2dPipelineConfig struct {
 	Shader           *ShaderDef
 	Format           wgpu.TextureFormat
-	Attributes       ArraySlice[VertexAttribute]
-	MaterialBindings ArraySlice[wgpu.BindGroupLayoutEntry]
+	Attributes       []VertexAttribute
+	MaterialBindings []wgpu.BindGroupLayoutEntry
 	SampleCount      uint32
+}
+
+func (m mesh2dPipelineConfig) EqualTo(other PipelineConfig) bool {
+	otherConfig, ok := other.(mesh2dPipelineConfig)
+	return ok &&
+		m.Shader.EqualTo(otherConfig.Shader) &&
+		m.Format == otherConfig.Format &&
+		m.SampleCount == otherConfig.SampleCount &&
+		slices.Equal(m.Attributes, otherConfig.Attributes) &&
+		slices.Equal(m.MaterialBindings, otherConfig.MaterialBindings)
 }
 
 func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
@@ -48,7 +59,7 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 	}
 
 	var attrShaderLocation uint32 = 5
-	for _, attr := range m.Attributes.AsSlice() {
+	for _, attr := range m.Attributes {
 		buffers = append(buffers, wgpu.VertexBufferLayout{
 			ArrayStride: uint64(attr.Format.ByteSize()),
 			StepMode:    wgpu.VertexStepModeVertex,
@@ -74,7 +85,7 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		Label: "mesh2d pipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
 			ViewBindGroupLayout,
-			SequentialLayout(m.MaterialBindings.AsSlice()...),
+			SequentialLayout(m.MaterialBindings...),
 			// no further bindings for now
 		},
 		Vertex: wgpu.VertexState{

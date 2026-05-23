@@ -61,6 +61,10 @@ type bloomPipelineConfig struct {
 	UniformScale    bool
 }
 
+func (b bloomPipelineConfig) EqualTo(other PipelineConfig) bool {
+	return b == other
+}
+
 func (b bloomPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	values := pre.Values{}
 	values.Define("UNIFORM_SCALE", b.UniformScale)
@@ -144,7 +148,7 @@ type bloomViewQuery struct {
 func applyBloomSystem(
 	commands *byke.Commands,
 	ctx *RenderContext,
-	bloomPipeline Pipelines[bloomPipelineConfig],
+	pipelines PipelineCache,
 	uniforms *ComponentUniforms[bloomUniforms],
 	textureCache *TextureCache,
 	viewQuery ViewQuery[bloomViewQuery],
@@ -159,24 +163,24 @@ func applyBloomSystem(
 
 	isUniformScale := view.Bloom.Scale == glm.Vec2f{1, 1}
 
-	downsample0 := bloomPipeline.Specialize(bloomPipelineConfig{
+	downsample0 := pipelines.Specialize(bloomPipelineConfig{
 		TargetFormat:    wgpu.TextureFormatRG11B10Ufloat,
 		UniformScale:    isUniformScale,
 		FirstDownsample: true,
 	})
 
-	downsampleN := bloomPipeline.Specialize(bloomPipelineConfig{
+	downsampleN := pipelines.Specialize(bloomPipelineConfig{
 		TargetFormat: wgpu.TextureFormatRG11B10Ufloat,
 		UniformScale: isUniformScale,
 	})
 
-	upsample := bloomPipeline.Specialize(bloomPipelineConfig{
+	upsample := pipelines.Specialize(bloomPipelineConfig{
 		TargetFormat: wgpu.TextureFormatRG11B10Ufloat,
 		UniformScale: isUniformScale,
 		Upsample:     true,
 	})
 
-	upsampleT := bloomPipeline.Specialize(bloomPipelineConfig{
+	upsampleT := pipelines.Specialize(bloomPipelineConfig{
 		TargetFormat: view.ViewTarget.Format,
 		UniformScale: isUniformScale,
 		Upsample:     true,

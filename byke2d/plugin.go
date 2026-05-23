@@ -68,11 +68,6 @@ func RenderPlugin(app *byke.App) {
 
 	app.InsertResource(byke.InitFromWorld[TextureCache]())
 
-	app.InsertResource(byke.InitFromWorld[Pipelines[blitConfig]]())
-	app.InsertResource(byke.InitFromWorld[Pipelines[renderSpritePipelineConfig]]())
-	app.InsertResource(byke.InitFromWorld[Pipelines[bloomPipelineConfig]]())
-	app.InsertResource(byke.InitFromWorld[Pipelines[tonemappingPipelineConfig]]())
-
 	app.AddPlugin(ComponentUniformsPlugin[bloomUniforms])
 	app.AddPlugin(ComponentUniformsPlugin[ColorGrading])
 

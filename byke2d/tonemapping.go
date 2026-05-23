@@ -227,6 +227,10 @@ type tonemappingPipelineConfig struct {
 	SectionalColorGrading bool
 }
 
+func (c tonemappingPipelineConfig) EqualTo(other PipelineConfig) bool {
+	return c == other
+}
+
 func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	var values = pre.Values{}
 
@@ -300,7 +304,7 @@ func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelin
 
 func tonemappingSystem(
 	ctx *RenderContext,
-	pipelines Pipelines[tonemappingPipelineConfig],
+	pipelines *PipelineCache,
 	uniforms *ComponentUniforms[ColorGrading],
 	luts *TonemappingLutTextures,
 	viewQuery ViewQuery[struct {
