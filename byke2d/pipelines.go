@@ -87,8 +87,8 @@ func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
 	return pipeline
 }
 
-//goland:noinspection GoMixedReceiverTypes,GoVetCopyLock
-func (PipelineCache) FromWorld(world *byke.World) PipelineCache {
+//goland:noinspection GoMixedReceiverTypes
+func PipelineCacheFromWorld(world *byke.World) PipelineCache {
 	return PipelineCache{
 		ctx:         byke.RequireResourceOf[RenderContext](world),
 		preCompiler: byke.RequireResourceOf[pre.Compiler](world),

@@ -36,7 +36,7 @@ type mesh2dCache struct {
 }
 
 //goland:noinspection GoMixedReceiverTypes
-func (mesh2dCache) FromWorld(world *byke.World) mesh2dCache {
+func mesh2dCacheFromWorld(world *byke.World) mesh2dCache {
 	return mesh2dCache{
 		Context: byke.RequireResourceOf[RenderContext](world),
 	}

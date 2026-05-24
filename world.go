@@ -584,18 +584,11 @@ func triggerObserverSystem(
 	}
 }
 
-// FromWorld implements a "static" method that can create a new instance
-// of the type R and return it.
-type FromWorld[R FromWorld[R]] interface {
-	FromWorld(world *World) R
-}
-
 // InitFromWorld can be passed to World.InsertResource to initialize a resource
-// from the world. The resource R must implement FromWorld.
-func InitFromWorld[R FromWorld[R]]() any {
+// from the world.
+func InitFromWorld[R any](fromWorld func(world *World) R) any {
 	return initFromWorld(func(world *World) any {
-		var res R
-		return res.FromWorld(world)
+		return fromWorld(world)
 	})
 }
 

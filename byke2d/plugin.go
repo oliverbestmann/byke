@@ -64,9 +64,9 @@ func RenderPlugin(app *byke.App) {
 
 	app.AddPlugin(pluginShader)
 
-	app.InsertResource(byke.InitFromWorld[PipelineCache]())
+	app.InsertResource(byke.InitFromWorld(PipelineCacheFromWorld))
 
-	app.InsertResource(byke.InitFromWorld[TextureCache]())
+	app.InsertResource(byke.InitFromWorld(TextureCacheFromWorld))
 
 	app.AddPlugin(ComponentUniformsPlugin[bloomUniforms])
 	app.AddPlugin(ComponentUniformsPlugin[ColorGrading])

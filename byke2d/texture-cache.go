@@ -14,8 +14,7 @@ type TextureCache struct {
 	unused  []*Texture
 }
 
-//goland:noinspection GoMixedReceiverTypes
-func (TextureCache) FromWorld(world *byke.World) TextureCache {
+func TextureCacheFromWorld(world *byke.World) TextureCache {
 	renderContext := byke.RequireResourceOf[RenderContext](world)
 	return TextureCache{Context: renderContext}
 }

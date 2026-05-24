@@ -15,7 +15,7 @@ func pluginMesh2d(app *byke.App) {
 	app.InsertResource(meshInstances{})
 	app.InsertResource(materialBindGroupCache{})
 
-	app.InsertResource(byke.InitFromWorld[mesh2dCache]())
+	app.InsertResource(byke.InitFromWorld(mesh2dCacheFromWorld))
 
 	app.AddSystems(Render, byke.System(queueMeshesSystem).InSet(RenderPhaseQueue))
 	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
