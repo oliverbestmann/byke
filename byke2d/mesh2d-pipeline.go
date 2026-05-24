@@ -94,7 +94,7 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 			Buffers:    buffers,
 		},
 		Primitive: wgpu.PrimitiveState{
-			Topology: wgpu.PrimitiveTopologyTriangleList,
+			Topology: wgpu.PrimitiveTopologyLineStrip,
 			CullMode: wgpu.CullModeNone,
 		},
 		Multisample: multisampleState(m.SampleCount),
