@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log/slog"
+	"math"
 	"os"
 
 	. "github.com/oliverbestmann/byke"
@@ -31,25 +32,29 @@ func main() {
 	app.AddPlugin(RenderPlugin)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Startup, setupSystem)
+	app.AddSystems(Update, moveCameraSystem)
 	app.MustRun()
 }
 
 func setupSystem(world *World, commands *Commands, assets *Assets) {
-	monkey := assets.GLTF("Monkey.glb").Await()
+	model := assets.GLTF("HouseConstructionSite.glb").Await()
 
 	commands.Spawn(
 		Camera{},
-		TransformFromXYZ(0, 0, -1.0),
-		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 16},
-			// ScalingMode: ScalingModeWindowSize{},
-			Scale: 1.0,
-		},
+		TransformFromXYZ(0, -20, 100),
+		DefaultPerspectiveProjection,
 	)
 
 	commands.Spawn(
-		NewTransform().WithScaleXYZ(1, 1, 0),
-		SceneRoot(world, monkey, 0),
+		NewTransform().WithRotationY(glm.DegToRad(0)),
+		SceneRoot(world, model, 0),
 	)
+}
+
+func moveCameraSystem(vt VirtualTime, cam Single[struct {
+	_         With[Camera]
+	Transform *Transform
+}]) {
+	y := math.Sin(vt.Elapsed.Seconds())*20 - 30
+	cam.Get().Transform.Translation[1] = float32(y)
 }

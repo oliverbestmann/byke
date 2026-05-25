@@ -5,7 +5,7 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-type mesh2dBuffers struct {
+type meshBuffers struct {
 	// vertex buffer for this mesh
 	Vertex *wgpu.Buffer
 
@@ -16,7 +16,7 @@ type mesh2dBuffers struct {
 	Attributes []vertexAttributeBuffer
 }
 
-func (m *mesh2dBuffers) Release() {
+func (m *meshBuffers) Release() {
 	m.Vertex.Release()
 	m.Indices.Release()
 
@@ -30,19 +30,19 @@ type vertexAttributeBuffer struct {
 	Buffer    *wgpu.Buffer
 }
 
-type mesh2dCache struct {
+type meshCache struct {
 	Context *RenderContext
-	cache   tickCache[*Mesh, *mesh2dBuffers]
+	cache   tickCache[*Mesh, *meshBuffers]
 }
 
 //goland:noinspection GoMixedReceiverTypes
-func mesh2dCacheFromWorld(world *byke.World) mesh2dCache {
-	return mesh2dCache{
+func meshCacheFromWorld(world *byke.World) meshCache {
+	return meshCache{
 		Context: byke.RequireResourceOf[RenderContext](world),
 	}
 }
 
-func (m *mesh2dCache) Upload(mesh *Mesh, forceUpload bool) *mesh2dBuffers {
+func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) *meshBuffers {
 	bufs, ok := m.cache.Get(mesh)
 	if ok {
 		if !forceUpload {
@@ -51,20 +51,20 @@ func (m *mesh2dCache) Upload(mesh *Mesh, forceUpload bool) *mesh2dBuffers {
 
 		// TODO re-use memory if possible
 		bufs.Release()
-		bufs = &mesh2dBuffers{}
+		bufs = &meshBuffers{}
 
 	} else {
-		bufs = &mesh2dBuffers{}
+		bufs = &meshBuffers{}
 	}
 
 	bufs.Vertex = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
-		Label:    "mesh2d vertex buffer",
+		Label:    "mesh vertex buffer",
 		Usage:    wgpu.BufferUsageVertex,
 		Contents: wgpu.ToBytes(mesh.vertices),
 	})
 
 	bufs.Indices = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
-		Label:    "mesh2d index buffer",
+		Label:    "mesh index buffer",
 		Usage:    wgpu.BufferUsageIndex,
 		Contents: wgpu.ToBytes(mesh.indices),
 	})
@@ -73,7 +73,7 @@ func (m *mesh2dCache) Upload(mesh *Mesh, forceUpload bool) *mesh2dBuffers {
 		bufs.Attributes = append(bufs.Attributes, vertexAttributeBuffer{
 			Attribute: attr.Attribute,
 			Buffer: m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
-				Label:    "mesh2d attr: " + attr.Attribute.Name,
+				Label:    "mesh attr: " + attr.Attribute.Name,
 				Usage:    wgpu.BufferUsageVertex,
 				Contents: wgpu.ToBytes(attr.Value),
 			}),
@@ -85,10 +85,10 @@ func (m *mesh2dCache) Upload(mesh *Mesh, forceUpload bool) *mesh2dBuffers {
 	return bufs
 }
 
-func (m *mesh2dCache) Reset() {
+func (m *meshCache) Reset() {
 	m.cache.Tick()
 }
 
-func (m *mesh2dCache) Get(mesh *Mesh) (*mesh2dBuffers, bool) {
+func (m *meshCache) Get(mesh *Mesh) (*meshBuffers, bool) {
 	return m.cache.Get(mesh)
 }

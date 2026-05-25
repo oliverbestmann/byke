@@ -59,9 +59,10 @@ func dispatchRenderSystem(
 	world *byke.World,
 	ctx *RenderContext,
 	viewQuery ViewQuery[struct {
-		Camera     *Camera
-		ViewTarget *ViewTarget
-		Phase      *RenderPhase
+		Camera           *Camera
+		ViewTarget       *ViewTarget
+		ViewDepthTexture *ViewDepthTexture
+		Phase            *RenderPhase
 	}],
 ) {
 	view := viewQuery.Get()
@@ -74,6 +75,7 @@ func dispatchRenderSystem(
 		ColorAttachments: []wgpu.RenderPassColorAttachment{
 			view.ViewTarget.Attachment(),
 		},
+		DepthStencilAttachment: new(view.ViewDepthTexture.Attachment()),
 	})
 	defer pass.Release()
 

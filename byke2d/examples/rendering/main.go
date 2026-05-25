@@ -130,7 +130,6 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 360},
-			Scale:          1.0,
 		},
 	)
 
@@ -141,7 +140,6 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 360},
-			Scale:          1.0,
 		},
 	)
 

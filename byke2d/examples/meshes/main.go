@@ -49,12 +49,11 @@ func main() {
 func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Camera{},
-		TransformFromXYZ(0, 0, -0.5),
+		TransformFromXYZ(0, 0, 0.5).WithScaleXY(2, 2),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 640},
 			// ScalingMode: ScalingModeWindowSize{},
-			Scale: 2.0,
 		},
 	)
 
@@ -67,7 +66,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(-24, 0, 0.1),
+		TransformFromXYZ(-24, 0, -0.1),
 		Mesh2d{Mesh: RegularPolygon(32, 3)},
 		ColorMaterial{
 			Tint:    ColorSRGBA(1.0, 0.0, 0.5, 1.0),

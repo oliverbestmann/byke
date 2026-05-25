@@ -50,7 +50,7 @@ func gltfConvert(ctx *RenderContext, h *gltf.Handle, node gltf.Node) []byke.Eras
 
 	// spawn each mesh as a direct child
 	for _, prim := range h.Meshes[m.Get()].Primitives {
-		var material ColorMaterial
+		var material StandardMaterial
 
 		if ma := prim.Material; ma.IsSet {
 			material = gltfConvertMaterial(ctx, h, prim.Material.Get())
@@ -58,7 +58,7 @@ func gltfConvert(ctx *RenderContext, h *gltf.Handle, node gltf.Node) []byke.Eras
 
 		mesh := gltfConvertMesh(h, prim)
 		bundle = append(bundle, byke.SpawnChild(
-			Mesh2d{Mesh: mesh},
+			Mesh3d{Mesh: mesh},
 			material,
 		))
 	}
@@ -77,11 +77,11 @@ func gltfConvert(ctx *RenderContext, h *gltf.Handle, node gltf.Node) []byke.Eras
 	return bundle
 }
 
-func gltfConvertMaterial(ctx *RenderContext, h *gltf.Handle, ma gltf.Ref) ColorMaterial {
-	var cm ColorMaterial
+func gltfConvertMaterial(ctx *RenderContext, h *gltf.Handle, ma gltf.Ref) StandardMaterial {
+	var m StandardMaterial
 
 	mat := h.Materials[ma]
-	cm.Tint = ColorOf(mat.BaseColor())
+	m.Tint = ColorOf(mat.BaseColor())
 
 	if mr := mat.MetallicRoughness; mr != nil {
 		if tex := mr.BaseColorTexture; tex != nil {
@@ -92,11 +92,11 @@ func gltfConvertMaterial(ctx *RenderContext, h *gltf.Handle, ma gltf.Ref) ColorM
 				panic(err)
 			}
 
-			cm.Texture = texture
+			m.Texture = texture
 		}
 	}
 
-	return cm
+	return m
 }
 
 func gltfConvertTransform(node gltf.Node) Transform {

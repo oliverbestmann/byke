@@ -74,6 +74,31 @@ func (m *ViewTarget) UnsampledAttachment() wgpu.RenderPassColorAttachment {
 	return m.attachments[m.attachmentIndex].UnsampledAttachment()
 }
 
+type ViewDepthTexture struct {
+	byke.Component[ViewDepthTexture]
+	TextureView *wgpu.TextureView
+	Format      wgpu.TextureFormat
+
+	hasContent bool
+}
+
+func (vd *ViewDepthTexture) Attachment() wgpu.RenderPassDepthStencilAttachment {
+	var loadOp wgpu.LoadOp = wgpu.LoadOpClear
+
+	if vd.hasContent {
+		vd.hasContent = true
+		loadOp = wgpu.LoadOpLoad
+	}
+
+	return wgpu.RenderPassDepthStencilAttachment{
+		View:            vd.TextureView,
+		DepthLoadOp:     loadOp,
+		DepthStoreOp:    wgpu.StoreOpStore,
+		DepthClearValue: 1,
+		DepthReadOnly:   false,
+	}
+}
+
 type ViewTargetAttachment struct {
 	TextureView *wgpu.TextureView
 
@@ -236,4 +261,30 @@ func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurf
 	}
 
 	return view, true
+}
+
+func buildCameraViewDepthTexture(textureCache *TextureCache, size glm.Vec2u, msaa bool) *ViewDepthTexture {
+	var sampleCount uint32 = 1
+	if msaa {
+		sampleCount = 4
+	}
+
+	depthTexture := textureCache.Allocate(&wgpu.TextureDescriptor{
+		Label:     "view depth texture",
+		Usage:     wgpu.TextureUsageTextureBinding | wgpu.TextureUsageRenderAttachment,
+		Dimension: wgpu.TextureDimension2D,
+		Size: wgpu.Extent3D{
+			Width:              size[0],
+			Height:             size[1],
+			DepthOrArrayLayers: 1,
+		},
+		Format:        wgpu.TextureFormatDepth32Float,
+		SampleCount:   sampleCount,
+		MipLevelCount: 1,
+	})
+
+	return &ViewDepthTexture{
+		TextureView: depthTexture.TextureView,
+		Format:      depthTexture.Descriptor.Format,
+	}
 }

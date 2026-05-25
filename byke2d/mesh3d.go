@@ -4,12 +4,12 @@ import (
 	"github.com/oliverbestmann/byke"
 )
 
-type Mesh2d struct {
-	byke.Component[Mesh2d]
+type Mesh3d struct {
+	byke.Component[Mesh3d]
 	Mesh *Mesh
 }
 
-func (*Mesh2d) RequireComponents() []byke.ErasedComponent {
+func (*Mesh3d) RequireComponents() []byke.ErasedComponent {
 	return []byke.ErasedComponent{
 		NewTransform(),
 		InheritVisibility,

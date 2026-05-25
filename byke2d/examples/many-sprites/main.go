@@ -61,7 +61,6 @@ func setupSystem(commands *Commands, assets *Assets) {
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.0, 0.0},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 1000},
-			Scale:          1.0,
 		},
 	)
 

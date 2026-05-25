@@ -65,7 +65,6 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeWindowSize{},
-			Scale:          1,
 		},
 
 		ViewUniforms{},
@@ -81,20 +80,57 @@ type OrthographicProjection struct {
 
 	ScalingMode ScalingMode
 
-	// Extra scale to multiply on top of the ScalingMode. Can be used for zooming.
-	Scale float32
-
 	// Distance of the near and far plane in camera direction.
 	// If both values are set to zero, 0 and 1 is assumed.
 	Near, Far float32
 }
 
-func (o *OrthographicProjection) nearFar() (near float32, far float32) {
+func (o OrthographicProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
+	viewSize = o.ScalingMode.ViewportSize(viewSize.XY())
+
+	offset := o.ViewportOrigin.Mul(viewSize)
+	left, right := -offset[0], -offset[0]+viewSize[0]
+	top, bottom := -offset[1], -offset[1]+viewSize[1]
+
+	near, far := o.nearFar()
+
+	rcpWidth := 1.0 / viewSize[0]
+	rcpHeight := 1.0 / viewSize[1]
+	r := 1.0 / (far - near)
+
+	return glm.Mat4f{
+		{2 * rcpWidth, 0, 0, 0},
+		{0, 2 * rcpHeight, 0, 0},
+		{0, 0, r, 0},
+		{-(left + right) * rcpWidth, -(top + bottom) * rcpHeight, -r * near, 1.0},
+	}
+}
+
+func (o OrthographicProjection) nearFar() (near float32, far float32) {
 	if o.Near == 0 && o.Far == 0 {
 		return 0, 1
 	}
 
 	return o.Near, o.Far
+}
+
+type PerspectiveProjection struct {
+	byke.Component[PerspectiveProjection]
+
+	Fov  glm.Rad
+	Near float32
+	Far  float32
+}
+
+func (p PerspectiveProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
+	aspect := viewSize[0] / viewSize[1]
+	return glm.Perspective(p.Fov, aspect, p.Near, p.Far)
+}
+
+var DefaultPerspectiveProjection = PerspectiveProjection{
+	Fov:  glm.DegToRad(70),
+	Near: 0.1,
+	Far:  1000,
 }
 
 type ScalingMode interface {
@@ -165,74 +201,81 @@ func (s ScalingModeFixedHorizontal) ViewportSize(width, height float32) glm.Vec2
 	return glm.Vec2f{s.ViewportWidth, height * s.ViewportWidth / width}
 }
 
+type Projection interface {
+	ToMat4f(viewSize glm.Vec2f) glm.Mat4f
+}
+
 type ViewValues struct {
 	// Camera transformation
-	Transform GlobalTransform
+	CameraTransform GlobalTransform
 
 	// Camera projection
-	Projection OrthographicProjection
+	Projection Projection
 
 	// Surface size
 	SurfaceSize glm.Vec2f
+	WorldToClip glm.Mat4f
 }
 
 // SurfaceToNDC maps from Surface pixel coordinates to NDC (normalized device coordinates).
 // NDC is from -1 to +1 on both axis.
 func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
-	return glm.ScaleMat4f(2.0, 2.0, 1.0).
-		Translate(-0.5, -0.5, 0)
-}
-
-// CameraToSurface maps a value from Camera space to a Surface space. Surface
-// space is described by pixel coordinates with origin at 0 in the lower left corner.
-func (v *ViewValues) CameraToSurface() glm.Mat4f {
-	viewportSize := v.Projection.ScalingMode.ViewportSize(v.SurfaceSize.XY())
-
-	near, far := v.Projection.nearFar()
-	r := 1.0 / (far - near)
-
-	return glm.IdentityMat4f().
-		Translate(v.Projection.ViewportOrigin.Extend(1.0).XYZ()).
-		Scale(v.Projection.Scale, v.Projection.Scale, r).
-		Scale(viewportSize.Reciprocal().Extend(1.0).XYZ())
+	return glm.IdentityMat4f()
+	// return glm.ScaleMat4f(2.0, 2.0, 1.0).
+	// 	Translate(-0.5, -0.5, 0)
 }
 
 // WorldToCamera maps a point from World space into Camera space.
 // This just applies the Cameras position. It does not apply the
 // cameras projection.
 func (v *ViewValues) WorldToCamera() glm.Mat4f {
-	return v.Transform.Affine
+	return v.CameraTransform.Affine
 }
 
 func prepareViewUniformsSystem(
 	vt byke.VirtualTime,
 	viewsQuery byke.Query[struct {
-		_            byke.With[Camera]
-		EntityId     byke.EntityId
-		Transform    GlobalTransform
-		Projection   OrthographicProjection
-		ViewTarget   *ViewTarget
-		ViewUniforms *ViewUniforms
-		TAAA         byke.Has[TAA]
+		_                      byke.With[Camera]
+		EntityId               byke.EntityId
+		Transform              GlobalTransform
+		OrthographicProjection byke.Option[OrthographicProjection]
+		PerspectiveProjection  byke.Option[PerspectiveProjection]
+		ViewTarget             *ViewTarget
+		ViewUniforms           *ViewUniforms
+		TAAA                   byke.Has[TAA]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
-		vv := ViewValues{
-			Transform:   view.Transform,
-			Projection:  view.Projection,
-			SurfaceSize: view.ViewTarget.Size,
+		persp, perspOk := view.PerspectiveProjection.Get()
+		ortho, orthoOk := view.OrthographicProjection.Get()
+
+		var projection Projection
+		switch {
+		case perspOk:
+			projection = persp
+
+		case orthoOk:
+			projection = ortho
+
+		default:
+			continue
 		}
 
-		cameraToSurface := vv.CameraToSurface()
+		cameraToClip := projection.ToMat4f(view.ViewTarget.Size)
+
+		vv := ViewValues{
+			CameraTransform: view.Transform,
+			WorldToClip:     cameraToClip,
+		}
 
 		if view.TAAA.Exists() {
 			offset := taaaOffsets[vt.Frames%4]
-			cameraToSurface.TranslateAssign(offset[0], offset[1], 0)
+			vv.WorldToClip.TranslateAssign(offset[0], offset[1], 0)
 		}
 
 		*view.ViewUniforms = ViewUniforms{
 			ScreenToNDC:   vv.SurfaceToNDC(),
-			WorldToScreen: cameraToSurface.Mul(vv.WorldToCamera()),
+			WorldToScreen: vv.WorldToClip.Mul(vv.WorldToCamera()),
 		}
 	}
 }
@@ -292,6 +335,10 @@ func updateCameraViewTargetSystem(
 		}
 
 		commands.Entity(camera.EntityId).Insert(viewTarget)
+
+		width, height := uint32(viewTarget.Size[0]), uint32(viewTarget.Size[1])
+		depthTexture := buildCameraViewDepthTexture(textureCache, glm.Vec2u{width, height}, camera.MSAA.Exists())
+		commands.Entity(camera.EntityId).Insert(depthTexture)
 	}
 }
 

@@ -60,13 +60,12 @@ func exitSystem(vt VirtualTime, exit *MessageWriter[AppExit]) {
 
 func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
+		NewTransform().WithScaleXY(4, 4),
 		Camera{},
 		HDR{},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			// ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
-			ScalingMode: ScalingModeWindowSize{},
-			Scale:       4.0,
+			ScalingMode:    ScalingModeAutoMin{MinWidth: 500, MinHeight: 500},
 		},
 	)
 

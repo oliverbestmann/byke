@@ -35,7 +35,6 @@ func setupSystem(commands *Commands, assets *Assets) {
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 512},
 			// ScalingMode: ScalingModeWindowSize{},
-			Scale: 1.0,
 		},
 	)
 

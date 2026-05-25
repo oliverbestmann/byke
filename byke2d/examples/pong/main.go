@@ -84,7 +84,6 @@ func setupSystem(commands *Commands) {
 		OrthographicProjection{
 			ViewportOrigin: Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeAutoMin{MinWidth: 1000 + 100, MinHeight: 500 + 50},
-			Scale:          1.0,
 		},
 	)
 

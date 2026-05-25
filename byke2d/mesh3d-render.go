@@ -1,40 +1,33 @@
 package byke2d
 
 import (
+	"math"
+
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/internal/query"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-func pluginMesh2d(app *byke.App) {
-	app.InsertResource(ExtractedMesh2d{})
-	app.InsertResource(mesh2dInstances{})
+func pluginMesh3d(app *byke.App) {
+	app.InsertResource(ExtractedMesh3d{})
+	app.InsertResource(mesh3dInstances{})
 
-	app.AddSystems(Render, byke.System(queueMesh2dSystem).InSet(RenderPhaseQueue))
-	app.AddSystems(Render, byke.System(prepareMesh2dInstances).InSet(RenderPhasePrepareResources))
-	app.AddSystems(Render, byke.System(clearExtractedMesh2dSystem).InSet(RenderPhaseCleanup))
+	app.AddSystems(Render, byke.System(queueMesh3dSystem).InSet(RenderPhaseQueue))
+	app.AddSystems(Render, byke.System(prepareMesh3dInstances).InSet(RenderPhasePrepareResources))
+	app.AddSystems(Render, byke.System(clearExtractedMesh3dSystem).InSet(RenderPhaseCleanup))
 
-	app.AddPlugin(PluginMaterial2d[ColorMaterial])
+	app.AddPlugin(PluginMaterial3d[StandardMaterial])
 }
 
-type ExtractedMesh struct {
-	Mesh *Mesh
-
-	Transform    glm.Mat4f
-	RenderLayers RenderLayers
-	Material     Material
-}
-
-type ExtractedMesh2d struct {
+type ExtractedMesh3d struct {
 	Meshes []ExtractedMesh
 }
 
-func extractMesh2dSystem[M Material](
-	meshes *ExtractedMesh2d,
+func extractMesh3dSystem[M Material](
+	meshes *ExtractedMesh3d,
 	meshQuery byke.Query[struct {
-		Mesh         query.Ref[Mesh2d]
+		Mesh         query.Ref[Mesh3d]
 		Transform    GlobalTransform
 		Material     M
 		RenderLayers byke.Option[RenderLayers]
@@ -58,17 +51,17 @@ func extractMesh2dSystem[M Material](
 	}
 }
 
-func clearExtractedMesh2dSystem(
-	meshes *ExtractedMesh2d,
+func clearExtractedMesh3dSystem(
+	meshes *ExtractedMesh3d,
 ) {
 	clear(meshes.Meshes)
 	meshes.Meshes = meshes.Meshes[:0]
 }
 
-type mesh2dRenderPhaseItem struct{}
+type mesh3dRenderPhaseItem struct{}
 
-func queueMesh2dSystem(
-	meshes *ExtractedMesh2d,
+func queueMesh3dSystem(
+	meshes *ExtractedMesh3d,
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
@@ -83,27 +76,29 @@ func queueMesh2dSystem(
 			}
 
 			view.RenderPhase.Append(RenderPhaseItem{
-				Type:           &mesh2dRenderPhaseItem{},
-				Draw:           drawMesh2dBatch,
-				SortValue:      sp.Transform.TranslateZ(),
+				Type:           &mesh3dRenderPhaseItem{},
+				Draw:           drawMesh3dBatch,
 				ExtractedIndex: uint32(idx),
+
+				// TODO we need a BinnedRenderPhase
+				SortValue: float32(math.Inf(-1)),
 			})
 		}
 	}
 }
 
-// mesh2dInstances stores the instance buffer for all per-instance
+// mesh3dInstances stores the instance buffer for all per-instance
 // data of the meshes
-type mesh2dInstances struct {
+type mesh3dInstances struct {
 	Buffer    *wgpu.Buffer
 	Instances wgsl.InstanceWriter
 }
 
-func prepareMesh2dInstances(
+func prepareMesh3dInstances(
 	ctx *RenderContext,
-	meshes *ExtractedMesh2d,
+	meshes *ExtractedMesh3d,
 	pipelineCache *PipelineCache,
-	meshInstances *mesh2dInstances,
+	meshInstances *mesh3dInstances,
 	bindGroups *materialBindGroupCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
@@ -124,7 +119,7 @@ func prepareMesh2dInstances(
 		for idx := range view.Phase.Len() {
 			item := view.Phase.Get(idx)
 
-			_, isMesh := item.Type.(*mesh2dRenderPhaseItem)
+			_, isMesh := item.Type.(*mesh3dRenderPhaseItem)
 
 			if !isMesh {
 				// not a mesh, end the current batch,
@@ -165,16 +160,8 @@ func prepareMesh2dInstances(
 	instances.WriteTo(ctx, &meshInstances.Buffer)
 }
 
-func writeMeshInstanceValues(instances *wgsl.InstanceWriter, mesh *ExtractedMesh) {
-	instances.StartNew(48)
-	instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
-	instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
-	instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
-	instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
-}
-
-func drawMesh2dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderPhaseItem) (ok bool) {
-	world.RunSystemWithInValue(drawMesh2dBatchSystem, RenderTask{
+func drawMesh3dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderPhaseItem) (ok bool) {
+	world.RunSystemWithInValue(drawMesh3dBatchSystem, RenderTask{
 		Pass: pass,
 		Item: item,
 	})
@@ -182,12 +169,12 @@ func drawMesh2dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item Rende
 	return true
 }
 
-func drawMesh2dBatchSystem(
+func drawMesh3dBatchSystem(
 	viewBindGroup ViewBindGroup,
 	pipelines *PipelineCache,
 	task byke.In[RenderTask],
-	meshes *ExtractedMesh2d,
-	instances *mesh2dInstances,
+	meshes *ExtractedMesh3d,
+	instances *mesh3dInstances,
 	meshCache *meshCache,
 	bindGroupCache *materialBindGroupCache,
 	viewQuery ViewQuery[struct {
@@ -214,7 +201,7 @@ func drawMesh2dBatchSystem(
 	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false))
 	layout = append(layout, mesh.Material.BindingsLayout()...)
 
-	pipelineConfig := mesh2dPipelineConfig{
+	pipelineConfig := mesh3dPipelineConfig{
 		Format:           view.ViewTarget.Format,
 		SampleCount:      view.ViewTarget.SampleCount,
 		Shader:           mesh.Material.Shader(),
