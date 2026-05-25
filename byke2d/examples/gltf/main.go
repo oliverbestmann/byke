@@ -5,10 +5,12 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"runtime"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/glm"
+	"github.com/pkg/profile"
 )
 
 //go:embed assets
@@ -28,6 +30,10 @@ func main() {
 
 	// configure assets before loading the plugin
 	app.InsertResource(MakeAssetFS(assets))
+
+	if runtime.GOOS != "js" {
+		defer profile.Start(profile.CPUProfile).Stop()
+	}
 
 	app.AddPlugin(RenderPlugin)
 	app.AddSystems(Update, ExitOnEscapeSystem)

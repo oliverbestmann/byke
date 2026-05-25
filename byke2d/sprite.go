@@ -81,24 +81,6 @@ func (r renderSpritePipelineConfig) EqualTo(other PipelineConfig) bool {
 	return r == other
 }
 
-type vertexAttributeOffsets struct {
-	index  uint32
-	offset uint64
-}
-
-func (o *vertexAttributeOffsets) Inc(size uint64, fmt wgpu.VertexFormat) wgpu.VertexAttribute {
-	attr := wgpu.VertexAttribute{
-		ShaderLocation: o.index,
-		Offset:         o.offset,
-		Format:         fmt,
-	}
-
-	o.index += 1
-	o.offset += size
-
-	return attr
-}
-
 func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	var shaderLabel = "Sprite"
 	var shaderSource = "#import byke2d::sprite"
@@ -119,7 +101,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 	var offset vertexAttributeOffsets
 
 	return RenderPipelineDescriptor{
-		Label: "SpriteRenderPipeline",
+		Label: "sprite",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
 			SequentialLayoutWithLabel("ViewUniforms",
 				BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
@@ -159,6 +141,12 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 		},
 
 		Multisample: multisampleState(r.SampleCount),
+
+		DepthStencil: &wgpu.DepthStencilState{
+			Format:            wgpu.TextureFormatDepth32Float,
+			DepthWriteEnabled: wgpu.OptionalBoolFalse,
+			DepthCompare:      wgpu.CompareFunctionLess,
+		},
 	}
 }
 
