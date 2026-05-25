@@ -12,6 +12,10 @@ func QuatOf(a, b, c, d float32) Quat {
 	return Quat{a, b, c, d - 1}
 }
 
+func IdentityQuat() Quat {
+	return Quat{}
+}
+
 func (q Quat) Values() Vec4f {
 	return Vec4f{q.x, q.y, q.z, q.s1 + 1}
 }

@@ -21,6 +21,11 @@ var VertexAttributeUV = VertexAttribute{
 	Format: wgpu.VertexFormatFloat32x2,
 }
 
+var VertexAttributeNormal = VertexAttribute{
+	Name:   "Normal",
+	Format: wgpu.VertexFormatFloat32x3,
+}
+
 type VertexAttributeValue struct {
 	Attribute VertexAttribute
 	Value     []byte

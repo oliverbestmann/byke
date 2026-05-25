@@ -8,6 +8,10 @@ type Single[T any] struct {
 	Value T
 }
 
+func (s Single[T]) Get() T {
+	return s.Value
+}
+
 func (s Single[T]) newState(world *World, _ singleT) SystemParamState {
 
 	// instantiate a query that we can delegate to

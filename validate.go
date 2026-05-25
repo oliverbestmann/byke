@@ -25,14 +25,18 @@ func ValidateComponent[C IsComponent[C]]() struct{} {
 	pendingValidationsLock.Lock()
 	defer pendingValidationsLock.Unlock()
 
-	if pendingValidationsCleared {
-		panic("ValidateComponent must be called before NewWorld")
-	}
-
-	pendingValidations = append(pendingValidations, func() {
+	validate := func() {
 		var cZero C
 		validateComponent(cZero)
-	})
+	}
+
+	if pendingValidationsCleared {
+		// new wold was already called, validating directly
+		validate()
+		return struct{}{}
+	}
+
+	pendingValidations = append(pendingValidations, validate)
 
 	return struct{}{}
 }

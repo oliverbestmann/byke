@@ -88,6 +88,13 @@ func (m *Mesh) markUploaded() {
 	m.uploaded = m.version
 }
 
+// Transform applies the given matrix to all vertices within this mesh
+func (m *Mesh) Transform(tr glm.Mat4f) {
+	for idx := range m.vertices {
+		m.vertices[idx] = tr.Transform3(m.vertices[idx])
+	}
+}
+
 func RegularPolygon(radius float32, sides uint) *Mesh {
 	// a regular polygon is actually just a circle
 	return Circle(radius, sides)

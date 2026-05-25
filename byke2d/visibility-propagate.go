@@ -4,13 +4,13 @@ import "github.com/oliverbestmann/byke"
 
 func syncSimpleVisibilitySystem(
 	query byke.Query[struct {
-	_ byke.Without[byke.ChildOf]
-	_ byke.Without[byke.Children]
-	_ byke.Changed[Visibility]
+		_ byke.Without[byke.ChildOf]
+		_ byke.Without[byke.Children]
+		_ byke.Changed[Visibility]
 
-	Visibility         Visibility
-	ComputedVisibility *ComputedVisibility
-}],
+		Visibility         Visibility
+		ComputedVisibility *ComputedVisibility
+	}],
 ) {
 	for item := range query.Items() {
 		*item.ComputedVisibility = item.Visibility.Compute(
@@ -21,19 +21,19 @@ func syncSimpleVisibilitySystem(
 
 func propagateVisibilitySystem(
 	roots byke.Query[struct {
-	_ byke.Without[byke.ChildOf]
-	_ byke.With[byke.Children]
+		_ byke.Without[byke.ChildOf]
+		_ byke.With[byke.Children]
 
-	Visibility         Visibility
-	ComputedVisibility *ComputedVisibility
-	Children           byke.Children
-}],
+		Visibility         Visibility
+		ComputedVisibility *ComputedVisibility
+		Children           byke.Children
+	}],
 
 	nodes byke.Query[struct {
-	Visibility         Visibility
-	ComputedVisibility *ComputedVisibility
-	Children           byke.Option[byke.Children]
-}],
+		Visibility         Visibility
+		ComputedVisibility *ComputedVisibility
+		Children           byke.Option[byke.Children]
+	}],
 ) {
 	var propagateVisibility func(nodeId byke.EntityId, parentVisibility ComputedVisibility)
 

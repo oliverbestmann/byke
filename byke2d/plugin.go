@@ -84,6 +84,7 @@ func RenderPlugin(app *byke.App) {
 	app.InsertResource(makeAssets(app.World(), assetFs.FS,
 		TextureLoader{},
 		AudioLoader{},
+		GLTFLoader{},
 	))
 
 	app.AddMessage(byke.MessageType[AppExit]())
@@ -139,8 +140,7 @@ func RenderPlugin(app *byke.App) {
 	)
 
 	app.ConfigureSystemSets(Core2d,
-		Core2dMain.Before(Core2dPostProcessing),
-		Core2dPostProcessing.Before(Core2dBlit))
+		ChainSystemSets(Core2dMain, Core2dPostProcessing, Core2dBlit))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 

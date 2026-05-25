@@ -9,7 +9,7 @@ import (
 
 func pluginRenderPhases(app *byke.App) {
 	app.InsertResource(renderPhaseSortCache{})
-	app.AddSystems(Core2d, byke.System(dispatchRenderSystem).InSet(RenderPhaseExecute))
+	app.AddSystems(Core2d, byke.System(dispatchRenderSystem).InSet(Core2dMain))
 	app.AddSystems(Render, byke.System(sortRenderPhasesSystem).InSet(RenderPhaseSort))
 	app.AddSystems(Render, byke.System(cleanupRenderPhaseSystem).InSet(RenderPhaseCleanup))
 }
