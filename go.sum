@@ -48,10 +48,14 @@ github.com/jfreymuth/vorbis v1.0.2/go.mod h1:DoftRo4AznKnShRl1GxiTFCseHr4zR9BN3T
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80/go.mod h1:imJHygn/1yfhB7XSJJKlFZKl/J+dCPAknuiaGOshXAs=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
+github.com/oliverbestmann/earcut-go v1.0.0 h1:zmmQR5ikmpIB1gmO+KPbN/OG5HqFj6jLdpV2bzJRNCI=
+github.com/oliverbestmann/earcut-go v1.0.0/go.mod h1:ilxChwLCGeq6BhhkMmpuh1vEN02KCla3bXentG4Kqp8=
 github.com/oliverbestmann/puffin-go v1.0.0 h1:8Aqa/u7SCot/yTMaVnMwzgWE6VEYgmWUdXG3Y991quA=
 github.com/oliverbestmann/puffin-go v1.0.0/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
 github.com/oliverbestmann/webgpu v1.33.4 h1:+r4wFXfVFRo2U1NFlQlHgHKZqZrEUQZw4IHOhDRIGoI=
 github.com/oliverbestmann/webgpu v1.33.4/go.mod h1:vtdJTC9gIdqmU42NDGfsq70dco6K+dCYC2vkvE4RD2I=
+github.com/oliverbestmann/webgpu v1.33.5-0.20260523154840-fa113c1fb662 h1:5p8ACK7mXsdgyRjASbRd6kgVf9mctHDgF8Fn4MfFvBg=
+github.com/oliverbestmann/webgpu v1.33.5-0.20260523154840-fa113c1fb662/go.mod h1:vtdJTC9gIdqmU42NDGfsq70dco6K+dCYC2vkvE4RD2I=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15 h1:HPxVSV8C8JaxGfa9hjDhzNmryoqPF3EwESBTFWpxNBo=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260509160813-48db59792a15/go.mod h1:tczQXCdsoFy+FTJVsZSve/vF8cmWEkxhvjcyY2Rujp8=
 github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260509160802-b09403b07cd3 h1:NbBG2+pwqKcNfKUKtjWOj+02RkXSUWVkxY3hqzgyjSA=
