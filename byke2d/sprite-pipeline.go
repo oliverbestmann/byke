@@ -1,0 +1,82 @@
+package byke2d
+
+import "github.com/oliverbestmann/webgpu/wgpu"
+
+type renderSpritePipelineConfig struct {
+	Shader      *ShaderDef
+	Format      wgpu.TextureFormat
+	SampleCount uint32
+}
+
+func (r renderSpritePipelineConfig) EqualTo(other PipelineConfig) bool {
+	return r == other
+}
+
+func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
+	var shaderLabel = "Sprite"
+	var shaderSource = "#import byke2d::sprite"
+	var entryVertex = "vs_main"
+	var entryFragment = "fs_main"
+	var shaderValues ShaderValues
+
+	if r.Shader != nil {
+		shaderLabel = valueOr(r.Shader.Label, "Custom Sprite Shader")
+		shaderSource = r.Shader.Source
+		shaderValues = r.Shader.Values
+		entryVertex = valueOr(r.Shader.VertexEntry, entryVertex)
+		entryFragment = valueOr(r.Shader.FragmentEntry, entryFragment)
+	}
+
+	var module = ctx.Shader(shaderLabel, shaderSource, shaderValues)
+
+	var offset vertexAttributeOffsets
+
+	return RenderPipelineDescriptor{
+		Label: "sprite",
+		Layout: []wgpu.BindGroupLayoutDescriptor{
+			SequentialLayoutWithLabel("ViewUniforms",
+				BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
+			),
+			layoutSpriteTextures,
+		},
+		Vertex: wgpu.VertexState{
+			Module:     module,
+			EntryPoint: entryVertex,
+			Buffers: []wgpu.VertexBufferLayout{
+				{
+					ArrayStride: 84,
+					StepMode:    wgpu.VertexStepModeInstance,
+					Attributes: []wgpu.VertexAttribute{
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
+						offset.Inc(12, wgpu.VertexFormatFloat32x3),
+						offset.Inc(8, wgpu.VertexFormatFloat32x2),
+						offset.Inc(8, wgpu.VertexFormatFloat32x2),
+						offset.Inc(16, wgpu.VertexFormatFloat32x4),
+						offset.Inc(4, wgpu.VertexFormatUint32),
+					},
+				},
+			},
+		},
+		Fragment: &wgpu.FragmentState{
+			Module:     module,
+			EntryPoint: entryFragment,
+			Targets: []wgpu.ColorTargetState{
+				{
+					Format:    r.Format,
+					Blend:     &wgpu.BlendStateAlphaBlending,
+					WriteMask: wgpu.ColorWriteMaskAll,
+				},
+			},
+		},
+
+		Multisample: multisampleState(r.SampleCount),
+
+		DepthStencil: &wgpu.DepthStencilState{
+			Format:            wgpu.TextureFormatDepth32Float,
+			DepthWriteEnabled: wgpu.OptionalBoolFalse,
+			DepthCompare:      wgpu.CompareFunctionLess,
+		},
+	}
+}
