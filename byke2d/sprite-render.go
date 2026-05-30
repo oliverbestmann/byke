@@ -20,7 +20,7 @@ func queueSpritesSystem(
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
-		RenderPhase  *RenderPhase
+		RenderPhase  *RenderPhase[Transparent]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -56,7 +56,7 @@ func prepareSpriteBindGroupsSystem(
 	pipelineCache *PipelineCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
-		Phase RenderPhase
+		Phase RenderPhase[Transparent]
 	}],
 	sprites *ExtractedSprites,
 	meta *metaSprites,

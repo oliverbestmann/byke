@@ -72,7 +72,7 @@ func queueMesh2dSystem(
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
-		RenderPhase  *RenderPhase
+		RenderPhase  *RenderPhase[Opaque]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -107,7 +107,7 @@ func prepareMesh2dInstances(
 	bindGroups *materialBindGroupCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
-		Phase RenderPhase
+		Phase RenderPhase[Opaque]
 	}],
 ) {
 	instances := &meshInstances.Instances

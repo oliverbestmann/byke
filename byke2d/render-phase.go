@@ -7,40 +7,47 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+type Transparent struct{}
+type Opaque struct{}
+
 func pluginRenderPhases(app *byke.App) {
 	app.InsertResource(renderPhaseSortCache{})
-	app.AddSystems(Core2d, byke.System(dispatchRenderSystem).InSet(Core2dMain))
-	app.AddSystems(Render, byke.System(sortRenderPhasesSystem).InSet(RenderPhaseSort))
-	app.AddSystems(Render, byke.System(cleanupRenderPhaseSystem).InSet(RenderPhaseCleanup))
+	app.AddSystems(Core2d, byke.System(dispatchRenderSystem[Opaque]).InSet(Core2dMain))
+	app.AddSystems(Render, byke.System(sortRenderPhasesSystem[Opaque]).InSet(RenderPhaseSort))
+	app.AddSystems(Render, byke.System(cleanupRenderPhaseSystem[Opaque]).InSet(RenderPhaseCleanup))
+
+	app.AddSystems(Core2d, byke.System(dispatchRenderSystem[Transparent]).InSet(Core2dMain))
+	app.AddSystems(Render, byke.System(sortRenderPhasesSystem[Transparent]).InSet(RenderPhaseSort))
+	app.AddSystems(Render, byke.System(cleanupRenderPhaseSystem[Transparent]).InSet(RenderPhaseCleanup))
 }
 
 type Draw func(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderPhaseItem) (ok bool)
 
-type RenderPhase struct {
-	byke.Component[RenderPhase]
+type RenderPhase[M any] struct {
+	byke.Component[RenderPhase[M]]
 	items     []RenderPhaseItem
 	index     []radix.Value
 	sortCache radix.Cache
 }
 
-func (r *RenderPhase) Reset() {
+func (r *RenderPhase[M]) Reset() {
 	r.items = r.items[:0]
 	r.index = r.index[:0]
 }
 
-func (r *RenderPhase) Append(item RenderPhaseItem) {
+func (r *RenderPhase[M]) Append(item RenderPhaseItem) {
 	r.items = append(r.items, item)
 }
 
-func (r *RenderPhase) Len() uint32 {
+func (r *RenderPhase[M]) Len() uint32 {
 	return uint32(len(r.items))
 }
 
-func (r *RenderPhase) Get(idx uint32) *RenderPhaseItem {
+func (r *RenderPhase[M]) Get(idx uint32) *RenderPhaseItem {
 	return &r.items[r.index[idx].Index]
 }
 
-func (r *RenderPhase) IsEmpty() bool {
+func (r *RenderPhase[M]) IsEmpty() bool {
 	return len(r.items) == 0
 }
 
@@ -55,14 +62,14 @@ type RenderPhaseItem struct {
 	ExtractedIndex uint32
 }
 
-func dispatchRenderSystem(
+func dispatchRenderSystem[M any](
 	world *byke.World,
 	ctx *RenderContext,
 	viewQuery ViewQuery[struct {
 		Camera           *Camera
 		ViewTarget       *ViewTarget
 		ViewDepthTexture *ViewDepthTexture
-		Phase            *RenderPhase
+		Phase            *RenderPhase[M]
 	}],
 ) {
 	view := viewQuery.Get()
@@ -99,13 +106,13 @@ type renderPhaseSortCache struct {
 	SortCache radix.Cache
 }
 
-func sortRenderPhasesSystem(phases byke.Query[*RenderPhase]) {
+func sortRenderPhasesSystem[M any](phases byke.Query[*RenderPhase[M]]) {
 	for phase := range phases.Items() {
 		sortRenderPhase(phase)
 	}
 }
 
-func sortRenderPhase(phase *RenderPhase) {
+func sortRenderPhase[M any](phase *RenderPhase[M]) {
 	defer puffin.NewScope("Sort RenderPhase").End()
 
 	n := len(phase.items)
@@ -132,8 +139,8 @@ func sortRenderPhase(phase *RenderPhase) {
 	radix.Sort(&phase.sortCache, phase.index)
 }
 
-func cleanupRenderPhaseSystem(
-	phases byke.Query[*RenderPhase]) {
+func cleanupRenderPhaseSystem[M any](
+	phases byke.Query[*RenderPhase[M]]) {
 	for phase := range phases.Items() {
 		phase.Reset()
 	}

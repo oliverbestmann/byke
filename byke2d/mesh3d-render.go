@@ -65,7 +65,7 @@ func queueMesh3dSystem(
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
-		RenderPhase  *RenderPhase
+		RenderPhase  *RenderPhase[Opaque]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -102,7 +102,7 @@ func prepareMesh3dInstances(
 	bindGroups *materialBindGroupCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
-		Phase RenderPhase
+		Phase RenderPhase[Opaque]
 	}],
 ) {
 	instances := &meshInstances.Instances
