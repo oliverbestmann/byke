@@ -112,8 +112,9 @@ func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescripto
 type wgpuContext struct {
 	*wgpu.Device
 	*wgpu.Queue
-	Adapter *wgpu.Adapter
-	Surface *wgpu.Surface
+	Instance *wgpu.Instance
+	Adapter  *wgpu.Adapter
+	Surface  *wgpu.Surface
 }
 
 // newContext creates a new Context for a wgpu.SurfaceDescriptor.
@@ -129,7 +130,7 @@ func newContext(sd *wgpu.SurfaceDescriptor) (st *wgpuContext, err error) {
 
 	// create the webgpu instance
 	instance := wgpu.CreateInstance(nil)
-	defer instance.Release()
+	st.Instance = instance
 
 	// create a Surface based on the window
 	st.Surface = instance.CreateSurface(sd)
@@ -183,5 +184,10 @@ func (wc *wgpuContext) Release() {
 	if wc.Surface != nil {
 		wc.Surface.Release()
 		wc.Surface = nil
+	}
+
+	if wc.Instance != nil {
+		wc.Instance.Release()
+		wc.Instance = nil
 	}
 }

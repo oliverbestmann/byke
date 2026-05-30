@@ -387,6 +387,7 @@ func renderMainSystem(
 	}()
 
 	surface, ok := surfaceTexture.Get()
+	defer surface.Release()
 	if !ok {
 		slog.Warn(
 			"Failed to get a current surface texture",
@@ -399,14 +400,6 @@ func renderMainSystem(
 
 	surfaceWidth := surface.GetWidth()
 	surfaceHeight := surface.GetHeight()
-
-	// The surface must only be released if it was not rendered to.
-	// To skip releasing the surface, we can set it to nil later.
-	defer func() {
-		if surface != nil {
-			surface.Release()
-		}
-	}()
 
 	surfaceViewFormat := wgpu.TextureFormatBGRA8UnormSrgb
 
@@ -441,7 +434,4 @@ func renderMainSystem(
 		ctx.Surface.Present()
 		return nil
 	})
-
-	// we do not need to release the surface texture if present was successful
-	surface = nil
 }

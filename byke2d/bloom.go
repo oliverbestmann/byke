@@ -289,7 +289,7 @@ func bloomGetTexture(commands *byke.Commands, cache *TextureCache, bv bloomViewQ
 		Dimension: wgpu.TextureDimension2D,
 		Size: wgpu.Extent3D{
 			Width:              max(1, uint32(cameraSize[0]*mipHeightRatio+0.5)),
-			Height:             max(1, uint32(cameraSize[0]*mipHeightRatio+0.5)),
+			Height:             max(1, uint32(cameraSize[1]*mipHeightRatio+0.5)),
 			DepthOrArrayLayers: 1,
 		},
 		Format:        wgpu.TextureFormatRG11B10Ufloat,
