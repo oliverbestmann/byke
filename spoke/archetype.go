@@ -267,9 +267,9 @@ func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIt
 func columnAccessOf(column Column) ColumnAccess {
 	if column == nil {
 		return ColumnAccess{}
-	} else {
-		return column.Access()
 	}
+
+	return column.Access()
 }
 
 func (a *Archetype) Import(tick Tick, source *Archetype, entityId EntityId, newComponents ...ErasedComponent) {
