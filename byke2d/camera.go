@@ -68,8 +68,8 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 		},
 
 		ViewUniforms{},
-		RenderPhase[Opaque]{},
-		RenderPhase[Transparent]{},
+		BinnedRenderPhase[Opaque]{},
+		SortableRenderPhase[Transparent]{},
 	}
 }
 

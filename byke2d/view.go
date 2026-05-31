@@ -82,7 +82,7 @@ type ViewDepthTexture struct {
 	hasContent bool
 }
 
-func (vd *ViewDepthTexture) Attachment() wgpu.RenderPassDepthStencilAttachment {
+func (vd *ViewDepthTexture) ReadWrite() wgpu.RenderPassDepthStencilAttachment {
 	var loadOp wgpu.LoadOp = wgpu.LoadOpClear
 
 	if vd.hasContent {
@@ -96,6 +96,16 @@ func (vd *ViewDepthTexture) Attachment() wgpu.RenderPassDepthStencilAttachment {
 		DepthStoreOp:    wgpu.StoreOpStore,
 		DepthClearValue: 1,
 		DepthReadOnly:   false,
+	}
+}
+
+func (vd *ViewDepthTexture) ReadOnly() wgpu.RenderPassDepthStencilAttachment {
+	return wgpu.RenderPassDepthStencilAttachment{
+		View:            vd.TextureView,
+		DepthLoadOp:     wgpu.LoadOpUndefined,
+		DepthStoreOp:    wgpu.StoreOpUndefined,
+		DepthClearValue: 1,
+		DepthReadOnly:   true,
 	}
 }
 

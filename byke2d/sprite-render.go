@@ -20,7 +20,7 @@ func queueSpritesSystem(
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
-		RenderPhase  *RenderPhase[Transparent]
+		RenderPhase  *SortableRenderPhase[Transparent]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -30,12 +30,13 @@ func queueSpritesSystem(
 				continue
 			}
 
-			view.RenderPhase.Append(RenderPhaseItem{
+			renderItem := RenderItem{
 				Type:           &spriteRenderPhaseItem{},
 				Draw:           drawSpriteBatch,
-				SortValue:      sp.Transform.TranslateZ(),
 				ExtractedIndex: uint32(idx),
-			})
+			}
+
+			view.RenderPhase.Append(renderItem, sp.Transform.TranslateZ())
 		}
 	}
 }
@@ -56,7 +57,7 @@ func prepareSpriteBindGroupsSystem(
 	pipelineCache *PipelineCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
-		Phase RenderPhase[Transparent]
+		Phase SortableRenderPhase[Transparent]
 	}],
 	sprites *ExtractedSprites,
 	meta *metaSprites,
@@ -72,7 +73,7 @@ func prepareSpriteBindGroupsSystem(
 			continue
 		}
 
-		var current *RenderPhaseItem
+		var current *RenderItem
 		var currentSprite *ExtractedSprite
 
 		for idx := range view.Phase.Len() {
@@ -183,10 +184,10 @@ func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSpri
 
 type RenderTask struct {
 	Pass *wgpu.RenderPassEncoder
-	Item RenderPhaseItem
+	Item RenderItem
 }
 
-func drawSpriteBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderPhaseItem) (ok bool) {
+func drawSpriteBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderItem) (ok bool) {
 	world.RunSystemWithInValue(drawSpriteBatchSystem, RenderTask{
 		Pass: pass,
 		Item: item,

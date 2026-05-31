@@ -72,7 +72,7 @@ func queueMesh2dSystem(
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
-		RenderPhase  *RenderPhase[Opaque]
+		RenderPhase  *BinnedRenderPhase[Opaque]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -82,12 +82,19 @@ func queueMesh2dSystem(
 				continue
 			}
 
-			view.RenderPhase.Append(RenderPhaseItem{
+			renderItem := RenderItem{
 				Type:           &mesh2dRenderPhaseItem{},
 				Draw:           drawMesh2dBatch,
-				SortValue:      sp.Transform.TranslateZ(),
 				ExtractedIndex: uint32(idx),
-			})
+			}
+
+			key := MeshKey{
+				Type:     &mesh2dRenderPhaseItem{},
+				Material: sp.Material,
+				Mesh:     sp.Mesh,
+			}
+
+			view.RenderPhase.Append(renderItem, key)
 		}
 	}
 }
@@ -99,6 +106,12 @@ type mesh2dInstances struct {
 	Instances wgsl.InstanceWriter
 }
 
+type MeshKey struct {
+	Type     any
+	Material Material
+	Mesh     *Mesh
+}
+
 func prepareMesh2dInstances(
 	ctx *RenderContext,
 	meshes *ExtractedMesh2d,
@@ -107,7 +120,7 @@ func prepareMesh2dInstances(
 	bindGroups *materialBindGroupCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
-		Phase RenderPhase[Opaque]
+		Phase *BinnedRenderPhase[Opaque]
 	}],
 ) {
 	instances := &meshInstances.Instances
@@ -118,46 +131,37 @@ func prepareMesh2dInstances(
 			continue
 		}
 
-		var current *RenderPhaseItem
-		var currentMesh *ExtractedMesh
-
-		for idx := range view.Phase.Len() {
-			item := view.Phase.Get(idx)
-
-			_, isMesh := item.Type.(*mesh2dRenderPhaseItem)
-
-			if !isMesh {
-				// not a mesh, end the current batch,
-				current = nil
-				currentMesh = nil
+		for key, batch := range view.Phase.Batches() {
+			if len(batch) == 0 {
 				continue
 			}
 
-			itemMesh := &meshes.Meshes[item.ExtractedIndex]
-
-			//goland:noinspection GoMaybeNil
-			if current == nil ||
-				currentMesh.Mesh != itemMesh.Mesh ||
-				currentMesh.Material != itemMesh.Material {
-
-				// we begin a new mesh batch here
-				current = item
-				currentMesh = itemMesh
-
-				// record begin of batch
-				current.BatchBegin = uint32(instances.InstanceCount())
-				current.BatchCount = 0
-
-				// create a bindgroup for the material
-				if _, ok := bindGroups.Get(itemMesh.Material); !ok {
-					bindGroup := createMaterialBindGroup(ctx, pipelineCache, itemMesh.Material)
-					bindGroups.Add(itemMesh.Material, bindGroup)
-				}
+			key, ok := key.(MeshKey)
+			if !ok {
+				continue
 			}
 
-			// write sprite vertex data
-			writeMeshInstanceValues(instances, itemMesh)
-			current.BatchCount += 1
+			_, isMesh := key.Type.(*mesh2dRenderPhaseItem)
+			if !isMesh {
+				// this batch is not a mesh
+				continue
+			}
+
+			// create a bindgroup for the material
+			if _, ok := bindGroups.Get(key.Material); !ok {
+				bindGroup := createMaterialBindGroup(ctx, pipelineCache, key.Material)
+				bindGroups.Add(key.Material, bindGroup)
+			}
+
+			batch[0].BatchBegin = uint32(instances.InstanceCount())
+			batch[0].BatchCount = uint32(len(batch))
+
+			for _, item := range batch {
+				mesh := &meshes.Meshes[item.ExtractedIndex]
+
+				// write sprite vertex data
+				writeMeshInstanceValues(instances, mesh)
+			}
 		}
 	}
 
@@ -173,7 +177,7 @@ func writeMeshInstanceValues(instances *wgsl.InstanceWriter, mesh *ExtractedMesh
 	instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
 }
 
-func drawMesh2dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderPhaseItem) (ok bool) {
+func drawMesh2dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderItem) (ok bool) {
 	world.RunSystemWithInValue(drawMesh2dBatchSystem, RenderTask{
 		Pass: pass,
 		Item: item,

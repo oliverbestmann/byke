@@ -43,7 +43,8 @@ var (
 )
 
 var (
-	Core2dMain           = &byke.SystemSet{Name: "Core2dMain"}
+	Core2dOpaque         = &byke.SystemSet{Name: "Core2dOpaque"}
+	Core2dTransparent    = &byke.SystemSet{Name: "Core2dTransparent"}
 	Core2dPostProcessing = &byke.SystemSet{Name: "Core2dPostProcessing"}
 	Core2dBlit           = &byke.SystemSet{Name: "Core2dBlit"}
 )
@@ -140,7 +141,7 @@ func RenderPlugin(app *byke.App) {
 	)
 
 	app.ConfigureSystemSets(Core2d,
-		ChainSystemSets(Core2dMain, Core2dPostProcessing, Core2dBlit))
+		ChainSystemSets(Core2dOpaque, Core2dTransparent, Core2dPostProcessing, Core2dBlit))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
