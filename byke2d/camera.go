@@ -230,7 +230,12 @@ func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
 // This just applies the Cameras position. It does not apply the
 // cameras projection.
 func (v *ViewValues) WorldToCamera() glm.Mat4f {
-	return v.CameraTransform.Affine
+	inv, ok := inverseAeffine(v.CameraTransform.Affine)
+	if !ok {
+		panic("not invertable")
+	}
+
+	return inv
 }
 
 func prepareViewUniformsSystem(
@@ -392,4 +397,57 @@ func driveCameraSchedules(
 		world.InsertResource(CurrentView(camera.EntityId))
 		world.RunSchedule(Core2d)
 	}
+}
+
+func inverseAeffine(m glm.Mat4f) (glm.Mat4f, bool) {
+	// Convert to row-major variables for readability:
+	a := m[0][0]
+	b := m[1][0]
+	c := m[2][0]
+
+	d := m[0][1]
+	e := m[1][1]
+	f := m[2][1]
+
+	g := m[0][2]
+	h := m[1][2]
+	i := m[2][2]
+
+	det :=
+		a*(e*i-f*h) -
+			b*(d*i-f*g) +
+			c*(d*h-e*g)
+
+	if det == 0 {
+		return glm.Mat4f{}, false
+	}
+
+	invDet := float32(1.0) / det
+
+	var inv glm.Mat4f
+
+	// Adjugate / determinant
+	inv[0][0] = (e*i - f*h) * invDet
+	inv[1][0] = (c*h - b*i) * invDet
+	inv[2][0] = (b*f - c*e) * invDet
+
+	inv[0][1] = (f*g - d*i) * invDet
+	inv[1][1] = (a*i - c*g) * invDet
+	inv[2][1] = (c*d - a*f) * invDet
+
+	inv[0][2] = (d*h - e*g) * invDet
+	inv[1][2] = (b*g - a*h) * invDet
+	inv[2][2] = (a*e - b*d) * invDet
+
+	t := m[3]
+
+	// tInv = -(inv * t)
+	inv[3] = glm.Vec4f{
+		-(inv[0][0]*t[0] + inv[1][0]*t[1] + inv[2][0]*t[2]),
+		-(inv[0][1]*t[0] + inv[1][1]*t[1] + inv[2][1]*t[2]),
+		-(inv[0][2]*t[0] + inv[1][2]*t[1] + inv[2][2]*t[2]),
+		1,
+	}
+
+	return inv, true
 }
