@@ -58,6 +58,28 @@ func setupSystem(world *World, commands *Commands, assets *Assets) {
 		NewTransform().WithRotationY(glm.DegToRad(0)),
 		SceneRoot(world, model, 0),
 	)
+
+	commands.Spawn(
+		TransformFromXYZ(1, 3, 4),
+		PointLight{
+			Color:        glm.Vec3f{0, 1, 0},
+			Intensity:    1,
+			AttConstant:  1,
+			AttLinear:    0.09,
+			AttQuadratic: 0.032,
+		},
+	)
+
+	commands.Spawn(
+		TransformFromXYZ(-4, 7, -6),
+		PointLight{
+			Color:        glm.Vec3f{1, 0, 0.5},
+			Intensity:    2,
+			AttConstant:  1,
+			AttLinear:    0.09,
+			AttQuadratic: 0.032,
+		},
+	)
 }
 
 func moveCameraSystem(vt VirtualTime, keys Keys, cam Single[struct {

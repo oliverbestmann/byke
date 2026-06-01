@@ -50,3 +50,11 @@ func mat4fScaleGo(m *mat4f, x, y, z float32) {
 	m[2][2] = m[2][2] * z
 	m[2][3] = m[2][3] * z
 }
+
+func (m Mat4f) Translation() Vec3f {
+	return Vec3f{
+		m[3][0],
+		m[3][1],
+		m[3][2],
+	}
+}

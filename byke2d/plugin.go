@@ -149,6 +149,7 @@ func RenderPlugin(app *byke.App) {
 	app.AddPlugin(pluginCamera)
 	app.AddPlugin(pluginSprite)
 
+	app.AddPlugin(pluginLights)
 	app.AddPlugin(pluginMesh)
 	app.AddPlugin(pluginMesh2d)
 	app.AddPlugin(pluginMesh3d)

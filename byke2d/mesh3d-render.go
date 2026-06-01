@@ -166,6 +166,7 @@ func drawMesh3dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item Rende
 
 func drawMesh3dBatchSystem(
 	viewBindGroup ViewBindGroup,
+	lightsBindGroup LightsBindGroup,
 	pipelines *PipelineCache,
 	task byke.In[RenderTask],
 	meshes *ExtractedMesh3d,
@@ -218,7 +219,8 @@ func drawMesh3dBatchSystem(
 	pass.SetPipeline(pipeline.Get())
 
 	pass.SetBindGroup(0, viewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset})
-	pass.SetBindGroup(1, bindGroup, nil)
+	pass.SetBindGroup(1, lightsBindGroup.BindGroup, nil)
+	pass.SetBindGroup(2, bindGroup, nil)
 
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
 	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)

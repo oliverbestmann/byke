@@ -4,6 +4,7 @@ import (
 	"unsafe"
 
 	"github.com/oliverbestmann/byke/byke2d/glm"
+	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
 type StructWriter struct {
@@ -72,7 +73,15 @@ func (s *StructWriter) AppendMat4f(value glm.Mat4f) {
 	structAppend(s, value.Column(3), 16)
 }
 
+func (s *StructWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer, usage wgpu.BufferUsage) {
+	writeTo(ctx, bufRef, usage, s.Bytes())
+}
+
 func (s *StructWriter) alignTo(align int) {
+	if align == 0 {
+		return
+	}
+
 	if pad := align - len(s.buf)%align; pad < align {
 		var zero [16]byte
 		s.buf = append(s.buf, zero[:pad&0xf]...)
