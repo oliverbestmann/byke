@@ -26,6 +26,7 @@ func (PointLight) RequireComponents() []spoke.ErasedComponent {
 }
 
 func pluginLights(app *byke.App) {
+	app.InsertResource(DefaultLightConfig)
 	app.InsertResource(ExtractedLights{})
 	app.InsertResource(lightsStorage{})
 	app.InsertResource(LightsBindGroup{})
@@ -89,13 +90,23 @@ type LightsBindGroup struct {
 	BindGroup *wgpu.BindGroup
 }
 
+type LightConfig struct {
+	Ambient Color
+}
+
+var DefaultLightConfig = LightConfig{
+	Ambient: ColorLinearRGBA(0.1, 0.1, 0.1, 1.0),
+}
+
 func prepareLightsStorage(
 	ctx *RenderContext,
 	uniforms *lightsStorage,
 	lights ExtractedLights,
+	lightConfig LightConfig,
 ) {
 	uniforms.Writer.Clear()
 
+	uniforms.Writer.AppendVec3f(lightConfig.Ambient.ToVec().Truncate())
 	uniforms.Writer.AppendUint(uint32(len(lights.PointLights)))
 
 	// TODO start nested struct and keep alignment correct

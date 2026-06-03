@@ -47,7 +47,7 @@ func setupSystem(world *World, commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		Camera{},
-		TransformFromXYZ(0, -20, 100),
+		TransformFromXYZ(0, 20, -100),
 		DefaultPerspectiveProjection,
 	)
 
@@ -61,6 +61,6 @@ func moveCameraSystem(vt VirtualTime, cam Single[struct {
 	_         With[Camera]
 	Transform *Transform
 }]) {
-	y := math.Sin(vt.Elapsed.Seconds())*20 - 30
+	y := math.Sin(vt.Elapsed.Seconds())*20 + 30
 	cam.Get().Transform.Translation[1] = float32(y)
 }

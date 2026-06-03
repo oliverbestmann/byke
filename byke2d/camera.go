@@ -1,11 +1,13 @@
 package byke2d
 
 import (
+	"math/rand/v2"
 	"reflect"
 	"sort"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
+	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -25,6 +27,10 @@ func pluginCamera(app *byke.App) {
 	app.AddSystems(Render, byke.
 		System(updateCameraViewTargetSystem).
 		InSet(RenderPhasePrepare))
+
+	app.AddSystems(Render, byke.
+		System(prepareGlobals).
+		InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.
 		System(createViewUniformsBindGroup).
@@ -287,13 +293,24 @@ func prepareViewUniformsSystem(
 }
 
 type ViewBindGroup struct {
-	BindGroup *wgpu.BindGroup
-	buffer    *wgpu.Buffer
+	BindGroup     *wgpu.BindGroup
+	bufferViews   *wgpu.Buffer
+	bufferGlobals *wgpu.Buffer
 }
 
 var ViewBindGroupLayout = SequentialLayoutWithLabel("ViewUniforms",
 	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
+	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false),
 )
+
+func prepareGlobals(ctx *RenderContext, vt *byke.VirtualTime, g *ViewBindGroup) {
+	var w wgsl.StructWriter
+	w.AppendFloat32(float32(vt.Elapsed.Seconds()))
+	w.AppendFloat32(vt.DeltaSecs)
+	w.AppendUint(uint32(vt.Frames))
+	w.AppendUint(rand.Uint32())
+	w.WriteTo(ctx, &g.bufferGlobals, wgpu.BufferUsageUniform)
+}
 
 func createViewUniformsBindGroup(
 	ctx *RenderContext,
@@ -301,15 +318,18 @@ func createViewUniformsBindGroup(
 	viewBindGroup *ViewBindGroup,
 	viewUniforms *ComponentUniforms[ViewUniforms],
 ) {
-	binding := viewUniforms.Binding()
-	if binding.Buffer != viewBindGroup.buffer {
+	bindingView := viewUniforms.Binding()
+	if bindingView.Buffer != viewBindGroup.bufferViews {
 		viewBindGroup.BindGroup.Release()
 	}
 
 	viewBindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Label:   "View Uniforms",
-		Layout:  pipelineCache.BindGroupLayout(ViewBindGroupLayout),
-		Entries: Sequential(binding),
+		Label:  "View Uniforms",
+		Layout: pipelineCache.BindGroupLayout(ViewBindGroupLayout),
+		Entries: Sequential(
+			bindingView,
+			BindingBuffer(viewBindGroup.bufferGlobals),
+		),
 	})
 }
 

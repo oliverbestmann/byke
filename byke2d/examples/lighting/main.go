@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"log/slog"
 	"os"
 	"runtime"
@@ -11,10 +10,9 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
 	"github.com/pkg/profile"
-)
 
-//go:embed assets
-var assets embed.FS
+	_ "image/png"
+)
 
 func init() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -27,6 +25,8 @@ func init() {
 
 func main() {
 	var app App
+
+	assets := os.DirFS(".")
 
 	// configure assets before loading the plugin
 	app.InsertResource(MakeAssetFS(assets))
@@ -59,27 +59,29 @@ func setupSystem(world *World, commands *Commands, assets *Assets) {
 		SceneRoot(world, model, 0),
 	)
 
-	commands.Spawn(
-		TransformFromXYZ(1, 3, 4),
-		PointLight{
-			Color:        glm.Vec3f{0, 1, 0},
-			Intensity:    1,
-			AttConstant:  1,
-			AttLinear:    0.09,
-			AttQuadratic: 0.032,
-		},
-	)
+	/*
+		commands.Spawn(
+			TransformFromXYZ(1, 3, 4),
+			PointLight{
+				Color:        glm.Vec3f{0, 1, 0},
+				Intensity:    1,
+				AttConstant:  1,
+				AttLinear:    0.09,
+				AttQuadratic: 0.032,
+			},
+		)
 
-	commands.Spawn(
-		TransformFromXYZ(-4, 7, -6),
-		PointLight{
-			Color:        glm.Vec3f{1, 0, 0.5},
-			Intensity:    2,
-			AttConstant:  1,
-			AttLinear:    0.09,
-			AttQuadratic: 0.032,
-		},
-	)
+		commands.Spawn(
+			TransformFromXYZ(-4, 7, -6),
+			PointLight{
+				Color:        glm.Vec3f{1, 0, 0.5},
+				Intensity:    2,
+				AttConstant:  1,
+				AttLinear:    0.09,
+				AttQuadratic: 0.032,
+			},
+		)
+	*/
 }
 
 func moveCameraSystem(vt VirtualTime, keys Keys, cam Single[struct {

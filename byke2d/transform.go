@@ -43,7 +43,7 @@ func (t Transform) WithTranslationXYZ(x, y, z float32) Transform {
 }
 
 func (t Transform) WithScaleXY(x, y float32) Transform {
-	t.Scale = glm.Vec3f{x, y, 0}
+	t.Scale = glm.Vec3f{x, y, 1}
 	return t
 }
 

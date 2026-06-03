@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oliverbestmann/earcut-go v1.0.0
 	github.com/oliverbestmann/puffin-go v1.0.0
-	github.com/oliverbestmann/webgpu v1.33.5-0.20260523154840-fa113c1fb662
+	github.com/oliverbestmann/webgpu v1.33.5-0.20260603151805-7c0bbb806a13
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a

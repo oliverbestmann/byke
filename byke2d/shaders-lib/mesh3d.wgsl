@@ -48,6 +48,7 @@ struct Light {
 };
 
 struct Lights {
+    ambient: vec3f,
     count: u32,
     lights: array<Light>,
 };
@@ -97,8 +98,7 @@ fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
     var color = vertex.color;
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    // TODO global backlight
-    var tint = vec3f(0, 0, 0);
+    var tint = point_lights.ambient;
 
     for (var i: u32 = 0; i < point_lights.count; i++) {
         let light = point_lights.lights[i];

@@ -1,7 +1,9 @@
 package byke2d
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
@@ -14,7 +16,9 @@ type Scene struct {
 	Index  int
 }
 
-func SceneRoot(world *byke.World, h *gltf.Handle, sceneId gltf.Ref) byke.ErasedComponent {
+func SceneRoot(world *byke.World, handle *gltf.Handle, sceneId gltf.Ref) byke.ErasedComponent {
+	h := toGltfHandle(handle)
+
 	ctx := byke.RequireResourceOf[RenderContext](world)
 
 	var bundle []byke.ErasedComponent
@@ -35,12 +39,43 @@ func SceneRoot(world *byke.World, h *gltf.Handle, sceneId gltf.Ref) byke.ErasedC
 	)
 }
 
-func gltfConvert(ctx *RenderContext, h *gltf.Handle, node gltf.Node) []byke.ErasedComponent {
-	m := node.Mesh
-	if m.IsNil() {
-		return nil
+func gltfConvert(ctx *RenderContext, h *gltfHandle, node gltf.Node) []byke.ErasedComponent {
+	if m := node.Mesh; !m.IsNil() {
+		return gltfConvertMeshNode(ctx, h, node, m)
 	}
 
+	l, err := gltf.ExtensionOf[gltf.KHRLightsPunctualInNode](node.Extensions, "KHR_lights_punctual")
+	if err != nil {
+		panic(err)
+	}
+
+	if l != nil {
+		transform := gltfConvertTransform(node)
+
+		light := &h.Lights.Lights[l.Light]
+
+		// return a node for the light
+		var bundle []byke.ErasedComponent
+		bundle = append(bundle, InheritVisibility)
+		bundle = append(bundle, transform)
+
+		if light.Type == "point" {
+			bundle = append(bundle, PointLight{
+				Color:        light.Color,
+				Intensity:    light.Intensity,
+				AttConstant:  0,
+				AttLinear:    0,
+				AttQuadratic: 1,
+			})
+		}
+
+		return bundle
+	}
+
+	return nil
+}
+
+func gltfConvertMeshNode(ctx *RenderContext, h *gltfHandle, node gltf.Node, m gltf.OptionRef) []byke.ErasedComponent {
 	transform := gltfConvertTransform(node)
 
 	// we'll return an intermediary node
@@ -65,7 +100,7 @@ func gltfConvert(ctx *RenderContext, h *gltf.Handle, node gltf.Node) []byke.Eras
 
 	// recurse into child nodes and spawn them as children
 	for _, child := range h.ChildNodes(node) {
-		components := gltfConvert(nil, h, child)
+		components := gltfConvert(ctx, h, child)
 		if len(components) == 0 {
 			continue
 		}
@@ -77,7 +112,7 @@ func gltfConvert(ctx *RenderContext, h *gltf.Handle, node gltf.Node) []byke.Eras
 	return bundle
 }
 
-func gltfConvertMaterial(ctx *RenderContext, h *gltf.Handle, ma gltf.Ref) StandardMaterial {
+func gltfConvertMaterial(ctx *RenderContext, h *gltfHandle, ma gltf.Ref) StandardMaterial {
 	var m StandardMaterial
 
 	mat := h.Materials[ma]
@@ -108,7 +143,7 @@ func gltfConvertTransform(node gltf.Node) Transform {
 	}
 }
 
-func gltfConvertMesh(h *gltf.Handle, prim gltf.MeshPrimitive) *Mesh {
+func gltfConvertMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 	if prim.Indices.IsNil() {
 		panic(errors.New("can only load meshes with indices"))
 	}
@@ -146,4 +181,25 @@ func gltfConvertMeshIndices(rawIndices any) []uint32 {
 	}
 
 	return rawIndices.([]uint32)
+}
+
+type gltfHandle struct {
+	*gltf.Handle
+	gltfExtensions
+}
+
+type gltfExtensions struct {
+	Lights gltf.KHRLightsPunctualInFile `json:"KHR_lights_punctual"`
+}
+
+func toGltfHandle(h *gltf.Handle) *gltfHandle {
+	var e gltfExtensions
+
+	if len(h.Extensions) > 0 {
+		if err := json.Unmarshal(h.Extensions, &e); err != nil {
+			panic(fmt.Errorf("deserialize extensions %T: %w", e, err))
+		}
+	}
+
+	return new(gltfHandle{h, e})
 }

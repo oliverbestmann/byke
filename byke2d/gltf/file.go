@@ -47,15 +47,15 @@ type Asset struct {
 }
 
 type Node struct {
-	Name        string          `json:"name"`
-	Mesh        OptionRef       `json:"mesh"`
-	Camera      OptionRef       `json:"camera"`
-	Matrix      *[16]float32    `json:"matrix"`
-	Rotation    *[4]float32     `json:"rotation"`
-	Scale       *[3]float32     `json:"scale"`
-	Translation *[3]float32     `json:"translation"`
-	Children    []Ref           `json:"children"`
-	Extensions  json.RawMessage `json:"extensions"`
+	Name        string       `json:"name"`
+	Mesh        OptionRef    `json:"mesh"`
+	Camera      OptionRef    `json:"camera"`
+	Matrix      *[16]float32 `json:"matrix"`
+	Rotation    *[4]float32  `json:"rotation"`
+	Scale       *[3]float32  `json:"scale"`
+	Translation *[3]float32  `json:"translation"`
+	Children    []Ref        `json:"children"`
+	Extensions  Extensions   `json:"extensions"`
 }
 
 func (n *Node) TransformComponents() (translation, scale glm.Vec3f, rotation glm.Quat) {
@@ -291,17 +291,18 @@ type MetallicRoughness struct {
 type fileContent struct {
 	Asset Asset `json:"asset"`
 
-	Accessors   []Accessor   `json:"accessors"`
-	BufferViews []BufferView `json:"bufferViews"`
-	Cameras     []Camera     `json:"cameras"`
-	Images      []Image      `json:"images"`
-	Materials   []Material   `json:"materials"`
-	Meshes      []Mesh       `json:"meshes"`
-	Nodes       []Node       `json:"nodes"`
-	Samplers    []Sampler    `json:"samplers"`
-	Scene       Ref          `json:"scene"`
-	Scenes      []Scene      `json:"scenes"`
-	Textures    []Texture    `json:"textures"`
+	Accessors   []Accessor      `json:"accessors"`
+	BufferViews []BufferView    `json:"bufferViews"`
+	Cameras     []Camera        `json:"cameras"`
+	Images      []Image         `json:"images"`
+	Materials   []Material      `json:"materials"`
+	Meshes      []Mesh          `json:"meshes"`
+	Nodes       []Node          `json:"nodes"`
+	Samplers    []Sampler       `json:"samplers"`
+	Scene       Ref             `json:"scene"`
+	Scenes      []Scene         `json:"scenes"`
+	Textures    []Texture       `json:"textures"`
+	Extensions  json.RawMessage `json:"extensions"`
 }
 
 type Handle struct {
@@ -389,4 +390,40 @@ func readHeader(r io.Reader) (length uint32, err error) {
 
 	length = bin.Uint32(header[8:12])
 	return length, nil
+}
+
+type Light struct {
+	Name      string     `json:"name"`
+	Type      string     `json:"type"`
+	Color     [3]float32 `json:"color"`
+	Intensity float32    `json:"intensity"`
+}
+
+type KHRLightsPunctualInFile struct {
+	Lights []Light `json:"lights"`
+}
+
+type KHRLightsPunctualInNode struct {
+	Light Ref `json:"light"`
+}
+
+type Extensions map[string]json.RawMessage
+
+func ExtensionOf[T any](e Extensions, name string) (*T, error) {
+	encoded, ok := e[name]
+	if !ok {
+		return nil, nil
+	}
+
+	var tValue T
+
+	if err := json.Unmarshal(encoded, &tValue); err != nil {
+		return nil, fmt.Errorf("decode %T: %w", tValue, err)
+	}
+
+	return new(tValue), nil
+}
+
+type AllExtensions struct {
+	Lights KHRLightsPunctualInFile `json:"KHR_lights_punctual"`
 }

@@ -34,9 +34,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 	return RenderPipelineDescriptor{
 		Label: "sprite",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
-			SequentialLayoutWithLabel("ViewUniforms",
-				BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
-			),
+			ViewBindGroupLayout,
 			layoutSpriteTextures,
 		},
 		Vertex: wgpu.VertexState{
