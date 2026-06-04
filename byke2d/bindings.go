@@ -6,7 +6,9 @@ import (
 
 func Sequential(entries ...wgpu.BindGroupEntry) []wgpu.BindGroupEntry {
 	for idx := range entries {
-		entries[idx].Binding = uint32(idx)
+		if entries[idx].Binding == 0 {
+			entries[idx].Binding = uint32(idx)
+		}
 	}
 
 	return entries
@@ -34,12 +36,33 @@ func SequentialLayout(entries ...wgpu.BindGroupLayoutEntry) wgpu.BindGroupLayout
 
 func SequentialLayoutWithLabel(label string, entries ...wgpu.BindGroupLayoutEntry) wgpu.BindGroupLayoutDescriptor {
 	for idx := range entries {
-		entries[idx].Binding = uint32(idx)
+		if entries[idx].Binding == 0 {
+			entries[idx].Binding = uint32(idx)
+		}
 	}
 
 	return wgpu.BindGroupLayoutDescriptor{
 		Label:   label,
 		Entries: entries,
+	}
+}
+
+type entry interface {
+	wgpu.BindGroupLayoutEntry | wgpu.BindGroupEntry
+}
+
+func Indexed[T entry](idx uint32, e T) T {
+	switch ptrE := any(&e).(type) {
+	case *wgpu.BindGroupLayoutEntry:
+		ptrE.Binding = idx
+		return e
+
+	case *wgpu.BindGroupEntry:
+		ptrE.Binding = idx
+		return e
+
+	default:
+		panic("unreachable")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	_ "embed"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -16,6 +17,7 @@ var standardMaterialShaderCache = map[shaderKey]*ShaderDef{}
 type shaderKey struct {
 	Texture   bool
 	NormalMap bool
+	Emissive  bool
 }
 
 type StandardMaterial struct {
@@ -28,6 +30,14 @@ type StandardMaterial struct {
 	// VertexAttributeUV to be set. Will be ignored if UVs are not set
 	Texture *Texture
 
+	// Optional emissive scale. This will be applied to the texture and added to the result,
+	// unaffected by lighting. If the material has an EmissiveTexture, it will multiply
+	// by the EmissiveTexture value
+	EmissiveScale glm.Vec3f
+
+	// The emissive texture if any
+	EmissiveTexture *Texture
+
 	// NormalMap is an optional normal map texture
 	NormalMap *Texture
 }
@@ -36,6 +46,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	key := shaderKey{
 		Texture:   m.Texture != nil,
 		NormalMap: m.NormalMap != nil,
+		Emissive:  m.EmissiveTexture != nil,
 	}
 
 	cached, ok := standardMaterialShaderCache[key]
@@ -46,6 +57,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	var values = ShaderValues{}
 	values.Define("MESH3D_COLOR_HAS_NORMALMAP", key.NormalMap)
 	values.Define("MESH3D_COLOR_HAS_TEXTURE", key.Texture)
+	values.Define("MESH3D_COLOR_HAS_EMISSIVE", key.Texture)
 
 	shader := &ShaderDef{
 		Label:         "standard material shader",
@@ -60,27 +72,46 @@ func (m StandardMaterial) Shader() *ShaderDef {
 }
 
 func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
-	if m.Texture == nil {
-		return nil
+	var entries []wgpu.BindGroupLayoutEntry
+
+	if m.Texture != nil {
+		entries = append(entries,
+			Indexed(1, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(2, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
+		)
 	}
 
-	return []wgpu.BindGroupLayoutEntry{
-		BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
-		BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
+	if m.EmissiveTexture != nil {
+		entries = append(entries,
+			Indexed(5, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(6, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
+		)
 	}
+
+	return entries
 }
 
 func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
-	if m.Texture == nil {
-		return nil
+	var entries []wgpu.BindGroupEntry
+
+	if m.Texture != nil {
+		entries = append(entries,
+			BindingTextureView(m.Texture.TextureView),
+			BindingSampler(m.Texture.Sampler),
+		)
 	}
 
-	return Sequential(
-		BindingTextureView(m.Texture.TextureView),
-		BindingSampler(m.Texture.Sampler),
-	)
+	if m.EmissiveTexture != nil {
+		entries = append(entries,
+			BindingTextureView(m.EmissiveTexture.TextureView),
+			BindingSampler(m.EmissiveTexture.Sampler),
+		)
+	}
+
+	return entries
 }
 
 func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendVec4f(m.Tint.ToVec())
+	w.AppendVec3f(m.EmissiveScale)
 }
