@@ -42,11 +42,11 @@ func meshCacheFromWorld(world *byke.World) meshCache {
 	}
 }
 
-func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) *meshBuffers {
+func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) bool {
 	bufs, ok := m.cache.Get(mesh)
 	if ok {
 		if !forceUpload {
-			return bufs
+			return false
 		}
 
 		// TODO re-use memory if possible
@@ -82,7 +82,7 @@ func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) *meshBuffers {
 
 	m.cache.Add(mesh, bufs)
 
-	return bufs
+	return true
 }
 
 func (m *meshCache) Reset() {

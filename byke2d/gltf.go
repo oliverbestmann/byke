@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
@@ -25,10 +26,6 @@ func SceneRoot(world *byke.World, handle *gltf.Handle, sceneId gltf.Ref) byke.Er
 
 	for _, node := range h.Scene(sceneId) {
 		components := gltfConvert(ctx, h, node)
-		if len(components) == 0 {
-			continue
-		}
-
 		bundle = append(bundle, byke.SpawnChild(components...))
 	}
 
@@ -40,8 +37,50 @@ func SceneRoot(world *byke.World, handle *gltf.Handle, sceneId gltf.Ref) byke.Er
 }
 
 func gltfConvert(ctx *RenderContext, h *gltfHandle, node gltf.Node) []byke.ErasedComponent {
+	transform := gltfConvertTransform(node)
+
+	// we'll return an intermediary node
+	var bundle []byke.ErasedComponent
+	bundle = append(bundle, InheritVisibility)
+	bundle = append(bundle, transform)
+
+	if name := node.Name; name != "" {
+		bundle = append(bundle, byke.Named(name))
+	}
+
+	// recurse into child nodes and spawn them as children
+	for _, child := range h.ChildNodes(node) {
+		components := gltfConvert(ctx, h, child)
+		if len(components) == 0 {
+			continue
+		}
+
+		bundleChild := byke.SpawnChild(components...)
+		bundle = append(bundle, bundleChild)
+	}
+
 	if m := node.Mesh; !m.IsNil() {
-		return gltfConvertMeshNode(ctx, h, node, m)
+		m := &h.Meshes[m.Get()]
+
+		// spawn each mesh as a direct child
+		for _, prim := range m.Primitives {
+			var material StandardMaterial
+
+			if ma := prim.Material; ma.IsSet {
+				material = gltfConvertMaterial(ctx, h, prim.Material.Get())
+			}
+
+			mesh := gltfConvertMesh(h, prim)
+
+			var child = make([]byke.ErasedComponent, 0, 3)
+			child = append(child, Mesh3d{Mesh: mesh}, material)
+
+			if name := node.Name; name != "" {
+				child = append(child, byke.Named(name))
+			}
+
+			bundle = append(bundle, byke.SpawnChild(child...))
+		}
 	}
 
 	l, err := gltf.ExtensionOf[gltf.KHRLightsPunctualInNode](node.Extensions, "KHR_lights_punctual")
@@ -72,43 +111,6 @@ func gltfConvert(ctx *RenderContext, h *gltfHandle, node gltf.Node) []byke.Erase
 		return bundle
 	}
 
-	return nil
-}
-
-func gltfConvertMeshNode(ctx *RenderContext, h *gltfHandle, node gltf.Node, m gltf.OptionRef) []byke.ErasedComponent {
-	transform := gltfConvertTransform(node)
-
-	// we'll return an intermediary node
-	var bundle []byke.ErasedComponent
-	bundle = append(bundle, InheritVisibility)
-	bundle = append(bundle, transform)
-
-	// spawn each mesh as a direct child
-	for _, prim := range h.Meshes[m.Get()].Primitives {
-		var material StandardMaterial
-
-		if ma := prim.Material; ma.IsSet {
-			material = gltfConvertMaterial(ctx, h, prim.Material.Get())
-		}
-
-		mesh := gltfConvertMesh(h, prim)
-		bundle = append(bundle, byke.SpawnChild(
-			Mesh3d{Mesh: mesh},
-			material,
-		))
-	}
-
-	// recurse into child nodes and spawn them as children
-	for _, child := range h.ChildNodes(node) {
-		components := gltfConvert(ctx, h, child)
-		if len(components) == 0 {
-			continue
-		}
-
-		bundleChild := byke.SpawnChild(components...)
-		bundle = append(bundle, bundleChild)
-	}
-
 	return bundle
 }
 
@@ -120,8 +122,12 @@ func gltfConvertMaterial(ctx *RenderContext, h *gltfHandle, ma gltf.Ref) Standar
 
 	if mr := mat.MetallicRoughness; mr != nil {
 		if tex := mr.BaseColorTexture; tex != nil {
-			bufView := h.Images[h.Textures[tex.Index].Source].BufferView
+			image := h.Images[h.Textures[tex.Index].Source]
 
+			// TODO dedup by texture id or use assets for that
+			slog.Debug("Load texture from memory", slog.String("name", image.Name))
+
+			bufView := image.BufferView
 			texture, err := DecodeTextureFromMemory(ctx, h.Buffer(bufView), SamplerConfig{}, true)
 			if err != nil {
 				panic(err)

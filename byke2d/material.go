@@ -61,7 +61,7 @@ func createMaterialBindGroup(ctx *RenderContext, pipelines *PipelineCache, mater
 
 	return ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:   label,
-		Layout:  pipelines.BindGroupLayout(SequentialLayout(layout...)),
+		Layout:  pipelines.BindGroupLayout(SequentialLayoutWithLabel("Material", layout...)),
 		Entries: Sequential(bindings...),
 	})
 }

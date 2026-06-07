@@ -36,17 +36,18 @@ func main() {
 	}
 
 	app.AddPlugin(RenderPlugin)
-	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Startup, setupSystem)
+	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Update, moveCameraSystem)
 	app.MustRun()
 }
 
 func setupSystem(world *World, commands *Commands, assets *Assets) {
-	model := assets.GLTF("Objects.glb").Await()
+	model := assets.GLTF("RobotExpressive.glb").Await()
 
 	commands.Spawn(
 		Camera{},
+		HDR{},
 		CameraController{
 			Pitch: glm.DegToRad(45),
 			PosY:  5,

@@ -250,12 +250,12 @@ func castToType[T any](buf []byte, count uint32) []T {
 	}
 
 	n := len(buf) / tSize
-	if n != int(count) {
-		panic(fmt.Errorf("expected %d elements, got %d", count, n))
+	if int(count) > n {
+		panic(fmt.Errorf("expected at least %d elements, got %d", count, n))
 	}
 
 	ptr := unsafe.Pointer(unsafe.SliceData(buf))
-	return unsafe.Slice((*T)(ptr), n)
+	return unsafe.Slice((*T)(ptr), count)
 }
 
 type BufferView struct {

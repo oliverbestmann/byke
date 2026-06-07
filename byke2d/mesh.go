@@ -82,6 +82,17 @@ func (m *Mesh) Transform(tr glm.Mat4f) {
 	}
 }
 
+func (m *Mesh) AABBSize() glm.Vec3f {
+	var maxVec = m.vertices[0]
+	var minVec = m.vertices[0]
+	for _, v := range m.vertices {
+		maxVec = maxVec.Max(v)
+		minVec = minVec.Min(v)
+	}
+
+	return maxVec.Sub(minVec)
+}
+
 func RegularPolygon(radius float32, sides uint) *Mesh {
 	// a regular polygon is actually just a circle
 	return Circle(radius, sides)

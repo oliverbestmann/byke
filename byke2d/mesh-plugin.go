@@ -1,6 +1,10 @@
 package byke2d
 
-import "github.com/oliverbestmann/byke"
+import (
+	"log/slog"
+
+	"github.com/oliverbestmann/byke"
+)
 
 func pluginMesh(app *byke.App) {
 	app.InsertResource(byke.InitFromWorld(meshCacheFromWorld))
@@ -26,15 +30,28 @@ func prepareMesh2dBuffers(
 }
 
 func prepareMesh3dBuffers(
-	meshes byke.Query[*Mesh3d],
+	meshes byke.Query[struct {
+		Mesh *Mesh3d
+		Name byke.Option[byke.Name]
+	}],
 	meshCache *meshCache,
 ) {
 	meshCache.Reset()
 
 	for item := range meshes.Items() {
-		mesh := item.Mesh
+		mesh := item.Mesh.Mesh
 		forceUpload := mesh.requireUpload()
-		meshCache.Upload(mesh, forceUpload)
+		uploaded := meshCache.Upload(mesh, forceUpload)
 		mesh.markUploaded()
+
+		if uploaded {
+			// TODO use a lifecycle hook to print this maybe?
+			name := item.Name.Or(byke.Named("unknown")).Name
+			slog.Debug(
+				"Mesh bounding box",
+				slog.String("name", name),
+				slog.Any("bbox", mesh.AABBSize()),
+			)
+		}
 	}
 }
