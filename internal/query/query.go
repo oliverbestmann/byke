@@ -31,6 +31,10 @@ type Setter struct {
 	// UseEntityId implies that UnsafeFieldOffset is a pointer to an EntityId variable
 	// and we're supposed to copy the value of the current EntityId into that field.
 	UseEntityId bool
+
+	// UseEntityRef implies that UnsafeFieldOffset is a pointer to an EntityId variable
+	// and we're supposed to copy the value of the current EntityId into that field.
+	UseEntityRef bool
 }
 
 func FromEntity[T any](setters []Setter, ref spoke.EntityRef) T {
@@ -67,6 +71,10 @@ func FromEntity[T any](setters []Setter, ref spoke.EntityRef) T {
 		case setter.UseEntityId:
 			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
 			*(*spoke.EntityId)(target) = ref.EntityId()
+
+		case setter.UseEntityRef:
+			target := unsafe.Add(ptrToTarget, setter.UnsafeFieldOffset)
+			*(*spoke.EntityRef)(target) = ref
 		}
 	}
 
@@ -91,6 +99,14 @@ func buildQuery(queryType reflect.Type, result *ParsedQuery, path []int, offset 
 		result.Setters = append(result.Setters, Setter{
 			UnsafeFieldOffset: offset,
 			UseEntityId:       true,
+		})
+
+		return nil
+
+	case isEntityRef(queryType):
+		result.Setters = append(result.Setters, Setter{
+			UnsafeFieldOffset: offset,
+			UseEntityRef:      true,
 		})
 
 		return nil
@@ -182,6 +198,10 @@ func isEmbeddableFilter(ty reflect.Type) bool {
 
 func isEntityId(ty reflect.Type) bool {
 	return ty == reflect.TypeFor[spoke.EntityId]()
+}
+
+func isEntityRef(ty reflect.Type) bool {
+	return ty == reflect.TypeFor[spoke.EntityRef]()
 }
 
 type buf *[math.MaxInt32]byte

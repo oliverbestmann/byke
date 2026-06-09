@@ -49,8 +49,10 @@ func setupSystem(world *World, commands *Commands, assets *Assets) {
 		Camera{},
 		HDR{},
 		CameraController{
-			Pitch: glm.DegToRad(45),
-			PosY:  5,
+			Pitch:   glm.DegToRad(10),
+			Yaw:     glm.DegToRad(180),
+			PosRoll: glm.DegToRad(180),
+			PosY:    3,
 		},
 		DefaultPerspectiveProjection,
 	)

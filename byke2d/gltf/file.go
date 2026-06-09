@@ -47,6 +47,7 @@ type Asset struct {
 }
 
 type Node struct {
+	Id          Ref          `json:"-"`
 	Name        string       `json:"name"`
 	Mesh        OptionRef    `json:"mesh"`
 	Camera      OptionRef    `json:"camera"`
@@ -161,8 +162,10 @@ type Accessor struct {
 
 func (h *Handle) Scene(id Ref) []Node {
 	var nodes []Node
-	for _, node := range h.Scenes[id].Nodes {
-		nodes = append(nodes, h.Nodes[node])
+	for _, nid := range h.Scenes[id].Nodes {
+		node := h.Nodes[nid]
+		node.Id = nid
+		nodes = append(nodes, node)
 	}
 
 	return nodes
@@ -171,7 +174,9 @@ func (h *Handle) Scene(id Ref) []Node {
 func (h *Handle) ChildNodes(parent Node) []Node {
 	var nodes []Node
 	for _, nid := range parent.Children {
-		nodes = append(nodes, h.Nodes[nid])
+		node := h.Nodes[nid]
+		node.Id = nid
+		nodes = append(nodes, node)
 	}
 
 	return nodes
@@ -206,7 +211,7 @@ func (h *Handle) Resolve(aid Ref) any {
 			return castToType[uint32](buf, count)
 		}
 
-		if acc.ComponentType == UnsignedInt {
+		if acc.ComponentType == Float {
 			return castToType[float32](buf, count)
 		}
 	}
@@ -288,9 +293,32 @@ type MetallicRoughness struct {
 	BaseColorTexture *TextureInfo `json:"baseColorTexture"`
 }
 
+type Animation struct {
+	Name     string             `json:"name"`
+	Channels []AnimationChannel `json:"channels"`
+	Samplers []AnimationSampler `json:"samplers"`
+}
+
+type AnimationChannel struct {
+	Target  AnimationTarget `json:"target"`
+	Sampler Ref             `json:"sampler"`
+}
+
+type AnimationTarget struct {
+	Path string `json:"path"`
+	Node Ref    `json:"node"`
+}
+
+type AnimationSampler struct {
+	Interpolation string `json:"interpolation"`
+	Input         Ref    `json:"input"`
+	Output        Ref    `json:"output"`
+}
+
 type fileContent struct {
 	Asset Asset `json:"asset"`
 
+	Animations  []Animation     `json:"animations"`
 	Accessors   []Accessor      `json:"accessors"`
 	BufferViews []BufferView    `json:"bufferViews"`
 	Cameras     []Camera        `json:"cameras"`

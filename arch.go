@@ -8,6 +8,9 @@ import (
 // EntityId uniquely identifies an entity in a World.
 type EntityId = spoke.EntityId
 
+// EntityRef provides full access to an entities component values
+type EntityRef = spoke.EntityRef
+
 // IsComponent can be used in a type parameter to ensure that type T is a Component type.
 //
 // To implement the IsComponent interface for a type, you must embed the Component type.

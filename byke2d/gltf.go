@@ -24,19 +24,25 @@ func SceneRoot(world *byke.World, handle *gltf.Handle, sceneId gltf.Ref) byke.Er
 
 	var bundle []byke.ErasedComponent
 
+	var animation gltfAnimation
+	if len(h.Animations) > 0 {
+		animation = gtlfConvertAnimation(h, h.Animations[2])
+	}
+
 	for _, node := range h.Scene(sceneId) {
-		components := gltfConvert(ctx, h, node)
+		components := gltfConvert(ctx, h, animation.Nodes, node)
 		bundle = append(bundle, byke.SpawnChild(components...))
 	}
 
 	return byke.BundleOf(
+		ActiveAnimation{Animation: animation.Clip},
 		NewTransform(),
 		InheritVisibility,
 		byke.BundleOf(bundle...),
 	)
 }
 
-func gltfConvert(ctx *RenderContext, h *gltfHandle, node gltf.Node) []byke.ErasedComponent {
+func gltfConvert(ctx *RenderContext, h *gltfHandle, animTargets map[gltf.Ref]AnimationTargetId, node gltf.Node) []byke.ErasedComponent {
 	transform := gltfConvertTransform(node)
 
 	// we'll return an intermediary node
@@ -48,9 +54,13 @@ func gltfConvert(ctx *RenderContext, h *gltfHandle, node gltf.Node) []byke.Erase
 		bundle = append(bundle, byke.Named(name))
 	}
 
+	if target, ok := animTargets[node.Id]; ok {
+		bundle = append(bundle, target)
+	}
+
 	// recurse into child nodes and spawn them as children
 	for _, child := range h.ChildNodes(node) {
-		components := gltfConvert(ctx, h, child)
+		components := gltfConvert(ctx, h, animTargets, child)
 		if len(components) == 0 {
 			continue
 		}
@@ -61,56 +71,57 @@ func gltfConvert(ctx *RenderContext, h *gltfHandle, node gltf.Node) []byke.Erase
 
 	if m := node.Mesh; !m.IsNil() {
 		m := &h.Meshes[m.Get()]
-
-		// spawn each mesh as a direct child
-		for _, prim := range m.Primitives {
-			var material StandardMaterial
-
-			if ma := prim.Material; ma.IsSet {
-				material = gltfConvertMaterial(ctx, h, prim.Material.Get())
-			}
-
-			mesh := gltfConvertMesh(h, prim)
-
-			var child = make([]byke.ErasedComponent, 0, 3)
-			child = append(child, Mesh3d{Mesh: mesh}, material)
-
-			if name := node.Name; name != "" {
-				child = append(child, byke.Named(name))
-			}
-
-			bundle = append(bundle, byke.SpawnChild(child...))
-		}
+		bundle = gltfConvertMeshNode(ctx, h, bundle, node, m)
 	}
 
 	l, err := gltf.ExtensionOf[gltf.KHRLightsPunctualInNode](node.Extensions, "KHR_lights_punctual")
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("read light extension: %w", err))
 	}
 
 	if l != nil {
-		transform := gltfConvertTransform(node)
-
-		light := &h.Lights.Lights[l.Light]
-
-		// return a node for the light
-		var bundle []byke.ErasedComponent
-		bundle = append(bundle, InheritVisibility)
-		bundle = append(bundle, transform)
-
-		if light.Type == "point" {
-			bundle = append(bundle, PointLight{
-				Color:        light.Color,
-				Intensity:    light.Intensity,
-				AttConstant:  0,
-				AttLinear:    0,
-				AttQuadratic: 1,
-			})
-		}
-
-		return bundle
+		bundle = gltfConvertLight(h, bundle, l)
 	}
 
+	return bundle
+}
+
+func gltfConvertMeshNode(ctx *RenderContext, h *gltfHandle, bundle []byke.ErasedComponent, node gltf.Node, m *gltf.Mesh) []byke.ErasedComponent {
+	// spawn each mesh as a direct child
+	for _, prim := range m.Primitives {
+		var material StandardMaterial
+
+		if ma := prim.Material; ma.IsSet {
+			material = gltfConvertMaterial(ctx, h, prim.Material.Get())
+		}
+
+		mesh := gltfConvertMesh(h, prim)
+
+		var child = make([]byke.ErasedComponent, 0, 3)
+		child = append(child, Mesh3d{Mesh: mesh}, material)
+
+		if name := node.Name; name != "" {
+			child = append(child, byke.Named(name))
+		}
+
+		bundle = append(bundle, byke.SpawnChild(child...))
+	}
+	return bundle
+}
+
+func gltfConvertLight(h *gltfHandle, bundle []byke.ErasedComponent, l *gltf.KHRLightsPunctualInNode) []byke.ErasedComponent {
+	light := &h.Lights.Lights[l.Light]
+
+	// return a node for the light
+	if light.Type == "point" {
+		bundle = append(bundle, PointLight{
+			Color:        light.Color,
+			Intensity:    light.Intensity,
+			AttConstant:  0,
+			AttLinear:    0,
+			AttQuadratic: 1,
+		})
+	}
 	return bundle
 }
 

@@ -18,10 +18,10 @@ type simpleTransformItems struct {
 
 type rootTransformItems struct {
 	// should not have a parent, so it is a root
-	byke.Without[byke.ChildOf]
+	_ byke.Without[byke.ChildOf]
 
 	// but it should have children
-	byke.With[byke.Children]
+	_ byke.With[byke.Children]
 
 	Children        byke.Option[byke.Children]
 	Transform       Transform
