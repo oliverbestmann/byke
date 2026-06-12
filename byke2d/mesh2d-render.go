@@ -25,6 +25,10 @@ type ExtractedMesh struct {
 	Transform    glm.Mat4f
 	RenderLayers RenderLayers
 	Material     Material
+
+	EntityId byke.EntityId
+
+	Skin SkinnedMesh
 }
 
 type ExtractedMesh2d struct {

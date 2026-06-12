@@ -28,6 +28,12 @@ struct VertexInput {
     // vertex color from per-vertex buffer
     @location(MESH3D_VERTEX_ATTRIBUTES_UV) v_uv: vec2f,
 #endif
+
+#ifdef SKINNED
+    // vertex color from per-vertex buffer
+    @location(MESH3D_VERTEX_ATTRIBUTES_JOINTS) v_joint: vec4u,
+    @location(MESH3D_VERTEX_ATTRIBUTES_JOINTWEIGHTS) v_joint_weights: vec4f,
+#endif
 }
 
 struct VertexOutput {
@@ -57,6 +63,13 @@ struct Lights {
 @binding(0)
 var<storage> point_lights: Lights;
 
+#ifdef SKINNED
+@group(3)
+@binding(0)
+var<uniform> joints: array<mat4x4f, 16>;
+
+#endif
+
 fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
     // transforms the four column vectors back to a full 4x4 matrix by adding the last row.
     let model_to_world = mat4x4f(
@@ -66,7 +79,18 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
         vec4f(in.i_affine_3, 1),
     );
 
+#ifdef SKINNED
+    let pos = vec4f(in.v_position, 1.0);
+
+    let position_world =
+        in.v_joint_weights.x * joints[in.v_joint.x] * pos +
+        in.v_joint_weights.y * joints[in.v_joint.y] * pos +
+        in.v_joint_weights.z * joints[in.v_joint.z] * pos +
+        in.v_joint_weights.w * joints[in.v_joint.w] * pos;
+#else
+
     let position_world = model_to_world * vec4f(in.v_position, 1.0);
+#endif
 
     let position = view.screen_to_ndc
         * view.world_to_screen

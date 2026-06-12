@@ -250,6 +250,20 @@ func (h *Handle) Resolve(aid Ref) any {
 		}
 	}
 
+	if acc.ComponentType == UnsignedShort {
+		if acc.Type == "VEC2" {
+			return castToType[glm.Vec2uh](buf, count)
+		}
+
+		if acc.Type == "VEC3" {
+			return castToType[glm.Vec3uh](buf, count)
+		}
+
+		if acc.Type == "VEC4" {
+			return castToType[glm.Vec4uh](buf, count)
+		}
+	}
+
 	panic(fmt.Errorf("can not resolve type=%q, format=%d", acc.Type, acc.ComponentType))
 }
 

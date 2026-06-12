@@ -26,6 +26,16 @@ var VertexAttributeNormal = VertexAttribute{
 	Format: wgpu.VertexFormatFloat32x3,
 }
 
+var VertexAttributeJoints = VertexAttribute{
+	Name:   "Joints",
+	Format: wgpu.VertexFormatUint16x4,
+}
+
+var VertexAttributeJointWeights = VertexAttribute{
+	Name:   "JointWeights",
+	Format: wgpu.VertexFormatFloat32x4,
+}
+
 type VertexAttributeValue struct {
 	Attribute VertexAttribute
 	Value     []byte

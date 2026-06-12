@@ -10,10 +10,15 @@ import (
 func pluginMesh3d(app *byke.App) {
 	app.InsertResource(ExtractedMesh3d{})
 	app.InsertResource(mesh3dInstances{})
+	app.InsertResource(SkinBindGroup{})
+	app.InsertResource(skinUniforms{})
 
 	app.AddSystems(Render, byke.System(queueMesh3dSystem).InSet(RenderPhaseQueue))
 	app.AddSystems(Render, byke.System(prepareMesh3dInstances).InSet(RenderPhasePrepareBindGroups))
 	app.AddSystems(Render, byke.System(clearExtractedMesh3dSystem).InSet(RenderPhaseCleanup))
+
+	app.AddSystems(Render, byke.System(prepareSkinViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
+	app.AddSystems(Render, byke.System(prepareJointsForSkinSystem).InSet(RenderPhasePrepareResources))
 
 	app.AddPlugin(PluginMaterial3d[StandardMaterial])
 }
@@ -30,6 +35,7 @@ func extractMesh3dSystem[M Material](
 		Material     M
 		RenderLayers byke.Option[RenderLayers]
 		CustomShader byke.Option[CustomShader]
+		SkinnedMesh  byke.Option[SkinnedMesh]
 		Visibility   ComputedVisibility
 	}],
 ) {
@@ -45,6 +51,7 @@ func extractMesh3dSystem[M Material](
 			Transform:    item.Transform.Affine,
 			Material:     item.Material,
 			RenderLayers: item.RenderLayers.Or(renderLayerZero),
+			Skin:         item.SkinnedMesh.OrZero(),
 		})
 	}
 }
@@ -167,12 +174,14 @@ func drawMesh3dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item Rende
 func drawMesh3dBatchSystem(
 	viewBindGroup ViewBindGroup,
 	lightsBindGroup LightsBindGroup,
+	skinBindGroup SkinBindGroup,
 	pipelines *PipelineCache,
 	task byke.In[RenderTask],
 	meshes *ExtractedMesh3d,
 	instances *mesh3dInstances,
 	meshCache *meshCache,
 	bindGroupCache *materialBindGroupCache,
+	skinUniforms *skinUniforms,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget
 		ViewUniformsOffset DynamicOffset[ViewUniforms]
@@ -202,6 +211,7 @@ func drawMesh3dBatchSystem(
 		SampleCount:      view.ViewTarget.SampleCount,
 		Shader:           mesh.Material.Shader(),
 		MaterialBindings: layout,
+		Skinned:          mesh.Skin.IsValid(),
 	}
 
 	for idx := range buf.Attributes {
@@ -216,11 +226,14 @@ func drawMesh3dBatchSystem(
 
 	bindGroup, _ := bindGroupCache.Get(mesh.Material)
 
+	skinOffset, _ := skinUniforms.OffsetOf(mesh.EntityId)
+
 	pass.SetPipeline(pipeline.Get())
 
 	pass.SetBindGroup(0, viewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset})
 	pass.SetBindGroup(1, lightsBindGroup.BindGroup, nil)
 	pass.SetBindGroup(2, bindGroup, nil)
+	pass.SetBindGroup(3, skinBindGroup.BindGroup, []uint32{skinOffset})
 
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
 	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)

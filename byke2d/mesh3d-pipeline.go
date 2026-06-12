@@ -14,6 +14,7 @@ type mesh3dPipelineConfig struct {
 	Attributes       []VertexAttribute
 	MaterialBindings []wgpu.BindGroupLayoutEntry
 	SampleCount      uint32
+	Skinned          bool
 }
 
 func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
@@ -22,6 +23,7 @@ func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
 		m.Shader.EqualTo(otherConfig.Shader) &&
 		m.Format == otherConfig.Format &&
 		m.SampleCount == otherConfig.SampleCount &&
+		m.Skinned == otherConfig.Skinned &&
 		slices.Equal(m.Attributes, otherConfig.Attributes) &&
 		slices.Equal(m.MaterialBindings, otherConfig.MaterialBindings)
 }
@@ -79,6 +81,8 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		attrShaderLocation += 1
 	}
 
+	values.Define("SKINNED", m.Skinned)
+
 	mod := ctx.Shader(m.Shader.Label, m.Shader.Source, values)
 
 	return RenderPipelineDescriptor{
@@ -87,6 +91,7 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 			ViewBindGroupLayout,
 			LightsBindGroupLayout,
 			SequentialLayout(slices.Clone(m.MaterialBindings)...),
+			SkinningBindGroupLayout,
 			// no further bindings for now
 		},
 		Vertex: wgpu.VertexState{

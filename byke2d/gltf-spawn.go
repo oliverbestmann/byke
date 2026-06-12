@@ -51,6 +51,7 @@ func spawnGltfSceneSystem(
 			RenderContext: ctx,
 			nodes:         map[gltf.Ref]byke.EntityId{},
 			images:        map[gltf.Ref]*Texture{},
+			meshes:        map[gltf.Ref][]byke.EntityId{},
 		}
 
 		scene := sc.Handle.Scenes[item.SceneRoot.Scene]
@@ -73,6 +74,9 @@ type spawnContext struct {
 
 	// map from imageId to texture
 	images map[gltf.Ref]*Texture
+
+	// map from node to mesh entities
+	meshes map[gltf.Ref][]byke.EntityId
 }
 
 func (sc *spawnContext) SpawnScene(sceneId gltf.Ref) {
@@ -163,6 +167,8 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 		if name := mesh.Name; name != "" {
 			entityCommands.Insert(byke.Named(name))
 		}
+
+		sc.meshes[node.Id] = append(sc.meshes[node.Id], entityCommands.Id())
 	}
 }
 
@@ -190,8 +196,7 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 
 func (sc *spawnContext) spawnSkinInNode(node gltf.Node) {
 	// if node was not spawned, skip it
-	entityId, ok := sc.nodes[node.Id]
-	if !ok {
+	if _, ok := sc.nodes[node.Id]; !ok {
 		return
 	}
 
@@ -217,7 +222,9 @@ func (sc *spawnContext) spawnSkinInNode(node gltf.Node) {
 		}
 	}
 
-	sc.Commands.Entity(entityId).Insert(skinned)
+	for _, entityId := range sc.meshes[node.Id] {
+		sc.Commands.Entity(entityId).Insert(skinned)
+	}
 }
 
 func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
@@ -349,6 +356,9 @@ func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 
 	for key, value := range prim.Attributes {
 		switch key {
+		case "POSITION":
+			// handled above
+
 		case "TEXCOORD_0":
 			uv := h.Resolve(value).([]glm.Vec2f)
 			mesh.WithAttributes(VertexAttributeUV, wgpu.ToBytes(uv))
@@ -356,6 +366,17 @@ func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 		case "NORMAL":
 			uv := h.Resolve(value).([]glm.Vec3f)
 			mesh.WithAttributes(VertexAttributeNormal, wgpu.ToBytes(uv))
+
+		case "JOINTS_0":
+			uv := h.Resolve(value).([]glm.Vec4uh)
+			mesh.WithAttributes(VertexAttributeJoints, wgpu.ToBytes(uv))
+
+		case "WEIGHTS_0":
+			uv := h.Resolve(value).([]glm.Vec4f)
+			mesh.WithAttributes(VertexAttributeJointWeights, wgpu.ToBytes(uv))
+
+		default:
+			slog.Warn("Cannot map vertex attributes from gltf", slog.String("name", key))
 		}
 	}
 
