@@ -56,11 +56,5 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4f {
     out += vec4f(emissive, 0.0);
     #endif
 
-    let light_pos = vec3f(100, 100, -100);
-
-    // apply light to pixel, keep alpha
-    let col = dot(normalize(light_pos - vertex.position_world), vertex.normal);
-    out = vec4f(out.rgb * (0.25 + 0.75 * col), out.a);
-
     return out;
 }

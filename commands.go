@@ -143,6 +143,28 @@ func (e EntityCommands) Observe(system AnySystem) EntityCommands {
 }
 
 func (e EntityCommands) Insert(components ...ErasedComponent) EntityCommands {
+	if len(e.commands.queue) > 0 {
+		idx := len(e.commands.queue) - 1
+
+		// we can optimize spawning by merging the components into the previous command
+		// TODO we can do this more generic & better
+		switch cmd := e.commands.queue[idx].(type) {
+		case spawnCommand:
+			if cmd.EntityId == e.entityId {
+				cmd.Components = append(cmd.Components, components...)
+				e.commands.queue[idx] = cmd
+				return e
+			}
+
+		case insertComponentsCommand:
+			if cmd.EntityId == e.entityId {
+				cmd.Components = append(cmd.Components, components...)
+				e.commands.queue[idx] = cmd
+				return e
+			}
+		}
+	}
+
 	e.commands.Queue(insertComponentsCommand{
 		EntityId:   e.entityId,
 		Components: components,

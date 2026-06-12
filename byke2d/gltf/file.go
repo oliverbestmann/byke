@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"unsafe"
 
 	"github.com/oliverbestmann/byke/byke2d/glm"
@@ -13,7 +14,11 @@ import (
 
 var bin = &binary.LittleEndian
 
-type Ref int
+type Ref uint32
+
+func (r Ref) LogValue() slog.Value {
+	return slog.IntValue(int(r))
+}
 
 type OptionRef struct {
 	IsSet bool
@@ -50,6 +55,7 @@ type Node struct {
 	Id          Ref          `json:"-"`
 	Name        string       `json:"name"`
 	Mesh        OptionRef    `json:"mesh"`
+	Skin        OptionRef    `json:"skin"`
 	Camera      OptionRef    `json:"camera"`
 	Matrix      *[16]float32 `json:"matrix"`
 	Rotation    *[4]float32  `json:"rotation"`
@@ -163,9 +169,7 @@ type Accessor struct {
 func (h *Handle) Scene(id Ref) []Node {
 	var nodes []Node
 	for _, nid := range h.Scenes[id].Nodes {
-		node := h.Nodes[nid]
-		node.Id = nid
-		nodes = append(nodes, node)
+		nodes = append(nodes, h.Nodes[nid])
 	}
 
 	return nodes
@@ -174,9 +178,7 @@ func (h *Handle) Scene(id Ref) []Node {
 func (h *Handle) ChildNodes(parent Node) []Node {
 	var nodes []Node
 	for _, nid := range parent.Children {
-		node := h.Nodes[nid]
-		node.Id = nid
-		nodes = append(nodes, node)
+		nodes = append(nodes, h.Nodes[nid])
 	}
 
 	return nodes
@@ -227,6 +229,10 @@ func (h *Handle) Resolve(aid Ref) any {
 
 		if acc.Type == "VEC4" {
 			return castToType[glm.Vec4f](buf, count)
+		}
+
+		if acc.Type == "MAT4" {
+			return castToType[glm.Mat4f](buf, count)
 		}
 	}
 
@@ -315,6 +321,13 @@ type AnimationSampler struct {
 	Output        Ref    `json:"output"`
 }
 
+type Skin struct {
+	Name                string    `json:"name"`
+	Skeleton            OptionRef `json:"skeleton"`
+	Joints              []Ref     `json:"joints"`
+	InverseBindMatrices OptionRef `json:"inverseBindMatrices"`
+}
+
 type fileContent struct {
 	Asset Asset `json:"asset"`
 
@@ -330,6 +343,7 @@ type fileContent struct {
 	Scene       Ref             `json:"scene"`
 	Scenes      []Scene         `json:"scenes"`
 	Textures    []Texture       `json:"textures"`
+	Skins       []Skin          `json:"skins"`
 	Extensions  json.RawMessage `json:"extensions"`
 }
 
@@ -369,6 +383,11 @@ func Load(r io.Reader) (*Handle, error) {
 	var content fileContent
 	if err := json.Unmarshal(jsonChunk, &content); err != nil {
 		return nil, fmt.Errorf("decode gltf json: %w", err)
+	}
+
+	// set node ids
+	for idx := range content.Nodes {
+		content.Nodes[idx].Id = Ref(idx)
 	}
 
 	handle := &Handle{

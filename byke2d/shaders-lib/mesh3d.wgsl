@@ -66,15 +66,16 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
         vec4f(in.i_affine_3, 1),
     );
 
+    let position_world = model_to_world * vec4f(in.v_position, 1.0);
+
     let position = view.screen_to_ndc
         * view.world_to_screen
-        * model_to_world
-        * vec4f(in.v_position, 1.0);
+        * position_world;
 
     // move the vertex to the world
     var out: VertexOutput;
     out.position = position;
-    out.position_world = in.v_position;
+    out.position_world = position_world.xyz;
     out.color = vec4f(1.0, 1.0, 1.0, 1.0);
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_COLOR
@@ -84,7 +85,8 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 #endif
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    out.normal = in.v_normal;
+    let normal_world = model_to_world * vec4f(in.v_normal, 0.0);
+    out.normal = normal_world.xyz;
 #endif
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_UV

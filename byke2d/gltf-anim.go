@@ -7,67 +7,49 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/gltf"
 )
 
-type gltfAnimation struct {
-	Clip  AnimationClip
-	Nodes map[gltf.Ref]AnimationTargetId
-}
+func (sc *spawnContext) animationCurveOf(anim gltf.Animation, channel gltf.AnimationChannel) AnimationCurve {
+	handle := &sc.Handle
 
-func gtlfConvertAnimation(handle *gltfHandle, anim gltf.Animation) gltfAnimation {
-	var clip AnimationClip
+	switch channel.Target.Path {
+	case "translation":
+		curve := vec3AnimationSampler(handle, anim, channel.Sampler)
 
-	targetNodeId := func(id gltf.Ref) AnimationTargetId {
-		path := fmt.Sprintf("%s-%d", anim.Name, id)
-		return AnimationTargetIdOf(path)
-	}
+		first := curve.Sample(0)
+		handle.Nodes[channel.Target.Node].Translation = new([3]float32(first))
 
-	mapping := map[gltf.Ref]AnimationTargetId{}
-
-	for _, channel := range anim.Channels {
-		targetId := targetNodeId(channel.Target.Node)
-		mapping[channel.Target.Node] = targetId
-
-		switch channel.Target.Path {
-		case "translation":
-			curve := vec3AnimationSampler(handle, anim, channel.Sampler)
-
-			first := curve.Sample(0)
-			handle.Nodes[channel.Target.Node].Translation = new([3]float32(first))
-
-			clip.Add(targetId, &TypedAnimationCurve[glm.Vec3f]{
-				Curve:    &curve,
-				Accessor: TranslationPropertyAccessor,
-			})
-
-		case "scale":
-			curve := vec3AnimationSampler(handle, anim, channel.Sampler)
-
-			first := curve.Sample(0)
-			handle.Nodes[channel.Target.Node].Scale = new([3]float32(first))
-
-			clip.Add(targetId, &TypedAnimationCurve[glm.Vec3f]{
-				Curve:    &curve,
-				Accessor: ScalePropertyAccessor,
-			})
-
-		case "rotation":
-			curve := quatAnimationSampler(handle, anim, channel.Sampler)
-
-			first := curve.Sample(0).ToVec4()
-			handle.Nodes[channel.Target.Node].Rotation = new([4]float32(first))
-
-			clip.Add(targetId, &TypedAnimationCurve[glm.Quat]{
-				Curve:    &curve,
-				Accessor: RotationPropertyAccessor,
-			})
-
-		case "weights":
-			// ignoring for now
+		return &TypedAnimationCurve[glm.Vec3f]{
+			Curve:    &curve,
+			Accessor: TranslationPropertyAccessor,
 		}
-	}
 
-	return gltfAnimation{
-		Clip:  clip,
-		Nodes: mapping,
+	case "scale":
+		curve := vec3AnimationSampler(handle, anim, channel.Sampler)
+
+		first := curve.Sample(0)
+		handle.Nodes[channel.Target.Node].Scale = new([3]float32(first))
+
+		return &TypedAnimationCurve[glm.Vec3f]{
+			Curve:    &curve,
+			Accessor: ScalePropertyAccessor,
+		}
+
+	case "rotation":
+		curve := quatAnimationSampler(handle, anim, channel.Sampler)
+
+		first := curve.Sample(0).ToVec4()
+		handle.Nodes[channel.Target.Node].Rotation = new([4]float32(first))
+
+		return &TypedAnimationCurve[glm.Quat]{
+			Curve:    &curve,
+			Accessor: RotationPropertyAccessor,
+		}
+
+	case "weights":
+		// ignoring for now
+		return nil
+
+	default:
+		panic(fmt.Errorf("unknown animationChannel path %q", channel.Target.Path))
 	}
 }
 
@@ -102,7 +84,7 @@ func quatAnimationSampler(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref)
 	for idx, timestamp := range timestamps {
 		keyframes = append(keyframes, Keyframe[glm.Quat]{
 			Time:  timestamp,
-			Value: glm.QuatOf(values[idx].XYZW()),
+			Value: glm.QuatOf(values[idx].XYZW()).Inverse(),
 		})
 	}
 

@@ -20,10 +20,9 @@ type rootTransformItems struct {
 	// should not have a parent, so it is a root
 	_ byke.Without[byke.ChildOf]
 
-	// but it should have children
-	_ byke.With[byke.Children]
+	// and have children (otherwise it would be caught by simpleTransform)
+	Children byke.Children
 
-	Children        byke.Option[byke.Children]
 	Transform       Transform
 	GlobalTransform *GlobalTransform
 }
@@ -74,11 +73,8 @@ func propagateTransformSystem(
 		root.GlobalTransform.Affine = root.Transform.Affine3()
 
 		// recurse into children
-		children, ok := root.Children.Get()
-		if ok {
-			for _, child := range children.Children() {
-				recurse(child, root.GlobalTransform)
-			}
+		for _, child := range root.Children.Children() {
+			recurse(child, root.GlobalTransform)
 		}
 	}
 }

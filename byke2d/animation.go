@@ -314,7 +314,7 @@ func animationAdvanceTimeSystem(vt byke.VirtualTime, animations byke.Query[struc
 	Animation *ActiveAnimation
 }]) {
 	for animation := range animations.Items() {
-		animation.Animation.Time += vt.DeltaSecs
+		animation.Animation.Time += vt.DeltaSecs * 0.5
 	}
 }
 

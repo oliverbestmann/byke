@@ -27,7 +27,7 @@ func (rc *RenderContext) init(world *byke.World, ctx *wgpuContext) {
 	pipelineCache := byke.RequireResourceOf[PipelineCache](world)
 	rc.MipmapGenerator = makeMipmapGenerator(rc, pipelineCache)
 
-	rc.samplerCache, _ = lru.New[wgpu.SamplerDescriptor, *wgpu.Sampler](32)
+	rc.samplerCache, _ = lru.New[wgpu.SamplerDescriptor, *wgpu.Sampler](256)
 }
 
 // CreateSampler returns a sampler matching your description. The sampler is cached,
