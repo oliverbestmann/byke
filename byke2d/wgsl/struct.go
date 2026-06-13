@@ -18,55 +18,55 @@ func (s *StructWriter) Clear() {
 }
 
 func (s *StructWriter) Bytes() []byte {
-	s.alignTo(s.align)
+	s.AlignTo(s.align)
 	return s.buf
 }
 
 func (s *StructWriter) AppendFloat32(value float32) {
-	s.alignTo(4)
+	s.AlignTo(4)
 	structAppend(s, value, 4)
 }
 
 func (s *StructWriter) AppendInt(value int32) {
-	s.alignTo(4)
+	s.AlignTo(4)
 	structAppend(s, value, 4)
 }
 
 func (s *StructWriter) AppendUint(value uint32) {
-	s.alignTo(4)
+	s.AlignTo(4)
 	structAppend(s, value, 4)
 }
 
 func (s *StructWriter) AppendVec2f(value glm.Vec2f) {
-	s.alignTo(8)
+	s.AlignTo(8)
 	structAppend(s, value, 8)
 }
 
 func (s *StructWriter) AppendVec3f(value glm.Vec3f) {
-	s.alignTo(16)
+	s.AlignTo(16)
 	structAppend(s, value, 12)
 }
 
 func (s *StructWriter) AppendVec4f(value glm.Vec4f) {
-	s.alignTo(16)
+	s.AlignTo(16)
 	structAppend(s, value, 16)
 }
 
 func (s *StructWriter) AppendMat2f(value glm.Mat4f) {
-	s.alignTo(8)
+	s.AlignTo(8)
 	structAppend(s, value.Column(0), 8)
 	structAppend(s, value.Column(1), 8)
 }
 
 func (s *StructWriter) AppendMat3f(value glm.Mat3f) {
-	s.alignTo(16)
+	s.AlignTo(16)
 	structAppend(s, value.Column(0), 16)
 	structAppend(s, value.Column(1), 16)
 	structAppend(s, value.Column(2), 16)
 }
 
 func (s *StructWriter) AppendMat4f(value glm.Mat4f) {
-	s.alignTo(16)
+	s.AlignTo(16)
 	structAppend(s, value.Column(0), 16)
 	structAppend(s, value.Column(1), 16)
 	structAppend(s, value.Column(2), 16)
@@ -77,14 +77,14 @@ func (s *StructWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer, usage wg
 	writeTo(ctx, bufRef, usage, s.Bytes())
 }
 
-func (s *StructWriter) alignTo(align int) {
+func (s *StructWriter) AlignTo(align int) {
 	if align == 0 {
 		return
 	}
 
 	if pad := align - len(s.buf)%align; pad < align {
-		var zero [16]byte
-		s.buf = append(s.buf, zero[:pad&0xf]...)
+		zero := make([]byte, pad)
+		s.buf = append(s.buf, zero...)
 	}
 
 	// struct align is the maximum alignment

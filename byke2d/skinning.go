@@ -17,10 +17,6 @@ type SkinnedMesh struct {
 	Joints      []byke.EntityId
 }
 
-func (s SkinnedMesh) IsValid() bool {
-	return len(s.Joints) > 0
-}
-
 type skinUniforms struct {
 	staging wgsl.StructWriter
 	buffer  *wgpu.Buffer
@@ -40,16 +36,20 @@ func prepareJointsForSkinSystem(
 	ctx *RenderContext,
 	uniforms *skinUniforms,
 	jointsQuery byke.Query[GlobalTransform],
-	meshesQuery byke.Query[struct {
-		EntitId byke.EntityId
-		Skin    SkinnedMesh
-	}],
+	meshes *ExtractedMesh3d,
 ) {
+	const maxJoints = 256
+
 	uniforms.offsets = map[byke.EntityId]uint32{}
 	uniforms.staging.Clear()
 
 outer:
-	for mesh := range meshesQuery.Items() {
+	for _, mesh := range meshes.Meshes {
+		if !mesh.Skin.IsSet() {
+			continue
+		}
+
+		uniforms.staging.AlignTo(256)
 		offset := uniforms.staging.Offset()
 
 		for idx, jointId := range mesh.Skin.Joints {
@@ -63,13 +63,11 @@ outer:
 			uniforms.staging.AppendMat4f(mat)
 		}
 
-		uniforms.offsets[mesh.EntitId] = offset
-
-		// TODO add padding to align with next uniform border
+		uniforms.offsets[mesh.Skin.EntityId] = offset
 	}
 
-	for range 16 {
-		// fill with dummy values to reach minimum size
+	for range maxJoints {
+		// fill with dummy values to reach the array size
 		uniforms.staging.AppendMat4f(glm.Mat4f{})
 	}
 
@@ -97,7 +95,7 @@ func prepareSkinViewBindGroupSystem(
 	bindGroups.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:   "Skinning",
 		Layout:  pipelines.BindGroupLayout(SkinningBindGroupLayout),
-		Entries: Sequential(BindingBuffer(uniforms.buffer)),
+		Entries: Sequential(BindingBufferSize(uniforms.buffer, 0, 256*64)),
 	})
 
 	bindGroups.buffer = uniforms.buffer

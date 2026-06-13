@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 )
 
 func pluginMesh(app *byke.App) {
@@ -13,6 +14,26 @@ func pluginMesh(app *byke.App) {
 
 	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
 	app.AddSystems(Render, byke.System(prepareMesh3dBuffers).InSet(RenderPhasePrepareResources))
+}
+
+type ExtractedMesh struct {
+	Mesh *Mesh
+
+	Transform    glm.Mat4f
+	RenderLayers RenderLayers
+	Material     Material
+
+	Skin ExtractedSkin
+}
+
+type ExtractedSkin struct {
+	EntityId    byke.EntityId
+	InverseBind []glm.Mat4f
+	Joints      []byke.EntityId
+}
+
+func (s *ExtractedSkin) IsSet() bool {
+	return s.EntityId != byke.NoEntityId
 }
 
 func prepareMesh2dBuffers(

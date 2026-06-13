@@ -6,6 +6,7 @@
 struct VertexInput {
     @builtin(vertex_index) index: u32,
 
+    // truncated columns of the affine transform matrix
     @location(0) i_affine_0: vec3f,
     @location(1) i_affine_1: vec3f,
     @location(2) i_affine_2: vec3f,
@@ -64,33 +65,60 @@ struct Lights {
 var<storage> point_lights: Lights;
 
 #ifdef SKINNED
+
+// Size of the array must match the maxJoints constant
 @group(3)
 @binding(0)
-var<uniform> joints: array<mat4x4f, 16>;
+var<uniform> joints: array<mat4x4f, 256>;
+
+fn inverse_transpose_3x3m(in: mat3x3<f32>) -> mat3x3<f32> {
+    let x = cross(in[1], in[2]);
+    let y = cross(in[2], in[0]);
+    let z = cross(in[0], in[1]);
+    let det = dot(in[2], z);
+    return mat3x3<f32>(
+        x / det,
+        y / det,
+        z / det
+    );
+}
+
+fn skin_normals(
+    world_from_local: mat4x4<f32>,
+    normal: vec3<f32>,
+) -> vec3<f32> {
+    return normalize(
+        inverse_transpose_3x3m(
+            mat3x3<f32>(
+                world_from_local[0].xyz,
+                world_from_local[1].xyz,
+                world_from_local[2].xyz
+            )
+        ) * normal
+    );
+}
 
 #endif
 
 fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
+#ifdef SKINNED
+    // interpolate joint matrices
+    let world_from_local =
+        in.v_joint_weights.x * joints[in.v_joint.x]+
+        in.v_joint_weights.y * joints[in.v_joint.y]+
+        in.v_joint_weights.z * joints[in.v_joint.z]+
+        in.v_joint_weights.w * joints[in.v_joint.w];
+#else
     // transforms the four column vectors back to a full 4x4 matrix by adding the last row.
-    let model_to_world = mat4x4f(
+    let world_from_local = mat4x4f(
         vec4f(in.i_affine_0, 0),
         vec4f(in.i_affine_1, 0),
         vec4f(in.i_affine_2, 0),
         vec4f(in.i_affine_3, 1),
     );
-
-#ifdef SKINNED
-    let pos = vec4f(in.v_position, 1.0);
-
-    let position_world =
-        in.v_joint_weights.x * joints[in.v_joint.x] * pos +
-        in.v_joint_weights.y * joints[in.v_joint.y] * pos +
-        in.v_joint_weights.z * joints[in.v_joint.z] * pos +
-        in.v_joint_weights.w * joints[in.v_joint.w] * pos;
-#else
-
-    let position_world = model_to_world * vec4f(in.v_position, 1.0);
 #endif
+
+    let position_world = world_from_local * vec4f(in.v_position, 1.0);
 
     let position = view.screen_to_ndc
         * view.world_to_screen
@@ -109,8 +137,17 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 #endif
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    let normal_world = model_to_world * vec4f(in.v_normal, 0.0);
-    out.normal = normal_world.xyz;
+    #ifdef SKINNED
+        out.normal = skin_normals(world_from_local, in.v_normal);
+    #else
+        let world_from_local_normal = mat3x3(
+            world_from_local[0].xyz,
+            world_from_local[1].xyz,
+            world_from_local[2].xyz,
+        );
+
+        out.normal = world_from_local_normal * in.v_normal;
+    #endif
 #endif
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_UV

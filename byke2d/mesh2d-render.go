@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/internal/query"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -17,18 +16,6 @@ func pluginMesh2d(app *byke.App) {
 	app.AddSystems(Render, byke.System(clearExtractedMesh2dSystem).InSet(RenderPhaseCleanup))
 
 	app.AddPlugin(PluginMaterial2d[ColorMaterial])
-}
-
-type ExtractedMesh struct {
-	Mesh *Mesh
-
-	Transform    glm.Mat4f
-	RenderLayers RenderLayers
-	Material     Material
-
-	EntityId byke.EntityId
-
-	Skin SkinnedMesh
 }
 
 type ExtractedMesh2d struct {

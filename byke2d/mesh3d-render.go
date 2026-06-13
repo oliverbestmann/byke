@@ -30,6 +30,7 @@ type ExtractedMesh3d struct {
 func extractMesh3dSystem[M Material](
 	meshes *ExtractedMesh3d,
 	meshQuery byke.Query[struct {
+		EntityId     byke.EntityId
 		Mesh         query.Ref[Mesh3d]
 		Transform    GlobalTransform
 		Material     M
@@ -46,12 +47,19 @@ func extractMesh3dSystem[M Material](
 
 		mesh := item.Mesh.Value
 
+		var skin ExtractedSkin
+		if sm, ok := item.SkinnedMesh.Get(); ok {
+			skin.EntityId = item.EntityId
+			skin.Joints = sm.Joints
+			skin.InverseBind = sm.InverseBind
+		}
+
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
 			Mesh:         mesh.Mesh,
 			Transform:    item.Transform.Affine,
 			Material:     item.Material,
 			RenderLayers: item.RenderLayers.Or(renderLayerZero),
-			Skin:         item.SkinnedMesh.OrZero(),
+			Skin:         skin,
 		})
 	}
 }
@@ -211,7 +219,7 @@ func drawMesh3dBatchSystem(
 		SampleCount:      view.ViewTarget.SampleCount,
 		Shader:           mesh.Material.Shader(),
 		MaterialBindings: layout,
-		Skinned:          mesh.Skin.IsValid(),
+		Skinned:          mesh.Skin.IsSet(),
 	}
 
 	for idx := range buf.Attributes {
@@ -225,8 +233,7 @@ func drawMesh3dBatchSystem(
 	pipeline := pipelines.Specialize(pipelineConfig)
 
 	bindGroup, _ := bindGroupCache.Get(mesh.Material)
-
-	skinOffset, _ := skinUniforms.OffsetOf(mesh.EntityId)
+	skinOffset, _ := skinUniforms.OffsetOf(mesh.Skin.EntityId)
 
 	pass.SetPipeline(pipeline.Get())
 
