@@ -18,6 +18,9 @@ type meshBuffers struct {
 
 	// buffer that holds the morph attributes
 	MorphAttributes *wgpu.Buffer
+
+	// the version that was uploaded
+	Version uint32
 }
 
 func (m *meshBuffers) Release() {
@@ -47,10 +50,11 @@ func meshCacheFromWorld(world *byke.World) meshCache {
 	}
 }
 
-func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) bool {
+func (m *meshCache) Upload(mesh *Mesh) bool {
 	bufs, ok := m.cache.Get(mesh)
 	if ok {
-		if !forceUpload {
+		if bufs.Version == mesh.version {
+			// no upload needed, we're up to date
 			return false
 		}
 
@@ -68,11 +72,13 @@ func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) bool {
 		Contents: wgpu.ToBytes(mesh.vertices),
 	})
 
-	bufs.Indices = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
-		Label:    "mesh index buffer",
-		Usage:    wgpu.BufferUsageIndex,
-		Contents: wgpu.ToBytes(mesh.indices),
-	})
+	if mesh.indices != nil {
+		bufs.Indices = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "mesh index buffer",
+			Usage:    wgpu.BufferUsageIndex,
+			Contents: wgpu.ToBytes(mesh.indices),
+		})
+	}
 
 	for _, attr := range mesh.attributes {
 		bufs.Attributes = append(bufs.Attributes, vertexAttributeBuffer{
@@ -94,6 +100,8 @@ func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) bool {
 			Contents: attr,
 		})
 	}
+
+	bufs.Version = mesh.version
 
 	m.cache.Add(mesh, bufs)
 

@@ -199,10 +199,6 @@ func (h *Handle) ChildNodes(parent Node) []Node {
 
 func (h *Handle) Buffer(viewId Ref) []byte {
 	bufferView := &h.BufferViews[viewId]
-	if bufferView.ByteStride > 0 {
-		panic("ByteStride not supported")
-	}
-
 	offset := bufferView.ByteOffset
 	return h.binary[offset : offset+bufferView.ByteLength]
 }
@@ -210,7 +206,6 @@ func (h *Handle) Buffer(viewId Ref) []byte {
 //goland:noinspection DuplicatedCode
 func (h *Handle) Resolve(aid Ref) any {
 	acc := &h.Accessors[aid]
-	buf := h.Buffer(acc.BufferView)
 
 	const Byte = 5120
 	const UnsignedByte = 5121
@@ -221,67 +216,99 @@ func (h *Handle) Resolve(aid Ref) any {
 
 	count := acc.Count
 
-	if acc.Type == "SCALAR" {
-		if acc.ComponentType == UnsignedShort {
-			return castToType[uint16](buf, count)
-		}
-
-		if acc.ComponentType == UnsignedInt {
-			return castToType[uint32](buf, count)
-		}
-
-		if acc.ComponentType == Float {
+	if acc.ComponentType == Float {
+		if acc.Type == "SCALAR" {
+			buf := h.BytesForAccessor(acc, 4)
 			return castToType[float32](buf, count)
 		}
-	}
 
-	if acc.ComponentType == Float {
 		if acc.Type == "VEC2" {
+			buf := h.BytesForAccessor(acc, 8)
 			return castToType[glm.Vec2f](buf, count)
 		}
 
 		if acc.Type == "VEC3" {
+			buf := h.BytesForAccessor(acc, 12)
 			return castToType[glm.Vec3f](buf, count)
 		}
 
 		if acc.Type == "VEC4" {
+			buf := h.BytesForAccessor(acc, 16)
 			return castToType[glm.Vec4f](buf, count)
 		}
 
+		if acc.Type == "MAT2" {
+			buf := h.BytesForAccessor(acc, 16)
+			return castToType[glm.Mat2f](buf, count)
+		}
+
+		if acc.Type == "MAT3" {
+			buf := h.BytesForAccessor(acc, 36)
+			return castToType[glm.Mat3f](buf, count)
+		}
+
 		if acc.Type == "MAT4" {
+			buf := h.BytesForAccessor(acc, 64)
 			return castToType[glm.Mat4f](buf, count)
 		}
 	}
 
 	if acc.ComponentType == UnsignedInt {
+		if acc.Type == "SCALAR" {
+			buf := h.BytesForAccessor(acc, 4)
+			return castToType[uint32](buf, count)
+		}
+
 		if acc.Type == "VEC2" {
+			buf := h.BytesForAccessor(acc, 8)
 			return castToType[glm.Vec2u](buf, count)
 		}
 
 		if acc.Type == "VEC3" {
+			buf := h.BytesForAccessor(acc, 12)
 			return castToType[glm.Vec3u](buf, count)
 		}
 
 		if acc.Type == "VEC4" {
+			buf := h.BytesForAccessor(acc, 16)
 			return castToType[glm.Vec4u](buf, count)
 		}
 	}
 
 	if acc.ComponentType == UnsignedShort {
+		if acc.Type == "SCALAR" {
+			buf := h.BytesForAccessor(acc, 2)
+			return castToType[uint16](buf, count)
+		}
+
 		if acc.Type == "VEC2" {
+			buf := h.BytesForAccessor(acc, 4)
 			return castToType[glm.Vec2uh](buf, count)
 		}
 
 		if acc.Type == "VEC3" {
+			buf := h.BytesForAccessor(acc, 6)
 			return castToType[glm.Vec3uh](buf, count)
 		}
 
 		if acc.Type == "VEC4" {
+			buf := h.BytesForAccessor(acc, 8)
 			return castToType[glm.Vec4uh](buf, count)
 		}
 	}
 
 	panic(fmt.Errorf("can not resolve type=%q, format=%d", acc.Type, acc.ComponentType))
+}
+
+func (h *Handle) BytesForAccessor(acc *Accessor, expectedStride uint32) []byte {
+
+	bufferView := &h.BufferViews[acc.BufferView]
+	if expectedStride > 0 && bufferView.ByteStride > 0 && bufferView.ByteStride != expectedStride {
+		panic(fmt.Errorf("expected byteStride %d, got %d", expectedStride, bufferView.ByteStride))
+	}
+
+	offset := bufferView.ByteOffset + acc.ByteOffset
+	return h.binary[offset : offset+bufferView.ByteLength]
 }
 
 func castToType[T any](buf []byte, count uint32) []T {

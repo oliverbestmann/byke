@@ -27,8 +27,7 @@ type Mesh struct {
 	morphTargets [][]MorphAttributes
 
 	// set to true if the mesh is uploaded to the gpu
-	version  uint32
-	uploaded uint32
+	version uint32
 }
 
 func MeshOf(indices []uint32, vertices []glm.Vec3f) *Mesh {
@@ -67,10 +66,6 @@ func (m *Mesh) Vertices() []glm.Vec3f {
 	return m.vertices
 }
 
-func (m *Mesh) TriangleCount() int {
-	return len(m.indices) / 3
-}
-
 func (m *Mesh) ComputeUV(compute func(point glm.Vec3f) glm.Vec2f) {
 	var uvs []glm.Vec2f
 
@@ -80,14 +75,6 @@ func (m *Mesh) ComputeUV(compute func(point glm.Vec3f) glm.Vec2f) {
 	}
 
 	m.WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs))
-}
-
-func (m *Mesh) requireUpload() bool {
-	return m.version != m.uploaded
-}
-
-func (m *Mesh) markUploaded() {
-	m.uploaded = m.version
 }
 
 func (m *Mesh) VertexCount() int {

@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -30,6 +29,13 @@ type SceneRoot struct {
 	Scene  gltf.Ref
 }
 
+func (s SceneRoot) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{
+		NewTransform(),
+		InheritVisibility,
+	}
+}
+
 func pluginGltf(app *byke.App) {
 	app.AddSystems(byke.PostUpdate, spawnGltfSceneSystem)
 }
@@ -39,6 +45,7 @@ func spawnGltfSceneSystem(
 	ctx *RenderContext,
 	scenesQuery byke.Query[struct {
 		_         byke.Changed[SceneRoot]
+		EntityId  byke.EntityId
 		SceneRoot SceneRoot
 	}],
 ) {
@@ -58,7 +65,7 @@ func spawnGltfSceneSystem(
 		scene := sc.Handle.Scenes[item.SceneRoot.Scene]
 		slog.Info("Spawning gtlf scene", slog.String("name", scene.Name))
 
-		sc.SpawnScene(item.SceneRoot.Scene)
+		sc.SpawnScene(item.EntityId, item.SceneRoot.Scene)
 	}
 }
 
@@ -89,9 +96,9 @@ type spawnContext struct {
 	meshes map[meshKey]*Mesh
 }
 
-func (sc *spawnContext) SpawnScene(sceneId gltf.Ref) {
+func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 	// spawn root entity
-	sc.root = sc.Commands.Spawn(SceneInstance{}).Id()
+	sc.root = sc.Commands.Spawn(SceneInstance{}, byke.ChildOf{Parent: parentId}).Id()
 
 	// first step, spawn nodes
 	for _, node := range sc.Handle.Scene(sceneId) {
@@ -387,15 +394,20 @@ func gltfConvertTransform(node gltf.Node) Transform {
 }
 
 func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
-	if prim.Indices.IsNil() {
-		panic(errors.New("can only load meshes with indices"))
+	vertices := h.Resolve(prim.MustGet("POSITION")).([]glm.Vec3f)
+
+	var indices []uint32
+
+	if prim.Indices.IsSet {
+		// get and convert indices if necessary
+		rawIndices := h.Resolve(prim.Indices.Value)
+		indices = gltfConvertMeshIndices(rawIndices)
+	} else {
+		for idx := range vertices {
+			indices = append(indices, uint32(idx))
+		}
 	}
 
-	// get and convert indices if necessary
-	rawIndices := h.Resolve(prim.Indices.Get())
-	indices := gltfConvertMeshIndices(rawIndices)
-
-	vertices := h.Resolve(prim.MustGet("POSITION")).([]glm.Vec3f)
 	mesh := MeshOf(indices, vertices)
 
 	for key, value := range prim.Attributes {
@@ -404,20 +416,20 @@ func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 			// handled above
 
 		case "TEXCOORD_0":
-			uv := h.Resolve(value).([]glm.Vec2f)
-			mesh.WithAttributes(VertexAttributeUV, wgpu.ToBytes(uv))
+			values := h.Resolve(value).([]glm.Vec2f)
+			mesh.WithAttributes(VertexAttributeUV, wgpu.ToBytes(values))
 
 		case "NORMAL":
-			uv := h.Resolve(value).([]glm.Vec3f)
-			mesh.WithAttributes(VertexAttributeNormal, wgpu.ToBytes(uv))
+			values := h.Resolve(value).([]glm.Vec3f)
+			mesh.WithAttributes(VertexAttributeNormal, wgpu.ToBytes(values))
 
 		case "JOINTS_0":
-			uv := h.Resolve(value).([]glm.Vec4uh)
-			mesh.WithAttributes(VertexAttributeJoints, wgpu.ToBytes(uv))
+			values := h.Resolve(value).([]glm.Vec4uh)
+			mesh.WithAttributes(VertexAttributeJoints, wgpu.ToBytes(values))
 
 		case "WEIGHTS_0":
-			uv := h.Resolve(value).([]glm.Vec4f)
-			mesh.WithAttributes(VertexAttributeJointWeights, wgpu.ToBytes(uv))
+			values := h.Resolve(value).([]glm.Vec4f)
+			mesh.WithAttributes(VertexAttributeJointWeights, wgpu.ToBytes(values))
 
 		default:
 			slog.Warn("Cannot map vertex attributes from gltf", slog.String("name", key))

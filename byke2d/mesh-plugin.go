@@ -45,9 +45,7 @@ func prepareMesh2dBuffers(
 
 	for item := range meshes.Items() {
 		mesh := item.Mesh
-		forceUpload := mesh.requireUpload()
-		meshCache.Upload(mesh, forceUpload)
-		mesh.markUploaded()
+		meshCache.Upload(mesh)
 	}
 }
 
@@ -62,15 +60,13 @@ func prepareMesh3dBuffers(
 
 	for item := range meshes.Items() {
 		mesh := item.Mesh.Mesh
-		forceUpload := mesh.requireUpload()
-		uploaded := meshCache.Upload(mesh, forceUpload)
-		mesh.markUploaded()
+		uploaded := meshCache.Upload(mesh)
 
 		if uploaded {
 			// TODO use a lifecycle hook to print this maybe?
 			name := item.Name.Or(byke.Named("unknown")).Name
-			slog.Debug(
-				"Mesh bounding box",
+			slog.Info(
+				"Uploaded mesh",
 				slog.String("name", name),
 				slog.Any("bbox", mesh.AABBSize()),
 			)

@@ -42,7 +42,7 @@ func main() {
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
-	model := assets.GLTF("RobotExpressive.glb").Await()
+	model := assets.GLTF("Fox.glb").Await()
 
 	commands.Spawn(
 		Camera{},
@@ -51,13 +51,16 @@ func setupSystem(commands *Commands, assets *Assets) {
 			Pitch:   glm.DegToRad(10),
 			Yaw:     glm.DegToRad(180),
 			PosRoll: glm.DegToRad(180),
-			PosY:    3,
+			PosY:    100,
+			Radius:  100,
 		},
 		DefaultPerspectiveProjection,
 	)
 
 	commands.Spawn(
-		NewTransform().WithRotationY(glm.DegToRad(120)),
+		NewTransform().
+			WithRotationY(glm.DegToRad(120)),
+
 		SceneRoot{Handle: model},
 	)
 
@@ -103,7 +106,7 @@ func moveCameraSystem(vt VirtualTime, keys Keys, cam Single[struct {
 		c.CameraController.PosRoll += glm.Rad(-1 * vt.DeltaSecs)
 	}
 
-	pos := glm.RotationYQuat(c.CameraController.PosRoll).Transform(glm.Vec3f{0, c.CameraController.PosY, -5})
+	pos := glm.RotationYQuat(c.CameraController.PosRoll).Transform(glm.Vec3f{0, c.CameraController.PosY, -c.CameraController.Radius})
 	c.Transform.Translation = pos
 
 	if keys.IsPressed(vyn.KeyArrowUp) {
@@ -132,4 +135,5 @@ type CameraController struct {
 
 	PosRoll glm.Rad
 	PosY    float32
+	Radius  float32
 }

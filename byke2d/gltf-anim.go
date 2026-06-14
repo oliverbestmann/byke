@@ -72,15 +72,15 @@ func weightsCurve(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref, weights
 
 	return KeyframeCurve[[]float32]{
 		Keys:         keyframes,
-		Interpolator: &WeightsInterpolator{},
+		Interpolator: &weightsInterpolator{},
 		Easing:       &Linear{},
 	}
 
 }
 
-type WeightsInterpolator struct{}
+type weightsInterpolator struct{}
 
-func (w WeightsInterpolator) Interpolate(a, b []float32, alpha float32) []float32 {
+func (w weightsInterpolator) Interpolate(a, b []float32, alpha float32) []float32 {
 	var res []float32
 
 	for idx := range a {
