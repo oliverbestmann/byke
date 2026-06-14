@@ -73,8 +73,8 @@ func (s *StructWriter) AppendMat4f(value glm.Mat4f) {
 	structAppend(s, value.Column(3), 16)
 }
 
-func (s *StructWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer, usage wgpu.BufferUsage) {
-	writeTo(ctx, bufRef, usage, s.Bytes())
+func (s *StructWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer, label string, usage wgpu.BufferUsage) {
+	writeTo(ctx, bufRef, label, usage, s.Bytes())
 }
 
 func (s *StructWriter) AlignTo(align int) {

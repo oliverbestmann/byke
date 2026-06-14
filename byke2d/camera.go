@@ -294,8 +294,8 @@ func prepareViewUniformsSystem(
 
 type ViewBindGroup struct {
 	BindGroup     *wgpu.BindGroup
-	bufferViews   *wgpu.Buffer
-	bufferGlobals *wgpu.Buffer
+	BufferViews   *wgpu.Buffer
+	BufferGlobals *wgpu.Buffer
 }
 
 var ViewBindGroupLayout = SequentialLayoutWithLabel("ViewUniforms",
@@ -309,7 +309,7 @@ func prepareGlobals(ctx *RenderContext, vt *byke.VirtualTime, g *ViewBindGroup) 
 	w.AppendFloat32(vt.DeltaSecs)
 	w.AppendUint(uint32(vt.Frames))
 	w.AppendUint(rand.Uint32())
-	w.WriteTo(ctx, &g.bufferGlobals, wgpu.BufferUsageUniform)
+	w.WriteTo(ctx, &g.BufferGlobals, "Globals", wgpu.BufferUsageUniform)
 }
 
 func createViewUniformsBindGroup(
@@ -319,7 +319,7 @@ func createViewUniformsBindGroup(
 	viewUniforms *ComponentUniforms[ViewUniforms],
 ) {
 	bindingView := viewUniforms.Binding()
-	if bindingView.Buffer != viewBindGroup.bufferViews {
+	if bindingView.Buffer != viewBindGroup.BufferViews {
 		viewBindGroup.BindGroup.Release()
 	}
 
@@ -328,7 +328,7 @@ func createViewUniformsBindGroup(
 		Layout: pipelineCache.BindGroupLayout(ViewBindGroupLayout),
 		Entries: Sequential(
 			bindingView,
-			BindingBuffer(viewBindGroup.bufferGlobals),
+			BindingBuffer(viewBindGroup.BufferGlobals),
 		),
 	})
 }

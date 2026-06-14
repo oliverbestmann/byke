@@ -10,15 +10,23 @@ import (
 func pluginMesh3d(app *byke.App) {
 	app.InsertResource(ExtractedMesh3d{})
 	app.InsertResource(mesh3dInstances{})
-	app.InsertResource(SkinBindGroup{})
+	app.InsertResource(MeshBindGroups{})
 	app.InsertResource(skinUniforms{})
+	app.InsertResource(morphUniforms{})
 
 	app.AddSystems(Render, byke.System(queueMesh3dSystem).InSet(RenderPhaseQueue))
+
+	app.AddSystems(Render, byke.System(prepareSkinsUniformsSystem).InSet(RenderPhasePrepareResources))
+	app.AddSystems(Render, byke.System(prepareMorphUniformsSystem).InSet(RenderPhasePrepareResources))
+
+	app.AddSystems(Render, byke.System(prepareMeshViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
+	app.AddSystems(Render, byke.System(prepareMeshBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
 	app.AddSystems(Render, byke.System(prepareMesh3dInstances).InSet(RenderPhasePrepareBindGroups))
+
 	app.AddSystems(Render, byke.System(clearExtractedMesh3dSystem).InSet(RenderPhaseCleanup))
 
-	app.AddSystems(Render, byke.System(prepareSkinViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
-	app.AddSystems(Render, byke.System(prepareJointsForSkinSystem).InSet(RenderPhasePrepareResources))
+	// need to sync the Weights to the actual mesh node
+	app.AddSystems(PreRender, syncMeshMorphWeightsSystem)
 
 	app.AddPlugin(PluginMaterial3d[StandardMaterial])
 }
@@ -60,6 +68,7 @@ func extractMesh3dSystem[M Material](
 			Material:     item.Material,
 			RenderLayers: item.RenderLayers.Or(renderLayerZero),
 			Skin:         skin,
+			EntityId:     item.EntityId,
 		})
 	}
 }
@@ -117,7 +126,8 @@ func prepareMesh3dInstances(
 	meshes *ExtractedMesh3d,
 	pipelineCache *PipelineCache,
 	meshInstances *mesh3dInstances,
-	bindGroups *materialBindGroupCache,
+	morphUniforms *morphUniforms,
+	bindGroups *MaterialBindGroups,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase *BinnedRenderPhase[Opaque]
@@ -161,13 +171,143 @@ func prepareMesh3dInstances(
 				mesh := &meshes.Meshes[item.ExtractedIndex]
 
 				// write sprite vertex data
-				writeMeshInstanceValues(instances, mesh)
+				instances.StartNew(52)
+
+				// transform
+				instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
+				instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
+				instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
+				instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
+
+				// reference morph info if available
+				idx, _ := morphUniforms.DescriptorIndex(mesh.EntityId)
+				instances.AppendUint(idx)
 			}
 		}
 	}
 
 	// upload buffer to gpu
-	instances.WriteTo(ctx, &meshInstances.Buffer)
+	instances.WriteTo(ctx, &meshInstances.Buffer, "Mesh3d Instances")
+}
+
+var MeshViewBindGroupLayout = SequentialLayout(
+	// View, offset by active ViewUniforms
+	Indexed(0, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
+
+	// Globals
+	Indexed(1, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false)),
+
+	// TODO All directed lights
+	// Indexed(10, ...),
+
+	// All point lights
+	Indexed(11, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+
+	// TODO All spot lights lights
+	// Indexed(11, ...),
+
+	// All morph descriptors
+	Indexed(20, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+
+	// All morph weights
+	Indexed(21, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+
+	// All skin joint transforms, offset by entityId
+	Indexed(30, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
+)
+
+type meshViewBindGroup struct {
+	BindGroup *wgpu.BindGroup
+}
+
+func prepareMeshViewBindGroupSystem(
+	ctx *RenderContext,
+	pipelines *PipelineCache,
+	bindGroup *meshViewBindGroup,
+	viewBindGroup ViewBindGroup,
+	morphUniforms morphUniforms,
+	skinUniforms skinUniforms,
+	lights *lightsStorage,
+	viewUniforms *ComponentUniforms[ViewUniforms],
+) {
+	bindGroup.BindGroup.Release()
+
+	bindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		Label:  "MeshView",
+		Layout: pipelines.BindGroupLayout(MeshViewBindGroupLayout),
+		Entries: Sequential(
+			Indexed(0, viewUniforms.Binding()),
+			Indexed(1, BindingBuffer(viewBindGroup.BufferGlobals)),
+
+			Indexed(11, BindingBuffer(lights.Buffer)),
+
+			Indexed(20, BindingBuffer(morphUniforms.BufDescriptors)),
+			Indexed(21, BindingBuffer(morphUniforms.BufWeights)),
+
+			Indexed(30, BindingBufferSize(skinUniforms.BufJoints, 0, 64*256)),
+		),
+	})
+}
+
+// MeshBindGroups holds the per mesh bind group containing mesh
+// specific data, such as the morph attribute data
+type MeshBindGroups struct {
+	// has dynamic offset configured for the start of the joints array
+	groups   tickCache[*Mesh, *wgpu.BindGroup]
+	emptyBuf *wgpu.Buffer
+}
+
+func (m *MeshBindGroups) ByMesh(mesh *Mesh) (*wgpu.BindGroup, bool) {
+	return m.groups.Get(mesh)
+}
+
+var MeshBindGroupLayout = SequentialLayoutWithLabel("Mesh",
+	// morph attributes
+	BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false),
+)
+
+func prepareMeshBindGroupSystem(
+	ctx *RenderContext,
+	bindGroups *MeshBindGroups,
+	meshes *ExtractedMesh3d,
+	buffers *meshCache,
+	pipelines *PipelineCache,
+) {
+	if bindGroups.emptyBuf == nil {
+		bindGroups.emptyBuf = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "empty",
+			Contents: []byte{0, 0, 0, 0},
+			Usage:    wgpu.BufferUsageStorage | wgpu.BufferUsageUniform,
+		})
+	}
+
+	buffers.cache.Tick()
+
+	for _, mesh := range meshes.Meshes {
+		// TODO check for change in morph attributes buffer
+		if _, ok := bindGroups.groups.Get(mesh.Mesh); ok {
+			continue
+		}
+
+		buf, ok := buffers.Get(mesh.Mesh)
+		if !ok {
+			continue
+		}
+
+		morphAttributes := buf.MorphAttributes
+		if morphAttributes == nil {
+			morphAttributes = bindGroups.emptyBuf
+		}
+
+		// create and cache new bind group for this mesh
+		bindGroups.groups.Add(mesh.Mesh, ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+			Label:  "Mesh",
+			Layout: pipelines.BindGroupLayout(MeshBindGroupLayout),
+			Entries: Sequential(
+				BindingBuffer(morphAttributes),
+			),
+		}))
+	}
 }
 
 func drawMesh3dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderItem) (ok bool) {
@@ -180,16 +320,16 @@ func drawMesh3dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item Rende
 }
 
 func drawMesh3dBatchSystem(
-	viewBindGroup ViewBindGroup,
-	lightsBindGroup LightsBindGroup,
-	skinBindGroup SkinBindGroup,
-	pipelines *PipelineCache,
 	task byke.In[RenderTask],
+	meshViewBindGroup meshViewBindGroup,
+	meshBindGroups MeshBindGroups,
+	pipelines *PipelineCache,
 	meshes *ExtractedMesh3d,
 	instances *mesh3dInstances,
 	meshCache *meshCache,
-	bindGroupCache *materialBindGroupCache,
+	materialBindGroups *MaterialBindGroups,
 	skinUniforms *skinUniforms,
+	morphUniforms *morphUniforms,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget
 		ViewUniformsOffset DynamicOffset[ViewUniforms]
@@ -210,6 +350,9 @@ func drawMesh3dBatchSystem(
 
 	indexCount := uint32(len(mesh.Mesh.indices))
 
+	skinOffset, skinOk := skinUniforms.OffsetOf(mesh.Skin.EntityId)
+	_, morphOk := morphUniforms.DescriptorIndex(mesh.EntityId)
+
 	var layout []wgpu.BindGroupLayoutEntry
 	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false))
 	layout = append(layout, mesh.Material.BindingsLayout()...)
@@ -219,7 +362,8 @@ func drawMesh3dBatchSystem(
 		SampleCount:      view.ViewTarget.SampleCount,
 		Shader:           mesh.Material.Shader(),
 		MaterialBindings: layout,
-		Skinned:          mesh.Skin.IsSet(),
+		Skinned:          skinOk && mesh.Skin.IsSet(),
+		Morph:            morphOk,
 	}
 
 	for idx := range buf.Attributes {
@@ -232,19 +376,25 @@ func drawMesh3dBatchSystem(
 
 	pipeline := pipelines.Specialize(pipelineConfig)
 
-	bindGroup, _ := bindGroupCache.Get(mesh.Material)
-	skinOffset, _ := skinUniforms.OffsetOf(mesh.Skin.EntityId)
+	materialBindGroup, _ := materialBindGroups.Get(mesh.Material)
+	meshBindGroup, ok := meshBindGroups.ByMesh(mesh.Mesh)
+	if !ok {
+		panic("mesh bind group is missing")
+	}
 
 	pass.SetPipeline(pipeline.Get())
 
-	pass.SetBindGroup(0, viewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset})
-	pass.SetBindGroup(1, lightsBindGroup.BindGroup, nil)
-	pass.SetBindGroup(2, bindGroup, nil)
-	pass.SetBindGroup(3, skinBindGroup.BindGroup, []uint32{skinOffset})
+	pass.SetBindGroup(0, meshViewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset, skinOffset})
+	pass.SetBindGroup(1, meshBindGroup, nil)
+	pass.SetBindGroup(2, materialBindGroup, nil)
 
+	// per instance data, like transformation, indices in global buffers, etc
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
+
+	// the position vertex data for the current mesh
 	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)
 
+	// TODO pack vertex data per mesh into a single buffer
 	// set vertex buffers for other attributes
 	for idx := range buf.Attributes {
 		buffer := buf.Attributes[idx].Buffer

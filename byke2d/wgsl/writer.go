@@ -72,11 +72,11 @@ func (s *InstanceWriter) AppendVec4f(value glm.Vec4f) {
 	s.buf = rawAppendTo(s.buf, value)
 }
 
-func (s *InstanceWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer) {
-	writeTo(ctx, bufRef, wgpu.BufferUsageVertex, s.Bytes())
+func (s *InstanceWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer, label string) {
+	writeTo(ctx, bufRef, label, wgpu.BufferUsageVertex, s.Bytes())
 }
 
-func writeTo(ctx RenderContext, bufRef **wgpu.Buffer, usage wgpu.BufferUsage, data []byte) {
+func writeTo(ctx RenderContext, bufRef **wgpu.Buffer, label string, usage wgpu.BufferUsage, data []byte) {
 	buf := *bufRef
 
 	if buf == nil || int(buf.GetSize()) < len(data) {
@@ -85,7 +85,7 @@ func writeTo(ctx RenderContext, bufRef **wgpu.Buffer, usage wgpu.BufferUsage, da
 		bufferSize := max(256, len(data))
 
 		buf = ctx.CreateBuffer(&wgpu.BufferDescriptor{
-			Label: "Sprite Instances",
+			Label: label,
 			Usage: wgpu.BufferUsageCopyDst | usage,
 			Size:  uint64(bufferSize),
 		})

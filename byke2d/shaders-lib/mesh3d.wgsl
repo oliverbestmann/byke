@@ -12,8 +12,11 @@ struct VertexInput {
     @location(2) i_affine_2: vec3f,
     @location(3) i_affine_3: vec3f,
 
+    // index in morph info buffer
+    @location(4) i_morph_index: u32,
+
     // vertex position from per-vertex buffer
-    @location(4) v_position: vec3f,
+    @location(9) v_position: vec3f,
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_COLOR
     // vertex color from per-vertex buffer
@@ -60,15 +63,15 @@ struct Lights {
     lights: array<Light>,
 };
 
-@group(1)
-@binding(0)
+@group(0)
+@binding(11)
 var<storage> point_lights: Lights;
 
 #ifdef SKINNED
 
 // Size of the array must match the maxJoints constant
-@group(3)
-@binding(0)
+@group(0)
+@binding(30)
 var<uniform> joints: array<mat4x4f, 256>;
 
 fn inverse_transpose_3x3m(in: mat3x3<f32>) -> mat3x3<f32> {
@@ -100,6 +103,61 @@ fn skin_normals(
 
 #endif
 
+#ifdef MORPH
+
+struct MorphDescriptor {
+    // number of targets in the current mesh. This is equal
+    //  to the number of weights per vertex
+    target_count: u32,
+
+    // number of vertices in the current mesh
+    vertex_count: u32,
+
+    // index into the morph_weights buffer
+    weights_index: u32,
+}
+
+struct MorphAttributes {
+    position: vec3f,
+    normal: vec3f,
+    tangent: vec3f,
+}
+
+// The list of morph infos for all meshes.
+@group(0)
+@binding(20)
+var<storage> morph_descriptors: array<MorphDescriptor>;
+
+// The morph weights for all meshes
+@group(0)
+@binding(21)
+var <storage> morph_weights: array<f32>;
+
+// The morph attributes for the current mesh. Must contain at least
+// one entry per morph target per vertex.
+@group(1)
+@binding(0)
+var <storage> morph_attributes: array<MorphAttributes>;
+
+fn morph_position(pos: vec3f, morph_info_index: u32, vertex_index: u32) -> vec3f {
+    var result: vec3f = pos;
+
+    let info = morph_descriptors[morph_info_index];
+
+    for (var ta: u32 = 0; ta < info.target_count; ta++) {
+        let idx = ta * info.vertex_count + vertex_index;
+
+        let attrs = morph_attributes[idx];
+        let weight = morph_weights[info.weights_index + ta];
+
+        result += attrs.position * weight;
+    }
+
+    return result;
+}
+
+#endif
+
 fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 #ifdef SKINNED
     // interpolate joint matrices
@@ -118,7 +176,14 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
     );
 #endif
 
-    let position_world = world_from_local * vec4f(in.v_position, 1.0);
+    var position_local = in.v_position;
+
+#ifdef MORPH
+    // morph the position of the position vector before skinning
+    position_local = morph_position(position_local, in.i_morph_index, in.index);
+#endif
+
+    let position_world = world_from_local * vec4f(position_local, 1.0);
 
     let position = view.screen_to_ndc
         * view.world_to_screen

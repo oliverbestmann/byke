@@ -18,9 +18,9 @@ type SkinnedMesh struct {
 }
 
 type skinUniforms struct {
-	staging wgsl.StructWriter
-	buffer  *wgpu.Buffer
-	offsets map[byke.EntityId]uint32
+	BufJoints *wgpu.Buffer
+	staging   wgsl.StructWriter
+	offsets   map[byke.EntityId]uint32
 }
 
 func (s *skinUniforms) OffsetOf(entity byke.EntityId) (uint32, bool) {
@@ -28,11 +28,7 @@ func (s *skinUniforms) OffsetOf(entity byke.EntityId) (uint32, bool) {
 	return offset, ok
 }
 
-var SkinningBindGroupLayout = SequentialLayoutWithLabel("Skinning",
-	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
-)
-
-func prepareJointsForSkinSystem(
+func prepareSkinsUniformsSystem(
 	ctx *RenderContext,
 	uniforms *skinUniforms,
 	jointsQuery byke.Query[GlobalTransform],
@@ -49,6 +45,7 @@ outer:
 			continue
 		}
 
+		// TODO tightly pack into storage buffer
 		uniforms.staging.AlignTo(256)
 		offset := uniforms.staging.Offset()
 
@@ -71,32 +68,6 @@ outer:
 		uniforms.staging.AppendMat4f(glm.Mat4f{})
 	}
 
-	uniforms.staging.WriteTo(ctx, &uniforms.buffer, wgpu.BufferUsageUniform)
-}
-
-type SkinBindGroup struct {
-	// has dynamic offset configured for the start of the joints array
-	BindGroup *wgpu.BindGroup
-	buffer    *wgpu.Buffer
-}
-
-func prepareSkinViewBindGroupSystem(
-	ctx *RenderContext,
-	bindGroups *SkinBindGroup,
-	uniforms *skinUniforms,
-	pipelines *PipelineCache,
-) {
-	if bindGroups.buffer == uniforms.buffer {
-		return
-	}
-
-	bindGroups.BindGroup.Release()
-
-	bindGroups.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Label:   "Skinning",
-		Layout:  pipelines.BindGroupLayout(SkinningBindGroupLayout),
-		Entries: Sequential(BindingBufferSize(uniforms.buffer, 0, 256*64)),
-	})
-
-	bindGroups.buffer = uniforms.buffer
+	// upload to gpu
+	uniforms.staging.WriteTo(ctx, &uniforms.BufJoints, "Joints", wgpu.BufferUsageUniform)
 }

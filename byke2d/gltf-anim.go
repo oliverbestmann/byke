@@ -14,43 +14,81 @@ func (sc *spawnContext) animationCurveOf(anim gltf.Animation, channel gltf.Anima
 	case "translation":
 		curve := vec3AnimationSampler(handle, anim, channel.Sampler)
 
-		first := curve.Sample(0)
-		handle.Nodes[channel.Target.Node].Translation = new([3]float32(first))
-
 		return &TypedAnimationCurve[glm.Vec3f]{
-			Curve:    &curve,
+			Curve:    new(curve),
 			Accessor: TranslationPropertyAccessor,
 		}
 
 	case "scale":
 		curve := vec3AnimationSampler(handle, anim, channel.Sampler)
 
-		first := curve.Sample(0)
-		handle.Nodes[channel.Target.Node].Scale = new([3]float32(first))
-
 		return &TypedAnimationCurve[glm.Vec3f]{
-			Curve:    &curve,
+			Curve:    new(curve),
 			Accessor: ScalePropertyAccessor,
 		}
 
 	case "rotation":
 		curve := quatAnimationSampler(handle, anim, channel.Sampler)
 
-		first := curve.Sample(0).ToVec4()
-		handle.Nodes[channel.Target.Node].Rotation = new([4]float32(first))
-
 		return &TypedAnimationCurve[glm.Quat]{
-			Curve:    &curve,
+			Curve:    new(curve),
 			Accessor: RotationPropertyAccessor,
 		}
 
 	case "weights":
-		// ignoring for now
-		return nil
+		meshId := sc.Handle.Nodes[channel.Target.Node].Mesh.Get()
+		weightsCount := len(sc.Handle.Meshes[meshId].Weights)
+
+		curve := weightsCurve(handle, anim, channel.Sampler, weightsCount)
+
+		return &TypedAnimationCurve[[]float32]{
+			Curve:    new(curve),
+			Accessor: weightsAccessor,
+		}
 
 	default:
 		panic(fmt.Errorf("unknown animationChannel path %q", channel.Target.Path))
 	}
+}
+
+var weightsAccessor = FieldAccessor[[]float32, MorphWeights](
+	func(comp *MorphWeights) *[]float32 { return &comp.Weights },
+)
+
+func weightsCurve(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref, weightsCount int) KeyframeCurve[[]float32] {
+	sampler := anim.Samplers[sid]
+	timestamps := handle.Resolve(sampler.Input).([]float32)
+	values := handle.Resolve(sampler.Output).([]float32)
+
+	// convert to keyframes
+	var keyframes []Keyframe[[]float32]
+	for idx, timestamp := range timestamps {
+		offset := idx * weightsCount
+		keyframes = append(keyframes, Keyframe[[]float32]{
+			Time:  timestamp,
+			Value: values[offset : offset+weightsCount],
+		})
+	}
+
+	return KeyframeCurve[[]float32]{
+		Keys:         keyframes,
+		Interpolator: &WeightsInterpolator{},
+		Easing:       &Linear{},
+	}
+
+}
+
+type WeightsInterpolator struct{}
+
+func (w WeightsInterpolator) Interpolate(a, b []float32, alpha float32) []float32 {
+	var res []float32
+
+	for idx := range a {
+		val := (FloatInterpolator{}).Interpolate(a[idx], b[idx], alpha)
+		res = append(res, val)
+	}
+
+	return res
 }
 
 func vec3AnimationSampler(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref) KeyframeCurve[glm.Vec3f] {

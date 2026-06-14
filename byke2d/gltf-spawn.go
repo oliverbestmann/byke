@@ -51,7 +51,8 @@ func spawnGltfSceneSystem(
 			RenderContext: ctx,
 			nodes:         map[gltf.Ref]byke.EntityId{},
 			images:        map[gltf.Ref]*Texture{},
-			meshes:        map[gltf.Ref][]byke.EntityId{},
+			nodeToMesh:    map[gltf.Ref][]byke.EntityId{},
+			meshes:        map[meshKey]*Mesh{},
 		}
 
 		scene := sc.Handle.Scenes[item.SceneRoot.Scene]
@@ -59,6 +60,11 @@ func spawnGltfSceneSystem(
 
 		sc.SpawnScene(item.SceneRoot.Scene)
 	}
+}
+
+type meshKey struct {
+	MeshId gltf.Ref
+	SubId  uint32
 }
 
 type spawnContext struct {
@@ -76,7 +82,11 @@ type spawnContext struct {
 	images map[gltf.Ref]*Texture
 
 	// map from node to mesh entities
-	meshes map[gltf.Ref][]byke.EntityId
+	nodeToMesh map[gltf.Ref][]byke.EntityId
+
+	// primitive meshes that can be used for instantiation if
+	// referenced multiple times
+	meshes map[meshKey]*Mesh
 }
 
 func (sc *spawnContext) SpawnScene(sceneId gltf.Ref) {
@@ -145,22 +155,21 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 	}
 
 	// get the mesh
-	mesh := sc.Handle.Meshes[node.Mesh.Get()]
+	meshId := node.Mesh.Get()
+	mesh := sc.Handle.Meshes[meshId]
 
-	for _, prim := range mesh.Primitives {
+	for idx, prim := range mesh.Primitives {
 		var material StandardMaterial
 
 		if ma := prim.Material; ma.IsSet {
 			material = sc.materialAt(ma.Get())
 		}
 
-		// TODO meshes can be re-used, so we can probably just
-		//  instantiate all meshes first and then re-use
-		mesh3d := gltfConvertPrimitiveMesh(&sc.Handle, prim)
+		meshInst := sc.instantiateMesh(meshId, idx)
 
 		entityCommands := sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
-			Mesh3d{Mesh: mesh3d},
+			Mesh3d{Mesh: meshInst},
 			material,
 		)
 
@@ -168,7 +177,22 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 			entityCommands.Insert(byke.Named(name))
 		}
 
-		sc.meshes[node.Id] = append(sc.meshes[node.Id], entityCommands.Id())
+		if len(mesh.Weights) > 0 {
+			// we got mesh target weights
+			entityCommands.Insert(meshMorphWeights{})
+		}
+
+		sc.nodeToMesh[node.Id] = append(sc.nodeToMesh[node.Id], entityCommands.Id())
+	}
+
+	if len(mesh.Weights) > 0 {
+		// insert MeshWeights into the mesh itself.
+		sc.Commands.Entity(entityId).Insert(
+			MorphWeights{
+				Weights: mesh.Weights,
+				Names:   mesh.Extras.TargetNames,
+			},
+		)
 	}
 }
 
@@ -222,7 +246,7 @@ func (sc *spawnContext) spawnSkinInNode(node gltf.Node) {
 		}
 	}
 
-	for _, entityId := range sc.meshes[node.Id] {
+	for _, entityId := range sc.nodeToMesh[node.Id] {
 		sc.Commands.Entity(entityId).Insert(skinned)
 	}
 }
@@ -332,6 +356,24 @@ func (sc *spawnContext) buildAnimation(anim gltf.Animation) AnimationClip {
 	return clip
 }
 
+func (sc *spawnContext) instantiateMesh(meshId gltf.Ref, subId int) *Mesh {
+	key := meshKey{MeshId: meshId, SubId: uint32(subId)}
+
+	// lookup in cache first
+	cached, ok := sc.meshes[key]
+	if ok {
+		return cached
+	}
+
+	primitive := sc.Handle.Meshes[meshId].Primitives[subId]
+	mesh := gltfConvertPrimitiveMesh(&sc.Handle, primitive)
+
+	// put into cache
+	sc.meshes[key] = mesh
+
+	return mesh
+}
+
 func gltfConvertTransform(node gltf.Node) Transform {
 	tr, scale, rot := node.TransformComponents()
 
@@ -380,7 +422,39 @@ func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 		}
 	}
 
+	for _, target := range prim.Targets {
+		morphAttributes := convertMorphAttributes(h, len(vertices), target)
+		mesh.WithMorphTarget(morphAttributes)
+	}
+
 	return mesh
+}
+
+func convertMorphAttributes(h *gltfHandle, vertexCount int, target gltf.MorphTarget) []MorphAttributes {
+	attributes := make([]MorphAttributes, vertexCount)
+
+	if target.Positions.IsSet {
+		offsets := h.Resolve(target.Positions.Value).([]glm.Vec3f)
+		for i := range vertexCount {
+			attributes[i].Position = offsets[i]
+		}
+	}
+
+	if target.Normals.IsSet {
+		offsets := h.Resolve(target.Normals.Value).([]glm.Vec3f)
+		for i := range vertexCount {
+			attributes[i].Normal = offsets[i]
+		}
+	}
+
+	if target.Tangents.IsSet {
+		offsets := h.Resolve(target.Tangents.Value).([]glm.Vec3f)
+		for i := range vertexCount {
+			attributes[i].Tangent = offsets[i]
+		}
+	}
+
+	return attributes
 }
 
 func gltfConvertMeshIndices(rawIndices any) []uint32 {

@@ -29,10 +29,9 @@ func pluginLights(app *byke.App) {
 	app.InsertResource(DefaultLightConfig)
 	app.InsertResource(ExtractedLights{})
 	app.InsertResource(lightsStorage{})
-	app.InsertResource(LightsBindGroup{})
+	app.InsertResource(meshViewBindGroup{})
 	app.AddSystems(Render, byke.System(extractLights).InSet(RenderPhaseExtract))
 	app.AddSystems(Render, byke.System(prepareLightsStorage).InSet(RenderPhasePrepareResources))
-	app.AddSystems(Render, byke.System(prepareLightsBindGroup).InSet(RenderPhasePrepareBindGroups))
 }
 
 type ExtractedLights struct {
@@ -86,10 +85,6 @@ type lightsStorage struct {
 	BindGroup *wgpu.BindGroup
 }
 
-type LightsBindGroup struct {
-	BindGroup *wgpu.BindGroup
-}
-
 type LightConfig struct {
 	Ambient Color
 }
@@ -114,23 +109,5 @@ func prepareLightsStorage(
 		light.WriteTo(&uniforms.Writer)
 	}
 
-	uniforms.Writer.WriteTo(ctx, &uniforms.Buffer, wgpu.BufferUsageStorage)
-}
-
-var LightsBindGroupLayout = SequentialLayout(
-	BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false),
-)
-
-func prepareLightsBindGroup(
-	ctx *RenderContext,
-	pipelines *PipelineCache,
-	bindGroup *LightsBindGroup,
-	lights *lightsStorage,
-) {
-	bindGroup.BindGroup.Release()
-	bindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Label:   "Lights",
-		Layout:  pipelines.BindGroupLayout(LightsBindGroupLayout),
-		Entries: Sequential(BindingBuffer(lights.Buffer)),
-	})
+	uniforms.Writer.WriteTo(ctx, &uniforms.Buffer, "PointLights", wgpu.BufferUsageStorage)
 }

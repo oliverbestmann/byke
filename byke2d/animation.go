@@ -138,7 +138,7 @@ type PropertyAccessor[T any] interface {
 
 type fieldAccessorImpl[T any, C byke.IsComponent[C]] func(comp *C) *T
 
-func fieldAccessor[T any, C byke.IsComponent[C]](f func(comp *C) *T) PropertyAccessor[T] {
+func FieldAccessor[T any, C byke.IsComponent[C]](f func(comp *C) *T) PropertyAccessor[T] {
 	return fieldAccessorImpl[T, C](f)
 }
 
@@ -163,15 +163,15 @@ func (pa fieldAccessorImpl[T, C]) Get(entity byke.EntityRef) (T, bool) {
 	return *ref, true
 }
 
-var TranslationPropertyAccessor = fieldAccessor(func(comp *Transform) *glm.Vec3f {
+var TranslationPropertyAccessor = FieldAccessor(func(comp *Transform) *glm.Vec3f {
 	return &comp.Translation
 })
 
-var RotationPropertyAccessor = fieldAccessor(func(comp *Transform) *glm.Quat {
+var RotationPropertyAccessor = FieldAccessor(func(comp *Transform) *glm.Quat {
 	return &comp.Rotation
 })
 
-var ScalePropertyAccessor = fieldAccessor(func(comp *Transform) *glm.Vec3f {
+var ScalePropertyAccessor = FieldAccessor(func(comp *Transform) *glm.Vec3f {
 	return &comp.Scale
 })
 

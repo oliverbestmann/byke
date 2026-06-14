@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "image/png"
 	"log/slog"
 	"os"
 	"runtime"
@@ -10,8 +11,6 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
 	"github.com/pkg/profile"
-
-	_ "image/png"
 )
 
 func init() {
@@ -42,7 +41,7 @@ func main() {
 	app.MustRun()
 }
 
-func setupSystem(world *World, commands *Commands, assets *Assets) {
+func setupSystem(commands *Commands, assets *Assets) {
 	model := assets.GLTF("RobotExpressive.glb").Await()
 
 	commands.Spawn(

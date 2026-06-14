@@ -139,12 +139,25 @@ type Camera struct {
 type Mesh struct {
 	Name       string          `json:"name"`
 	Primitives []MeshPrimitive `json:"primitives"`
+	Weights    []float32
+	Extras     MeshExtras `json:"extras"`
+}
+
+type MeshExtras struct {
+	TargetNames []string `json:"targetNames"`
+}
+
+type MorphTarget struct {
+	Positions OptionRef `json:"POSITION"`
+	Normals   OptionRef `json:"NORMAL"`
+	Tangents  OptionRef `json:"TANGENT"`
 }
 
 type MeshPrimitive struct {
 	Attributes map[string]Ref `json:"attributes"`
 	Indices    OptionRef      `json:"indices"`
 	Material   OptionRef      `json:"material"`
+	Targets    []MorphTarget  `json:"targets"`
 	Mode       uint32         `json:"mode"`
 }
 
@@ -184,8 +197,12 @@ func (h *Handle) ChildNodes(parent Node) []Node {
 	return nodes
 }
 
-func (h *Handle) Buffer(bufView Ref) []byte {
-	bufferView := &h.BufferViews[bufView]
+func (h *Handle) Buffer(viewId Ref) []byte {
+	bufferView := &h.BufferViews[viewId]
+	if bufferView.ByteStride > 0 {
+		panic("ByteStride not supported")
+	}
+
 	offset := bufferView.ByteOffset
 	return h.binary[offset : offset+bufferView.ByteLength]
 }

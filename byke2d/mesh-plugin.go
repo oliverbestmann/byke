@@ -10,7 +10,7 @@ import (
 func pluginMesh(app *byke.App) {
 	app.InsertResource(byke.InitFromWorld(meshCacheFromWorld))
 
-	app.InsertResource(materialBindGroupCache{})
+	app.InsertResource(MaterialBindGroups{})
 
 	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
 	app.AddSystems(Render, byke.System(prepareMesh3dBuffers).InSet(RenderPhasePrepareResources))
@@ -23,7 +23,8 @@ type ExtractedMesh struct {
 	RenderLayers RenderLayers
 	Material     Material
 
-	Skin ExtractedSkin
+	Skin     ExtractedSkin
+	EntityId byke.EntityId
 }
 
 type ExtractedSkin struct {

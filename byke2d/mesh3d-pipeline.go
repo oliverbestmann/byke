@@ -15,6 +15,7 @@ type mesh3dPipelineConfig struct {
 	MaterialBindings []wgpu.BindGroupLayoutEntry
 	SampleCount      uint32
 	Skinned          bool
+	Morph            bool
 }
 
 func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
@@ -24,6 +25,7 @@ func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
 		m.Format == otherConfig.Format &&
 		m.SampleCount == otherConfig.SampleCount &&
 		m.Skinned == otherConfig.Skinned &&
+		m.Morph == otherConfig.Morph &&
 		slices.Equal(m.Attributes, otherConfig.Attributes) &&
 		slices.Equal(m.MaterialBindings, otherConfig.MaterialBindings)
 }
@@ -36,7 +38,7 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 	buffers := []wgpu.VertexBufferLayout{
 		{
 			// per instance: model to world transform
-			ArrayStride: 48,
+			ArrayStride: 52,
 			StepMode:    wgpu.VertexStepModeInstance,
 			Attributes: []wgpu.VertexAttribute{
 				// affine [4]vec3f
@@ -44,6 +46,9 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
 				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
 				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
+
+				// morph info index
+				instanceAttrs.Inc(4, wgpu.VertexFormatUint32),
 			},
 		},
 		{
@@ -53,14 +58,14 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 			Attributes: []wgpu.VertexAttribute{
 				{
 					Format:         wgpu.VertexFormatFloat32x3,
-					ShaderLocation: 4,
+					ShaderLocation: 9,
 					Offset:         0,
 				},
 			},
 		},
 	}
 
-	var attrShaderLocation uint32 = 5
+	var attrShaderLocation uint32 = 10
 	for _, attr := range m.Attributes {
 		buffers = append(buffers, wgpu.VertexBufferLayout{
 			ArrayStride: uint64(attr.Format.ByteSize()),
@@ -82,17 +87,16 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 	}
 
 	values.Define("SKINNED", m.Skinned)
+	values.Define("MORPH", m.Morph)
 
 	mod := ctx.Shader(m.Shader.Label, m.Shader.Source, values)
 
 	return RenderPipelineDescriptor{
 		Label: "mesh3d pipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
-			ViewBindGroupLayout,
-			LightsBindGroupLayout,
+			MeshViewBindGroupLayout,
+			MeshBindGroupLayout,
 			SequentialLayout(slices.Clone(m.MaterialBindings)...),
-			SkinningBindGroupLayout,
-			// no further bindings for now
 		},
 		Vertex: wgpu.VertexState{
 			Module:     mod,

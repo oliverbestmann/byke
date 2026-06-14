@@ -125,7 +125,7 @@ func prepareSpriteBindGroupsSystem(
 	}
 
 	// upload buffer to gpu
-	instances.WriteTo(ctx, &meta.Buffer)
+	instances.WriteTo(ctx, &meta.Buffer, "Sprite Instances")
 }
 
 func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSprite) {

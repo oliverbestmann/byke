@@ -33,7 +33,7 @@ func PluginMaterial3d[M ComparableMaterial](app *byke.App) {
 	app.AddSystems(Render, byke.System(extractMesh3dSystem[M]).InSet(RenderPhaseExtract))
 }
 
-type materialBindGroupCache struct {
+type MaterialBindGroups struct {
 	tickCache[Material, *wgpu.BindGroup]
 }
 

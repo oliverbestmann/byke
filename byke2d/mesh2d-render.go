@@ -108,7 +108,7 @@ func prepareMesh2dInstances(
 	meshes *ExtractedMesh2d,
 	pipelineCache *PipelineCache,
 	meshInstances *mesh2dInstances,
-	bindGroups *materialBindGroupCache,
+	bindGroups *MaterialBindGroups,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase *BinnedRenderPhase[Opaque]
@@ -157,7 +157,7 @@ func prepareMesh2dInstances(
 	}
 
 	// upload buffer to gpu
-	instances.WriteTo(ctx, &meshInstances.Buffer)
+	instances.WriteTo(ctx, &meshInstances.Buffer, "Mesh2d Instances")
 }
 
 func writeMeshInstanceValues(instances *wgsl.InstanceWriter, mesh *ExtractedMesh) {
@@ -184,7 +184,7 @@ func drawMesh2dBatchSystem(
 	meshes *ExtractedMesh2d,
 	instances *mesh2dInstances,
 	meshCache *meshCache,
-	bindGroupCache *materialBindGroupCache,
+	bindGroupCache *MaterialBindGroups,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget
 		ViewUniformsOffset DynamicOffset[ViewUniforms]

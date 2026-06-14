@@ -2,6 +2,7 @@ package byke2d
 
 import (
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -12,13 +13,17 @@ type meshBuffers struct {
 	// index buffer for this mesh
 	Indices *wgpu.Buffer
 
-	// Other vertex attributes
+	// more per vertex attributes
 	Attributes []vertexAttributeBuffer
+
+	// buffer that holds the morph attributes
+	MorphAttributes *wgpu.Buffer
 }
 
 func (m *meshBuffers) Release() {
 	m.Vertex.Release()
 	m.Indices.Release()
+	m.MorphAttributes.Release()
 
 	for _, buf := range m.Attributes {
 		buf.Buffer.Release()
@@ -80,9 +85,33 @@ func (m *meshCache) Upload(mesh *Mesh, forceUpload bool) bool {
 		})
 	}
 
+	if len(mesh.morphTargets) > 0 {
+		attr := collectMorphAttributes(mesh.morphTargets)
+
+		bufs.MorphAttributes = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
+			Label:    "mesh morph attributes",
+			Usage:    wgpu.BufferUsageStorage,
+			Contents: attr,
+		})
+	}
+
 	m.cache.Add(mesh, bufs)
 
 	return true
+}
+
+func collectMorphAttributes(targets [][]MorphAttributes) []byte {
+	var attrs wgsl.StructWriter
+
+	for _, target := range targets {
+		for _, attr := range target {
+			attrs.AppendVec3f(attr.Position)
+			attrs.AppendVec3f(attr.Normal)
+			attrs.AppendVec3f(attr.Tangent)
+		}
+	}
+
+	return attrs.Bytes()
 }
 
 func (m *meshCache) Reset() {

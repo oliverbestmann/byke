@@ -5,9 +5,15 @@ import (
 )
 
 func Sequential(entries ...wgpu.BindGroupEntry) []wgpu.BindGroupEntry {
+	var binding uint32
+
 	for idx := range entries {
 		if entries[idx].Binding == 0 {
-			entries[idx].Binding = uint32(idx)
+			entries[idx].Binding = binding
+			binding += 1
+		} else {
+			binding = entries[idx].Binding
+			binding += 1
 		}
 	}
 
@@ -35,9 +41,15 @@ func SequentialLayout(entries ...wgpu.BindGroupLayoutEntry) wgpu.BindGroupLayout
 }
 
 func SequentialLayoutWithLabel(label string, entries ...wgpu.BindGroupLayoutEntry) wgpu.BindGroupLayoutDescriptor {
+	var binding uint32
+
 	for idx := range entries {
 		if entries[idx].Binding == 0 {
-			entries[idx].Binding = uint32(idx)
+			entries[idx].Binding = binding
+			binding += 1
+		} else {
+			binding = entries[idx].Binding
+			binding += 1
 		}
 	}
 

@@ -2,6 +2,7 @@ package byke2d
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"unsafe"
 
@@ -21,6 +22,9 @@ type Mesh struct {
 
 	// Additional vertex attributes
 	attributes VertexAttributes
+
+	// a mesh can contain multiple morph targets
+	morphTargets [][]MorphAttributes
 
 	// set to true if the mesh is uploaded to the gpu
 	version  uint32
@@ -43,6 +47,17 @@ func (m *Mesh) WithVertices(vertices []glm.Vec3f) *Mesh {
 func (m *Mesh) WithAttributes(attr VertexAttribute, values []byte) *Mesh {
 	m.version += 1
 	m.attributes.Insert(attr, values)
+	return m
+}
+
+// WithMorphTarget adds another morph target to this vertex
+func (m *Mesh) WithMorphTarget(target []MorphAttributes) *Mesh {
+	if len(target) != len(m.vertices) {
+		panic(fmt.Errorf("got %d morph attributes for %d vertices", len(target), len(m.vertices)))
+	}
+
+	m.version += 1
+	m.morphTargets = append(m.morphTargets, target)
 	return m
 }
 
@@ -73,6 +88,14 @@ func (m *Mesh) requireUpload() bool {
 
 func (m *Mesh) markUploaded() {
 	m.uploaded = m.version
+}
+
+func (m *Mesh) VertexCount() int {
+	return len(m.vertices)
+}
+
+func (m *Mesh) MorphTargetCount() int {
+	return len(m.morphTargets)
 }
 
 // Transform applies the given matrix to all vertices within this mesh
