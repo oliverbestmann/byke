@@ -42,7 +42,7 @@ func main() {
 	app.MustRun()
 }
 
-func setupSystem(world *World, commands *Commands, assets *Assets) {
+func setupSystem(commands *Commands, assets *Assets) {
 	model := assets.GLTF("HouseConstructionSite.glb").Await()
 
 	commands.Spawn(
@@ -53,7 +53,16 @@ func setupSystem(world *World, commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		NewTransform().WithRotationY(glm.DegToRad(0)),
-		SceneRoot(world, model, 0),
+		SceneRoot{Handle: model},
+	)
+
+	commands.Spawn(
+		TransformFromXYZ(20, 20, -50),
+		PointLight{
+			Color:        glm.Vec3f{1, 1, 1},
+			Intensity:    20,
+			AttQuadratic: 0.1,
+		},
 	)
 }
 

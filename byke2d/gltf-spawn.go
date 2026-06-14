@@ -122,12 +122,14 @@ func (sc *spawnContext) SpawnScene(sceneId gltf.Ref) {
 		sc.spawnAnimationTargets(sc.root, animation)
 	}
 
-	// spawn the first animation on the root entity
-	sc.Commands.Entity(sc.root).Insert(
-		ActiveAnimation{
-			Animation: sc.buildAnimation(sc.Handle.Animations[0]),
-		},
-	)
+	if len(sc.Handle.Animations) > 0 {
+		// spawn the first animation on the root entity
+		sc.Commands.Entity(sc.root).Insert(
+			ActiveAnimation{
+				Animation: sc.buildAnimation(sc.Handle.Animations[0]),
+			},
+		)
+	}
 }
 
 func (sc *spawnContext) spawnNodeTree(parentId byke.EntityId, node gltf.Node) {
