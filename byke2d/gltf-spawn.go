@@ -218,8 +218,7 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 		sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
 			PointLight{
-				Color:        light.Color,
-				Intensity:    light.Intensity,
+				Color:        ColorLinearRGB(glm.Vec3f(light.Color).Scale(light.Intensity).XYZ()),
 				AttConstant:  0,
 				AttLinear:    0,
 				AttQuadratic: 1,

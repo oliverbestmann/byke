@@ -48,24 +48,68 @@ struct VertexOutput {
     @location(3) uv: vec2f,
 };
 
-struct Light {
+struct LightConfig {
+    ambient: vec3f,
+}
+
+
+struct DirectionalLights {
+    count: u32,
+    lights: array<DirectionalLight>,
+}
+
+struct DirectionalLight {
+    color: vec3f,
+    direction: vec3f,
+};
+
+
+struct PointLights {
+    count: u32,
+    lights: array<PointLight>,
+}
+
+struct PointLight {
     color: vec3f,
     position: vec3f,
-    intensity: f32,
     att_constant: f32,
     att_linear: f32,
     att_quadratic: f32,
 };
 
-struct Lights {
-    ambient: vec3f,
+
+struct SpotLights {
     count: u32,
-    lights: array<Light>,
+    lights: array<SpotLight>,
+}
+
+struct SpotLight {
+    color: vec3f,
+    position: vec3f,
+    direction: vec3f,
+    inner_angle: f32,
+    outer_angle: f32,
+    att_constant: f32,
+    att_linear: f32,
+    att_quadratic: f32,
 };
+
+
+@group(0)
+@binding(10)
+var<uniform> light_config: LightConfig;
 
 @group(0)
 @binding(11)
-var<storage> point_lights: Lights;
+var<storage> directional_lights: DirectionalLights;
+
+@group(0)
+@binding(12)
+var<storage> point_lights: PointLights;
+
+@group(0)
+@binding(13)
+var<storage> spot_lights: SpotLights;
 
 #ifdef SKINNED
 
@@ -226,8 +270,20 @@ fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
     var color = vertex.color;
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    var tint = point_lights.ambient;
+    var tint = vec3f(0, 0, 0);
 
+    // apply directional lights
+    for (var i: u32 = 0; i < directional_lights.count; i++) {
+        let light = directional_lights.lights[i];
+
+        let l = normalize(light.direction);
+        let n = normalize(vertex.normal);
+        let n_dot_l = max(dot(n, l), 0.0);
+
+        tint += light.color.rgb * n_dot_l;
+    }
+
+    // apply point lights
     for (var i: u32 = 0; i < point_lights.count; i++) {
         let light = point_lights.lights[i];
 
@@ -235,7 +291,6 @@ fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
         let distance = length(light_vec);
         let l = normalize(light_vec);
         let n = normalize(vertex.normal);
-
         let n_dot_l = max(dot(n, l), 0.0);
 
         let attenuation =
@@ -244,10 +299,11 @@ fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
              light.att_linear * distance +
              light.att_quadratic * distance * distance);
 
-        let radiance = light.color.rgb * light.intensity * attenuation;
-
-        tint += vertex.color.rgb * radiance * n_dot_l;
+        tint += light.color.rgb * attenuation * n_dot_l;
     }
+
+    // apply spot lights
+    // TODO
 
     // apply light
     color = vec4f(color.rgb * tint, color.a);

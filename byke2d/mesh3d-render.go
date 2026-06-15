@@ -160,7 +160,7 @@ func prepareMesh3dInstances(
 
 			// create a bindgroup for the material
 			if _, ok := bindGroups.Get(key.Material); !ok {
-				bindGroup := createMaterialBindGroup(ctx, pipelineCache, key.Material)
+				bindGroup := createMaterialBindGroup(ctx, key.Material)
 				bindGroups.Add(key.Material, bindGroup)
 			}
 
@@ -197,14 +197,11 @@ var MeshViewBindGroupLayout = SequentialLayout(
 	// Globals
 	Indexed(1, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false)),
 
-	// TODO All directed lights
-	// Indexed(10, ...),
-
-	// All point lights
+	// All the lights
+	Indexed(10, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false)),
 	Indexed(11, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
-
-	// TODO All spot lights lights
-	// Indexed(11, ...),
+	Indexed(12, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+	Indexed(13, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
 
 	// All morph descriptors
 	Indexed(20, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
@@ -222,7 +219,6 @@ type meshViewBindGroup struct {
 
 func prepareMeshViewBindGroupSystem(
 	ctx *RenderContext,
-	pipelines *PipelineCache,
 	bindGroup *meshViewBindGroup,
 	viewBindGroup ViewBindGroup,
 	morphUniforms morphUniforms,
@@ -234,12 +230,15 @@ func prepareMeshViewBindGroupSystem(
 
 	bindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "MeshView",
-		Layout: pipelines.BindGroupLayout(MeshViewBindGroupLayout),
+		Layout: ctx.CreateBindGroupLayout(MeshViewBindGroupLayout),
 		Entries: Sequential(
 			Indexed(0, viewUniforms.Binding()),
 			Indexed(1, BindingBuffer(viewBindGroup.BufferGlobals)),
 
-			Indexed(11, BindingBuffer(lights.Buffer)),
+			Indexed(10, BindingBuffer(lights.BufConfig)),
+			Indexed(11, BindingBuffer(lights.BufDirectionalLights)),
+			Indexed(12, BindingBuffer(lights.BufPointLights)),
+			Indexed(13, BindingBuffer(lights.BufSpotLights)),
 
 			Indexed(20, BindingBuffer(morphUniforms.BufDescriptors)),
 			Indexed(21, BindingBuffer(morphUniforms.BufWeights)),
@@ -271,7 +270,6 @@ func prepareMeshBindGroupSystem(
 	bindGroups *MeshBindGroups,
 	meshes *ExtractedMesh3d,
 	buffers *meshCache,
-	pipelines *PipelineCache,
 ) {
 	if bindGroups.emptyBuf == nil {
 		bindGroups.emptyBuf = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
@@ -302,7 +300,7 @@ func prepareMeshBindGroupSystem(
 		// create and cache new bind group for this mesh
 		bindGroups.groups.Add(mesh.Mesh, ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 			Label:  "Mesh",
-			Layout: pipelines.BindGroupLayout(MeshBindGroupLayout),
+			Layout: ctx.CreateBindGroupLayout(MeshBindGroupLayout),
 			Entries: Sequential(
 				BindingBuffer(morphAttributes),
 			),

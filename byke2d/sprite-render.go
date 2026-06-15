@@ -54,7 +54,6 @@ type spriteTextureBindGroupCache struct {
 
 func prepareSpriteBindGroupsSystem(
 	ctx *RenderContext,
-	pipelineCache *PipelineCache,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase SortableRenderPhase[Transparent]
@@ -108,7 +107,7 @@ func prepareSpriteBindGroupsSystem(
 					bindGroups.Add(itemSprite.Texture,
 						ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 							Label:  "Sprite Texture",
-							Layout: pipelineCache.BindGroupLayout(layoutSpriteTextures),
+							Layout: ctx.CreateBindGroupLayout(layoutSpriteTextures),
 							Entries: Sequential(
 								BindingTextureView(itemSprite.Texture.TextureView),
 								BindingSampler(itemSprite.Texture.Sampler),

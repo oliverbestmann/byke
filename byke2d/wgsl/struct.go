@@ -96,6 +96,10 @@ func (s *StructWriter) Offset() uint32 {
 	return uint32(len(s.buf))
 }
 
+func (s *StructWriter) Sync() {
+	s.AlignTo(s.align)
+}
+
 func structAppend[T any](s *StructWriter, value T, size int) {
 	if unsafe.Sizeof(value) > uintptr(size) {
 		panic("value is larger than its expected size")

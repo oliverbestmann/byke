@@ -37,7 +37,7 @@ type MaterialBindGroups struct {
 	tickCache[Material, *wgpu.BindGroup]
 }
 
-func createMaterialBindGroup(ctx *RenderContext, pipelines *PipelineCache, material Material) *wgpu.BindGroup {
+func createMaterialBindGroup(ctx *RenderContext, material Material) *wgpu.BindGroup {
 	// TODO create buffer each time is not good, must be saved & reused somewhere.
 	//  we probably need to store BindGroup together with the buffer
 	var w wgsl.StructWriter
@@ -61,7 +61,7 @@ func createMaterialBindGroup(ctx *RenderContext, pipelines *PipelineCache, mater
 
 	return ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:   label,
-		Layout:  pipelines.BindGroupLayout(SequentialLayoutWithLabel("Material", layout...)),
+		Layout:  ctx.CreateBindGroupLayout(SequentialLayoutWithLabel("Material", layout...)),
 		Entries: Sequential(bindings...),
 	})
 }

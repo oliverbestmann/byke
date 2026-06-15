@@ -31,6 +31,12 @@ func ColorLinearRGBA(r, g, b, a float32) Color {
 	}
 }
 
+// ColorLinearRGB creates a new Color value from the given color values and
+// an alpha value of 1.0
+func ColorLinearRGB(r, g, b float32) Color {
+	return ColorLinearRGBA(r, g, b, 1.0)
+}
+
 // ColorSRGBA creates a Color value from non linear srgb encoded values. The color values
 // will be transferred into linear rgb space.
 // This is the usual color format on most devices.
@@ -41,6 +47,11 @@ func ColorSRGBA(r, g, b, a float32) Color {
 	b = degamma(b)
 
 	return ColorLinearRGBA(r, g, b, a)
+}
+
+// ColorSRGB creates a color value with an alpha channel of 1.
+func ColorSRGB(r, g, b float32) Color {
+	return ColorSRGBA(r, g, b, 1.0)
 }
 
 // ToVec returns a glm.Vec4f containing the components of this Color instance in
@@ -54,12 +65,13 @@ func (c Color) ToVec() glm.Vec4f {
 	}
 }
 
-func (c Color) ToWGPU() [4]float32 {
-	return [4]float32{
+// ToVec3f returns a glm.Vec3f containing the components of this Color instance in
+// linear rgb space, dropping the alpha channel
+func (c Color) ToVec3f() glm.Vec3f {
+	return glm.Vec3f{
 		c.r1 + 1,
 		c.g1 + 1,
 		c.b1 + 1,
-		c.a1 + 1,
 	}
 }
 

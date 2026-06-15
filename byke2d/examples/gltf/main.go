@@ -47,6 +47,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		Camera{},
+		HDR{},
 		TransformFromXYZ(0, 20, -100),
 		DefaultPerspectiveProjection,
 	)
@@ -59,10 +60,14 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		TransformFromXYZ(20, 20, -50),
 		PointLight{
-			Color:        glm.Vec3f{1, 1, 1},
-			Intensity:    20,
+			Color:        ColorLinearRGB(glm.Vec3f{1, 1, 1}.Scale(20).XYZ()),
 			AttQuadratic: 0.1,
 		},
+	)
+
+	commands.Spawn(
+		NewTransform().WithRotationX(0.8),
+		DirectionalLight{Color: ColorLinearRGB(0.2, 0.1, 0.0)},
 	)
 }
 

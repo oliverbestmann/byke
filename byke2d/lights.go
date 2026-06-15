@@ -8,18 +8,54 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+var _ = byke.ValidateComponent[DirectionalLight]()
 var _ = byke.ValidateComponent[PointLight]()
+var _ = byke.ValidateComponent[SpotLight]()
+
+type LightConfig struct {
+	Ambient Color
+}
+
+var DefaultLightConfig = LightConfig{
+	Ambient: ColorSRGB(0.1, 0.1, 0.1),
+}
+
+type DirectionalLight struct {
+	byke.Component[DirectionalLight]
+	Color Color
+}
+
+func (DirectionalLight) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{
+		NewTransform(),
+	}
+}
 
 type PointLight struct {
 	byke.Component[PointLight]
-	Color        glm.Vec3f
-	Intensity    float32
+	Color        Color
 	AttConstant  float32
 	AttLinear    float32
 	AttQuadratic float32
 }
 
 func (PointLight) RequireComponents() []spoke.ErasedComponent {
+	return []spoke.ErasedComponent{
+		NewTransform(),
+	}
+}
+
+type SpotLight struct {
+	byke.Component[SpotLight]
+	Color        Color
+	InnerAngle   glm.Rad
+	OuterAngle   glm.Rad
+	AttConstant  float32
+	AttLinear    float32
+	AttQuadratic float32
+}
+
+func (SpotLight) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		NewTransform(),
 	}
@@ -35,79 +71,199 @@ func pluginLights(app *byke.App) {
 }
 
 type ExtractedLights struct {
-	PointLights []ExtractedPointLight
+	// Ambient light color
+	Ambient glm.Vec3f
+
+	DirectionalLights []ExtractedDirectionalLight
+	PointLights       []ExtractedPointLight
+	SpotLights        []ExtractedSpotLight
 }
 
 func (l *ExtractedLights) Clear() {
+	l.DirectionalLights = l.DirectionalLights[:0]
 	l.PointLights = l.PointLights[:0]
+	l.SpotLights = l.SpotLights[:0]
 }
 
 type ExtractedPointLight struct {
-	Position glm.Vec3f
-	PointLight
+	Position     glm.Vec3f
+	Color        glm.Vec3f
+	AttConstant  float32
+	AttLinear    float32
+	AttQuadratic float32
 }
 
-func (l *ExtractedPointLight) WriteTo(w *wgsl.StructWriter) {
-	w.AppendVec3f(l.Color)
+func (l ExtractedPointLight) WriteTo(w *wgsl.StructWriter) {
+	w.AppendVec3f(l.Color.ToVec3f())
 	w.AppendVec3f(l.Position)
-	w.AppendFloat32(l.Intensity)
 	w.AppendFloat32(l.AttConstant)
 	w.AppendFloat32(l.AttLinear)
 	w.AppendFloat32(l.AttQuadratic)
+	w.Sync()
+}
+
+type ExtractedSpotLight struct {
+	Color        glm.Vec3f
+	Position     glm.Vec3f
+	Direction    glm.Vec3f
+	InnerAngle   glm.Rad
+	OuterAngle   glm.Rad
+	AttConstant  float32
+	AttLinear    float32
+	AttQuadratic float32
+}
+
+func (l ExtractedSpotLight) WriteTo(w *wgsl.StructWriter) {
+	w.AppendVec3f(l.Color)
+	w.AppendVec3f(l.Position)
+	w.AppendVec3f(l.Direction)
+	w.AppendFloat32(float32(l.InnerAngle))
+	w.AppendFloat32(float32(l.OuterAngle))
+	w.AppendFloat32(l.AttConstant)
+	w.AppendFloat32(l.AttLinear)
+	w.AppendFloat32(l.AttQuadratic)
+	w.Sync()
+}
+
+type ExtractedDirectionalLight struct {
+	Color     glm.Vec3f
+	Direction glm.Vec3f
+}
+
+func (l ExtractedDirectionalLight) WriteTo(w *wgsl.StructWriter) {
+	w.AppendVec3f(l.Color)
+	w.AppendVec3f(l.Direction)
+	w.Sync()
 }
 
 func extractLights(
 	lights *ExtractedLights,
 
-	lightsQuery byke.Query[struct {
+	config LightConfig,
+
+	pointLights byke.Query[struct {
 		Light     PointLight
+		Transform GlobalTransform
+	}],
+
+	spotLights byke.Query[struct {
+		Light     SpotLight
+		Transform GlobalTransform
+	}],
+
+	directionalLights byke.Query[struct {
+		Light     DirectionalLight
 		Transform GlobalTransform
 	}],
 ) {
 	lights.Clear()
 
-	for light := range lightsQuery.Items() {
-		if light.Light.Intensity <= 0 || light.Light.Color == (glm.Vec3f{}) {
+	lights.Ambient = config.Ambient.ToVec3f()
+
+	for item := range pointLights.Items() {
+		if item.Light.Color.ToVec3f() == (glm.Vec3f{}) {
 			// off, no light
 			continue
 		}
 
 		lights.PointLights = append(lights.PointLights, ExtractedPointLight{
-			Position:   light.Transform.Affine.Translation(),
-			PointLight: light.Light,
+			Position:     item.Transform.Affine.Translation(),
+			Color:        item.Light.Color.ToVec3f(),
+			AttConstant:  item.Light.AttConstant,
+			AttLinear:    item.Light.AttLinear,
+			AttQuadratic: item.Light.AttQuadratic,
+		})
+	}
+
+	for item := range spotLights.Items() {
+		if item.Light.Color.ToVec3f() == (glm.Vec3f{}) {
+			// off, no light
+			continue
+		}
+
+		// light into the negative z axis
+		direction := item.Transform.Affine.
+			Transform(glm.Vec4f{0, 0, -1, 0}).
+			Truncate().
+			Normalize()
+
+		lights.SpotLights = append(lights.SpotLights, ExtractedSpotLight{
+			Color:        item.Light.Color.ToVec3f(),
+			Position:     item.Transform.Affine.Translation(),
+			Direction:    direction,
+			InnerAngle:   item.Light.InnerAngle,
+			OuterAngle:   item.Light.OuterAngle,
+			AttConstant:  item.Light.AttConstant,
+			AttLinear:    item.Light.AttLinear,
+			AttQuadratic: item.Light.AttQuadratic,
+		})
+	}
+
+	for item := range directionalLights.Items() {
+		if item.Light.Color.ToVec3f() == (glm.Vec3f{}) {
+			// off, no light
+			continue
+		}
+
+		// light into the negative z axis
+		direction := item.Transform.Affine.
+			Transform(glm.Vec4f{0, 0, -1, 0}).
+			Truncate().
+			Normalize()
+
+		lights.DirectionalLights = append(lights.DirectionalLights, ExtractedDirectionalLight{
+			Color:     item.Light.Color.ToVec3f(),
+			Direction: direction,
 		})
 	}
 }
 
 type lightsStorage struct {
-	Writer    wgsl.StructWriter
-	Buffer    *wgpu.Buffer
 	BindGroup *wgpu.BindGroup
-}
 
-type LightConfig struct {
-	Ambient Color
-}
+	BufConfig            *wgpu.Buffer
+	BufPointLights       *wgpu.Buffer
+	BufDirectionalLights *wgpu.Buffer
+	BufSpotLights        *wgpu.Buffer
 
-var DefaultLightConfig = LightConfig{
-	Ambient: ColorLinearRGBA(0.1, 0.1, 0.1, 1.0),
+	staging wgsl.StructWriter
 }
 
 func prepareLightsStorage(
 	ctx *RenderContext,
 	uniforms *lightsStorage,
 	lights ExtractedLights,
-	lightConfig LightConfig,
 ) {
-	uniforms.Writer.Clear()
+	s := &uniforms.staging
 
-	uniforms.Writer.AppendVec3f(lightConfig.Ambient.ToVec().Truncate())
-	uniforms.Writer.AppendUint(uint32(len(lights.PointLights)))
+	s.Clear()
+	s.AppendVec3f(lights.Ambient)
+	s.WriteTo(ctx, &uniforms.BufConfig, "LightConfig", wgpu.BufferUsageUniform)
 
-	// TODO start nested struct and keep alignment correct
-	for _, light := range lights.PointLights {
-		light.WriteTo(&uniforms.Writer)
+	writeSliceToStructWriter(s, lights.DirectionalLights)
+	s.WriteTo(ctx, &uniforms.BufDirectionalLights, "DirectionalLights", wgpu.BufferUsageStorage)
+
+	writeSliceToStructWriter(s, lights.PointLights)
+	s.WriteTo(ctx, &uniforms.BufPointLights, "PointLights", wgpu.BufferUsageStorage)
+
+	writeSliceToStructWriter(s, lights.SpotLights)
+	s.WriteTo(ctx, &uniforms.BufSpotLights, "SpotLights", wgpu.BufferUsageStorage)
+
+	uniforms.staging.AppendUint(uint32(len(lights.PointLights)))
+}
+
+func writeSliceToStructWriter[T writerTo](wr *wgsl.StructWriter, values []T) {
+	wr.Clear()
+
+	// write number of entries in slice
+	wr.AppendUint(uint32(len(values)))
+
+	// write each slice value
+	for idx := range values {
+		values[idx].WriteTo(wr)
 	}
+}
 
-	uniforms.Writer.WriteTo(ctx, &uniforms.Buffer, "PointLights", wgpu.BufferUsageStorage)
+type writerTo interface {
+	WriteTo(s *wgsl.StructWriter)
 }

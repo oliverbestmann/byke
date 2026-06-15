@@ -67,8 +67,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		TransformFromXYZ(-5, 3, 10),
 		PointLight{
-			Color:        glm.Vec3f{1, 1, 1},
-			Intensity:    100,
+			Color:        glm.Vec3f{1, 1, 1}.Scale(100),
 			AttQuadratic: 1,
 		},
 	)

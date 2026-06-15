@@ -2,8 +2,6 @@ package byke2d
 
 import (
 	"fmt"
-	"log/slog"
-	"slices"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/meh"
@@ -35,11 +33,10 @@ type RenderPipelineDescriptor struct {
 
 // PipelineCache caches render pipelines & bind group layout
 type PipelineCache struct {
-	_                    byke.NoCopy
-	ctx                  *RenderContext
-	bindGroupLayoutCache []cachedBindGroupLayout
-	preCompiler          *pre.Compiler
-	pipelines            meh.Map[PipelineConfig, Pipeline]
+	_           byke.NoCopy
+	ctx         *RenderContext
+	preCompiler *pre.Compiler
+	pipelines   meh.Map[PipelineConfig, Pipeline]
 }
 
 func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
@@ -54,7 +51,7 @@ func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
 	// create bind group layouts
 	var bgls []*wgpu.BindGroupLayout
 	for _, bgld := range desc.Layout {
-		bgl := p.BindGroupLayout(bgld)
+		bgl := p.ctx.CreateBindGroupLayout(bgld)
 		bgls = append(bgls, bgl)
 	}
 
@@ -104,40 +101,6 @@ func (p *PipelineCache) Shader(label, shaderCode string, values ShaderValues) *w
 	return p.ctx.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
 		Label:      label,
 		WGSLSource: &wgpu.ShaderSourceWGSL{Code: shaderCode},
-	})
-}
-
-func (p *PipelineCache) BindGroupLayout(desc wgpu.BindGroupLayoutDescriptor) *wgpu.BindGroupLayout {
-	for _, cached := range p.bindGroupLayoutCache {
-		if cached.Matches(desc) {
-			return cached.BindGroupLayout
-		}
-	}
-
-	slog.Debug("Create BindGroupLayout", slog.String("label", desc.Label))
-	bindGroupLayout := wgpu.Share(p.ctx.CreateBindGroupLayout(new(desc)))
-
-	p.bindGroupLayoutCache = append(p.bindGroupLayoutCache, cachedBindGroupLayout{
-		Descriptor:      desc,
-		BindGroupLayout: bindGroupLayout,
-	})
-
-	return bindGroupLayout
-}
-
-type cachedBindGroupLayout struct {
-	Descriptor      wgpu.BindGroupLayoutDescriptor
-	BindGroupLayout *wgpu.BindGroupLayout
-}
-
-func (c *cachedBindGroupLayout) Matches(desc wgpu.BindGroupLayoutDescriptor) bool {
-	return desc.Label == c.Descriptor.Label && slices.EqualFunc(desc.Entries, c.Descriptor.Entries, func(lhs, rhs wgpu.BindGroupLayoutEntry) bool {
-		return lhs.Binding == rhs.Binding &&
-			lhs.Visibility == rhs.Visibility &&
-			lhs.Buffer == rhs.Buffer &&
-			lhs.Sampler == rhs.Sampler &&
-			lhs.Texture == rhs.Texture &&
-			lhs.StorageTexture == rhs.StorageTexture
 	})
 }
 

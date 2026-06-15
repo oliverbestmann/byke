@@ -2,7 +2,9 @@ package byke2d
 
 import (
 	"errors"
+	"log/slog"
 	"os"
+	"slices"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/oliverbestmann/byke"
@@ -12,11 +14,14 @@ import (
 var forceFallbackAdapter = os.Getenv("WGPU_FORCE_FALLBACK_ADAPTER") == "1"
 
 type RenderContext struct {
+	_ byke.NoCopy
+
 	Metrics         RenderMetrics
 	MipmapGenerator *mipmapGenerator
 
 	// cache for samplers
-	samplerCache *lru.Cache[wgpu.SamplerDescriptor, *wgpu.Sampler]
+	samplerCache         *lru.Cache[wgpu.SamplerDescriptor, *wgpu.Sampler]
+	bindGroupLayoutCache []cachedBindGroupLayout
 
 	*wgpuContext
 }
@@ -55,6 +60,24 @@ func (rc *RenderContext) CreateSampler(desc wgpu.SamplerDescriptor) *wgpu.Sample
 	rc.samplerCache.Add(desc, wgpu.Share(sampler))
 
 	return sampler
+}
+
+func (rc *RenderContext) CreateBindGroupLayout(desc wgpu.BindGroupLayoutDescriptor) *wgpu.BindGroupLayout {
+	for _, cached := range rc.bindGroupLayoutCache {
+		if cached.Matches(desc) {
+			return cached.BindGroupLayout
+		}
+	}
+
+	slog.Debug("Create BindGroupLayout", slog.String("label", desc.Label))
+	bindGroupLayout := wgpu.Share(rc.wgpuContext.CreateBindGroupLayout(&desc))
+
+	rc.bindGroupLayoutCache = append(rc.bindGroupLayoutCache, cachedBindGroupLayout{
+		Descriptor:      desc,
+		BindGroupLayout: bindGroupLayout,
+	})
+
+	return bindGroupLayout
 }
 
 func (rc *RenderContext) Submit(commandBuffers ...*wgpu.CommandBuffer) wgpu.SubmissionIndex {
@@ -190,4 +213,24 @@ func (wc *wgpuContext) Release() {
 		wc.Instance.Release()
 		wc.Instance = nil
 	}
+}
+
+type cachedBindGroupLayout struct {
+	Descriptor      wgpu.BindGroupLayoutDescriptor
+	BindGroupLayout *wgpu.BindGroupLayout
+}
+
+func (c *cachedBindGroupLayout) Matches(desc wgpu.BindGroupLayoutDescriptor) bool {
+	return desc.Label == c.Descriptor.Label && c.entiresAreEqual(desc)
+}
+
+func (c *cachedBindGroupLayout) entiresAreEqual(desc wgpu.BindGroupLayoutDescriptor) bool {
+	return slices.EqualFunc(desc.Entries, c.Descriptor.Entries, func(lhs, rhs wgpu.BindGroupLayoutEntry) bool {
+		return lhs.Binding == rhs.Binding &&
+			lhs.Visibility == rhs.Visibility &&
+			lhs.Buffer == rhs.Buffer &&
+			lhs.Sampler == rhs.Sampler &&
+			lhs.Texture == rhs.Texture &&
+			lhs.StorageTexture == rhs.StorageTexture
+	})
 }

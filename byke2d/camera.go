@@ -314,7 +314,6 @@ func prepareGlobals(ctx *RenderContext, vt *byke.VirtualTime, g *ViewBindGroup) 
 
 func createViewUniformsBindGroup(
 	ctx *RenderContext,
-	pipelineCache *PipelineCache,
 	viewBindGroup *ViewBindGroup,
 	viewUniforms *ComponentUniforms[ViewUniforms],
 ) {
@@ -325,7 +324,7 @@ func createViewUniformsBindGroup(
 
 	viewBindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "View Uniforms",
-		Layout: pipelineCache.BindGroupLayout(ViewBindGroupLayout),
+		Layout: ctx.CreateBindGroupLayout(ViewBindGroupLayout),
 		Entries: Sequential(
 			bindingView,
 			BindingBuffer(viewBindGroup.BufferGlobals),

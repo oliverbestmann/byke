@@ -106,7 +106,6 @@ type MeshKey struct {
 func prepareMesh2dInstances(
 	ctx *RenderContext,
 	meshes *ExtractedMesh2d,
-	pipelineCache *PipelineCache,
 	meshInstances *mesh2dInstances,
 	bindGroups *MaterialBindGroups,
 	viewsQuery byke.Query[struct {
@@ -140,7 +139,7 @@ func prepareMesh2dInstances(
 
 			// create a bindgroup for the material
 			if _, ok := bindGroups.Get(key.Material); !ok {
-				bindGroup := createMaterialBindGroup(ctx, pipelineCache, key.Material)
+				bindGroup := createMaterialBindGroup(ctx, key.Material)
 				bindGroups.Add(key.Material, bindGroup)
 			}
 
