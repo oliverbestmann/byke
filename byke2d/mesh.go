@@ -103,6 +103,121 @@ func (m *Mesh) AABBSize() glm.Vec3f {
 	return maxVec.Sub(minVec)
 }
 
+func (m *Mesh) HasAttribute(attr VertexAttribute) bool {
+	ok := m.attributes.Has(attr)
+	return ok
+}
+
+func (m *Mesh) ComputeNormals() {
+	m.MergeVertices()
+
+	normals := make([]glm.Vec3f, len(m.vertices))
+	normalCounts := make([]uint32, len(m.vertices))
+
+	for i := 0; i < len(m.indices); i += 3 {
+		iA := m.indices[i]
+		iB := m.indices[i+1]
+		iC := m.indices[i+2]
+
+		a := m.vertices[iA]
+		b := m.vertices[iB]
+		c := m.vertices[iC]
+
+		normal := b.Sub(a).Cross(a.Sub(c)).Normalize()
+		normals[iA] = normals[iA].Add(normal)
+		normals[iB] = normals[iB].Add(normal)
+		normals[iC] = normals[iC].Add(normal)
+
+		normalCounts[iA] += 1
+		normalCounts[iB] += 1
+		normalCounts[iC] += 1
+	}
+
+	for idx, count := range normalCounts {
+		normals[idx] = normals[idx].
+			Scale(1.0 / max(1.0, float32(count))).
+			Normalize()
+	}
+
+	m.WithAttributes(VertexAttributeNormal, wgpu.ToBytes(normals))
+}
+
+func (m *Mesh) MergeVertices() bool {
+	if len(m.attributes) > 0 || len(m.morphTargets) > 0 {
+		return false
+	}
+
+	var byVertex = map[glm.Vec3f]uint32{}
+	var newIndices []uint32
+	var newVertices []glm.Vec3f
+
+	for _, idx := range m.indices {
+		vertex := m.vertices[idx]
+
+		idx, seen := byVertex[vertex]
+		if seen {
+			newIndices = append(newIndices, idx)
+			continue
+		}
+
+		// new vertex at new index
+		idx = uint32(len(newVertices))
+		newIndices = append(newIndices, idx)
+		newVertices = append(newVertices, vertex)
+
+		// put into lookup table
+		byVertex[vertex] = idx
+	}
+
+	m.indices = newIndices
+	m.vertices = newVertices
+	m.version += 1
+
+	return true
+}
+
+func (m *Mesh) SmoothShade() {
+	type vertexInfo struct {
+		AccNormal glm.Vec3f
+		Count     uint32
+		Indices   []uint32
+	}
+
+	normalsAttr := m.attributes.Get(VertexAttributeNormal)
+	if normalsAttr == nil {
+		panic("no normals set")
+	}
+
+	normals := unsafe.Slice(
+		(*glm.Vec3f)(unsafe.Pointer(unsafe.SliceData(normalsAttr.Value))),
+		len(normalsAttr.Value)/12,
+	)
+
+	infos := map[glm.Vec3f]vertexInfo{}
+
+	for idx, vertex := range m.vertices {
+		info := infos[vertex]
+
+		infos[vertex] = vertexInfo{
+			AccNormal: info.AccNormal.Add(normals[idx]),
+			Count:     info.Count + 1,
+			Indices:   append(info.Indices, uint32(idx)),
+		}
+	}
+
+	for _, info := range infos {
+		normal := info.AccNormal.
+			Scale(1 / float32(info.Count)).
+			Normalize()
+
+		for _, idx := range info.Indices {
+			normals[idx] = normal
+		}
+	}
+
+	m.version += 1
+}
+
 func RegularPolygon(radius float32, sides uint) *Mesh {
 	// a regular polygon is actually just a circle
 	return Circle(radius, sides)

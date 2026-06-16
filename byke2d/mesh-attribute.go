@@ -70,3 +70,13 @@ func (v *VertexAttributes) Get(name VertexAttribute) *VertexAttributeValue {
 
 	return nil
 }
+
+func (v *VertexAttributes) Has(name VertexAttribute) bool {
+	for _, attr := range *v {
+		if attr.Attribute.EqualTo(name) {
+			return true
+		}
+	}
+
+	return false
+}

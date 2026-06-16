@@ -435,6 +435,10 @@ func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 		}
 	}
 
+	if !mesh.HasAttribute(VertexAttributeNormal) {
+		mesh.ComputeNormals()
+	}
+
 	for _, target := range prim.Targets {
 		morphAttributes := convertMorphAttributes(h, len(vertices), target)
 		mesh.WithMorphTarget(morphAttributes)

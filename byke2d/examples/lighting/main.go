@@ -51,14 +51,15 @@ func setupSystem(commands *Commands, assets *Assets) {
 			Pitch:   glm.DegToRad(10),
 			Yaw:     glm.DegToRad(180),
 			PosRoll: glm.DegToRad(180),
-			PosY:    100,
-			Radius:  100,
+			PosY:    5,
+			Radius:  5,
 		},
 		DefaultPerspectiveProjection,
 	)
 
 	commands.Spawn(
 		NewTransform().
+			WithScaleXYZ(0.05, 0.05, 0.05).
 			WithRotationY(glm.DegToRad(120)),
 
 		SceneRoot{Handle: model},
@@ -67,7 +68,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		TransformFromXYZ(-5, 3, 10),
 		PointLight{
-			Color:        glm.Vec3f{1, 1, 1}.Scale(100),
+			Color:        ColorLinearRGB(100, 100, 100),
 			AttQuadratic: 1,
 		},
 	)
