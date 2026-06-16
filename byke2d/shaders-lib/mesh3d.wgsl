@@ -270,7 +270,7 @@ fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
     var color = vertex.color;
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    var tint = vec3f(0, 0, 0);
+    var tint = light_config.ambient;
 
     // apply directional lights
     for (var i: u32 = 0; i < directional_lights.count; i++) {
