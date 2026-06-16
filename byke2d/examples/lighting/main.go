@@ -42,7 +42,7 @@ func main() {
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
-	model := assets.GLTF("Fox.glb").Await()
+	model := assets.GLTF("MorphStressTest.glb").Await()
 
 	commands.Spawn(
 		Camera{},
@@ -59,7 +59,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		NewTransform().
-			WithScaleXYZ(0.05, 0.05, 0.05).
+			// WithScaleXYZ(0.05, 0.05, 0.05).
 			WithRotationY(glm.DegToRad(120)),
 
 		SceneRoot{Handle: model},

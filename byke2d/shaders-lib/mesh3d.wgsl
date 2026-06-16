@@ -1,7 +1,10 @@
 #module byke2d::mesh3d
 
 #import byke2d::view
-#import byke2d::view::binding
+#import byke2d::view::bindings
+
+#import byke2d::lights
+#import byke2d::lights::bindings
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
@@ -48,68 +51,6 @@ struct VertexOutput {
     @location(3) uv: vec2f,
 };
 
-struct LightConfig {
-    ambient: vec3f,
-}
-
-
-struct DirectionalLights {
-    count: u32,
-    lights: array<DirectionalLight>,
-}
-
-struct DirectionalLight {
-    color: vec3f,
-    direction: vec3f,
-};
-
-
-struct PointLights {
-    count: u32,
-    lights: array<PointLight>,
-}
-
-struct PointLight {
-    color: vec3f,
-    position: vec3f,
-    att_constant: f32,
-    att_linear: f32,
-    att_quadratic: f32,
-};
-
-
-struct SpotLights {
-    count: u32,
-    lights: array<SpotLight>,
-}
-
-struct SpotLight {
-    color: vec3f,
-    position: vec3f,
-    direction: vec3f,
-    inner_angle: f32,
-    outer_angle: f32,
-    att_constant: f32,
-    att_linear: f32,
-    att_quadratic: f32,
-};
-
-
-@group(0)
-@binding(10)
-var<uniform> light_config: LightConfig;
-
-@group(0)
-@binding(11)
-var<storage> directional_lights: DirectionalLights;
-
-@group(0)
-@binding(12)
-var<storage> point_lights: PointLights;
-
-@group(0)
-@binding(13)
-var<storage> spot_lights: SpotLights;
 
 #ifdef SKINNED
 
@@ -147,59 +88,9 @@ fn skin_normals(
 
 #endif
 
+
 #ifdef MORPH
-
-struct MorphDescriptor {
-    // number of targets in the current mesh. This is equal
-    //  to the number of weights per vertex
-    target_count: u32,
-
-    // number of vertices in the current mesh
-    vertex_count: u32,
-
-    // index into the morph_weights buffer
-    weights_index: u32,
-}
-
-struct MorphAttributes {
-    position: vec3f,
-    normal: vec3f,
-    tangent: vec3f,
-}
-
-// The list of morph infos for all meshes.
-@group(0)
-@binding(20)
-var<storage> morph_descriptors: array<MorphDescriptor>;
-
-// The morph weights for all meshes
-@group(0)
-@binding(21)
-var <storage> morph_weights: array<f32>;
-
-// The morph attributes for the current mesh. Must contain at least
-// one entry per morph target per vertex.
-@group(1)
-@binding(0)
-var <storage> morph_attributes: array<MorphAttributes>;
-
-fn morph_position(pos: vec3f, morph_info_index: u32, vertex_index: u32) -> vec3f {
-    var result: vec3f = pos;
-
-    let info = morph_descriptors[morph_info_index];
-
-    for (var ta: u32 = 0; ta < info.target_count; ta++) {
-        let idx = ta * info.vertex_count + vertex_index;
-
-        let attrs = morph_attributes[idx];
-        let weight = morph_weights[info.weights_index + ta];
-
-        result += attrs.position * weight;
-    }
-
-    return result;
-}
-
+#import byke2d::mesh::morph
 #endif
 
 fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {

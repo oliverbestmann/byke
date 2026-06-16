@@ -1,4 +1,4 @@
-#module byke2d::view::binding
+#module byke2d::view::bindings
 
 #import byke2d::view
 #import byke2d::globals

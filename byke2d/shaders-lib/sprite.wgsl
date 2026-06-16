@@ -1,7 +1,7 @@
 #module byke2d::sprite
 
 #import byke2d::view
-#import byke2d::view::binding
+#import byke2d::view::bindings
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
