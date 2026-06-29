@@ -42,7 +42,7 @@ func main() {
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
-	model := assets.GLTF("MorphStressTest.glb").Await()
+	model := assets.GLTF("City.glb").Await()
 
 	commands.Spawn(
 		Camera{},

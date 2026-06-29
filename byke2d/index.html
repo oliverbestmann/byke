@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no"/>
+
+    <script defer src="https://data.narf.zone/script.js" data-website-id="8694d6f5-6883-4e9e-90f9-a84fafcc7407"
+            crossorigin></script>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+    </style>
+    <script src="wasm_exec.js"></script>
+    <script>
+        /** @type {WebAssemblyInstantiatedSource} */
+        let wasm;
+
+        /** @type {Map<number, unknown>} */
+        const refs = new Map();
+
+        /** @type {Map<number, string>} */
+        const stringCache = new Map();
+
+        class Buffer {
+            constructor(data) {
+                /** @type {DataView} */
+                this.buf = data;
+                this.dec = new TextDecoder();
+                this.offset = 0;
+            }
+
+            byte() {
+                const value = this.buf.getUint8(this.offset);
+                this.offset += 1;
+                return value;
+            }
+
+            uint32() {
+                const value = this.buf.getUint32(this.offset, true);
+                this.offset += 4;
+                return value;
+            }
+
+            string() {
+                const OP_LOAD = 1
+                const OP_STORE = 2;
+
+                const word = this.uint32();
+                const flags = (word >> 24) & 0xff;
+
+                if (flags & OP_LOAD) {
+                    const id = word & 0xffffff;
+                    return stringCache.get(id);
+                }
+
+                const id = (flags & OP_STORE) ? this.uint32() : 0;
+                const len = word & 0xffffff;
+
+                const value = this.dec.decode(new DataView(this.buf.buffer, this.offset))
+                this.offset += len;
+
+                if (id) {
+                    // if id is set, we store the key in the cache
+                    stringCache.set(id, value);
+                }
+
+                return value;
+            }
+
+            array() {
+                const len = this.uint32();
+
+                const values = [];
+                for (let i = 0; i < len; i++) {
+                    values.push(this.readValue());
+                }
+
+                return values;
+            }
+
+            ref() {
+                const id = this.uint32();
+
+                const ref = refs.get(id);
+                if (ref === undefined) {
+                    throw new Error(`reference ${id} not found`)
+                }
+
+                return ref;
+            }
+
+            readValue(ty) {
+                const TYPE_UINT32 = 0;
+                const TYPE_STRING = 1;
+                const TYPE_REF = 2;
+                const TYPE_ARRAY = 3;
+
+                switch (ty) {
+                    case TYPE_UINT32:
+                        return this.uint32();
+
+                    case TYPE_STRING:
+                        return this.string();
+
+                    case TYPE_REF:
+                        return this.ref();
+
+                    case TYPE_ARRAY:
+                        return this.array();
+
+                    default:
+                        throw new Error("unknown command");
+                }
+            }
+        }
+
+        async function main() {
+            const go = new Go();
+
+            go.importObject.fastCall = {
+                fastCall(addr, len) {
+                    if (Math.random() < 0.001) {
+                        const mem = wasm.instance.exports.mem.buffer;
+                        const data = new DataView(mem, addr, len)
+                        const args = new Buffer(data).array();
+
+                        console.log(args)
+                    }
+                }
+            }
+
+            WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(async (result) => {
+                wasm = result;
+                await go.run(result.instance);
+            });
+        }
+
+        void main()
+    </script>
+</head>
+<body></body>
+</html>

@@ -17,7 +17,7 @@ type KeysState struct {
 
 func (k *KeysState) press(key Key) {
 	if !k.Pressed[key] {
-		slog.Info("Key just pressed", slog.String("key", key.String()))
+		slog.Debug("Key just pressed", slog.String("key", key.String()))
 
 		setTrue(&k.Pressed, key)
 		setTrue(&k.JustPressed, key)

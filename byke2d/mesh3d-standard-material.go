@@ -15,9 +15,9 @@ var standardMaterialShaderCode string
 var standardMaterialShaderCache = map[shaderKey]*ShaderDef{}
 
 type shaderKey struct {
-	Texture   bool
-	NormalMap bool
-	Emissive  bool
+	Texture  bool
+	Normal   bool
+	Emissive bool
 }
 
 type StandardMaterial struct {
@@ -38,15 +38,15 @@ type StandardMaterial struct {
 	// The emissive texture if any
 	EmissiveTexture *Texture
 
-	// NormalMap is an optional normal map texture
-	NormalMap *Texture
+	// NormalTexture is an optional normal map texture
+	NormalTexture *Texture
 }
 
 func (m StandardMaterial) Shader() *ShaderDef {
 	key := shaderKey{
-		Texture:   m.Texture != nil,
-		NormalMap: m.NormalMap != nil,
-		Emissive:  m.EmissiveTexture != nil,
+		Texture:  m.Texture != nil,
+		Normal:   m.NormalTexture != nil,
+		Emissive: m.EmissiveTexture != nil,
 	}
 
 	cached, ok := standardMaterialShaderCache[key]
@@ -55,7 +55,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	}
 
 	var values = ShaderValues{}
-	values.Define("MESH3D_COLOR_HAS_NORMALMAP", key.NormalMap)
+	values.Define("MESH3D_COLOR_HAS_NORMAL", key.Normal)
 	values.Define("MESH3D_COLOR_HAS_TEXTURE", key.Texture)
 	values.Define("MESH3D_COLOR_HAS_EMISSIVE", key.Texture)
 

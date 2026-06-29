@@ -115,8 +115,9 @@ type Texture struct {
 }
 
 type TextureInfo struct {
-	Index    Ref    `json:"index"`
-	TexCoord uint32 `json:"texCoord"`
+	Index    Ref     `json:"index"`
+	TexCoord uint32  `json:"texCoord"`
+	Scale    float32 `json:"scale"`
 }
 
 type Sampler struct {
@@ -338,6 +339,8 @@ type Material struct {
 	Name              string             `json:"name"`
 	MetallicRoughness *MetallicRoughness `json:"pbrMetallicRoughness"`
 	EmissiveFactor    glm.Vec3f          `json:"emissiveFactor"`
+	NormalTexture     *TextureInfo       `json:"normalTexture"`
+	OcclusionTexture  *TextureInfo       `json:"occlusionTexture"`
 }
 
 func (m *Material) BaseColor() glm.Vec4f {

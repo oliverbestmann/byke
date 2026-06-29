@@ -3,11 +3,13 @@ package byke2d
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"unsafe"
 
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/earcut-go"
+	"github.com/oliverbestmann/mikktspace-go"
 	"github.com/oliverbestmann/webgpu/wgpu"
 	"golang.org/x/mobile/exp/f32"
 )
@@ -111,6 +113,8 @@ func (m *Mesh) HasAttribute(attr VertexAttribute) bool {
 func (m *Mesh) ComputeNormals() {
 	m.MergeVertices()
 
+	// TODO better without merge, also differentiate to ComputeFlatNormals()
+
 	normals := make([]glm.Vec3f, len(m.vertices))
 	normalCounts := make([]uint32, len(m.vertices))
 
@@ -146,6 +150,9 @@ func (m *Mesh) MergeVertices() bool {
 	if len(m.attributes) > 0 || len(m.morphTargets) > 0 {
 		return false
 	}
+
+	// TODO handle vertex attributes or reject MergeVertices
+	//  if we can not handle them correctly
 
 	var byVertex = map[glm.Vec3f]uint32{}
 	var newIndices []uint32
@@ -190,7 +197,7 @@ func (m *Mesh) SmoothShade() {
 
 	normals := unsafe.Slice(
 		(*glm.Vec3f)(unsafe.Pointer(unsafe.SliceData(normalsAttr.Value))),
-		len(normalsAttr.Value)/12,
+		uintptr(len(normalsAttr.Value))/unsafe.Sizeof(glm.Vec3f{}),
 	)
 
 	infos := map[glm.Vec3f]vertexInfo{}
@@ -216,6 +223,29 @@ func (m *Mesh) SmoothShade() {
 	}
 
 	m.version += 1
+}
+
+func (m *Mesh) ComputeTangents() {
+	if !m.HasAttribute(VertexAttributeNormal) {
+		slog.Warn("Cannot calculate tangents without normals")
+		return
+	}
+
+	if !m.HasAttribute(VertexAttributeUV) {
+		slog.Warn("Cannot calculate tangents without UV coordinates")
+		return
+	}
+
+	// TODO need to unmerge vertices first
+
+	tangents := make([]glm.Vec4f, len(m.vertices))
+
+	mikktspace.GenerateTangents(meshGeometry{
+		Mesh:     m,
+		Tangents: tangents,
+	})
+
+	m.WithAttributes(VertexAttributeTangentSpace, wgpu.ToBytes(tangents))
 }
 
 func RegularPolygon(radius float32, sides uint) *Mesh {
