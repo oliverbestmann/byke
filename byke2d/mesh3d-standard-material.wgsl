@@ -33,6 +33,23 @@ var emissive: texture_2d<f32>;
 @binding(6)
 var emissive_sampler: sampler;
 
+#ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
+fn calculate_normal(normal: vec3f, tangent_space: vec4f, uv: vec2f) -> vec3f {
+    // normal from texture
+    let vNt = textureSample(normalmap, normalmap_sampler, uv);
+
+    // decode tangent space
+    let sign = tangent_space.w;
+    let tangent = tangent_space.xyz;
+
+    // calculate bi-tangent
+    let bi_tangent = cross(normal, tangent) * sign;
+
+    // calculate transformed normal
+    return normalize(vNt.x * tangent + vNt.y * bi_tangent + vNt.z * normal);
+}
+#endif
+
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out = default_mesh3d_vertex(in);
@@ -42,19 +59,29 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 }
 
 @fragment
-fn fs_main(vertex: VertexOutput) -> @location(0) vec4f {
+fn fs_main(param: VertexOutput) -> @location(0) vec4f {
+
+#ifdef MESH3D_COLOR_HAS_NORMAL
+    var vertex = param;
+    vertex.normal = calculate_normal(vertex.normal, vertex.tangent_space, vertex.uv);
+#else
+    let vertex = param;
+#endif
+
     var out = default_mesh3d_fragment(vertex);
 
-    #ifdef MESH3D_COLOR_HAS_TEXTURE
+#ifdef MESH3D_COLOR_HAS_TEXTURE
     let texcol = textureSample(texture, texture_sampler, vertex.uv);
     out *= texcol;
     out += texcol * vec4f(material.emissive_scale, 0.0);
-    #endif
+#endif
 
-    #ifdef MESH3D_EMISSIVE_HAS_TEXTURE
+#ifdef MESH3D_COLOR_HAS_EMISSIVE
     let emissive = textureSample(texture, texture_sampler, vertex.uv).rgb * material.emissive_scale;
     out += vec4f(emissive, 0.0);
-    #endif
+#endif
 
     return out;
 }
+
+

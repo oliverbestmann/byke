@@ -31,6 +31,11 @@ struct VertexInput {
     @location(MESH3D_VERTEX_ATTRIBUTES_NORMAL) v_normal: vec3f,
 #endif
 
+#ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
+    // tangent space from per-vertex buffer
+    @location(MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE) v_tangent_space: vec4f,
+#endif
+
 #ifdef MESH3D_VERTEX_ATTRIBUTES_UV
     // vertex color from per-vertex buffer
     @location(MESH3D_VERTEX_ATTRIBUTES_UV) v_uv: vec2f,
@@ -48,7 +53,8 @@ struct VertexOutput {
     @location(0) color: vec4f,
     @location(1) position_world: vec3f,
     @location(2) normal: vec3f,
-    @location(3) uv: vec2f,
+    @location(3) tangent_space: vec4f,
+    @location(5) uv: vec2f,
 };
 
 
@@ -147,6 +153,10 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
         );
 
         out.normal = world_from_local_normal * in.v_normal;
+    #endif
+
+    #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
+        out.tangent_space = in.v_tangent_space;
     #endif
 #endif
 

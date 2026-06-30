@@ -57,7 +57,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	var values = ShaderValues{}
 	values.Define("MESH3D_COLOR_HAS_NORMAL", key.Normal)
 	values.Define("MESH3D_COLOR_HAS_TEXTURE", key.Texture)
-	values.Define("MESH3D_COLOR_HAS_EMISSIVE", key.Texture)
+	values.Define("MESH3D_COLOR_HAS_EMISSIVE", key.Emissive)
 
 	shader := &ShaderDef{
 		Label:         "standard material shader",
@@ -81,6 +81,13 @@ func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 		)
 	}
 
+	if m.NormalTexture != nil {
+		entries = append(entries,
+			Indexed(3, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(4, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
+		)
+	}
+
 	if m.EmissiveTexture != nil {
 		entries = append(entries,
 			Indexed(5, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
@@ -98,6 +105,13 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 		entries = append(entries,
 			BindingTextureView(m.Texture.TextureView),
 			BindingSampler(m.Texture.Sampler),
+		)
+	}
+
+	if m.NormalTexture != nil {
+		entries = append(entries,
+			BindingTextureView(m.NormalTexture.TextureView),
+			BindingSampler(m.NormalTexture.Sampler),
 		)
 	}
 

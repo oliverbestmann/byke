@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"unsafe"
 
@@ -201,7 +202,8 @@ func (h *Handle) ChildNodes(parent Node) []Node {
 func (h *Handle) Buffer(viewId Ref) []byte {
 	bufferView := &h.BufferViews[viewId]
 	offset := bufferView.ByteOffset
-	return h.binary[offset : offset+bufferView.ByteLength]
+	buffer := h.buffers[bufferView.Buffer]
+	return buffer[offset : offset+bufferView.ByteLength]
 }
 
 //goland:noinspection DuplicatedCode
@@ -302,14 +304,14 @@ func (h *Handle) Resolve(aid Ref) any {
 }
 
 func (h *Handle) BytesForAccessor(acc *Accessor, expectedStride uint32) []byte {
-
 	bufferView := &h.BufferViews[acc.BufferView]
 	if expectedStride > 0 && bufferView.ByteStride > 0 && bufferView.ByteStride != expectedStride {
 		panic(fmt.Errorf("expected byteStride %d, got %d", expectedStride, bufferView.ByteStride))
 	}
 
+	buffer := h.buffers[bufferView.Buffer]
 	offset := bufferView.ByteOffset + acc.ByteOffset
-	return h.binary[offset : offset+bufferView.ByteLength]
+	return buffer[offset : offset+bufferView.ByteLength]
 }
 
 func castToType[T any](buf []byte, count uint32) []T {
@@ -326,6 +328,11 @@ func castToType[T any](buf []byte, count uint32) []T {
 
 	ptr := unsafe.Pointer(unsafe.SliceData(buf))
 	return unsafe.Slice((*T)(ptr), count)
+}
+
+type Buffer struct {
+	ByteLength uint32 `json:"byteLength"`
+	Uri        string `json:"uri"`
 }
 
 type BufferView struct {
@@ -390,10 +397,10 @@ type Skin struct {
 }
 
 type fileContent struct {
-	Asset Asset `json:"asset"`
-
+	Asset       Asset           `json:"asset"`
 	Animations  []Animation     `json:"animations"`
 	Accessors   []Accessor      `json:"accessors"`
+	Buffers     []Buffer        `json:"buffers"`
 	BufferViews []BufferView    `json:"bufferViews"`
 	Cameras     []Camera        `json:"cameras"`
 	Images      []Image         `json:"images"`
@@ -410,10 +417,46 @@ type fileContent struct {
 
 type Handle struct {
 	fileContent
-	binary []byte
+	buffers [][]byte
 }
 
-func Load(r io.Reader) (*Handle, error) {
+func GLTF(fileSystem fs.FS, r io.Reader) (*Handle, error) {
+	// parse the json chunk
+	var content fileContent
+	if err := json.NewDecoder(r).Decode(&content); err != nil {
+		return nil, fmt.Errorf("decode gltf json: %w", err)
+	}
+
+	// set node ids
+	for idx := range content.Nodes {
+		content.Nodes[idx].Id = Ref(idx)
+	}
+
+	// load all buffers to memory
+	var buffers [][]byte
+
+	for _, buffer := range content.Buffers {
+		buf, err := fs.ReadFile(fileSystem, buffer.Uri)
+		if err != nil {
+			return nil, fmt.Errorf("load buffer %q: %w", buffer.Uri, err)
+		}
+
+		if uint32(len(buf)) != buffer.ByteLength {
+			return nil, fmt.Errorf("buffer size mismatch: %q", buffer.Uri)
+		}
+
+		buffers = append(buffers, buf)
+	}
+
+	h := Handle{
+		fileContent: content,
+		buffers:     buffers,
+	}
+
+	return new(h), nil
+}
+
+func GLB(r io.Reader) (*Handle, error) {
 	remaining, err := readHeader(r)
 	if err != nil {
 		return nil, err
@@ -453,7 +496,7 @@ func Load(r io.Reader) (*Handle, error) {
 
 	handle := &Handle{
 		fileContent: content,
-		binary:      binaryChunk,
+		buffers:     [][]byte{binaryChunk},
 	}
 
 	return handle, nil

@@ -15,7 +15,7 @@ func init() {
 		return
 	}
 
-	enabled := os.Getenv("PUFFIN_ENABLE")
+	enabled := os.Getenv("PUFFIN_ENABLED")
 	if isTrue(enabled) {
 		puffin.Enable("127.0.0.1:8585", waitForClient)
 	}

@@ -21,13 +21,23 @@ var VertexAttributeUV = VertexAttribute{
 	Format: wgpu.VertexFormatFloat32x2,
 }
 
+var VertexAttributeUV1 = VertexAttribute{
+	Name:   "UV1",
+	Format: wgpu.VertexFormatFloat32x2,
+}
+
+var VertexAttributeUV2 = VertexAttribute{
+	Name:   "UV2",
+	Format: wgpu.VertexFormatFloat32x2,
+}
+
 var VertexAttributeNormal = VertexAttribute{
 	Name:   "Normal",
 	Format: wgpu.VertexFormatFloat32x3,
 }
 
 var VertexAttributeTangentSpace = VertexAttribute{
-	Name:   "Tangent",
+	Name:   "TangentSpace",
 	Format: wgpu.VertexFormatFloat32x4,
 }
 

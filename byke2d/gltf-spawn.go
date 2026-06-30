@@ -43,6 +43,7 @@ func pluginGltf(app *byke.App) {
 func spawnGltfSceneSystem(
 	commands *byke.Commands,
 	ctx *RenderContext,
+	assets *Assets,
 	scenesQuery byke.Query[struct {
 		_         byke.Changed[SceneRoot]
 		EntityId  byke.EntityId
@@ -56,6 +57,7 @@ func spawnGltfSceneSystem(
 			Commands:      commands,
 			Handle:        handle,
 			RenderContext: ctx,
+			Assets:        assets,
 			nodes:         map[gltf.Ref]byke.EntityId{},
 			images:        map[gltf.Ref]*Texture{},
 			nodeToMesh:    map[gltf.Ref][]byke.EntityId{},
@@ -78,6 +80,7 @@ type spawnContext struct {
 	Commands      *byke.Commands
 	Handle        gltfHandle
 	RenderContext *RenderContext
+	Assets        *Assets
 
 	// the root entity
 	root byke.EntityId
@@ -269,19 +272,24 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 
 	if mr := mat.MetallicRoughness; mr != nil {
 		if baseColorTex := mr.BaseColorTexture; baseColorTex != nil {
-			// parse texture
-			m.Texture = sc.textureAt(baseColorTex.Index)
+			// parse texture as srgb
+			m.Texture = sc.textureAt(baseColorTex.Index, false)
 		}
+	}
+
+	if no := mat.NormalTexture; no != nil {
+		// TODO handle no.Scale & no.TexCoords
+		m.NormalTexture = sc.textureAt(no.Index, true)
 	}
 
 	return m
 }
 
-func (sc *spawnContext) textureAt(texId gltf.Ref) *Texture {
+func (sc *spawnContext) textureAt(texId gltf.Ref, linearColors bool) *Texture {
 	tex := sc.Handle.Textures[texId]
 
 	// get the image for this texture and create a shallow copy of the texture
-	texture := *sc.imageOf(tex.Source)
+	texture := *sc.imageOf(tex.Source, linearColors)
 
 	sampler := sc.Handle.Samplers[tex.Sampler]
 
@@ -300,25 +308,35 @@ func (sc *spawnContext) textureAt(texId gltf.Ref) *Texture {
 	return new(texture)
 }
 
-func (sc *spawnContext) imageOf(imageId gltf.Ref) *Texture {
+func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 	if cached, ok := sc.images[imageId]; ok {
 		return cached
 	}
 
 	image := sc.Handle.Images[imageId]
 
-	// get the buffer
-	buffer := sc.Handle.Buffer(image.BufferView)
+	var texture *Texture
+	if image.Uri != "" {
+		// load from URL
+		settings := &LoadTextureSettings{LinearColors: linearColors}
+		texture = sc.Assets.TextureWithSettings(image.Uri, settings).Await()
+	} else {
 
-	slog.Debug("Load texture from memory",
-		slog.String("name", image.Name),
-		slog.Any("imageId", imageId),
-		slog.Int("size", len(buffer)),
-	)
+		// get the buffer
+		buffer := sc.Handle.Buffer(image.BufferView)
 
-	texture, err := DecodeTextureFromMemory(sc.RenderContext, buffer, SamplerConfig{}, true)
-	if err != nil {
-		panic(err)
+		slog.Debug("Load texture from memory",
+			slog.String("name", image.Name),
+			slog.Any("imageId", imageId),
+			slog.Int("size", len(buffer)),
+		)
+
+		var err error
+
+		texture, err = DecodeTextureFromMemory(sc.RenderContext, buffer, SamplerConfig{}, !linearColors)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	sc.images[imageId] = texture
@@ -417,6 +435,14 @@ func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 		case "TEXCOORD_0":
 			values := h.Resolve(value).([]glm.Vec2f)
 			mesh.WithAttributes(VertexAttributeUV, wgpu.ToBytes(values))
+
+		case "TEXCOORD_1":
+			values := h.Resolve(value).([]glm.Vec2f)
+			mesh.WithAttributes(VertexAttributeUV1, wgpu.ToBytes(values))
+
+		case "TEXCOORD_2":
+			values := h.Resolve(value).([]glm.Vec2f)
+			mesh.WithAttributes(VertexAttributeUV2, wgpu.ToBytes(values))
 
 		case "NORMAL":
 			values := h.Resolve(value).([]glm.Vec3f)

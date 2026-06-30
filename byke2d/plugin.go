@@ -158,6 +158,8 @@ func RenderPlugin(app *byke.App) {
 	app.AddPlugin(pluginGltf)
 	app.AddPlugin(pluginAnimations)
 
+	app.AddPlugin(pluginFPV)
+
 	app.RunWorld(runWorld)
 }
 
