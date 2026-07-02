@@ -7,7 +7,7 @@ type vertexAttributeOffsets struct {
 	offset uint64
 }
 
-func (o *vertexAttributeOffsets) Inc(size uint64, fmt wgpu.VertexFormat) wgpu.VertexAttribute {
+func (o *vertexAttributeOffsets) Inc(fmt wgpu.VertexFormat) wgpu.VertexAttribute {
 	attr := wgpu.VertexAttribute{
 		ShaderLocation: o.index,
 		Offset:         o.offset,
@@ -15,7 +15,20 @@ func (o *vertexAttributeOffsets) Inc(size uint64, fmt wgpu.VertexFormat) wgpu.Ve
 	}
 
 	o.index += 1
-	o.offset += size
+	o.offset += fmt.Size()
+
+	return attr
+}
+
+func (o *vertexAttributeOffsets) AtLoc(loc uint32, fmt wgpu.VertexFormat) wgpu.VertexAttribute {
+	attr := wgpu.VertexAttribute{
+		ShaderLocation: loc,
+		Offset:         o.offset,
+		Format:         fmt,
+	}
+
+	o.index = loc + 1
+	o.offset += fmt.Size()
 
 	return attr
 }

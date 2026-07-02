@@ -38,10 +38,10 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 			StepMode:    wgpu.VertexStepModeInstance,
 			Attributes: []wgpu.VertexAttribute{
 				// affine [4]vec3f
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
+				instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+				instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+				instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+				instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
 			},
 		},
 		{

@@ -11,7 +11,7 @@ import (
 type mesh3dPipelineConfig struct {
 	Shader           *ShaderDef
 	Format           wgpu.TextureFormat
-	Attributes       []VertexAttribute
+	VertexLayout     VertexLayout
 	MaterialBindings []wgpu.BindGroupLayoutEntry
 	SampleCount      uint32
 	Skinned          bool
@@ -26,64 +26,54 @@ func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
 		m.SampleCount == otherConfig.SampleCount &&
 		m.Skinned == otherConfig.Skinned &&
 		m.Morph == otherConfig.Morph &&
-		slices.Equal(m.Attributes, otherConfig.Attributes) &&
+		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
 		slices.Equal(m.MaterialBindings, otherConfig.MaterialBindings)
 }
 
 func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	values := m.Shader.Values.Clone()
 
-	var instanceAttrs vertexAttributeOffsets
+	var instanceAttrs, perVertexAttrs vertexAttributeOffsets
 
-	buffers := []wgpu.VertexBufferLayout{
-		{
-			// per instance: model to world transform
-			ArrayStride: 52,
-			StepMode:    wgpu.VertexStepModeInstance,
-			Attributes: []wgpu.VertexAttribute{
-				// affine [4]vec3f
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
-				instanceAttrs.Inc(12, wgpu.VertexFormatFloat32x3),
+	vblInstances := wgpu.VertexBufferLayout{
+		// per instance: model to world transform
+		ArrayStride: 52,
+		StepMode:    wgpu.VertexStepModeInstance,
+		Attributes: []wgpu.VertexAttribute{
+			// affine [4]vec3f
+			instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+			instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+			instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+			instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
 
-				// morph info index
-				instanceAttrs.Inc(4, wgpu.VertexFormatUint32),
-			},
-		},
-		{
-			// per vertex: x, y, z
-			ArrayStride: 12,
-			StepMode:    wgpu.VertexStepModeVertex,
-			Attributes: []wgpu.VertexAttribute{
-				{
-					Format:         wgpu.VertexFormatFloat32x3,
-					ShaderLocation: 9,
-					Offset:         0,
-				},
-			},
+			// morph info index
+			instanceAttrs.Inc(wgpu.VertexFormatUint32),
 		},
 	}
 
-	var attrShaderLocation uint32 = 10
-	for _, attr := range m.Attributes {
-		buffers = append(buffers, wgpu.VertexBufferLayout{
-			ArrayStride: uint64(attr.Format.ByteSize()),
-			StepMode:    wgpu.VertexStepModeVertex,
-			Attributes: []wgpu.VertexAttribute{
-				{
-					Format:         attr.Format,
-					ShaderLocation: attrShaderLocation,
-				},
-			},
-		})
+	vblPerVertex := wgpu.VertexBufferLayout{
+		// per vertex: x, y, z
+		ArrayStride: 12 + uint64(m.VertexLayout.Size()),
+		StepMode:    wgpu.VertexStepModeVertex,
+		Attributes: []wgpu.VertexAttribute{
+			perVertexAttrs.AtLoc(9, wgpu.VertexFormatFloat32x3),
+		},
+	}
+
+	for _, attr := range m.VertexLayout.Attributes {
+		vblPerVertex.Attributes = append(vblPerVertex.Attributes,
+			perVertexAttrs.AtLoc(attr.Location, attr.Format),
+		)
 
 		// define the key for the shader to know about it
 		key := strings.ToUpper(attr.Name)
-		loc := strconv.Itoa(int(attrShaderLocation))
+		loc := strconv.Itoa(int(attr.Location))
 		values.Set("MESH3D_VERTEX_ATTRIBUTES_"+key, loc)
+	}
 
-		attrShaderLocation += 1
+	buffers := []wgpu.VertexBufferLayout{
+		vblInstances,
+		vblPerVertex,
 	}
 
 	values.Define("SKINNED", m.Skinned)

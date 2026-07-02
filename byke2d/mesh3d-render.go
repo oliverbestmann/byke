@@ -124,7 +124,6 @@ type mesh3dInstances struct {
 func prepareMesh3dInstances(
 	ctx *RenderContext,
 	meshes *ExtractedMesh3d,
-	pipelineCache *PipelineCache,
 	meshInstances *mesh3dInstances,
 	morphUniforms *morphUniforms,
 	bindGroups *MaterialBindGroups,
@@ -362,14 +361,7 @@ func drawMesh3dBatchSystem(
 		MaterialBindings: layout,
 		Skinned:          skinOk && mesh.Skin.IsSet(),
 		Morph:            morphOk,
-	}
-
-	for idx := range buf.Attributes {
-		// tell the pipeline about the attributes we want to use
-		pipelineConfig.Attributes = append(
-			pipelineConfig.Attributes,
-			buf.Attributes[idx].Attribute,
-		)
+		VertexLayout:     buf.VertexLayout,
 	}
 
 	pipeline := pipelines.Specialize(pipelineConfig)
@@ -391,13 +383,6 @@ func drawMesh3dBatchSystem(
 
 	// the position vertex data for the current mesh
 	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)
-
-	// TODO pack vertex data per mesh into a single buffer
-	// set vertex buffers for other attributes
-	for idx := range buf.Attributes {
-		buffer := buf.Attributes[idx].Buffer
-		pass.SetVertexBuffer(uint32(2+idx), buffer, 0, wgpu.WholeSize)
-	}
 
 	pass.SetIndexBuffer(buf.Indices, wgpu.IndexFormatUint32, 0, wgpu.WholeSize)
 	pass.DrawIndexed(indexCount, item.BatchCount, 0, 0, item.BatchBegin)

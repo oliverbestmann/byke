@@ -7,14 +7,14 @@ import (
 )
 
 type meshBuffers struct {
+	// The vertex layout of data in the Vertex field
+	VertexLayout VertexLayout
+
 	// vertex buffer for this mesh
 	Vertex *wgpu.Buffer
 
 	// index buffer for this mesh
 	Indices *wgpu.Buffer
-
-	// more per vertex attributes
-	Attributes []vertexAttributeBuffer
 
 	// buffer that holds the morph attributes
 	MorphAttributes *wgpu.Buffer
@@ -27,10 +27,6 @@ func (m *meshBuffers) Release() {
 	m.Vertex.Release()
 	m.Indices.Release()
 	m.MorphAttributes.Release()
-
-	for _, buf := range m.Attributes {
-		buf.Buffer.Release()
-	}
 }
 
 type vertexAttributeBuffer struct {
@@ -66,28 +62,21 @@ func (m *meshCache) Upload(mesh *Mesh) bool {
 		bufs = &meshBuffers{}
 	}
 
+	vertices, layout := mesh.WriteVerticesTo(nil)
+
 	bufs.Vertex = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
 		Label:    "mesh vertex buffer",
 		Usage:    wgpu.BufferUsageVertex,
-		Contents: wgpu.ToBytes(mesh.vertices),
+		Contents: vertices,
 	})
+
+	bufs.VertexLayout = layout
 
 	if mesh.indices != nil {
 		bufs.Indices = m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
 			Label:    "mesh index buffer",
 			Usage:    wgpu.BufferUsageIndex,
 			Contents: wgpu.ToBytes(mesh.indices),
-		})
-	}
-
-	for _, attr := range mesh.attributes {
-		bufs.Attributes = append(bufs.Attributes, vertexAttributeBuffer{
-			Attribute: attr.Attribute,
-			Buffer: m.Context.CreateBufferInit(&wgpu.BufferInitDescriptor{
-				Label:    "mesh attr: " + attr.Attribute.Name,
-				Usage:    wgpu.BufferUsageVertex,
-				Contents: wgpu.ToBytes(attr.Value),
-			}),
 		})
 	}
 

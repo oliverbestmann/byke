@@ -215,13 +215,11 @@ func drawMesh2dBatchSystem(
 		MaterialBindings: layout,
 	}
 
-	for idx := range buf.Attributes {
-		// tell the pipeline about the attributes we want to use
-		pipelineConfig.Attributes = append(
-			pipelineConfig.Attributes,
-			buf.Attributes[idx].Attribute,
-		)
-	}
+	// tell the pipeline about the attributes we want to use
+	pipelineConfig.Attributes = append(
+		pipelineConfig.Attributes,
+		buf.VertexLayout.Attributes...,
+	)
 
 	pipeline := pipelines.Specialize(pipelineConfig)
 
@@ -234,12 +232,6 @@ func drawMesh2dBatchSystem(
 
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
 	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)
-
-	// set vertex buffers for other attributes
-	for idx := range buf.Attributes {
-		buffer := buf.Attributes[idx].Buffer
-		pass.SetVertexBuffer(uint32(2+idx), buffer, 0, wgpu.WholeSize)
-	}
 
 	pass.SetIndexBuffer(buf.Indices, wgpu.IndexFormatUint32, 0, wgpu.WholeSize)
 	pass.DrawIndexed(indexCount, item.BatchCount, 0, 0, item.BatchBegin)

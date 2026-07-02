@@ -248,6 +248,53 @@ func (m *Mesh) ComputeTangents() {
 	m.WithAttributes(VertexAttributeTangentSpace, wgpu.ToBytes(tangents))
 }
 
+func (m *Mesh) VertexLayout() VertexLayout {
+	var attrs []VertexAttribute
+	for _, attr := range m.attributes.Values() {
+		attrs = append(attrs, attr.Attribute)
+	}
+
+	return NewVertexLayout(attrs)
+}
+
+func (m *Mesh) WriteVerticesTo(buf []byte) ([]byte, VertexLayout) {
+	layout := m.VertexLayout()
+
+	var prevSize = len(buf)
+
+	expectedSize := m.VertexCount() * int(12+layout.Size())
+
+	for idx := range uint32(m.VertexCount()) {
+		buf = appendVertexTo(buf, m.vertices, wgpu.VertexFormatFloat32x3, idx)
+
+		for _, attr := range layout.Attributes {
+			attrValue := m.attributes.Get(attr)
+			if attrValue == nil {
+				// should never happen
+				panic(fmt.Errorf("attribute value is missing: %q", attr.Name))
+			}
+
+			buf = appendVertexRawTo(buf, attrValue.Value, attr.Format, idx)
+		}
+	}
+
+	written := len(buf) - prevSize
+	if written != expectedSize {
+		panic(fmt.Errorf("expected to write %d bytes, got %d", expectedSize, written))
+	}
+
+	return buf, layout
+}
+
+func appendVertexTo[T any](target []byte, values []T, format wgpu.VertexFormat, idx uint32) []byte {
+	return appendVertexRawTo(target, wgpu.ToBytes(values), format, idx)
+}
+
+func appendVertexRawTo(target []byte, values []byte, format wgpu.VertexFormat, idx uint32) []byte {
+	slice := values[idx*format.ByteSize() : (idx+1)*format.ByteSize()]
+	return append(target, slice...)
+}
+
 func RegularPolygon(radius float32, sides uint) *Mesh {
 	// a regular polygon is actually just a circle
 	return Circle(radius, sides)
@@ -313,11 +360,11 @@ func Rectangle(size glm.Vec2f) *Mesh {
 	return MeshOf(indices, vertices[:]).WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs[:]))
 }
 
-func VertexAttributesOf(attr VertexAttribute, value []byte) VertexAttributes {
+func VertexAttributesOf[T any](attr VertexAttribute, values []T) VertexAttributes {
 	return VertexAttributes{
 		{
 			Attribute: attr,
-			Value:     value,
+			Value:     wgpu.ToBytes(values),
 		},
 	}
 }

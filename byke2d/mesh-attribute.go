@@ -1,10 +1,15 @@
 package byke2d
 
-import "github.com/oliverbestmann/webgpu/wgpu"
+import (
+	"slices"
+
+	"github.com/oliverbestmann/webgpu/wgpu"
+)
 
 type VertexAttribute struct {
-	Name   string
-	Format wgpu.VertexFormat
+	Name     string
+	Format   wgpu.VertexFormat
+	Location uint32
 }
 
 func (v *VertexAttribute) EqualTo(other VertexAttribute) bool {
@@ -12,43 +17,51 @@ func (v *VertexAttribute) EqualTo(other VertexAttribute) bool {
 }
 
 var VertexAttributeColor = VertexAttribute{
-	Name:   "Color",
-	Format: wgpu.VertexFormatFloat32x4,
+	Name:     "Color",
+	Format:   wgpu.VertexFormatFloat32x4,
+	Location: 10,
 }
 
 var VertexAttributeUV = VertexAttribute{
-	Name:   "UV",
-	Format: wgpu.VertexFormatFloat32x2,
+	Name:     "UV",
+	Format:   wgpu.VertexFormatFloat32x2,
+	Location: 11,
 }
 
 var VertexAttributeUV1 = VertexAttribute{
-	Name:   "UV1",
-	Format: wgpu.VertexFormatFloat32x2,
+	Name:     "UV1",
+	Format:   wgpu.VertexFormatFloat32x2,
+	Location: 12,
 }
 
 var VertexAttributeUV2 = VertexAttribute{
-	Name:   "UV2",
-	Format: wgpu.VertexFormatFloat32x2,
+	Name:     "UV2",
+	Format:   wgpu.VertexFormatFloat32x2,
+	Location: 13,
 }
 
 var VertexAttributeNormal = VertexAttribute{
-	Name:   "Normal",
-	Format: wgpu.VertexFormatFloat32x3,
+	Name:     "Normal",
+	Format:   wgpu.VertexFormatFloat32x3,
+	Location: 14,
 }
 
 var VertexAttributeTangentSpace = VertexAttribute{
-	Name:   "TangentSpace",
-	Format: wgpu.VertexFormatFloat32x4,
+	Name:     "TangentSpace",
+	Format:   wgpu.VertexFormatFloat32x4,
+	Location: 15,
 }
 
 var VertexAttributeJoints = VertexAttribute{
-	Name:   "Joints",
-	Format: wgpu.VertexFormatUint16x4,
+	Name:     "Joints",
+	Format:   wgpu.VertexFormatUint16x4,
+	Location: 16,
 }
 
 var VertexAttributeJointWeights = VertexAttribute{
-	Name:   "JointWeights",
-	Format: wgpu.VertexFormatFloat32x4,
+	Name:     "JointWeights",
+	Format:   wgpu.VertexFormatFloat32x4,
+	Location: 17,
 }
 
 type VertexAttributeValue struct {
@@ -94,4 +107,30 @@ func (v *VertexAttributes) Has(name VertexAttribute) bool {
 	}
 
 	return false
+}
+
+type VertexLayout struct {
+	Attributes []VertexAttribute
+}
+
+func (v VertexLayout) Size() (size uint32) {
+	for _, attr := range v.Attributes {
+		size += attr.Format.ByteSize()
+	}
+
+	return
+}
+
+func (v VertexLayout) EqualTo(other VertexLayout) bool {
+	return slices.Equal(v.Attributes, other.Attributes)
+}
+
+func NewVertexLayout(attrs []VertexAttribute) VertexLayout {
+	compare := func(lhs, rhs VertexAttribute) int {
+		return int(lhs.Location) - int(rhs.Location)
+	}
+
+	sortedAttributes := slices.SortedFunc(slices.Values(attrs), compare)
+
+	return VertexLayout{Attributes: sortedAttributes}
 }
