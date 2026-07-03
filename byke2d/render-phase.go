@@ -25,7 +25,7 @@ func pluginRenderPhases(app *byke.App) {
 
 }
 
-type Draw func(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderItem) (ok bool)
+type Draw func(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool)
 
 type SortableRenderPhase[M any] struct {
 	byke.Component[SortableRenderPhase[M]]
@@ -36,7 +36,7 @@ type SortableRenderPhase[M any] struct {
 }
 
 //goland:noinspection GoMixedReceiverTypes
-func (r SortableRenderPhase[M]) Dispatch(world *byke.World, pass *wgpu.RenderPassEncoder) {
+func (r SortableRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPassEncoder) {
 	for idx := uint32(0); idx < r.Len(); idx++ {
 		item := r.Get(idx)
 		item.Draw(world, pass, *item)
@@ -79,7 +79,7 @@ type BinnedRenderPhase[M any] struct {
 }
 
 //goland:noinspection GoMixedReceiverTypes
-func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *wgpu.RenderPassEncoder) {
+func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPassEncoder) {
 	for _, values := range r.items {
 		if len(values) == 0 {
 			continue
@@ -163,7 +163,8 @@ func dispatchTransparentRenderSystem(
 	})
 	defer pass.Release()
 
-	view.Phase.Dispatch(world, pass)
+	tracked := &TrackedRenderPassEncoder{RenderPassEncoder: pass}
+	view.Phase.Dispatch(world, tracked)
 
 	pass.End()
 
@@ -197,7 +198,9 @@ func dispatchOpaqueRenderSystem(
 	})
 	defer pass.Release()
 
-	view.Phase.Dispatch(world, pass)
+	tracked := &TrackedRenderPassEncoder{RenderPassEncoder: pass}
+
+	view.Phase.Dispatch(world, tracked)
 
 	pass.End()
 

@@ -6,7 +6,7 @@ struct ColorMaterial {
 
 @group(1)
 @binding(0)
-var<uniform> material: ColorMaterial;
+var<storage> materials: array<ColorMaterial>;
 
 @group(1)
 @binding(1)

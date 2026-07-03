@@ -1,6 +1,8 @@
 package byke2d
 
 import (
+	"reflect"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/internal/query"
@@ -80,9 +82,10 @@ func queueMesh2dSystem(
 			}
 
 			key := MeshKey{
-				Type:     &mesh2dRenderPhaseItem{},
-				Material: sp.Material,
-				Mesh:     sp.Mesh,
+				Type:    &mesh2dRenderPhaseItem{},
+				MatKey:  sp.Material.Key(),
+				MatType: reflect.TypeOf(sp.Material),
+				Mesh:    sp.Mesh,
 			}
 
 			view.RenderPhase.Append(renderItem, key)
@@ -98,16 +101,17 @@ type mesh2dInstances struct {
 }
 
 type MeshKey struct {
-	Type     any
-	Material Material
-	Mesh     *Mesh
+	Type    any
+	MatKey  any
+	MatType reflect.Type
+	Mesh    *Mesh
 }
 
 func prepareMesh2dInstances(
 	ctx *RenderContext,
 	meshes *ExtractedMesh2d,
 	meshInstances *mesh2dInstances,
-	bindGroups *MaterialBindGroups,
+	materialUniforms *MaterialUniforms[ColorMaterial],
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase *BinnedRenderPhase[Opaque]
@@ -137,20 +141,27 @@ func prepareMesh2dInstances(
 				continue
 			}
 
-			// create a bindgroup for the material
-			if _, ok := bindGroups.Get(key.Material); !ok {
-				bindGroup := createMaterialBindGroup(ctx, key.Material)
-				bindGroups.Add(key.Material, bindGroup)
-			}
-
 			batch[0].BatchBegin = uint32(instances.InstanceCount())
 			batch[0].BatchCount = uint32(len(batch))
 
 			for _, item := range batch {
 				mesh := &meshes.Meshes[item.ExtractedIndex]
 
+				// write material & store index
+				mesh.Material.WriteUniforms(materialUniforms.Writer.Next())
+				materialIndex := uint32(materialUniforms.Writer.ItemCount)
+
 				// write sprite vertex data
-				writeMeshInstanceValues(instances, mesh)
+				instances.StartNew(48)
+
+				// the meshes transform
+				instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
+				instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
+				instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
+				instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
+
+				// a reference to the meshes material
+				instances.AppendUint(materialIndex)
 			}
 		}
 	}
@@ -159,15 +170,7 @@ func prepareMesh2dInstances(
 	instances.WriteTo(ctx, &meshInstances.Buffer, "Mesh2d Instances")
 }
 
-func writeMeshInstanceValues(instances *wgsl.InstanceWriter, mesh *ExtractedMesh) {
-	instances.StartNew(48)
-	instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
-	instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
-	instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
-	instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
-}
-
-func drawMesh2dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderItem) (ok bool) {
+func drawMesh2dBatch(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
 	world.RunSystemWithInValue(drawMesh2dBatchSystem, RenderTask{
 		Pass: pass,
 		Item: item,
@@ -183,7 +186,7 @@ func drawMesh2dBatchSystem(
 	meshes *ExtractedMesh2d,
 	instances *mesh2dInstances,
 	meshAllocator *MeshAllocator,
-	bindGroupCache *MaterialBindGroups,
+	bindGroupCache *MaterialBindGroups[ColorMaterial],
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget
 		ViewUniformsOffset DynamicOffset[ViewUniforms]

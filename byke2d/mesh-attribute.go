@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"hash/maphash"
 	"slices"
 
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -121,6 +122,21 @@ func (v *VertexAttributes) Has(name VertexAttribute) bool {
 
 type VertexLayout struct {
 	Attributes []VertexAttribute
+}
+
+var seed = maphash.MakeSeed()
+
+type VertexLayoutKey uint64
+
+func (v VertexLayout) Key() VertexLayoutKey {
+	var h maphash.Hash
+	h.SetSeed(seed)
+
+	for _, attr := range v.Attributes {
+		maphash.WriteComparable(&h, attr)
+	}
+
+	return VertexLayoutKey(h.Sum64())
 }
 
 func (v VertexLayout) Size() (size uint32) {

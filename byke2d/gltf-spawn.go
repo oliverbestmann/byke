@@ -85,7 +85,7 @@ type spawnContext struct {
 	// the root entity
 	root byke.EntityId
 
-	// map from reachable nodes to entitys
+	// map from reachable nodes to entities
 	nodes map[gltf.Ref]byke.EntityId
 
 	// map from imageId to texture
@@ -289,7 +289,7 @@ func (sc *spawnContext) textureAt(texId gltf.Ref, linearColors bool) *Texture {
 	tex := sc.Handle.Textures[texId]
 
 	// get the image for this texture and create a shallow copy of the texture
-	texture := *sc.imageOf(tex.Source, linearColors)
+	texture := sc.imageOf(tex.Source, linearColors)
 
 	sampler := sc.Handle.Samplers[tex.Sampler]
 
@@ -305,7 +305,7 @@ func (sc *spawnContext) textureAt(texId gltf.Ref, linearColors bool) *Texture {
 	})
 
 	// TODO cache together with sample?
-	return new(texture)
+	return texture
 }
 
 func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {

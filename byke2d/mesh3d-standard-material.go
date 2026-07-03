@@ -42,6 +42,20 @@ type StandardMaterial struct {
 	NormalTexture *Texture
 }
 
+func (m StandardMaterial) Key() any {
+	type Key struct {
+		Texture         *Texture
+		EmissiveTexture *Texture
+		NormalTexture   *Texture
+	}
+
+	return Key{
+		Texture:         m.Texture,
+		EmissiveTexture: m.EmissiveTexture,
+		NormalTexture:   m.NormalTexture,
+	}
+}
+
 func (m StandardMaterial) Shader() *ShaderDef {
 	key := shaderKey{
 		Texture:  m.Texture != nil,

@@ -13,50 +13,51 @@ type Material interface {
 	BindingsLayout() []wgpu.BindGroupLayoutEntry
 	Bindings() []wgpu.BindGroupEntry
 	WriteUniforms(w *wgsl.StructWriter)
+	Key() any
 }
 
-type ComparableMaterial interface {
-	comparable
-	Material
-}
+func PluginMaterial2d[M Material](app *byke.App) {
+	app.InsertResource(MaterialBindGroups[M]{})
+	app.InsertResource(MaterialUniforms[M]{})
 
-type MeshExtract[T byke.IsComponent[T]] interface {
-	byke.IsComponent[T]
-	GetMesh() *Mesh
-}
-
-func PluginMaterial2d[M ComparableMaterial](app *byke.App) {
 	app.AddSystems(Render, byke.System(extractMesh2dSystem[M]).InSet(RenderPhaseExtract))
 }
 
-func PluginMaterial3d[M ComparableMaterial](app *byke.App) {
-	app.AddSystems(Render, byke.System(extractMesh3dSystem[M]).InSet(RenderPhaseExtract))
+func PluginMaterial3d[M Material](app *byke.App) {
+	app.InsertResource(MaterialBindGroups[M]{})
+	app.InsertResource(MaterialUniforms[M]{})
+
+	app.AddSystems(Render, byke.
+		System(extractMesh3dSystem[M]).
+		InSet(RenderPhaseExtract))
+
+	app.AddSystems(Render, byke.
+		System(prepareMesh3dInstances[M]).
+		InSet(RenderPhasePrepareResources))
+
+	app.AddSystems(Render, byke.
+		System(prepareMaterialBindGroupsSystem[M]).
+		InSet(RenderPhasePrepareBindGroups))
+
 }
 
-type MaterialBindGroups struct {
-	tickCache[Material, *wgpu.BindGroup]
+type MaterialBindGroups[M Material] struct {
+	tickCache[any, *wgpu.BindGroup]
 }
 
-func createMaterialBindGroup(ctx *RenderContext, material Material) *wgpu.BindGroup {
-	// TODO create buffer each time is not good, must be saved & reused somewhere.
-	//  we probably need to store BindGroup together with the buffer
-	var w wgsl.StructWriter
-	material.WriteUniforms(&w)
-
+func createMaterialBindGroup[M Material](
+	ctx *RenderContext,
+	material Material,
+	uniforms *MaterialUniforms[M],
+) *wgpu.BindGroup {
 	label := fmt.Sprintf("material group: %T", material)
 
-	buffer := ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
-		Label:    label,
-		Usage:    wgpu.BufferUsageUniform,
-		Contents: w.Bytes(),
-	})
-
 	var bindings []wgpu.BindGroupEntry
-	bindings = append(bindings, BindingBuffer(buffer))
+	bindings = append(bindings, BindingBuffer(uniforms.buffer))
 	bindings = append(bindings, material.Bindings()...)
 
 	var layout []wgpu.BindGroupLayoutEntry
-	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false))
+	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
 	layout = append(layout, material.BindingsLayout()...)
 
 	return ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
@@ -64,4 +65,36 @@ func createMaterialBindGroup(ctx *RenderContext, material Material) *wgpu.BindGr
 		Layout:  ctx.CreateBindGroupLayout(SequentialLayoutWithLabel("Material", layout...)),
 		Entries: Sequential(bindings...),
 	})
+}
+
+type MaterialUniforms[M Material] struct {
+	Writer wgsl.ArrayWriter
+	buffer *wgpu.Buffer
+}
+
+func prepareMaterialBindGroupsSystem[M Material](
+	ctx *RenderContext,
+	meshes *ExtractedMesh3d,
+	bindGroups *MaterialBindGroups[M],
+	uniforms *MaterialUniforms[M],
+) {
+	var mZero M
+
+	label := fmt.Sprintf("Material %T", mZero)
+	uniforms.Writer.WriteTo(ctx, &uniforms.buffer, label, wgpu.BufferUsageStorage)
+	uniforms.Writer.Clear()
+
+	for _, mesh := range meshes.Meshes {
+		// wrong material
+		if _, ok := mesh.Material.(M); !ok {
+			continue
+		}
+
+		key := mesh.Material.Key()
+
+		if _, ok := bindGroups.Get(key); !ok {
+			bindGroup := createMaterialBindGroup(ctx, mesh.Material, uniforms)
+			bindGroups.Add(key, bindGroup)
+		}
+	}
 }

@@ -34,7 +34,7 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 	buffers := []wgpu.VertexBufferLayout{
 		{
 			// per instance: model to world transform
-			ArrayStride: 48,
+			ArrayStride: 52,
 			StepMode:    wgpu.VertexStepModeInstance,
 			Attributes: []wgpu.VertexAttribute{
 				// affine [4]vec3f
@@ -42,6 +42,9 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 				instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
 				instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
 				instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+
+				// material index
+				instanceAttrs.Inc(wgpu.VertexFormatUint32),
 			},
 		},
 		{

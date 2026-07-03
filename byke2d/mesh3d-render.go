@@ -1,6 +1,8 @@
 package byke2d
 
 import (
+	"reflect"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/internal/query"
@@ -21,7 +23,6 @@ func pluginMesh3d(app *byke.App) {
 
 	app.AddSystems(Render, byke.System(prepareMeshViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
 	app.AddSystems(Render, byke.System(prepareMeshBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
-	app.AddSystems(Render, byke.System(prepareMesh3dInstances).InSet(RenderPhasePrepareBindGroups))
 
 	app.AddSystems(Render, byke.System(clearExtractedMesh3dSystem).InSet(RenderPhaseCleanup))
 
@@ -82,6 +83,8 @@ func clearExtractedMesh3dSystem(
 
 type mesh3dRenderPhaseItem struct{}
 
+var drawMesh3dBatchStandardMaterial = drawMesh3dBatch[StandardMaterial]()
+
 func queueMesh3dSystem(
 	meshes *ExtractedMesh3d,
 	viewsQuery byke.Query[struct {
@@ -99,14 +102,15 @@ func queueMesh3dSystem(
 
 			renderItem := RenderItem{
 				Type:           &mesh3dRenderPhaseItem{},
-				Draw:           drawMesh3dBatch,
+				Draw:           drawMesh3dBatchStandardMaterial,
 				ExtractedIndex: uint32(idx),
 			}
 
 			key := MeshKey{
-				Type:     &mesh3dRenderPhaseItem{},
-				Material: sp.Material,
-				Mesh:     sp.Mesh,
+				Type:    &mesh3dRenderPhaseItem{},
+				MatKey:  sp.Material.Key(),
+				MatType: reflect.TypeOf(sp.Material),
+				Mesh:    sp.Mesh,
 			}
 
 			view.RenderPhase.Append(renderItem, key)
@@ -121,12 +125,12 @@ type mesh3dInstances struct {
 	Instances wgsl.InstanceWriter
 }
 
-func prepareMesh3dInstances(
+func prepareMesh3dInstances[M Material](
 	ctx *RenderContext,
 	meshes *ExtractedMesh3d,
 	meshInstances *mesh3dInstances,
 	morphUniforms *morphUniforms,
-	bindGroups *MaterialBindGroups,
+	materialUniforms *MaterialUniforms[M],
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase *BinnedRenderPhase[Opaque]
@@ -157,10 +161,9 @@ func prepareMesh3dInstances(
 				continue
 			}
 
-			// create a bindgroup for the material
-			if _, ok := bindGroups.Get(key.Material); !ok {
-				bindGroup := createMaterialBindGroup(ctx, key.Material)
-				bindGroups.Add(key.Material, bindGroup)
+			if key.MatType != reflect.TypeFor[M]() {
+				// wrong material
+				continue
 			}
 
 			batch[0].BatchBegin = uint32(instances.InstanceCount())
@@ -169,14 +172,21 @@ func prepareMesh3dInstances(
 			for _, item := range batch {
 				mesh := &meshes.Meshes[item.ExtractedIndex]
 
+				// write material & store index
+				mesh.Material.WriteUniforms(materialUniforms.Writer.Next())
+				materialIndex := uint32(materialUniforms.Writer.ItemCount)
+
 				// write sprite vertex data
-				instances.StartNew(52)
+				instances.StartNew(56)
 
 				// transform
 				instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
 				instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
 				instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
 				instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
+
+				// material index
+				instances.AppendUint(materialIndex)
 
 				// reference morph info if available
 				idx, _ := morphUniforms.DescriptorIndex(mesh.EntityId)
@@ -307,16 +317,20 @@ func prepareMeshBindGroupSystem(
 	}
 }
 
-func drawMesh3dBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderItem) (ok bool) {
-	world.RunSystemWithInValue(drawMesh3dBatchSystem, RenderTask{
-		Pass: pass,
-		Item: item,
-	})
+func drawMesh3dBatch[M Material]() Draw {
+	var drawSystem = drawMesh3dBatchSystem[M]
 
-	return true
+	return func(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
+		world.RunSystemWithInValue(drawSystem, RenderTask{
+			Pass: pass,
+			Item: item,
+		})
+
+		return true
+	}
 }
 
-func drawMesh3dBatchSystem(
+func drawMesh3dBatchSystem[M Material](
 	task byke.In[RenderTask],
 	meshViewBindGroup meshViewBindGroup,
 	meshBindGroups MeshBindGroups,
@@ -324,7 +338,7 @@ func drawMesh3dBatchSystem(
 	meshes *ExtractedMesh3d,
 	instances *mesh3dInstances,
 	meshAllocator *MeshAllocator,
-	materialBindGroups *MaterialBindGroups,
+	materialBindGroups *MaterialBindGroups[M],
 	skinUniforms *skinUniforms,
 	morphUniforms *morphUniforms,
 	viewQuery ViewQuery[struct {
@@ -349,7 +363,7 @@ func drawMesh3dBatchSystem(
 	_, morphOk := morphUniforms.DescriptorIndex(mesh.EntityId)
 
 	var layout []wgpu.BindGroupLayoutEntry
-	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false))
+	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
 	layout = append(layout, mesh.Material.BindingsLayout()...)
 
 	pipelineConfig := mesh3dPipelineConfig{
@@ -364,7 +378,7 @@ func drawMesh3dBatchSystem(
 
 	pipeline := pipelines.Specialize(pipelineConfig)
 
-	materialBindGroup, _ := materialBindGroups.Get(mesh.Material)
+	materialBindGroup, _ := materialBindGroups.Get(mesh.Material.Key())
 	meshBindGroup, ok := meshBindGroups.ByMesh(mesh.Mesh)
 	if !ok {
 		panic("mesh bind group is missing")

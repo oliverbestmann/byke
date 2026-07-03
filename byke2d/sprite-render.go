@@ -182,11 +182,11 @@ func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSpri
 }
 
 type RenderTask struct {
-	Pass *wgpu.RenderPassEncoder
+	Pass *TrackedRenderPassEncoder
 	Item RenderItem
 }
 
-func drawSpriteBatch(world *byke.World, pass *wgpu.RenderPassEncoder, item RenderItem) (ok bool) {
+func drawSpriteBatch(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
 	world.RunSystemWithInValue(drawSpriteBatchSystem, RenderTask{
 		Pass: pass,
 		Item: item,

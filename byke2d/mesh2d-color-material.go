@@ -72,3 +72,7 @@ func (m ColorMaterial) Bindings() []wgpu.BindGroupEntry {
 func (m ColorMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendVec4f(m.Tint.ToVec())
 }
+
+func (m ColorMaterial) Key() any {
+	return m.Texture
+}

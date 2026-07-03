@@ -10,8 +10,6 @@ import (
 func pluginMesh(app *byke.App) {
 	app.InsertResource(byke.InitFromWorld(meshAllocatorFromWorld))
 
-	app.InsertResource(MaterialBindGroups{})
-
 	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
 	app.AddSystems(Render, byke.System(prepareMesh3dBuffers).InSet(RenderPhasePrepareResources))
 }

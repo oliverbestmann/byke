@@ -7,7 +7,7 @@ struct StandardMaterial {
 
 @group(2)
 @binding(0)
-var<uniform> material: StandardMaterial;
+var<storage, read> materials: array<StandardMaterial>;
 
 @group(2)
 @binding(1)
@@ -53,8 +53,7 @@ fn calculate_normal(normal: vec3f, tangent_space: vec4f, uv: vec2f) -> vec3f {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out = default_mesh3d_vertex(in);
-    out.color *= material.color;
-
+    out.color *= materials[out.material].color;
     return out;
 }
 
@@ -73,11 +72,11 @@ fn fs_main(param: VertexOutput) -> @location(0) vec4f {
 #ifdef MESH3D_COLOR_HAS_TEXTURE
     let texcol = textureSample(texture, texture_sampler, vertex.uv);
     out *= texcol;
-    out += texcol * vec4f(material.emissive_scale, 0.0);
+    out += texcol * vec4f(materials[vertex.material].emissive_scale, 0.0);
 #endif
 
-#ifdef MESH3D_COLOR_HAS_EMISSIVE
-    let emissive = textureSample(texture, texture_sampler, vertex.uv).rgb * material.emissive_scale;
+#ifdef MESH3D_COLOR_HAS_EMISSIVE@interpolate(flat)
+    let emissive = textureSample(texture, texture_sampler, vertex.uv).rgb * materials[vertex.material].emissive_scale;
     out += vec4f(emissive, 0.0);
 #endif
 

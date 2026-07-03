@@ -15,8 +15,11 @@ struct VertexInput {
     @location(2) i_affine_2: vec3f,
     @location(3) i_affine_3: vec3f,
 
+    // index into materials array
+    @location(4) i_material_index: u32,
+
     // index in morph info buffer
-    @location(4) i_morph_index: u32,
+    @location(5) i_morph_index: u32,
 
     // vertex position from per-vertex buffer
     @location(9) v_position: vec3f,
@@ -55,6 +58,9 @@ struct VertexOutput {
     @location(2) normal: vec3f,
     @location(3) tangent_space: vec4f,
     @location(5) uv: vec2f,
+
+    // index into materials array (if any)
+    @location(6) @interpolate(flat) material: u32,
 };
 
 
@@ -135,6 +141,7 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
     out.position = position;
     out.position_world = position_world.xyz;
     out.color = vec4f(1.0, 1.0, 1.0, 1.0);
+    out.material = in.i_material_index;
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_COLOR
     // need to add 1 to the vertex color to convert from byke2d.Color
