@@ -8,7 +8,7 @@ import (
 )
 
 func pluginMesh(app *byke.App) {
-	app.InsertResource(byke.InitFromWorld(meshCacheFromWorld))
+	app.InsertResource(byke.InitFromWorld(meshAllocatorFromWorld))
 
 	app.InsertResource(MaterialBindGroups{})
 
@@ -39,13 +39,10 @@ func (s *ExtractedSkin) IsSet() bool {
 
 func prepareMesh2dBuffers(
 	meshes byke.Query[*Mesh2d],
-	meshCache *meshCache,
+	meshAllocator *MeshAllocator,
 ) {
-	meshCache.Reset()
-
 	for item := range meshes.Items() {
-		mesh := item.Mesh
-		meshCache.Upload(mesh)
+		meshAllocator.Alloc(item.Mesh)
 	}
 }
 
@@ -54,16 +51,12 @@ func prepareMesh3dBuffers(
 		Mesh *Mesh3d
 		Name byke.Option[byke.Name]
 	}],
-	meshCache *meshCache,
+	meshAllocator *MeshAllocator,
 ) {
-	meshCache.Reset()
-
 	for item := range meshes.Items() {
 		mesh := item.Mesh.Mesh
-		uploaded := meshCache.Upload(mesh)
 
-		if uploaded {
-			// TODO use a lifecycle hook to print this maybe?
+		if meshAllocator.Alloc(mesh) {
 			name := item.Name.Or(byke.Named("unknown")).Name
 			slog.Info(
 				"Uploaded mesh",

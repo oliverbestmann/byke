@@ -53,11 +53,8 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 
 	vblPerVertex := wgpu.VertexBufferLayout{
 		// per vertex: x, y, z
-		ArrayStride: 12 + uint64(m.VertexLayout.Size()),
+		ArrayStride: uint64(m.VertexLayout.Size()),
 		StepMode:    wgpu.VertexStepModeVertex,
-		Attributes: []wgpu.VertexAttribute{
-			perVertexAttrs.AtLoc(9, wgpu.VertexFormatFloat32x3),
-		},
 	}
 
 	for _, attr := range m.VertexLayout.Attributes {

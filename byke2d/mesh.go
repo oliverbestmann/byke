@@ -19,9 +19,6 @@ type Mesh struct {
 	// Length of indices must be a multiple of three.
 	indices []uint32
 
-	// vertices is the vertex position data
-	vertices []glm.Vec3f
-
 	// Additional vertex attributes
 	attributes VertexAttributes
 
@@ -33,45 +30,60 @@ type Mesh struct {
 }
 
 func MeshOf(indices []uint32, vertices []glm.Vec3f) *Mesh {
-	return &Mesh{
-		indices:  indices,
-		vertices: vertices,
-	}
+	data := ValuesAsByteSlice(vertices)
+
+	mesh := &Mesh{indices: indices, version: 1}
+	mesh.attributes.Insert(VertexAttributePosition, data)
+	return mesh
 }
 
 func (m *Mesh) WithVertices(vertices []glm.Vec3f) *Mesh {
-	m.version += 1
-	m.vertices = vertices
-	return m
+	data := ValuesAsByteSlice(vertices)
+	return m.WithAttributes(VertexAttributePosition, data)
 }
 
 func (m *Mesh) WithAttributes(attr VertexAttribute, values []byte) *Mesh {
+	valueCount := len(values) / int(attr.Size())
+	if valueCount != m.VertexCount() {
+		panic(fmt.Errorf("expected values for %d vertices", m.VertexCount()))
+	}
+
 	m.version += 1
 	m.attributes.Insert(attr, values)
 	return m
 }
 
+func (m *Mesh) HasAttribute(attr VertexAttribute) bool {
+	ok := m.attributes.Has(attr)
+	return ok
+}
+
 // WithMorphTarget adds another morph target to this vertex
 func (m *Mesh) WithMorphTarget(target []MorphAttributes) *Mesh {
-	if len(target) != len(m.vertices) {
-		panic(fmt.Errorf("got %d morph attributes for %d vertices", len(target), len(m.vertices)))
+	if len(target) != m.VertexCount() {
+		panic(fmt.Errorf(
+			"got %d morph attributes for %d vertices",
+			len(target), m.VertexCount(),
+		))
 	}
 
 	m.version += 1
 	m.morphTargets = append(m.morphTargets, target)
+
 	return m
 }
 
 // Vertices returns the vertices of this Mesh. You should not modify the
 // returned slice.
 func (m *Mesh) Vertices() []glm.Vec3f {
-	return m.vertices
+	data := m.attributes.Get(VertexAttributePosition)
+	return ByteSliceAsValues[glm.Vec3f](data.Value)
 }
 
 func (m *Mesh) ComputeUV(compute func(point glm.Vec3f) glm.Vec2f) {
 	var uvs []glm.Vec2f
 
-	for _, vertex := range m.vertices {
+	for _, vertex := range m.Vertices() {
 		uv := compute(vertex)
 		uvs = append(uvs, uv)
 	}
@@ -80,7 +92,7 @@ func (m *Mesh) ComputeUV(compute func(point glm.Vec3f) glm.Vec2f) {
 }
 
 func (m *Mesh) VertexCount() int {
-	return len(m.vertices)
+	return len(m.Vertices())
 }
 
 func (m *Mesh) MorphTargetCount() int {
@@ -89,15 +101,19 @@ func (m *Mesh) MorphTargetCount() int {
 
 // Transform applies the given matrix to all vertices within this mesh
 func (m *Mesh) Transform(tr glm.Mat4f) {
-	for idx := range m.vertices {
-		m.vertices[idx] = tr.Transform3(m.vertices[idx])
+	vertices := m.Vertices()
+
+	for idx := range vertices {
+		vertices[idx] = tr.Transform3(vertices[idx])
 	}
 }
 
 func (m *Mesh) AABBSize() glm.Vec3f {
-	var maxVec = m.vertices[0]
-	var minVec = m.vertices[0]
-	for _, v := range m.vertices {
+	vertices := m.Vertices()
+
+	var maxVec = vertices[0]
+	var minVec = vertices[0]
+	for _, v := range vertices {
 		maxVec = maxVec.Max(v)
 		minVec = minVec.Min(v)
 	}
@@ -105,27 +121,24 @@ func (m *Mesh) AABBSize() glm.Vec3f {
 	return maxVec.Sub(minVec)
 }
 
-func (m *Mesh) HasAttribute(attr VertexAttribute) bool {
-	ok := m.attributes.Has(attr)
-	return ok
-}
-
 func (m *Mesh) ComputeNormals() {
 	m.MergeVertices()
 
 	// TODO better without merge, also differentiate to ComputeFlatNormals()
 
-	normals := make([]glm.Vec3f, len(m.vertices))
-	normalCounts := make([]uint32, len(m.vertices))
+	vertices := m.Vertices()
+
+	normals := make([]glm.Vec3f, len(vertices))
+	normalCounts := make([]uint32, len(vertices))
 
 	for i := 0; i < len(m.indices); i += 3 {
 		iA := m.indices[i]
 		iB := m.indices[i+1]
 		iC := m.indices[i+2]
 
-		a := m.vertices[iA]
-		b := m.vertices[iB]
-		c := m.vertices[iC]
+		a := vertices[iA]
+		b := vertices[iB]
+		c := vertices[iC]
 
 		normal := b.Sub(a).Cross(a.Sub(c)).Normalize()
 		normals[iA] = normals[iA].Add(normal)
@@ -154,12 +167,14 @@ func (m *Mesh) MergeVertices() bool {
 	// TODO handle vertex attributes or reject MergeVertices
 	//  if we can not handle them correctly
 
+	vertices := m.Vertices()
+
 	var byVertex = map[glm.Vec3f]uint32{}
 	var newIndices []uint32
 	var newVertices []glm.Vec3f
 
 	for _, idx := range m.indices {
-		vertex := m.vertices[idx]
+		vertex := vertices[idx]
 
 		idx, seen := byVertex[vertex]
 		if seen {
@@ -176,8 +191,10 @@ func (m *Mesh) MergeVertices() bool {
 		byVertex[vertex] = idx
 	}
 
+	data := ValuesAsByteSlice(newVertices)
+	m.attributes.Insert(VertexAttributePosition, data)
+
 	m.indices = newIndices
-	m.vertices = newVertices
 	m.version += 1
 
 	return true
@@ -202,7 +219,7 @@ func (m *Mesh) SmoothShade() {
 
 	infos := map[glm.Vec3f]vertexInfo{}
 
-	for idx, vertex := range m.vertices {
+	for idx, vertex := range m.Vertices() {
 		info := infos[vertex]
 
 		infos[vertex] = vertexInfo{
@@ -226,22 +243,28 @@ func (m *Mesh) SmoothShade() {
 }
 
 func (m *Mesh) ComputeTangents() {
-	if !m.HasAttribute(VertexAttributeNormal) {
+	normalsAttrs := m.attributes.Get(VertexAttributeNormal)
+	uvsAttrs := m.attributes.Get(VertexAttributeUV)
+
+	if normalsAttrs == nil {
 		slog.Warn("Cannot calculate tangents without normals")
 		return
 	}
 
-	if !m.HasAttribute(VertexAttributeUV) {
+	if uvsAttrs == nil {
 		slog.Warn("Cannot calculate tangents without UV coordinates")
 		return
 	}
 
 	// TODO need to unmerge vertices first
 
-	tangents := make([]glm.Vec4f, len(m.vertices))
+	tangents := make([]glm.Vec4f, len(m.Vertices()))
 
 	mikktspace.GenerateTangents(meshGeometry{
-		Mesh:     m,
+		Indices:  m.indices,
+		Vertices: m.Vertices(),
+		Normals:  ByteSliceAsValues[glm.Vec3f](normalsAttrs.Value),
+		UVs:      ByteSliceAsValues[glm.Vec2f](uvsAttrs.Value),
 		Tangents: tangents,
 	})
 
@@ -260,13 +283,10 @@ func (m *Mesh) VertexLayout() VertexLayout {
 func (m *Mesh) WriteVerticesTo(buf []byte) ([]byte, VertexLayout) {
 	layout := m.VertexLayout()
 
-	var prevSize = len(buf)
-
-	expectedSize := m.VertexCount() * int(12+layout.Size())
+	prevSize := len(buf)
+	expectedSize := m.VertexCount() * int(layout.Size())
 
 	for idx := range uint32(m.VertexCount()) {
-		buf = appendVertexTo(buf, m.vertices, wgpu.VertexFormatFloat32x3, idx)
-
 		for _, attr := range layout.Attributes {
 			attrValue := m.attributes.Get(attr)
 			if attrValue == nil {
@@ -284,10 +304,6 @@ func (m *Mesh) WriteVerticesTo(buf []byte) ([]byte, VertexLayout) {
 	}
 
 	return buf, layout
-}
-
-func appendVertexTo[T any](target []byte, values []T, format wgpu.VertexFormat, idx uint32) []byte {
-	return appendVertexRawTo(target, wgpu.ToBytes(values), format, idx)
 }
 
 func appendVertexRawTo(target []byte, values []byte, format wgpu.VertexFormat, idx uint32) []byte {
@@ -406,68 +422,5 @@ func Polygon(polygon []glm.Vec2f, holes ...[]glm.Vec2f) *Mesh {
 }
 
 func castVecsToEarcutPoints(vecs []glm.Vec2f) []earcut.Point[float32] {
-	data := unsafe.Pointer(unsafe.SliceData(vecs))
-	points := (*earcut.Point[float32])(data)
-	return unsafe.Slice(points, len(vecs))
+	return ValuesToValues[glm.Vec2f, earcut.Point[float32]](vecs)
 }
-
-// UnionDisjoint merges disjoint meshes into one. The meshes must not
-// overlap for rendering not to break.
-func UnionDisjoint(meshes ...*Mesh) *Mesh {
-	var vertexCount, indexCount int
-	for _, mesh := range meshes {
-		vertexCount += len(mesh.vertices)
-		indexCount += len(mesh.indices)
-	}
-
-	vertices := make([]glm.Vec3f, 0, vertexCount)
-	indices := make([]uint32, 0, indexCount)
-
-	for _, mesh := range meshes {
-		offset := uint32(len(mesh.vertices))
-		vertices = append(vertices, mesh.vertices...)
-
-		for _, idx := range mesh.indices {
-			indices = append(indices, idx+offset)
-		}
-	}
-
-	return MeshOf(indices, vertices)
-}
-
-/*
-func computeMeshSizeSystem(
-	query byke.Query[struct {
-		_ byke.Changed[Mesh]
-
-		Mesh Mesh
-		BBox *BBox
-	}],
-) {
-	for item := range query.Items() {
-		vertices := item.Mesh.Vertices
-		if len(vertices) == 0 {
-			// no vertices, no size
-			item.BBox.Rect = glm.Rect{}
-			continue
-		}
-
-		minVec := vertexToVec(vertices[0])
-		maxVec := minVec
-
-		for idx := range vertices[1:] {
-			x := float32(vertices[idx].DstX)
-			minVec.X = min(minVec.X, x)
-			maxVec.X = max(maxVec.X, x)
-
-			y := float32(vertices[idx].DstY)
-			minVec.Y = min(minVec.Y, y)
-			maxVec.Y = max(maxVec.Y, y)
-		}
-
-		// calculate bounding box
-		item.BBox.Rect = glm.RectWithPoints(minVec, maxVec)
-		item.BBox.ToSourceScale = glm.VecOne
-	}
-}
-*/

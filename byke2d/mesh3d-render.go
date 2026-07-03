@@ -268,7 +268,7 @@ func prepareMeshBindGroupSystem(
 	ctx *RenderContext,
 	bindGroups *MeshBindGroups,
 	meshes *ExtractedMesh3d,
-	buffers *meshCache,
+	meshAllocator *MeshAllocator,
 ) {
 	if bindGroups.emptyBuf == nil {
 		bindGroups.emptyBuf = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
@@ -278,20 +278,20 @@ func prepareMeshBindGroupSystem(
 		})
 	}
 
-	buffers.cache.Tick()
-
 	for _, mesh := range meshes.Meshes {
 		// TODO check for change in morph attributes buffer
 		if _, ok := bindGroups.groups.Get(mesh.Mesh); ok {
 			continue
 		}
 
-		buf, ok := buffers.Get(mesh.Mesh)
+		buf, ok := meshAllocator.Get(mesh.Mesh)
 		if !ok {
 			continue
 		}
 
-		morphAttributes := buf.MorphAttributes
+		_ = buf
+		// TODO fix morph targets here
+		var morphAttributes *wgpu.Buffer = nil // := buf.MorphAttributes
 		if morphAttributes == nil {
 			morphAttributes = bindGroups.emptyBuf
 		}
@@ -323,7 +323,7 @@ func drawMesh3dBatchSystem(
 	pipelines *PipelineCache,
 	meshes *ExtractedMesh3d,
 	instances *mesh3dInstances,
-	meshCache *meshCache,
+	meshAllocator *MeshAllocator,
 	materialBindGroups *MaterialBindGroups,
 	skinUniforms *skinUniforms,
 	morphUniforms *morphUniforms,
@@ -339,13 +339,11 @@ func drawMesh3dBatchSystem(
 
 	mesh := meshes.Meshes[item.ExtractedIndex]
 
-	buf, ok := meshCache.Get(mesh.Mesh)
+	buf, ok := meshAllocator.Get(mesh.Mesh)
 	if !ok {
 		// mesh not in cache, broken?
 		panic("mesh data not in cache")
 	}
-
-	indexCount := uint32(len(mesh.Mesh.indices))
 
 	skinOffset, skinOk := skinUniforms.OffsetOf(mesh.Skin.EntityId)
 	_, morphOk := morphUniforms.DescriptorIndex(mesh.EntityId)
@@ -381,9 +379,9 @@ func drawMesh3dBatchSystem(
 	// per instance data, like transformation, indices in global buffers, etc
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
 
-	// the position vertex data for the current mesh
-	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)
+	// the per vertex data for the current mesh
+	pass.SetVertexBuffer(1, buf.Vertices, 0, wgpu.WholeSize)
 
 	pass.SetIndexBuffer(buf.Indices, wgpu.IndexFormatUint32, 0, wgpu.WholeSize)
-	pass.DrawIndexed(indexCount, item.BatchCount, 0, 0, item.BatchBegin)
+	pass.DrawIndexed(buf.IndicesCount, item.BatchCount, buf.FirstIndex, int32(buf.FirstVertex), item.BatchBegin)
 }

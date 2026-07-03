@@ -29,11 +29,6 @@ func (m *meshBuffers) Release() {
 	m.MorphAttributes.Release()
 }
 
-type vertexAttributeBuffer struct {
-	Attribute VertexAttribute
-	Buffer    *wgpu.Buffer
-}
-
 type meshCache struct {
 	Context *RenderContext
 	cache   tickCache[*Mesh, *meshBuffers]

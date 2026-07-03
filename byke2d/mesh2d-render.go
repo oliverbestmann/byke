@@ -182,7 +182,7 @@ func drawMesh2dBatchSystem(
 	task byke.In[RenderTask],
 	meshes *ExtractedMesh2d,
 	instances *mesh2dInstances,
-	meshCache *meshCache,
+	meshAllocator *MeshAllocator,
 	bindGroupCache *MaterialBindGroups,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget
@@ -196,7 +196,7 @@ func drawMesh2dBatchSystem(
 
 	mesh := meshes.Meshes[item.ExtractedIndex]
 
-	buf, ok := meshCache.Get(mesh.Mesh)
+	buf, ok := meshAllocator.Get(mesh.Mesh)
 	if !ok {
 		// mesh not in cache, broken?
 		panic("mesh data not in cache")
@@ -231,7 +231,7 @@ func drawMesh2dBatchSystem(
 	pass.SetBindGroup(1, bindGroup, nil)
 
 	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
-	pass.SetVertexBuffer(1, buf.Vertex, 0, wgpu.WholeSize)
+	pass.SetVertexBuffer(1, buf.Vertices, 0, wgpu.WholeSize)
 
 	pass.SetIndexBuffer(buf.Indices, wgpu.IndexFormatUint32, 0, wgpu.WholeSize)
 	pass.DrawIndexed(indexCount, item.BatchCount, 0, 0, item.BatchBegin)

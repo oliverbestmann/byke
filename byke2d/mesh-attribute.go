@@ -16,6 +16,16 @@ func (v *VertexAttribute) EqualTo(other VertexAttribute) bool {
 	return v.Name == other.Name
 }
 
+func (v *VertexAttribute) Size() uint32 {
+	return v.Format.ByteSize()
+}
+
+var VertexAttributePosition = VertexAttribute{
+	Name:     "Position",
+	Format:   wgpu.VertexFormatFloat32x3,
+	Location: 9,
+}
+
 var VertexAttributeColor = VertexAttribute{
 	Name:     "Color",
 	Format:   wgpu.VertexFormatFloat32x4,
