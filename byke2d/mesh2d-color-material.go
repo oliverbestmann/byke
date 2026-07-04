@@ -2,6 +2,7 @@ package byke2d
 
 import (
 	_ "embed"
+	"unsafe"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
@@ -73,7 +74,7 @@ func (m ColorMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendVec4f(m.Tint.ToVec())
 }
 
-func (m ColorMaterial) Key() CompareTo {
+func (m ColorMaterial) BindGroupKey() MaterialBindGroupKey {
 	return colorMaterialKey{Texture: m.Texture}
 }
 
@@ -81,11 +82,6 @@ type colorMaterialKey struct {
 	Texture *Texture
 }
 
-func (c colorMaterialKey) CompareTo(other any) int {
-	o, ok := other.(colorMaterialKey)
-	if !ok {
-		return compareByType(c, other)
-	}
-
-	return compareByAddress(c.Texture, o.Texture)
+func (c colorMaterialKey) SortValue() uint64 {
+	return uint64(uintptr(unsafe.Pointer(c.Texture)))
 }

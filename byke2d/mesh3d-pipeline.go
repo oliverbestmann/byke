@@ -14,18 +14,22 @@ type mesh3dPipelineConfig struct {
 	VertexLayout     VertexLayout
 	MaterialBindings []wgpu.BindGroupLayoutEntry
 	SampleCount      uint32
+	FrontFace        wgpu.FrontFace
 	Skinned          bool
 	Morph            bool
+	DoubleSided      bool
 }
 
 func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
 	otherConfig, ok := other.(mesh3dPipelineConfig)
 	return ok &&
-		m.Shader.EqualTo(otherConfig.Shader) &&
 		m.Format == otherConfig.Format &&
 		m.SampleCount == otherConfig.SampleCount &&
 		m.Skinned == otherConfig.Skinned &&
 		m.Morph == otherConfig.Morph &&
+		m.DoubleSided == otherConfig.DoubleSided &&
+		m.FrontFace == otherConfig.FrontFace &&
+		m.Shader.EqualTo(otherConfig.Shader) &&
 		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
 		slices.Equal(m.MaterialBindings, otherConfig.MaterialBindings)
 }
@@ -81,6 +85,12 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 
 	mod := ctx.Shader(m.Shader.Label, m.Shader.Source, values)
 
+	cullMode := wgpu.CullModeBack
+	if m.DoubleSided {
+		// no culling, we might be able to see both sides, e.g. for billboards
+		cullMode = wgpu.CullModeNone
+	}
+
 	return RenderPipelineDescriptor{
 		Label: "mesh3d pipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
@@ -95,8 +105,8 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		},
 		Primitive: wgpu.PrimitiveState{
 			Topology:  wgpu.PrimitiveTopologyTriangleList,
-			CullMode:  wgpu.CullModeBack,
-			FrontFace: wgpu.FrontFaceCW,
+			CullMode:  cullMode,
+			FrontFace: m.FrontFace,
 		},
 		Multisample: multisampleState(m.SampleCount),
 		Fragment: &wgpu.FragmentState{
@@ -116,4 +126,12 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 			DepthCompare:      wgpu.CompareFunctionLessEqual,
 		},
 	}
+}
+
+func frontFaceOf(f wgpu.FrontFace) wgpu.FrontFace {
+	if f == wgpu.FrontFaceCW {
+		return wgpu.FrontFaceCW
+	}
+
+	return wgpu.FrontFaceCCW
 }

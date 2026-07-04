@@ -1,8 +1,8 @@
 package byke2d
 
 import (
-	"cmp"
 	_ "embed"
+	"hash/fnv"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
@@ -41,9 +41,16 @@ type StandardMaterial struct {
 
 	// NormalTexture is an optional normal map texture
 	NormalTexture *Texture
+
+	// FrontFace defaults to wgpu.FrontFaceCCW
+	FrontFace wgpu.FrontFace
+
+	// DoubleSided enables double-sided lighting.
+	// Need to flip the backface vertex in pixel shader
+	DoubleSided bool
 }
 
-func (m StandardMaterial) Key() CompareTo {
+func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
 	return standardMaterialKey{
 		Texture:         m.Texture,
 		EmissiveTexture: m.EmissiveTexture,
@@ -137,6 +144,7 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendVec4f(m.Tint.ToVec())
 	w.AppendVec3f(m.EmissiveScale)
+	w.AppendUint(uint32(boolToInt(m.DoubleSided)))
 }
 
 type standardMaterialKey struct {
@@ -145,15 +153,8 @@ type standardMaterialKey struct {
 	NormalTexture   *Texture
 }
 
-func (s standardMaterialKey) CompareTo(other any) int {
-	o, ok := other.(standardMaterialKey)
-	if !ok {
-		return compareByType(s, other)
-	}
-
-	return cmp.Or(
-		compareByAddress(s.Texture, o.Texture),
-		compareByAddress(s.EmissiveTexture, o.EmissiveTexture),
-		compareByAddress(s.NormalTexture, o.NormalTexture),
-	)
+func (s standardMaterialKey) SortValue() uint64 {
+	hash := fnv.New64a()
+	hash.Write(ValueAsByteSlice(s))
+	return hash.Sum64()
 }

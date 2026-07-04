@@ -54,14 +54,15 @@ func spawnGltfSceneSystem(
 		handle := toGltfHandle(item.SceneRoot.Handle)
 
 		sc := &spawnContext{
-			Commands:      commands,
-			Handle:        handle,
-			RenderContext: ctx,
-			Assets:        assets,
-			nodes:         map[gltf.Ref]byke.EntityId{},
-			images:        map[gltf.Ref]*Texture{},
-			nodeToMesh:    map[gltf.Ref][]byke.EntityId{},
-			meshes:        map[meshKey]*Mesh{},
+			Commands:           commands,
+			Handle:             handle,
+			RenderContext:      ctx,
+			Assets:             assets,
+			nodes:              map[gltf.Ref]byke.EntityId{},
+			nodeWorldTransform: map[gltf.Ref]glm.Mat4f{},
+			images:             map[gltf.Ref]*Texture{},
+			nodeToMesh:         map[gltf.Ref][]byke.EntityId{},
+			meshes:             map[meshKey]*Mesh{},
 		}
 
 		scene := sc.Handle.Scenes[item.SceneRoot.Scene]
@@ -88,6 +89,10 @@ type spawnContext struct {
 	// map from reachable nodes to entities
 	nodes map[gltf.Ref]byke.EntityId
 
+	// map from reachable node to its world transform.
+	// we need this to calculate the mesh materials winding order
+	nodeWorldTransform map[gltf.Ref]glm.Mat4f
+
 	// map from imageId to texture
 	images map[gltf.Ref]*Texture
 
@@ -105,7 +110,8 @@ func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 
 	// first step, spawn nodes
 	for _, node := range sc.Handle.Scene(sceneId) {
-		sc.spawnNodeTree(sc.root, node)
+		worldTransform := glm.IdentityMat4f()
+		sc.spawnNodeTree(sc.root, node, worldTransform)
 	}
 
 	// now walk through all nodes again and spawn objects
@@ -142,8 +148,11 @@ func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 	}
 }
 
-func (sc *spawnContext) spawnNodeTree(parentId byke.EntityId, node gltf.Node) {
+func (sc *spawnContext) spawnNodeTree(parentId byke.EntityId, node gltf.Node, parentTransform glm.Mat4f) {
 	transform := gltfConvertTransform(node)
+
+	// track the world transform
+	worldTransform := parentTransform.Mul(transform.Affine3())
 
 	// spawn a new entity for the node
 	entityId := sc.Commands.
@@ -152,10 +161,11 @@ func (sc *spawnContext) spawnNodeTree(parentId byke.EntityId, node gltf.Node) {
 
 	// record it in the lookup table
 	sc.nodes[node.Id] = entityId
+	sc.nodeWorldTransform[node.Id] = worldTransform
 
 	// spawn child nodes
 	for _, node := range sc.Handle.ChildNodes(node) {
-		sc.spawnNodeTree(entityId, node)
+		sc.spawnNodeTree(entityId, node, worldTransform)
 	}
 }
 
@@ -175,6 +185,12 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 
 		if ma := prim.Material; ma.IsSet {
 			material = sc.materialAt(ma.Get())
+		}
+
+		worldTransform := sc.nodeWorldTransform[node.Id]
+		flipWinding := worldTransform[0][0]*worldTransform[1][1]*worldTransform[2][2] < 0
+		if flipWinding {
+			material.FrontFace = wgpu.FrontFaceCW
 		}
 
 		meshInst := sc.instantiateMesh(meshId, idx)
@@ -269,6 +285,9 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 
 	// parse base color
 	m.Tint = ColorOf(mat.BaseColor())
+
+	// enable double sided rendering
+	m.DoubleSided = mat.DoubleSided
 
 	if mr := mat.MetallicRoughness; mr != nil {
 		if baseColorTex := mr.BaseColorTexture; baseColorTex != nil {

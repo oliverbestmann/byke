@@ -373,6 +373,7 @@ func blitCameraToTargetSystem(
 
 	viewsQuery ViewQuery[struct {
 		Camera       Camera
+		ClearColor   ClearColor
 		ViewTarget   *ViewTarget
 		RenderTarget *RenderTarget
 	}],
@@ -380,7 +381,8 @@ func blitCameraToTargetSystem(
 	view := viewsQuery.Get()
 
 	blit := blitConfig{
-		Format: view.ViewTarget.SurfaceTextureFormat,
+		Format:     view.ViewTarget.SurfaceTextureFormat,
+		AlphaBlend: view.ClearColor.Alpha() < 1,
 	}
 
 	// blit into the target texture

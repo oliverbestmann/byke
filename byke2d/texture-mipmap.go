@@ -45,7 +45,7 @@ func (m *mipmapGenerator) Generate(texture *Texture) {
 	m.context.Submit(buf)
 }
 
-func (m *mipmapGenerator) generateLevel(enc *wgpu.CommandEncoder, texture *Texture, level uint32) {
+func (m *mipmapGenerator) generateLevel(enc *CommandEncoder, texture *Texture, level uint32) {
 	inView := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Texture.MipMap.In",
 		Format:          texture.Descriptor.Format,

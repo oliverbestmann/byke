@@ -161,5 +161,5 @@ func (v VertexLayout) Size() (size uint32) {
 }
 
 func (v VertexLayout) EqualTo(other VertexLayout) bool {
-	return slices.Equal(v.Attributes, other.Attributes)
+	return v.key == other.key && slices.Equal(v.Attributes, other.Attributes)
 }

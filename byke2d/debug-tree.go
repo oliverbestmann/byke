@@ -5,14 +5,7 @@ import (
 	"strings"
 
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d/vyn"
 )
-
-func pluginDebug(app *byke.App) {
-	app.AddSystems(byke.Update, byke.System(dumpTree).
-		RunIf(KeyIsJustPressed(vyn.KeyT)).
-		RunIf(KeyIsPressed(vyn.KeyShiftLeft)))
-}
 
 func dumpTree(
 	rootsQuery byke.Query[struct {

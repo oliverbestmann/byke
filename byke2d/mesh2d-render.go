@@ -11,7 +11,7 @@ import (
 )
 
 func pluginMesh2d(app *byke.App) {
-	app.InsertResource(ExtractedMesh2d{})
+	app.InsertResource(ExtractedMeshes2d{})
 	app.InsertResource(mesh2dInstances{})
 
 	app.AddSystems(Render, byke.System(queueMesh2dSystem).InSet(RenderPhaseQueue))
@@ -21,12 +21,12 @@ func pluginMesh2d(app *byke.App) {
 	app.AddPlugin(PluginMaterial2d[ColorMaterial])
 }
 
-type ExtractedMesh2d struct {
+type ExtractedMeshes2d struct {
 	Meshes []ExtractedMesh
 }
 
 func extractMesh2dSystem[M Material](
-	meshes *ExtractedMesh2d,
+	meshes *ExtractedMeshes2d,
 	meshQuery byke.Query[struct {
 		Mesh         query.Ref[Mesh2d]
 		Transform    GlobalTransform
@@ -53,7 +53,7 @@ func extractMesh2dSystem[M Material](
 }
 
 func clearExtractedMesh2dSystem(
-	meshes *ExtractedMesh2d,
+	meshes *ExtractedMeshes2d,
 ) {
 	clear(meshes.Meshes)
 	meshes.Meshes = meshes.Meshes[:0]
@@ -62,7 +62,7 @@ func clearExtractedMesh2dSystem(
 type mesh2dRenderPhaseItem struct{}
 
 func queueMesh2dSystem(
-	meshes *ExtractedMesh2d,
+	meshes *ExtractedMeshes2d,
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
@@ -83,10 +83,10 @@ func queueMesh2dSystem(
 			}
 
 			key := &MeshKey{
-				Type:            &mesh2dRenderPhaseItem{},
-				MatKey:          sp.Material.Key(),
-				MatType:         reflect.TypeOf(sp.Material),
-				VertexLayoutKey: sp.Mesh.VertexLayout().Key(),
+				Type:      &mesh2dRenderPhaseItem{},
+				MatKey:    sp.Material.BindGroupKey(),
+				MatType:   reflect.TypeOf(sp.Material),
+				LayoutKey: sp.Mesh.VertexLayout().Key(),
 			}
 
 			view.RenderPhase.Append(renderItem, key)
@@ -102,10 +102,10 @@ type mesh2dInstances struct {
 }
 
 type MeshKey struct {
-	Type            any
-	MatType         reflect.Type
-	MatKey          CompareTo
-	VertexLayoutKey VertexLayoutKey
+	Type      any
+	MatType   reflect.Type
+	MatKey    MaterialBindGroupKey
+	LayoutKey VertexLayoutKey
 }
 
 func (m *MeshKey) CompareTo(other any) int {
@@ -116,15 +116,15 @@ func (m *MeshKey) CompareTo(other any) int {
 
 	return cmp.Or(
 		compareByType(m.Type, o.Type),
-		compareByType(m.MatType, o.MatType),
-		cmp.Compare(m.VertexLayoutKey, o.VertexLayoutKey),
-		m.MatKey.CompareTo(o.MatKey),
+		compareType(m.MatType, o.MatType),
+		cmp.Compare(m.LayoutKey, o.LayoutKey),
+		cmp.Compare(m.MatKey.SortValue(), o.MatKey.SortValue()),
 	)
 }
 
 func prepareMesh2dInstances(
 	ctx *RenderContext,
-	meshes *ExtractedMesh2d,
+	meshes *ExtractedMeshes2d,
 	meshInstances *mesh2dInstances,
 	materialUniforms *MaterialUniforms[ColorMaterial],
 	viewsQuery byke.Query[struct {
@@ -198,10 +198,10 @@ func drawMesh2dBatchSystem(
 	viewBindGroup ViewBindGroup,
 	pipelines *PipelineCache,
 	task byke.In[RenderTask],
-	meshes *ExtractedMesh2d,
+	meshes *ExtractedMeshes2d,
 	instances *mesh2dInstances,
 	meshAllocator *MeshAllocator,
-	bindGroupCache *MaterialBindGroups[ColorMaterial],
+	bindGroupCache *MaterialBindGroups,
 	viewQuery ViewQuery[struct {
 		ViewTarget         *ViewTarget
 		ViewUniformsOffset DynamicOffset[ViewUniforms]
@@ -241,7 +241,7 @@ func drawMesh2dBatchSystem(
 
 	pipeline := pipelines.Specialize(pipelineConfig)
 
-	bindGroup, _ := bindGroupCache.Get(mesh.Material)
+	bindGroup := bindGroupCache.MustLookup(mesh.Material)
 
 	pass.SetPipeline(pipeline.Get())
 

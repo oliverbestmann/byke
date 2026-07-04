@@ -48,6 +48,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		HDR{},
 		FirstPersonViewController{},
 		DefaultPerspectiveProjection,
+		TransformFromXYZ(-3.8791254, 2.5908828, 7.1305904),
 	)
 
 	commands.Spawn(
@@ -59,7 +60,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(-5, 3, 10),
+		TransformFromXYZ(-3.8791254, 3.0, 7.13),
 		PointLight{
 			Color:        ColorLinearRGB(100, 100, 100),
 			AttQuadratic: 1,

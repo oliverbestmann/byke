@@ -3,6 +3,7 @@
 struct StandardMaterial {
     color: vec4f,
     emissive_scale: vec3f,
+    double_sided: u32,
 }
 
 @group(2)
@@ -58,18 +59,22 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 }
 
 @fragment
-fn fs_main(param: VertexOutput) -> @location(0) vec4f {
+fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @location(0) vec4f {
+    var vertex = param;
+
+    // ensure normal is normalized
+    vertex.normal = normalize(vertex.normal);
 
 #ifdef MESH3D_COLOR_HAS_NORMAL
     #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
-        var vertex = param;
         vertex.normal = calculate_normal(vertex.normal, vertex.tangent_space, vertex.uv);
-    #else
-        let vertex = param;
     #endif
-#else
-    let vertex = param;
 #endif
+
+    if ! front_facing {
+        // flip normal for double sided lighting
+        vertex.normal = -vertex.normal;
+    }
 
     var out = default_mesh3d_fragment(vertex);
 

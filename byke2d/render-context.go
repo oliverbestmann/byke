@@ -125,9 +125,24 @@ func (rc *RenderContext) Create(desc *wgpu.BindGroupLayoutDescriptor) *wgpu.Bind
 	return rc.wgpuContext.CreateBindGroupLayout(desc)
 }
 
-func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescriptor) *wgpu.CommandEncoder {
+func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescriptor) *CommandEncoder {
 	rc.Metrics.CreateCommandEncoder += 1
-	return rc.wgpuContext.CreateCommandEncoder(desc)
+	return &CommandEncoder{
+		CommandEncoder: rc.wgpuContext.CreateCommandEncoder(desc),
+		metrics:        &rc.Metrics,
+	}
+}
+
+type CommandEncoder struct {
+	*wgpu.CommandEncoder
+	metrics *RenderMetrics
+}
+
+func (c *CommandEncoder) Get(desc *wgpu.RenderPassDescriptor) *TrackedRenderPassEncoder {
+	return &TrackedRenderPassEncoder{
+		RenderPassEncoder: c.BeginRenderPass(desc),
+		Metrics:           c.metrics,
+	}
 }
 
 // Context encapsulates the low level state of the webgpu context,

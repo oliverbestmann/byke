@@ -40,3 +40,11 @@ func ValuesAsValues[A, B any](values []A) []B {
 	bValues := (*B)(unsafe.Pointer(ptr))
 	return unsafe.Slice(bValues, len(values))
 }
+
+func boolToInt(boolValue bool) int {
+	if boolValue {
+		return 1
+	}
+
+	return 0
+}

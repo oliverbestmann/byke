@@ -11,7 +11,8 @@ import (
 var blitShader string
 
 type blitConfig struct {
-	Format wgpu.TextureFormat
+	Format     wgpu.TextureFormat
+	AlphaBlend bool
 }
 
 func (b blitConfig) EqualTo(other PipelineConfig) bool {
@@ -20,6 +21,11 @@ func (b blitConfig) EqualTo(other PipelineConfig) bool {
 
 func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	shader := ctx.Shader("Blit", blitShader, nil)
+
+	var blend = wgpu.BlendStateReplace
+	if b.AlphaBlend {
+		blend = wgpu.BlendStateAlphaBlending
+	}
 
 	return RenderPipelineDescriptor{
 		Label: "Blit",
@@ -37,7 +43,7 @@ func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 			Targets: []wgpu.ColorTargetState{
 				{
 					Format:    b.Format,
-					Blend:     &wgpu.BlendStateReplace,
+					Blend:     &blend,
 					WriteMask: wgpu.ColorWriteMaskAll,
 				},
 			},
@@ -75,7 +81,7 @@ func blitTextureSimple(
 	ctx.Submit(buf)
 }
 
-func blitTexture(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeline, sampler *wgpu.Sampler, sourceView, targetView *wgpu.TextureView) {
+func blitTexture(ctx *RenderContext, enc *CommandEncoder, pipeline Pipeline, sampler *wgpu.Sampler, sourceView, targetView *wgpu.TextureView) {
 	defer puffin.NewScope("byke2d.blitTexture").End()
 
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
@@ -94,7 +100,7 @@ func blitTexture(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeline
 		ColorAttachments: []wgpu.RenderPassColorAttachment{
 			{
 				View:    targetView,
-				LoadOp:  wgpu.LoadOpClear,
+				LoadOp:  wgpu.LoadOpLoad,
 				StoreOp: wgpu.StoreOpStore,
 			},
 		},

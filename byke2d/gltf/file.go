@@ -348,6 +348,9 @@ type Material struct {
 	EmissiveFactor    glm.Vec3f          `json:"emissiveFactor"`
 	NormalTexture     *TextureInfo       `json:"normalTexture"`
 	OcclusionTexture  *TextureInfo       `json:"occlusionTexture"`
+	AlphaMode         string             `json:"alphaMode"`
+	AlphaCutoff       *float32           `json:"alphaCutoff"`
+	DoubleSided       bool               `json:"doubleSided"`
 }
 
 func (m *Material) BaseColor() glm.Vec4f {

@@ -77,16 +77,24 @@ func (r *SortableRenderPhase[M]) IsEmpty() bool {
 type BinnedRenderPhase[M any] struct {
 	byke.Component[BinnedRenderPhase[M]]
 	items map[CompareTo][]RenderItem
-	count int
+	keys  []CompareTo
+}
+
+func (r *BinnedRenderPhase[M]) Optimize() {
+	if r.keys != nil {
+		return
+	}
+
+	r.keys = slices.SortedFunc(maps.Keys(r.items), func(lhs, rhs CompareTo) int {
+		return lhs.CompareTo(rhs)
+	})
 }
 
 //goland:noinspection GoMixedReceiverTypes
 func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPassEncoder) {
-	keys := slices.SortedFunc(maps.Keys(r.items), func(lhs, rhs CompareTo) int {
-		return lhs.CompareTo(rhs)
-	})
+	r.Optimize()
 
-	for _, key := range keys {
+	for _, key := range r.keys {
 		values := r.items[key]
 
 		if len(values) == 0 {
@@ -99,7 +107,7 @@ func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPas
 
 func (r *BinnedRenderPhase[M]) Reset() {
 	clear(r.items)
-	r.count = 0
+	r.keys = nil
 }
 
 func (r *BinnedRenderPhase[M]) Append(item RenderItem, key CompareTo) {
@@ -108,16 +116,14 @@ func (r *BinnedRenderPhase[M]) Append(item RenderItem, key CompareTo) {
 	}
 
 	r.items[key] = append(r.items[key], item)
-	r.count += 1
+	r.keys = nil
 }
 
 func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[CompareTo, []RenderItem] {
 	return func(yield func(CompareTo, []RenderItem) bool) {
-		keys := slices.SortedFunc(maps.Keys(r.items), func(lhs, rhs CompareTo) int {
-			return lhs.CompareTo(rhs)
-		})
+		r.Optimize()
 
-		for _, key := range keys {
+		for _, key := range r.keys {
 			items := r.items[key]
 
 			if len(items) == 0 {
@@ -132,14 +138,13 @@ func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[CompareTo, []RenderItem] {
 }
 
 func (r *BinnedRenderPhase[M]) IsEmpty() bool {
-	return r.count == 0
+	return len(r.items) == 0
 }
 
 type RenderItem struct {
 	Draw Draw
 	Type any
 
-	// e.g. the z value or distance from camera
 	BatchBegin     uint32
 	BatchCount     uint32
 	ExtractedIndex uint32

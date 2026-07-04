@@ -213,7 +213,7 @@ func applyBloomSystem(
 	ctx.Submit(buf)
 }
 
-func bloomDownsample(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeline, source, target *wgpu.TextureView, uniforms *ComponentUniforms[bloomUniforms]) {
+func bloomDownsample(ctx *RenderContext, enc *CommandEncoder, pipeline Pipeline, source, target *wgpu.TextureView, uniforms *ComponentUniforms[bloomUniforms]) {
 	pass, bindGroup := bloomPrepareRenderPass(ctx, enc, pipeline, source, target, uniforms, "Bloom Downsample", wgpu.LoadOpClear)
 	defer bindGroup.Release()
 
@@ -224,7 +224,7 @@ func bloomDownsample(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipe
 	pass.End()
 }
 
-func bloomUpsample(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeline, bloom Bloom, source, target *wgpu.TextureView, uniforms *ComponentUniforms[bloomUniforms], mip, mipCount uint32) {
+func bloomUpsample(ctx *RenderContext, enc *CommandEncoder, pipeline Pipeline, bloom Bloom, source, target *wgpu.TextureView, uniforms *ComponentUniforms[bloomUniforms], mip, mipCount uint32) {
 	pass, bindGroup := bloomPrepareRenderPass(ctx, enc, pipeline, source, target, uniforms, "Bloom Upsample", wgpu.LoadOpLoad)
 	defer bindGroup.Release()
 
@@ -238,7 +238,7 @@ func bloomUpsample(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeli
 	pass.End()
 }
 
-func bloomPrepareRenderPass(ctx *RenderContext, enc *wgpu.CommandEncoder, pipeline Pipeline, source, target *wgpu.TextureView, uniforms *ComponentUniforms[bloomUniforms], label string, loadOp wgpu.LoadOp) (*wgpu.RenderPassEncoder, *wgpu.BindGroup) {
+func bloomPrepareRenderPass(ctx *RenderContext, enc *CommandEncoder, pipeline Pipeline, source, target *wgpu.TextureView, uniforms *ComponentUniforms[bloomUniforms], label string, loadOp wgpu.LoadOp) (*wgpu.RenderPassEncoder, *wgpu.BindGroup) {
 	bloomSampler := ctx.CreateSampler(wgpu.SamplerDescriptor{
 		Label:        "Bloom Sampler",
 		AddressModeU: wgpu.AddressModeClampToEdge,

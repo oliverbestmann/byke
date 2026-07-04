@@ -10,7 +10,7 @@ import (
 )
 
 func pluginMesh3d(app *byke.App) {
-	app.InsertResource(ExtractedMesh3d{})
+	app.InsertResource(ExtractedMeshes3d{})
 	app.InsertResource(mesh3dInstances{})
 	app.InsertResource(MeshBindGroups{})
 	app.InsertResource(skinUniforms{})
@@ -32,12 +32,12 @@ func pluginMesh3d(app *byke.App) {
 	app.AddPlugin(PluginMaterial3d[StandardMaterial])
 }
 
-type ExtractedMesh3d struct {
+type ExtractedMeshes3d struct {
 	Meshes []ExtractedMesh
 }
 
 func extractMesh3dSystem[M Material](
-	meshes *ExtractedMesh3d,
+	meshes *ExtractedMeshes3d,
 	meshQuery byke.Query[struct {
 		EntityId     byke.EntityId
 		Mesh         query.Ref[Mesh3d]
@@ -75,7 +75,7 @@ func extractMesh3dSystem[M Material](
 }
 
 func clearExtractedMesh3dSystem(
-	meshes *ExtractedMesh3d,
+	meshes *ExtractedMeshes3d,
 ) {
 	clear(meshes.Meshes)
 	meshes.Meshes = meshes.Meshes[:0]
@@ -83,10 +83,8 @@ func clearExtractedMesh3dSystem(
 
 type mesh3dRenderPhaseItem struct{}
 
-var drawMesh3dBatchStandardMaterial = drawMesh3dBatch[StandardMaterial]()
-
 func queueMesh3dSystem(
-	meshes *ExtractedMesh3d,
+	meshes *ExtractedMeshes3d,
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		RenderLayers RenderLayers
@@ -102,15 +100,15 @@ func queueMesh3dSystem(
 
 			renderItem := RenderItem{
 				Type:           &mesh3dRenderPhaseItem{},
-				Draw:           drawMesh3dBatchStandardMaterial,
+				Draw:           drawMesh3dBatch,
 				ExtractedIndex: uint32(idx),
 			}
 
 			key := &MeshKey{
-				Type:            &mesh3dRenderPhaseItem{},
-				MatKey:          sp.Material.Key(),
-				MatType:         reflect.TypeOf(sp.Material),
-				VertexLayoutKey: sp.Mesh.VertexLayout().Key(),
+				Type:      &mesh3dRenderPhaseItem{},
+				MatKey:    sp.Material.BindGroupKey(),
+				MatType:   reflect.TypeOf(sp.Material),
+				LayoutKey: sp.Mesh.VertexLayout().Key(),
 			}
 
 			view.RenderPhase.Append(renderItem, key)
@@ -125,9 +123,9 @@ type mesh3dInstances struct {
 	Instances wgsl.InstanceWriter
 }
 
-func prepareMesh3dInstances[M Material](
+func prepareMesh3dInstancesSystem[M Material](
 	ctx *RenderContext,
-	meshes *ExtractedMesh3d,
+	meshes *ExtractedMeshes3d,
 	meshInstances *mesh3dInstances,
 	morphUniforms *morphUniforms,
 	materialUniforms *MaterialUniforms[M],
@@ -172,11 +170,7 @@ func prepareMesh3dInstances[M Material](
 			for _, item := range batch {
 				mesh := &meshes.Meshes[item.ExtractedIndex]
 
-				// write material & store index
-				mesh.Material.WriteUniforms(materialUniforms.Writer.Next())
-				materialIndex := uint32(materialUniforms.Writer.ItemCount)
-
-				// write sprite vertex data
+				// write mesh instance data
 				instances.StartNew(56)
 
 				// transform
@@ -186,7 +180,7 @@ func prepareMesh3dInstances[M Material](
 				instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
 
 				// material index
-				instances.AppendUint(materialIndex)
+				instances.AppendUint(materialUniforms.Indices[mesh.EntityId])
 
 				// reference morph info if available
 				idx, _ := morphUniforms.DescriptorIndex(mesh.EntityId)
@@ -277,7 +271,7 @@ var MeshBindGroupLayout = SequentialLayoutWithLabel("Mesh",
 func prepareMeshBindGroupSystem(
 	ctx *RenderContext,
 	bindGroups *MeshBindGroups,
-	meshes *ExtractedMesh3d,
+	meshes *ExtractedMeshes3d,
 	meshAllocator *MeshAllocator,
 ) {
 	if bindGroups.emptyBindGroup == nil {
@@ -326,28 +320,24 @@ func prepareMeshBindGroupSystem(
 	}
 }
 
-func drawMesh3dBatch[M Material]() Draw {
-	var drawSystem = drawMesh3dBatchSystem[M]
+func drawMesh3dBatch(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
+	world.RunSystemWithInValue(drawMesh3dBatchSystem, RenderTask{
+		Pass: pass,
+		Item: item,
+	})
 
-	return func(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
-		world.RunSystemWithInValue(drawSystem, RenderTask{
-			Pass: pass,
-			Item: item,
-		})
-
-		return true
-	}
+	return true
 }
 
-func drawMesh3dBatchSystem[M Material](
+func drawMesh3dBatchSystem(
 	task byke.In[RenderTask],
 	meshViewBindGroup meshViewBindGroup,
 	meshBindGroups MeshBindGroups,
 	pipelines *PipelineCache,
-	meshes *ExtractedMesh3d,
-	instances *mesh3dInstances,
+	meshes *ExtractedMeshes3d,
+	meshInstances *mesh3dInstances,
 	meshAllocator *MeshAllocator,
-	materialBindGroups *MaterialBindGroups[M],
+	materialBindGroups *MaterialBindGroups,
 	skinUniforms *skinUniforms,
 	morphUniforms *morphUniforms,
 	viewQuery ViewQuery[struct {
@@ -371,23 +361,28 @@ func drawMesh3dBatchSystem[M Material](
 	skinOffset, skinOk := skinUniforms.OffsetOf(mesh.Skin.EntityId)
 	_, morphOk := morphUniforms.DescriptorIndex(mesh.EntityId)
 
-	var layout []wgpu.BindGroupLayoutEntry
-	layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
-	layout = append(layout, mesh.Material.BindingsLayout()...)
+	var materialBindings []wgpu.BindGroupLayoutEntry
+	materialBindings = append(materialBindings, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
+	materialBindings = append(materialBindings, mesh.Material.BindingsLayout()...)
 
 	pipelineConfig := mesh3dPipelineConfig{
 		Format:           view.ViewTarget.Format,
 		SampleCount:      view.ViewTarget.SampleCount,
 		Shader:           mesh.Material.Shader(),
-		MaterialBindings: layout,
+		MaterialBindings: materialBindings,
 		Skinned:          skinOk && mesh.Skin.IsSet(),
 		Morph:            morphOk,
-		VertexLayout:     buf.VertexLayout,
+		VertexLayout:     mesh.Mesh.VertexLayout(),
+
+		// TODO what to do with this, how do we get this?
+		FrontFace:   frontFaceOf(mesh.Material.(StandardMaterial).FrontFace),
+		DoubleSided: mesh.Material.(StandardMaterial).DoubleSided,
 	}
 
 	pipeline := pipelines.Specialize(pipelineConfig)
 
-	materialBindGroup, _ := materialBindGroups.Get(mesh.Material.Key())
+	materialBindGroup := materialBindGroups.MustLookup(mesh.Material)
+
 	meshBindGroup, ok := meshBindGroups.ByMesh(mesh.Mesh)
 	if !ok {
 		panic("mesh bind group is missing")
@@ -400,7 +395,7 @@ func drawMesh3dBatchSystem[M Material](
 	pass.SetBindGroup(2, materialBindGroup, nil)
 
 	// per instance data, like transformation, indices in global buffers, etc
-	pass.SetVertexBuffer(0, instances.Buffer, 0, wgpu.WholeSize)
+	pass.SetVertexBuffer(0, meshInstances.Buffer, 0, wgpu.WholeSize)
 
 	// the per vertex data for the current mesh
 	pass.SetVertexBuffer(1, buf.Vertices, 0, wgpu.WholeSize)
