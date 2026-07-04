@@ -34,7 +34,6 @@ func main() {
 	}
 
 	app.AddPlugin(PluginRender)
-	// app.AddPlugin(PluginDebug)
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.MustRun()
@@ -63,6 +62,13 @@ func setupSystem(commands *Commands, assets *Assets) {
 		TransformFromXYZ(-3.8791254, 3.0, 7.13),
 		PointLight{
 			Color:        ColorLinearRGB(100, 100, 100),
+			AttQuadratic: 1,
+		},
+	)
+	commands.Spawn(
+		TransformFromXYZ(2.6167593, 2.3005552, -4.5687613),
+		PointLight{
+			Color:        ColorLinearRGB(5, 5, 5),
 			AttQuadratic: 1,
 		},
 	)

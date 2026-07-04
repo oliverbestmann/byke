@@ -15,14 +15,17 @@ struct VertexInput {
     @location(2) i_affine_2: vec3f,
     @location(3) i_affine_3: vec3f,
 
+    // base index in the vertex buffer. we need this to offset index
+    @location(4) i_base_vertex: u32,
+
     // index into materials array
-    @location(4) i_material_index: u32,
+    @location(5) i_material_index: u32,
 
     // index in morph info buffer
-    @location(5) i_morph_index: u32,
+    @location(6) i_morph_index: u32,
 
     // vertex position from per-vertex buffer
-    @location(9) v_position: vec3f,
+    @location(7) v_position: vec3f,
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_COLOR
     // vertex color from per-vertex buffer
@@ -125,9 +128,11 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 
     var position_local = in.v_position;
 
+    var vertex_index = in.index - in.i_base_vertex;
+
 #ifdef MORPH
     // morph the position of the position vector before skinning
-    position_local = morph_position(position_local, in.i_morph_index, in.index);
+    position_local = morph_position(position_local, in.i_morph_index, vertex_index);
 #endif
 
     let position_world = world_from_local * vec4f(position_local, 1.0);

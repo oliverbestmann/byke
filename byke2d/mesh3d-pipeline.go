@@ -41,7 +41,7 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 
 	vblInstances := wgpu.VertexBufferLayout{
 		// per instance: model to world transform
-		ArrayStride: 56,
+		ArrayStride: 60,
 		StepMode:    wgpu.VertexStepModeInstance,
 		Attributes: []wgpu.VertexAttribute{
 			// affine [4]vec3f
@@ -49,6 +49,9 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 			instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
 			instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
 			instanceAttrs.Inc(wgpu.VertexFormatFloat32x3),
+
+			// base vertex index
+			instanceAttrs.Inc(wgpu.VertexFormatUint32),
 
 			// material index
 			instanceAttrs.Inc(wgpu.VertexFormatUint32),
@@ -129,9 +132,14 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 }
 
 func frontFaceOf(f wgpu.FrontFace) wgpu.FrontFace {
-	if f == wgpu.FrontFaceCW {
+	switch f {
+	case wgpu.FrontFaceCCW:
+		return wgpu.FrontFaceCW
+
+	case wgpu.FrontFaceCW:
+		return wgpu.FrontFaceCCW
+
+	default:
 		return wgpu.FrontFaceCW
 	}
-
-	return wgpu.FrontFaceCCW
 }

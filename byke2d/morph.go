@@ -78,6 +78,7 @@ func (u *morphUniforms) DescriptorIndex(entityId byke.EntityId) (uint32, bool) {
 func prepareMorphUniformsSystem(
 	ctx *RenderContext,
 	uniforms *morphUniforms,
+	meshAllocator *MeshAllocator,
 	meshes byke.Query[struct {
 		EntityId         byke.EntityId
 		Mesh             Mesh3d
@@ -91,6 +92,15 @@ func prepareMorphUniformsSystem(
 
 	var descriptorIndex uint32
 	for meshItem := range meshes.Items() {
+		bufs, ok := meshAllocator.Get(meshItem.Mesh.Mesh)
+		if !ok {
+			panic("mesh not found")
+		}
+
+		if bufs.MorphAttributes == nil {
+			panic("no morph attributes buffer for mesh")
+		}
+
 		// descriptor offsets
 		uniforms.descOffsets[meshItem.EntityId] = descriptorIndex
 
@@ -98,6 +108,7 @@ func prepareMorphUniformsSystem(
 		uniforms.wDescriptors.AppendUint(uint32(meshItem.Mesh.Mesh.MorphTargetCount()))
 		uniforms.wDescriptors.AppendUint(uint32(meshItem.Mesh.Mesh.VertexCount()))
 		uniforms.wDescriptors.AppendUint(uniforms.wWeights.Offset() / 4)
+		uniforms.wDescriptors.AppendUint(bufs.MorphAttributesIndex)
 
 		// write weights to storage buffer
 		for _, weight := range meshItem.MeshMorphWeights.Weights {

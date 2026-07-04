@@ -11,6 +11,9 @@ struct MorphDescriptor {
 
     // index into the morph_weights buffer
     weights_index: u32,
+
+    // the index into the morphs attributes
+    first_attributes_index: u32,
 }
 
 struct MorphAttributes {
@@ -43,7 +46,7 @@ fn morph_position(pos: vec3f, morph_info_index: u32, vertex_index: u32) -> vec3f
     for (var ta: u32 = 0; ta < info.target_count; ta++) {
         let idx = ta * info.vertex_count + vertex_index;
 
-        let attrs = morph_attributes[idx];
+        let attrs = morph_attributes[info.first_attributes_index + idx];
         let weight = morph_weights[info.weights_index + ta];
 
         result += attrs.position * weight;

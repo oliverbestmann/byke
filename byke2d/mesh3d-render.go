@@ -19,7 +19,10 @@ func pluginMesh3d(app *byke.App) {
 	app.AddSystems(Render, byke.System(queueMesh3dSystem).InSet(RenderPhaseQueue))
 
 	app.AddSystems(Render, byke.System(prepareSkinsUniformsSystem).InSet(RenderPhasePrepareResources))
-	app.AddSystems(Render, byke.System(prepareMorphUniformsSystem).InSet(RenderPhasePrepareResources))
+
+	app.AddSystems(Render, byke.System(prepareMorphUniformsSystem).
+		After(prepareMesh3dBuffers).
+		InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.System(prepareMeshViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
 	app.AddSystems(Render, byke.System(prepareMeshBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
@@ -127,6 +130,7 @@ func prepareMesh3dInstancesSystem[M Material](
 	ctx *RenderContext,
 	meshes *ExtractedMeshes3d,
 	meshInstances *mesh3dInstances,
+	meshAllocator *MeshAllocator,
 	morphUniforms *morphUniforms,
 	materialUniforms *MaterialUniforms[M],
 	viewsQuery byke.Query[struct {
@@ -170,14 +174,22 @@ func prepareMesh3dInstancesSystem[M Material](
 			for _, item := range batch {
 				mesh := &meshes.Meshes[item.ExtractedIndex]
 
+				bufs, ok := meshAllocator.Get(mesh.Mesh)
+				if !ok {
+					panic("mesh not found")
+				}
+
 				// write mesh instance data
-				instances.StartNew(56)
+				instances.StartNew(60)
 
 				// transform
 				instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
 				instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
 				instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
 				instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
+
+				// initial vertex position
+				instances.AppendUint(bufs.FirstVertex)
 
 				// material index
 				instances.AppendUint(materialUniforms.Indices[mesh.EntityId])
@@ -301,10 +313,7 @@ func prepareMeshBindGroupSystem(
 			continue
 		}
 
-		_ = buf
-		// TODO fix morph targets here
-		var morphAttributes *wgpu.Buffer = nil // := buf.MorphAttributes
-		if morphAttributes == nil {
+		if buf.MorphAttributes == nil {
 			bindGroups.groups.Add(mesh.Mesh, bindGroups.emptyBindGroup)
 			continue
 		}
@@ -314,7 +323,7 @@ func prepareMeshBindGroupSystem(
 			Label:  "Mesh",
 			Layout: ctx.CreateBindGroupLayout(MeshBindGroupLayout),
 			Entries: Sequential(
-				BindingBuffer(morphAttributes),
+				BindingBuffer(buf.MorphAttributes),
 			),
 		}))
 	}

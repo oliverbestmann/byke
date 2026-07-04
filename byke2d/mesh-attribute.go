@@ -24,55 +24,55 @@ func (v *VertexAttribute) Size() uint32 {
 var VertexAttributePosition = VertexAttribute{
 	Name:     "Position",
 	Format:   wgpu.VertexFormatFloat32x3,
-	Location: 9,
+	Location: 7,
 }
 
 var VertexAttributeColor = VertexAttribute{
 	Name:     "Color",
 	Format:   wgpu.VertexFormatFloat32x4,
-	Location: 10,
+	Location: 8,
 }
 
 var VertexAttributeUV = VertexAttribute{
 	Name:     "UV",
 	Format:   wgpu.VertexFormatFloat32x2,
-	Location: 11,
+	Location: 9,
 }
 
 var VertexAttributeUV1 = VertexAttribute{
 	Name:     "UV1",
 	Format:   wgpu.VertexFormatFloat32x2,
-	Location: 12,
+	Location: 10,
 }
 
 var VertexAttributeUV2 = VertexAttribute{
 	Name:     "UV2",
 	Format:   wgpu.VertexFormatFloat32x2,
-	Location: 13,
+	Location: 11,
 }
 
 var VertexAttributeNormal = VertexAttribute{
 	Name:     "Normal",
 	Format:   wgpu.VertexFormatFloat32x3,
-	Location: 14,
+	Location: 12,
 }
 
 var VertexAttributeTangentSpace = VertexAttribute{
 	Name:     "TangentSpace",
 	Format:   wgpu.VertexFormatFloat32x4,
-	Location: 15,
+	Location: 13,
 }
 
 var VertexAttributeJoints = VertexAttribute{
 	Name:     "Joints",
 	Format:   wgpu.VertexFormatUint16x4,
-	Location: 16,
+	Location: 14,
 }
 
 var VertexAttributeJointWeights = VertexAttribute{
 	Name:     "JointWeights",
 	Format:   wgpu.VertexFormatFloat32x4,
-	Location: 17,
+	Location: 15,
 }
 
 type VertexAttributeValue struct {
