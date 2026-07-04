@@ -61,8 +61,12 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(param: VertexOutput) -> @location(0) vec4f {
 
 #ifdef MESH3D_COLOR_HAS_NORMAL
-    var vertex = param;
-    vertex.normal = calculate_normal(vertex.normal, vertex.tangent_space, vertex.uv);
+    #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
+        var vertex = param;
+        vertex.normal = calculate_normal(vertex.normal, vertex.tangent_space, vertex.uv);
+    #else
+        let vertex = param;
+    #endif
 #else
     let vertex = param;
 #endif

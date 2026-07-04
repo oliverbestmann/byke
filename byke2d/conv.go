@@ -28,7 +28,7 @@ func ByteSliceAsValues[T any](bytes []byte) []T {
 	return unsafe.Slice(values, uintptr(len(bytes))/unsafe.Sizeof(tZero))
 }
 
-func ValuesToValues[A, B any](values []A) []B {
+func ValuesAsValues[A, B any](values []A) []B {
 	var aZero A
 	var bZero B
 

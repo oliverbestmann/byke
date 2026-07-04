@@ -262,11 +262,9 @@ func (m *Mesh) ComputeTangents() {
 		return
 	}
 
-	// TODO need to unmerge vertices first
-
 	tangents := make([]glm.Vec4f, len(m.Vertices()))
 
-	mikktspace.GenerateTangents(meshGeometry{
+	mikktspace.GenerateTangents(meshMikktspaceAdapter{
 		Indices:  m.indices,
 		Vertices: m.Vertices(),
 		Normals:  ByteSliceAsValues[glm.Vec3f](normalsAttrs.Value),
@@ -274,7 +272,7 @@ func (m *Mesh) ComputeTangents() {
 		Tangents: tangents,
 	})
 
-	m.WithAttributes(VertexAttributeTangentSpace, wgpu.ToBytes(tangents))
+	m.WithAttributes(VertexAttributeTangentSpace, ValuesAsByteSlice(tangents))
 }
 
 func (m *Mesh) updateVertexLayout() {
@@ -432,5 +430,5 @@ func Polygon(polygon []glm.Vec2f, holes ...[]glm.Vec2f) *Mesh {
 }
 
 func castVecsToEarcutPoints(vecs []glm.Vec2f) []earcut.Point[float32] {
-	return ValuesToValues[glm.Vec2f, earcut.Point[float32]](vecs)
+	return ValuesAsValues[glm.Vec2f, earcut.Point[float32]](vecs)
 }
