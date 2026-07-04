@@ -21,7 +21,7 @@ func init() {
 func main() {
 	var app App
 
-	app.AddPlugin(RenderPlugin)
+	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Startup, setupSystem)
 	app.MustRun()

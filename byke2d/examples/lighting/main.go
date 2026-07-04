@@ -33,7 +33,8 @@ func main() {
 		defer profile.Start(profile.CPUProfile).Stop()
 	}
 
-	app.AddPlugin(RenderPlugin)
+	app.AddPlugin(PluginRender)
+	// app.AddPlugin(PluginDebug)
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.MustRun()

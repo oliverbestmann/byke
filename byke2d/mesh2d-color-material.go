@@ -73,6 +73,19 @@ func (m ColorMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendVec4f(m.Tint.ToVec())
 }
 
-func (m ColorMaterial) Key() any {
-	return m.Texture
+func (m ColorMaterial) Key() CompareTo {
+	return colorMaterialKey{Texture: m.Texture}
+}
+
+type colorMaterialKey struct {
+	Texture *Texture
+}
+
+func (c colorMaterialKey) CompareTo(other any) int {
+	o, ok := other.(colorMaterialKey)
+	if !ok {
+		return compareByType(c, other)
+	}
+
+	return compareByAddress(c.Texture, o.Texture)
 }

@@ -50,7 +50,7 @@ func main() {
 
 	app.InitState(StateType[GameState]{InitialValue: GameStatePlaying})
 
-	app.AddPlugin(RenderPlugin)
+	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Startup, setupSystem)
 

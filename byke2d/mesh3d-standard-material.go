@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"cmp"
 	_ "embed"
 
 	"github.com/oliverbestmann/byke"
@@ -42,14 +43,8 @@ type StandardMaterial struct {
 	NormalTexture *Texture
 }
 
-func (m StandardMaterial) Key() any {
-	type Key struct {
-		Texture         *Texture
-		EmissiveTexture *Texture
-		NormalTexture   *Texture
-	}
-
-	return Key{
+func (m StandardMaterial) Key() CompareTo {
+	return standardMaterialKey{
 		Texture:         m.Texture,
 		EmissiveTexture: m.EmissiveTexture,
 		NormalTexture:   m.NormalTexture,
@@ -142,4 +137,23 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendVec4f(m.Tint.ToVec())
 	w.AppendVec3f(m.EmissiveScale)
+}
+
+type standardMaterialKey struct {
+	Texture         *Texture
+	EmissiveTexture *Texture
+	NormalTexture   *Texture
+}
+
+func (s standardMaterialKey) CompareTo(other any) int {
+	o, ok := other.(standardMaterialKey)
+	if !ok {
+		return compareByType(s, other)
+	}
+
+	return cmp.Or(
+		compareByAddress(s.Texture, o.Texture),
+		compareByAddress(s.EmissiveTexture, o.EmissiveTexture),
+		compareByAddress(s.NormalTexture, o.NormalTexture),
+	)
 }

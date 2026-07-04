@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"slices"
 	"unsafe"
 
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -8,7 +9,7 @@ import (
 
 type trackedBindGroup struct {
 	Group          *wgpu.BindGroup
-	DynamicOffsets trackedSlice
+	DynamicOffsets []uint32
 }
 
 type trackedVertexBuffer struct {
@@ -36,6 +37,7 @@ type trackedSlice struct {
 
 type TrackedRenderPassEncoder struct {
 	*wgpu.RenderPassEncoder
+	Metrics *RenderMetrics
 
 	pipeline *wgpu.RenderPipeline
 
@@ -49,19 +51,20 @@ type TrackedRenderPassEncoder struct {
 }
 
 func (t *TrackedRenderPassEncoder) SetBindGroup(groupIndex uint32, group *wgpu.BindGroup, dynamicOffsets []uint32) {
-	bindGroup := trackedBindGroup{
-		Group:          group,
-		DynamicOffsets: toTrackedSlice(dynamicOffsets),
-	}
-
-	if t.bindGroups[groupIndex] == bindGroup {
+	active := t.bindGroups[groupIndex]
+	if active.Group == group && slices.Equal(active.DynamicOffsets, dynamicOffsets) {
 		return
 	}
 
 	ensureMapIsInitialized(&t.bindGroups)
 
-	t.bindGroups[groupIndex] = bindGroup
+	t.bindGroups[groupIndex] = trackedBindGroup{
+		Group:          group,
+		DynamicOffsets: dynamicOffsets,
+	}
+
 	t.RenderPassEncoder.SetBindGroup(groupIndex, group, dynamicOffsets)
+	t.Metrics.SetBindGroup += 1
 }
 
 func (t *TrackedRenderPassEncoder) SetBlendConstant(color *wgpu.Color) {
@@ -71,6 +74,7 @@ func (t *TrackedRenderPassEncoder) SetBlendConstant(color *wgpu.Color) {
 
 	t.blendColor = color
 	t.RenderPassEncoder.SetBlendConstant(color)
+	t.Metrics.SetBlendConstant += 1
 }
 
 func (t *TrackedRenderPassEncoder) SetImmediates(offset uint32, data []byte) {
@@ -85,6 +89,17 @@ func (t *TrackedRenderPassEncoder) SetImmediates(offset uint32, data []byte) {
 
 	t.immediates = immediates
 	t.RenderPassEncoder.SetImmediates(offset, data)
+	t.Metrics.SetImmediates += 1
+}
+
+func (t *TrackedRenderPassEncoder) SetPipeline(pipeline *wgpu.RenderPipeline) {
+	if t.pipeline == pipeline {
+		return
+	}
+
+	t.pipeline = pipeline
+	t.RenderPassEncoder.SetPipeline(pipeline)
+	t.Metrics.SetPipeline += 1
 }
 
 func (t *TrackedRenderPassEncoder) SetIndexBuffer(buffer *wgpu.Buffer, format wgpu.IndexFormat, offset, size uint64) {
@@ -101,15 +116,7 @@ func (t *TrackedRenderPassEncoder) SetIndexBuffer(buffer *wgpu.Buffer, format wg
 
 	t.indexBuffer = indexBuffer
 	t.RenderPassEncoder.SetIndexBuffer(buffer, format, offset, size)
-}
-
-func (t *TrackedRenderPassEncoder) SetPipeline(pipeline *wgpu.RenderPipeline) {
-	if t.pipeline == pipeline {
-		return
-	}
-
-	t.pipeline = pipeline
-	t.RenderPassEncoder.SetPipeline(pipeline)
+	t.Metrics.SetIndexBuffer += 1
 }
 
 func (t *TrackedRenderPassEncoder) SetVertexBuffer(slot uint32, buffer *wgpu.Buffer, offset, size uint64) {
@@ -127,6 +134,12 @@ func (t *TrackedRenderPassEncoder) SetVertexBuffer(slot uint32, buffer *wgpu.Buf
 
 	t.vertexBuffers[slot] = vertexBuffer
 	t.RenderPassEncoder.SetVertexBuffer(slot, buffer, offset, size)
+	t.Metrics.SetVertexBuffer += 1
+}
+
+func (t *TrackedRenderPassEncoder) DrawIndexed(indexCount, instanceCount, firstIndex uint32, baseVertex int32, firstInstance uint32) {
+	t.RenderPassEncoder.DrawIndexed(indexCount, instanceCount, firstIndex, baseVertex, firstInstance)
+	t.Metrics.DrawIndexed += 1
 }
 
 func ensureMapIsInitialized[K comparable, V any](m *map[K]V) {

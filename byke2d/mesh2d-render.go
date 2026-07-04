@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"cmp"
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
@@ -81,11 +82,11 @@ func queueMesh2dSystem(
 				ExtractedIndex: uint32(idx),
 			}
 
-			key := MeshKey{
-				Type:    &mesh2dRenderPhaseItem{},
-				MatKey:  sp.Material.Key(),
-				MatType: reflect.TypeOf(sp.Material),
-				Mesh:    sp.Mesh,
+			key := &MeshKey{
+				Type:            &mesh2dRenderPhaseItem{},
+				MatKey:          sp.Material.Key(),
+				MatType:         reflect.TypeOf(sp.Material),
+				VertexLayoutKey: sp.Mesh.VertexLayout().Key(),
 			}
 
 			view.RenderPhase.Append(renderItem, key)
@@ -101,10 +102,24 @@ type mesh2dInstances struct {
 }
 
 type MeshKey struct {
-	Type    any
-	MatKey  any
-	MatType reflect.Type
-	Mesh    *Mesh
+	Type            any
+	MatType         reflect.Type
+	MatKey          CompareTo
+	VertexLayoutKey VertexLayoutKey
+}
+
+func (m *MeshKey) CompareTo(other any) int {
+	o, ok := other.(*MeshKey)
+	if !ok {
+		return compareByType(m, other)
+	}
+
+	return cmp.Or(
+		compareByType(m.Type, o.Type),
+		compareByType(m.MatType, o.MatType),
+		cmp.Compare(m.VertexLayoutKey, o.VertexLayoutKey),
+		m.MatKey.CompareTo(o.MatKey),
+	)
 }
 
 func prepareMesh2dInstances(
@@ -130,7 +145,7 @@ func prepareMesh2dInstances(
 				continue
 			}
 
-			key, ok := key.(MeshKey)
+			key, ok := key.(*MeshKey)
 			if !ok {
 				continue
 			}

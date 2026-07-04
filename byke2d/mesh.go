@@ -22,6 +22,9 @@ type Mesh struct {
 	// Additional vertex attributes
 	attributes VertexAttributes
 
+	// The vertex layout
+	layout VertexLayout
+
 	// a mesh can contain multiple morph targets
 	morphTargets [][]MorphAttributes
 
@@ -34,6 +37,7 @@ func MeshOf(indices []uint32, vertices []glm.Vec3f) *Mesh {
 
 	mesh := &Mesh{indices: indices, version: 1}
 	mesh.attributes.Insert(VertexAttributePosition, data)
+	mesh.updateVertexLayout()
 	return mesh
 }
 
@@ -50,6 +54,7 @@ func (m *Mesh) WithAttributes(attr VertexAttribute, values []byte) *Mesh {
 
 	m.version += 1
 	m.attributes.Insert(attr, values)
+	m.updateVertexLayout()
 	return m
 }
 
@@ -193,6 +198,7 @@ func (m *Mesh) MergeVertices() bool {
 
 	data := ValuesAsByteSlice(newVertices)
 	m.attributes.Insert(VertexAttributePosition, data)
+	m.updateVertexLayout()
 
 	m.indices = newIndices
 	m.version += 1
@@ -271,13 +277,17 @@ func (m *Mesh) ComputeTangents() {
 	m.WithAttributes(VertexAttributeTangentSpace, wgpu.ToBytes(tangents))
 }
 
-func (m *Mesh) VertexLayout() VertexLayout {
+func (m *Mesh) updateVertexLayout() {
 	var attrs []VertexAttribute
 	for _, attr := range m.attributes.Values() {
 		attrs = append(attrs, attr.Attribute)
 	}
 
-	return NewVertexLayout(attrs)
+	m.layout = NewVertexLayout(attrs)
+}
+
+func (m *Mesh) VertexLayout() VertexLayout {
+	return m.layout
 }
 
 func (m *Mesh) WriteVerticesTo(buf []byte) ([]byte, VertexLayout) {

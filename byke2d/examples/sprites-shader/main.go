@@ -35,7 +35,7 @@ func main() {
 	// configure assets before loading the plugin
 	app.InsertResource(MakeAssetFS(assets))
 
-	app.AddPlugin(RenderPlugin)
+	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)

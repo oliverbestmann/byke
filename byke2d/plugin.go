@@ -49,7 +49,7 @@ var (
 	Core2dBlit           = &byke.SystemSet{Name: "Core2dBlit"}
 )
 
-func RenderPlugin(app *byke.App) {
+func PluginRender(app *byke.App) {
 	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
 	if !ok {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
@@ -291,8 +291,6 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	ctx, _ := byke.ResourceOf[RenderContext](world)
 	win, _ := byke.ResourceOf[PrimaryWindow](world)
 
-	ctx.Metrics.reset()
-
 	surfaceWidth, surfaceHeight := win.window.GetSize()
 	ensureSurfaceConfigured(ctx, world, surfaceWidth, surfaceHeight)
 
@@ -306,8 +304,6 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	if exit, ok := byke.ResourceOf[appExitState](world); ok {
 		return exit.Error
 	}
-
-	// slog.Info("Render metrics", slog.Any("metrics", ctx.Metrics))
 
 	return nil
 }

@@ -120,23 +120,36 @@ func (v *VertexAttributes) Has(name VertexAttribute) bool {
 	return false
 }
 
-type VertexLayout struct {
-	Attributes []VertexAttribute
-}
-
 var seed = maphash.MakeSeed()
 
 type VertexLayoutKey uint64
 
-func (v VertexLayout) Key() VertexLayoutKey {
+type VertexLayout struct {
+	Attributes []VertexAttribute
+	key        VertexLayoutKey
+}
+
+func NewVertexLayout(attrs []VertexAttribute) VertexLayout {
+	compare := func(lhs, rhs VertexAttribute) int {
+		return int(lhs.Location) - int(rhs.Location)
+	}
+
+	sortedAttributes := slices.SortedFunc(slices.Values(attrs), compare)
+
 	var h maphash.Hash
 	h.SetSeed(seed)
-
-	for _, attr := range v.Attributes {
+	for _, attr := range sortedAttributes {
 		maphash.WriteComparable(&h, attr)
 	}
 
-	return VertexLayoutKey(h.Sum64())
+	return VertexLayout{
+		Attributes: sortedAttributes,
+		key:        VertexLayoutKey(h.Sum64()),
+	}
+}
+
+func (v VertexLayout) Key() VertexLayoutKey {
+	return v.key
 }
 
 func (v VertexLayout) Size() (size uint32) {
@@ -149,14 +162,4 @@ func (v VertexLayout) Size() (size uint32) {
 
 func (v VertexLayout) EqualTo(other VertexLayout) bool {
 	return slices.Equal(v.Attributes, other.Attributes)
-}
-
-func NewVertexLayout(attrs []VertexAttribute) VertexLayout {
-	compare := func(lhs, rhs VertexAttribute) int {
-		return int(lhs.Location) - int(rhs.Location)
-	}
-
-	sortedAttributes := slices.SortedFunc(slices.Values(attrs), compare)
-
-	return VertexLayout{Attributes: sortedAttributes}
 }

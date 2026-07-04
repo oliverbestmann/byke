@@ -35,7 +35,7 @@ func main() {
 		defer profile.Start(profile.CPUProfile).Stop()
 	}
 
-	app.AddPlugin(RenderPlugin)
+	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, moveCameraSystem)

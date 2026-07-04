@@ -36,7 +36,7 @@ func main() {
 	app.InsertResource(MakeAssetFS(assets))
 	app.InsertResource(fpsCounter{})
 
-	app.AddPlugin(RenderPlugin)
+	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)

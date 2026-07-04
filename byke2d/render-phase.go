@@ -2,6 +2,8 @@ package byke2d
 
 import (
 	"iter"
+	"maps"
+	"slices"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/radix"
@@ -74,13 +76,19 @@ func (r *SortableRenderPhase[M]) IsEmpty() bool {
 
 type BinnedRenderPhase[M any] struct {
 	byke.Component[BinnedRenderPhase[M]]
-	items map[any][]RenderItem
+	items map[CompareTo][]RenderItem
 	count int
 }
 
 //goland:noinspection GoMixedReceiverTypes
 func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPassEncoder) {
-	for _, values := range r.items {
+	keys := slices.SortedFunc(maps.Keys(r.items), func(lhs, rhs CompareTo) int {
+		return lhs.CompareTo(rhs)
+	})
+
+	for _, key := range keys {
+		values := r.items[key]
+
 		if len(values) == 0 {
 			continue
 		}
@@ -90,26 +98,28 @@ func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPas
 }
 
 func (r *BinnedRenderPhase[M]) Reset() {
-	for key, value := range r.items {
-		clear(value)
-		r.items[key] = value[:0]
-	}
-
+	clear(r.items)
 	r.count = 0
 }
 
-func (r *BinnedRenderPhase[M]) Append(item RenderItem, key any) {
+func (r *BinnedRenderPhase[M]) Append(item RenderItem, key CompareTo) {
 	if r.items == nil {
-		r.items = map[any][]RenderItem{}
+		r.items = map[CompareTo][]RenderItem{}
 	}
 
 	r.items[key] = append(r.items[key], item)
 	r.count += 1
 }
 
-func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[any, []RenderItem] {
-	return func(yield func(any, []RenderItem) bool) {
-		for key, items := range r.items {
+func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[CompareTo, []RenderItem] {
+	return func(yield func(CompareTo, []RenderItem) bool) {
+		keys := slices.SortedFunc(maps.Keys(r.items), func(lhs, rhs CompareTo) int {
+			return lhs.CompareTo(rhs)
+		})
+
+		for _, key := range keys {
+			items := r.items[key]
+
 			if len(items) == 0 {
 				continue
 			}
@@ -163,8 +173,10 @@ func dispatchTransparentRenderSystem(
 	})
 	defer pass.Release()
 
-	tracked := &TrackedRenderPassEncoder{RenderPassEncoder: pass}
-	view.Phase.Dispatch(world, tracked)
+	view.Phase.Dispatch(world, &TrackedRenderPassEncoder{
+		RenderPassEncoder: pass,
+		Metrics:           &ctx.Metrics,
+	})
 
 	pass.End()
 
@@ -198,9 +210,10 @@ func dispatchOpaqueRenderSystem(
 	})
 	defer pass.Release()
 
-	tracked := &TrackedRenderPassEncoder{RenderPassEncoder: pass}
-
-	view.Phase.Dispatch(world, tracked)
+	view.Phase.Dispatch(world, &TrackedRenderPassEncoder{
+		RenderPassEncoder: pass,
+		Metrics:           &ctx.Metrics,
+	})
 
 	pass.End()
 

@@ -13,7 +13,7 @@ type Material interface {
 	BindingsLayout() []wgpu.BindGroupLayoutEntry
 	Bindings() []wgpu.BindGroupEntry
 	WriteUniforms(w *wgsl.StructWriter)
-	Key() any
+	Key() CompareTo
 }
 
 func PluginMaterial2d[M Material](app *byke.App) {

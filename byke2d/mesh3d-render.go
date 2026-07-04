@@ -106,11 +106,11 @@ func queueMesh3dSystem(
 				ExtractedIndex: uint32(idx),
 			}
 
-			key := MeshKey{
-				Type:    &mesh3dRenderPhaseItem{},
-				MatKey:  sp.Material.Key(),
-				MatType: reflect.TypeOf(sp.Material),
-				Mesh:    sp.Mesh,
+			key := &MeshKey{
+				Type:            &mesh3dRenderPhaseItem{},
+				MatKey:          sp.Material.Key(),
+				MatType:         reflect.TypeOf(sp.Material),
+				VertexLayoutKey: sp.Mesh.VertexLayout().Key(),
 			}
 
 			view.RenderPhase.Append(renderItem, key)
@@ -149,7 +149,7 @@ func prepareMesh3dInstances[M Material](
 				continue
 			}
 
-			key, ok := key.(MeshKey)
+			key, ok := key.(*MeshKey)
 			if !ok {
 				continue
 			}
@@ -261,8 +261,8 @@ func prepareMeshViewBindGroupSystem(
 // specific data, such as the morph attribute data
 type MeshBindGroups struct {
 	// has dynamic offset configured for the start of the joints array
-	groups   tickCache[*Mesh, *wgpu.BindGroup]
-	emptyBuf *wgpu.Buffer
+	groups         tickCache[*Mesh, *wgpu.BindGroup]
+	emptyBindGroup *wgpu.BindGroup
 }
 
 func (m *MeshBindGroups) ByMesh(mesh *Mesh) (*wgpu.BindGroup, bool) {
@@ -280,11 +280,19 @@ func prepareMeshBindGroupSystem(
 	meshes *ExtractedMesh3d,
 	meshAllocator *MeshAllocator,
 ) {
-	if bindGroups.emptyBuf == nil {
-		bindGroups.emptyBuf = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+	if bindGroups.emptyBindGroup == nil {
+		emptyBuf := ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
 			Label:    "empty",
 			Contents: []byte{0, 0, 0, 0},
 			Usage:    wgpu.BufferUsageStorage | wgpu.BufferUsageUniform,
+		})
+
+		bindGroups.emptyBindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+			Label:  "Mesh",
+			Layout: ctx.CreateBindGroupLayout(MeshBindGroupLayout),
+			Entries: Sequential(
+				BindingBuffer(emptyBuf),
+			),
 		})
 	}
 
@@ -303,7 +311,8 @@ func prepareMeshBindGroupSystem(
 		// TODO fix morph targets here
 		var morphAttributes *wgpu.Buffer = nil // := buf.MorphAttributes
 		if morphAttributes == nil {
-			morphAttributes = bindGroups.emptyBuf
+			bindGroups.groups.Add(mesh.Mesh, bindGroups.emptyBindGroup)
+			continue
 		}
 
 		// create and cache new bind group for this mesh
