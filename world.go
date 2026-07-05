@@ -428,6 +428,25 @@ func (w *World) RemoveResource(resourceType reflect.Type) {
 	delete(w.resources, resType)
 }
 
+func (w *World) ResourceOf[T any]() (*T, bool) {
+	value, ok := w.Resource(reflect.TypeFor[T]())
+	if !ok {
+		return nil, false
+	}
+
+	return value.(*T), true
+}
+
+func (w *World) RequireResourceOf[T any]() *T {
+	res, ok := w.ResourceOf[T]()
+	if !ok {
+		var tZero T
+		panic(fmt.Errorf("resource of type %T not found", tZero))
+	}
+
+	return res
+}
+
 // Despawn recursively despawns the given entity following Children relations.
 func (w *World) Despawn(entityId EntityId) {
 	queue := []EntityId{entityId}
@@ -478,23 +497,12 @@ func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
 
 // ResourceOf is a typed version of World.Resource.
 func ResourceOf[T any](w *World) (*T, bool) {
-	value, ok := w.Resource(reflect.TypeFor[T]())
-	if !ok {
-		return nil, false
-	}
-
-	return value.(*T), true
+	return w.ResourceOf[T]()
 }
 
 // RequireResourceOf calls ResourceOf and panics, if the resource does not exist.
 func RequireResourceOf[T any](w *World) *T {
-	res, ok := ResourceOf[T](w)
-	if !ok {
-		var tZero T
-		panic(fmt.Errorf("resource of type %T not found", tZero))
-	}
-
-	return res
+	return w.RequireResourceOf[T]()
 }
 
 func (w *World) flushCommands() {

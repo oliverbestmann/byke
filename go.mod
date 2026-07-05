@@ -1,6 +1,6 @@
 module github.com/oliverbestmann/byke
 
-go 1.26.3
+go 1.27
 
 require (
 	github.com/ebitengine/oto/v3 v3.4.0
