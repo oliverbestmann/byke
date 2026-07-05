@@ -85,7 +85,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	circle.WithAttributes(VertexAttributeColor, wgpu.ToBytes(colors))
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		// circle should be batched
 		commands.Spawn(
 			TransformFromXYZ(24, float32(-32*i), -0.1).WithScaleXY(0.5, 0.5),

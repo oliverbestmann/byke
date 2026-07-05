@@ -74,7 +74,7 @@ func (w *MessageWriter[E]) Write(message E) {
 }
 
 func (*MessageWriter[E]) newState(world *World, _ messageWriterT) SystemParamState {
-	messages, ok := ResourceOf[Messages[E]](world)
+	messages, ok := world.ResourceOf[Messages[E]]()
 	if !ok {
 		var eZero E
 		panic(fmt.Sprintf("message type %T not registered", eZero))
@@ -140,7 +140,7 @@ func (r *MessageReader[E]) Read() []E {
 }
 
 func (r *MessageReader[E]) newState(world *World, _ messageReaderT) SystemParamState {
-	messages, ok := ResourceOf[Messages[E]](world)
+	messages, ok := world.ResourceOf[Messages[E]]()
 	if !ok {
 		var eZero E
 		panic(fmt.Sprintf("message %T not registered", eZero))

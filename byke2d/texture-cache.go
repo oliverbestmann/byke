@@ -15,7 +15,7 @@ type TextureCache struct {
 }
 
 func TextureCacheFromWorld(world *byke.World) TextureCache {
-	renderContext := byke.RequireResourceOf[RenderContext](world)
+	renderContext := world.RequireResourceOf[RenderContext]()
 	return TextureCache{Context: renderContext}
 }
 

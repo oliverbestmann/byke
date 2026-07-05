@@ -87,8 +87,8 @@ func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
 //goland:noinspection GoMixedReceiverTypes
 func PipelineCacheFromWorld(world *byke.World) PipelineCache {
 	return PipelineCache{
-		ctx:         byke.RequireResourceOf[RenderContext](world),
-		preCompiler: byke.RequireResourceOf[pre.Compiler](world),
+		ctx:         world.RequireResourceOf[RenderContext](),
+		preCompiler: world.RequireResourceOf[pre.Compiler](),
 	}
 }
 

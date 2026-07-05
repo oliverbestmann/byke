@@ -22,8 +22,8 @@ func ComponentTypeOf(ty reflect.Type) *spoke.ComponentType {
 
 func IterFields(ty reflect.Type) iter.Seq[reflect.StructField] {
 	return func(yield func(reflect.StructField) bool) {
-		for idx := range ty.NumField() {
-			if !yield(ty.Field(idx)) {
+		for field := range ty.Fields() {
+			if !yield(field) {
 				return
 			}
 		}

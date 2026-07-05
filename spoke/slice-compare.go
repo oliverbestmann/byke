@@ -8,7 +8,7 @@ import (
 const noOffset = math.MaxUint64
 
 func sliceCompareSlow(lhs, rhs unsafe.Pointer, n uintptr) uintptr {
-	for idx := uintptr(0); idx < n; idx++ {
+	for idx := range n {
 		a := *(*byte)(unsafe.Add(lhs, idx))
 		b := *(*byte)(unsafe.Add(rhs, idx))
 		if a != b {

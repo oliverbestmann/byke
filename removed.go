@@ -22,23 +22,23 @@ func (c RemovedComponents[C]) Read() iter.Seq[EntityId] {
 }
 
 func removedComponentsAddToWorld[C IsComponent[C]](w *World) *Messages[removedComponentEvent[C]] {
-	if events, exists := ResourceOf[Messages[removedComponentEvent[C]]](w); exists {
+	if events, exists := w.ResourceOf[Messages[removedComponentEvent[C]]](); exists {
 		return events
 	}
 
-	registry, ok := ResourceOf[removedComponentsRegistry](w)
+	registry, ok := w.ResourceOf[removedComponentsRegistry]()
 	if !ok {
 		w.InsertResource(removedComponentsRegistry{
 			byComponentType: map[*spoke.ComponentType]func(EntityId){},
 		})
 
-		registry, _ = ResourceOf[removedComponentsRegistry](w)
+		registry, _ = w.ResourceOf[removedComponentsRegistry]()
 	}
 
 	w.InsertResource(Messages[removedComponentEvent[C]]{})
 	w.AddSystems(Last, updateMessagesSystem[removedComponentEvent[C]])
 
-	events, _ := ResourceOf[Messages[removedComponentEvent[C]]](w)
+	events, _ := w.ResourceOf[Messages[removedComponentEvent[C]]]()
 
 	componentType := spoke.ComponentTypeOf[C]()
 

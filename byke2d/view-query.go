@@ -37,7 +37,7 @@ func (v ViewQuery[T]) newState(world *byke.World, _ viewQueryT) byke.SystemParam
 		extractValue: func(q reflect.Value) (reflect.Value, error) {
 			viewQuery := q.Addr().Interface().(*byke.Query[QueryValues[T]])
 
-			currentView, ok := byke.ResourceOf[CurrentView](world)
+			currentView, ok := world.ResourceOf[CurrentView]()
 			if !ok {
 				// no current view, skipping this system
 				return reflect.Value{}, byke.ErrSkipSystem

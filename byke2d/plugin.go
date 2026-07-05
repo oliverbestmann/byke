@@ -50,7 +50,7 @@ var (
 )
 
 func PluginRender(app *byke.App) {
-	assetFs, ok := byke.ResourceOf[AssetFS](app.World())
+	assetFs, ok := app.World().ResourceOf[AssetFS]()
 	if !ok {
 		assetFs = &AssetFS{FS: os.DirFS("assets")}
 	}
@@ -206,7 +206,7 @@ type ScreenSize struct {
 }
 
 func runWorld(world *byke.World) error {
-	conf, _ := byke.ResourceOf[WindowConfig](world)
+	conf, _ := world.ResourceOf[WindowConfig]()
 
 	title := getOr(conf.Title, "Byke App")
 	width := getOr(conf.Width, 1280)
@@ -230,7 +230,7 @@ func runWorld(world *byke.World) error {
 
 	world.InsertResource(PrimaryWindow{window: win})
 
-	renderContext := byke.RequireResourceOf[RenderContext](world)
+	renderContext := world.RequireResourceOf[RenderContext]()
 	renderContext.init(world, wctx)
 
 	err = win.Run(func(state vyn.UpdateInputState) error {
@@ -289,8 +289,8 @@ type currentSurfaceValues struct {
 func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	defer puffin.NewScope("frame").End()
 
-	ctx, _ := byke.ResourceOf[RenderContext](world)
-	win, _ := byke.ResourceOf[PrimaryWindow](world)
+	ctx, _ := world.ResourceOf[RenderContext]()
+	win, _ := world.ResourceOf[PrimaryWindow]()
 
 	surfaceWidth, surfaceHeight := win.window.GetSize()
 	ensureSurfaceConfigured(ctx, world, surfaceWidth, surfaceHeight)
@@ -302,7 +302,7 @@ func updateWorld(world *byke.World, makeInputState vyn.UpdateInputState) error {
 	world.RunSchedule(byke.Main)
 
 	// handle app exit by error
-	if exit, ok := byke.ResourceOf[appExitState](world); ok {
+	if exit, ok := world.ResourceOf[appExitState](); ok {
 		return exit.Error
 	}
 
@@ -315,16 +315,16 @@ func updateInputState(world *byke.World, makeInputState vyn.UpdateInputState) {
 	// store state in world for mouse cursors to update
 	world.InsertResource(InputState{inputState})
 
-	keys, _ := byke.ResourceOf[Keys](world)
+	keys, _ := world.ResourceOf[Keys]()
 	keys.state = inputState.Keys
 
-	buttons, _ := byke.ResourceOf[MouseButtons](world)
+	buttons, _ := world.ResourceOf[MouseButtons]()
 	buttons.state = inputState.Mouse
 }
 
 func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth uint32, surfaceHeight uint32) {
-	state, _ := byke.ResourceOf[surfaceConfigState](world)
-	surfaceConfig, _ := byke.ResourceOf[SurfaceConfig](world)
+	state, _ := world.ResourceOf[surfaceConfigState]()
+	surfaceConfig, _ := world.ResourceOf[SurfaceConfig]()
 
 	if state.Width == surfaceWidth && state.Height == surfaceHeight && state.Config == *surfaceConfig {
 		return

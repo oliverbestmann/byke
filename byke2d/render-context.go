@@ -29,7 +29,7 @@ type RenderContext struct {
 func (rc *RenderContext) init(world *byke.World, ctx *wgpuContext) {
 	rc.wgpuContext = ctx
 
-	pipelineCache := byke.RequireResourceOf[PipelineCache](world)
+	pipelineCache := world.RequireResourceOf[PipelineCache]()
 	rc.MipmapGenerator = makeMipmapGenerator(rc, pipelineCache)
 
 	rc.samplerCache, _ = lru.New[wgpu.SamplerDescriptor, *wgpu.Sampler](256)

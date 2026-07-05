@@ -66,8 +66,7 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 	// collect a number of functions that when called will prepare the systems parameters
 	var params []SystemParamState
 
-	for idx := range systemType.NumIn() {
-		inType := systemType.In(idx)
+	for inType := range systemType.Ins() {
 
 		if param, ok := w.makeSystemParams.newState(w, inType); ok {
 			params = append(params, param)

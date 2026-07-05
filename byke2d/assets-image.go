@@ -8,8 +8,6 @@ import (
 
 	_ "image/jpeg"
 	_ "image/png"
-
-	"github.com/oliverbestmann/byke"
 )
 
 type LoadTextureSettings struct {
@@ -29,7 +27,7 @@ func (i TextureLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 		settings = *ctx.Settings.(*LoadTextureSettings)
 	}
 
-	renderContext, ok := byke.ResourceOf[RenderContext](ctx.World)
+	renderContext, ok := ctx.World.ResourceOf[RenderContext]()
 	if !ok {
 		return nil, errors.New("no RenderContext in world")
 	}

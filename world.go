@@ -110,7 +110,7 @@ func (w *World) AddMakeSystemParam(msp MakeSystemParam) {
 }
 
 func (w *World) timingStats() *TimingStats {
-	stats, _ := ResourceOf[TimingStats](w)
+	stats, _ := w.ResourceOf[TimingStats]()
 	return stats
 }
 
@@ -343,7 +343,7 @@ func (w *World) onComponentInsert(entityId EntityId, component ErasedComponent) 
 func (w *World) onComponentRemoved(entityId EntityId, component ErasedComponent) {
 	w.removeEntityFromParentComponentOf(entityId, component)
 
-	if registry, ok := ResourceOf[removedComponentsRegistry](w); ok {
+	if registry, ok := w.ResourceOf[removedComponentsRegistry](); ok {
 		registry.ComponentRemoved(entityId, component.ComponentType())
 	}
 }
@@ -488,16 +488,6 @@ func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
 	}
 
 	return resValue.Value.Interface(), true
-}
-
-// ResourceOf is a typed version of World.Resource.
-func ResourceOf[T any](w *World) (*T, bool) {
-	return w.ResourceOf[T]()
-}
-
-// RequireResourceOf calls ResourceOf and panics, if the resource does not exist.
-func RequireResourceOf[T any](w *World) *T {
-	return w.RequireResourceOf[T]()
 }
 
 func (w *World) flushCommands() {

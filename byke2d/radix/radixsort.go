@@ -17,7 +17,7 @@ func radixsortGo(values []Value, scratch []Value) {
 
 	var count [RADIX]uint32
 
-	for pass := 0; pass < 4; pass++ {
+	for pass := range 4 {
 		clear(count[:])
 
 		shift := uint(pass * 8)
@@ -31,7 +31,7 @@ func radixsortGo(values []Value, scratch []Value) {
 
 		/* Prefix sum */
 		sum := uint32(0)
-		for i := 0; i < RADIX; i++ {
+		for i := range RADIX {
 			c := count[i]
 			count[i] = sum
 			sum += c

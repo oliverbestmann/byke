@@ -11,7 +11,7 @@ type MyMessage int
 func TestMessages(t *testing.T) {
 	var app App
 
-	app.AddMessage(MessageType[MyMessage]())
+	app.AddMessage[MyMessage]()
 
 	var messagesWritten int
 	var expected []MyMessage

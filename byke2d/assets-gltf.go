@@ -8,7 +8,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
-	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/gltf"
 )
 
@@ -28,7 +27,7 @@ func (i GLTFLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	}
 
 	// get the assets fs from the world
-	assets := byke.RequireResourceOf[AssetFS](ctx.World)
+	assets := ctx.World.RequireResourceOf[AssetFS]()
 
 	// nothing yet
 	_ = settings

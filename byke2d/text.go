@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/draw"
 	"log/slog"
+	"slices"
 	"unicode"
 
 	"github.com/go-text/render"
@@ -110,8 +111,7 @@ func renderTextSystem(
 		var posX float32
 		var posY float32
 
-		for idx := len(layout.Lines) - 1; idx >= 0; idx-- {
-			line := layout.Lines[idx]
+		for _, line := range slices.Backward(layout.Lines) {
 
 			for _, output := range line.Outputs {
 				for _, glyph := range output.Glyphs {
@@ -452,7 +452,7 @@ func regionOfInterest(src *image.NRGBA) image.Rectangle {
 func rowIsTransparent(src *image.NRGBA, y int) bool {
 	width := src.Bounds().Dx()
 
-	for x := 0; x < width; x++ {
+	for x := range width {
 		if src.NRGBAAt(x, y).A > 0 {
 			return false
 		}
@@ -464,7 +464,7 @@ func rowIsTransparent(src *image.NRGBA, y int) bool {
 func columnIsTransparent(src *image.NRGBA, x int) bool {
 	height := src.Bounds().Dy()
 
-	for y := 0; y < height; y++ {
+	for y := range height {
 		if src.NRGBAAt(x, y).A > 0 {
 			return false
 		}

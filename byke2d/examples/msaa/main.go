@@ -43,9 +43,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	asset := assets.Texture("input.jpg").Await()
 
 	cameraTexture := NewTexture(ctx, NewTextureOptions{
-		SamplerConfig: SamplerConfig{
-			FilterMode: wgpu.FilterModeNearest,
-		},
+		FilterMode: wgpu.FilterModeNearest,
 
 		Format:       wgpu.TextureFormatBGRA8UnormSrgb,
 		Width:        500,

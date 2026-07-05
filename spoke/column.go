@@ -61,8 +61,7 @@ func memorySlicesOf(t reflect.Type, base uintptr, slices []memorySlice) []memory
 		panic("memorySlicesOf only works with struct types")
 	}
 
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+	for field := range t.Fields() {
 
 		fieldStart := base + field.Offset
 
@@ -121,8 +120,8 @@ func typeIsTriviallyHashable(t reflect.Type) bool {
 		return typeIsTriviallyHashable(t.Elem())
 
 	case reflect.Struct:
-		for idx := range t.NumField() {
-			if !typeIsTriviallyHashable(t.Field(idx).Type) {
+		for field := range t.Fields() {
+			if !typeIsTriviallyHashable(field.Type) {
 				return false
 			}
 		}
@@ -166,8 +165,8 @@ func typeHasPointers(t reflect.Type) bool {
 		return typeHasPointers(t.Elem())
 
 	case reflect.Struct:
-		for idx := range t.NumField() {
-			if typeHasPointers(t.Field(idx).Type) {
+		for field := range t.Fields() {
+			if typeHasPointers(field.Type) {
 				return true
 			}
 		}

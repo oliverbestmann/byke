@@ -44,7 +44,7 @@ func NewMeshAllocator(ctx *RenderContext) *MeshAllocator {
 }
 
 func meshAllocatorFromWorld(world *byke.World) MeshAllocator {
-	ctx := byke.RequireResourceOf[RenderContext](world)
+	ctx := world.RequireResourceOf[RenderContext]()
 	return *NewMeshAllocator(ctx)
 }
 

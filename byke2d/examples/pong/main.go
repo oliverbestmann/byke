@@ -48,7 +48,7 @@ func main() {
 	// update fixed simulation with ~128hz
 	app.InsertResource(FixedTime{StepInterval: 1 * time.Second / 128})
 
-	app.InitState(StateType[GameState]{InitialValue: GameStatePlaying})
+	app.InitState(GameStatePlaying)
 
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)

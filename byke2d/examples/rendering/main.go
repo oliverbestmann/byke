@@ -116,13 +116,11 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 	figure := assets.TextureWithSettings("figure.png", nnSettings).Await()
 
 	cameraTexture := NewTexture(ctx, NewTextureOptions{
-		Label:  "PixelCamera",
-		Width:  360,
-		Height: 200,
-		Format: wgpu.TextureFormatBGRA8UnormSrgb,
-		SamplerConfig: SamplerConfig{
-			FilterMode: wgpu.FilterModeNearest,
-		},
+		Label:      "PixelCamera",
+		Width:      360,
+		Height:     200,
+		Format:     wgpu.TextureFormatBGRA8UnormSrgb,
+		FilterMode: wgpu.FilterModeNearest,
 	})
 	commands.Spawn(
 		Camera{},

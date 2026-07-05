@@ -321,7 +321,7 @@ type bloomTexture struct {
 func makeBloomTexture(texture *Texture, mipCount uint32) bloomTexture {
 	bt := bloomTexture{Texture: texture}
 
-	for level := uint32(0); level < mipCount; level++ {
+	for level := range mipCount {
 		view := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 			Label:           fmt.Sprintf("Bloom Texture View level=%d", level),
 			BaseMipLevel:    level,
