@@ -82,6 +82,15 @@ func (m ColorMaterial) BindGroupKey() MaterialBindGroupKey {
 	return colorMaterialKey{Texture: m.Texture}
 }
 
+func (m ColorMaterial) IsSameBindGroup(other Material) bool {
+	matOther, ok := other.(ColorMaterial)
+	if !ok {
+		return false
+	}
+
+	return m.BindGroupKey() == matOther.BindGroupKey()
+}
+
 type colorMaterialKey struct {
 	Texture *Texture
 }

@@ -140,13 +140,22 @@ func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 }
 
 func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
-	return standardMaterialKey{
+	return standardMaterialBindGroupKey{
 		Texture:         m.Texture,
 		EmissiveTexture: m.EmissiveTexture,
 		NormalTexture:   m.NormalTexture,
 		FrontFace:       m.FrontFace,
 		DoubleSided:     m.DoubleSided,
 	}
+}
+
+func (m StandardMaterial) IsSameBindGroup(other Material) bool {
+	matOther, ok := other.(StandardMaterial)
+	if !ok {
+		return false
+	}
+
+	return m.BindGroupKey() == matOther.BindGroupKey()
 }
 
 func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
@@ -158,7 +167,7 @@ func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
 	}
 }
 
-type standardMaterialKey struct {
+type standardMaterialBindGroupKey struct {
 	Texture         *Texture
 	EmissiveTexture *Texture
 	NormalTexture   *Texture
@@ -166,7 +175,7 @@ type standardMaterialKey struct {
 	DoubleSided     bool
 }
 
-func (s standardMaterialKey) SortValue() uint64 {
+func (s standardMaterialBindGroupKey) SortValue() uint64 {
 	hash := fnv.New64a()
 	hash.Write(ValueAsByteSlice(s))
 	return hash.Sum64()

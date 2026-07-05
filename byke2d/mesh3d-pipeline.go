@@ -14,6 +14,8 @@ type mesh3dPipelineConfig struct {
 	SampleCount  uint32
 	Skinned      bool
 	Morph        bool
+
+	cachedMaterialBindGroupKey uint64
 }
 
 func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
@@ -23,8 +25,8 @@ func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
 		m.SampleCount == otherConfig.SampleCount &&
 		m.Skinned == otherConfig.Skinned &&
 		m.Morph == otherConfig.Morph &&
-		m.Material.BindGroupKey() == otherConfig.Material.BindGroupKey() &&
-		m.VertexLayout.EqualTo(otherConfig.VertexLayout)
+		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
+		m.Material.IsSameBindGroup(otherConfig.Material)
 }
 
 func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {

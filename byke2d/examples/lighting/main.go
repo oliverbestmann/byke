@@ -30,7 +30,7 @@ func main() {
 	app.InsertResource(MakeAssetFS(assets))
 
 	if runtime.GOOS != "js" {
-		defer profile.Start(profile.CPUProfile).Stop()
+		defer profile.Start(profile.MemProfile).Stop()
 	}
 
 	app.AddPlugin(PluginRender)

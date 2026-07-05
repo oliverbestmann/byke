@@ -41,6 +41,9 @@ type Material interface {
 	// The returned value must be comparable (i.e. can be used in a hashmap)
 	BindGroupKey() MaterialBindGroupKey
 
+	// IsSameBindGroup returns true, if the BindGroupKey of both materials is equal
+	IsSameBindGroup(other Material) bool
+
 	// Specialize specializes the provided pipeline.
 	Specialize(pipeline *RenderPipelineDescriptor)
 }
