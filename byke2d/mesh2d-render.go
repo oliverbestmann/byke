@@ -126,7 +126,7 @@ func prepareMesh2dInstances(
 	ctx *RenderContext,
 	meshes *ExtractedMeshes2d,
 	meshInstances *mesh2dInstances,
-	materialUniforms *MaterialUniforms[ColorMaterial],
+	materialUniforms *MaterialUniforms,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase *BinnedRenderPhase[Opaque]
@@ -162,9 +162,11 @@ func prepareMesh2dInstances(
 			for _, item := range batch {
 				mesh := &meshes.Meshes[item.ExtractedIndex]
 
+				values := materialUniforms.Get(mesh.Material)
+
 				// write material & store index
-				mesh.Material.WriteUniforms(materialUniforms.Writer.Next())
-				materialIndex := uint32(materialUniforms.Writer.ItemCount)
+				mesh.Material.WriteUniforms(values.Writer.Next())
+				materialIndex := uint32(values.Writer.ItemCount)
 
 				// write sprite vertex data
 				instances.StartNew(48)

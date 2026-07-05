@@ -126,13 +126,13 @@ type mesh3dInstances struct {
 	Instances wgsl.InstanceWriter
 }
 
-func prepareMesh3dInstancesSystem[M Material](
+func prepareMesh3dInstancesSystem(
 	ctx *RenderContext,
 	meshes *ExtractedMeshes3d,
 	meshInstances *mesh3dInstances,
 	meshAllocator *MeshAllocator,
 	morphUniforms *morphUniforms,
-	materialUniforms *MaterialUniforms[M],
+	materialUniforms *MaterialUniforms,
 	viewsQuery byke.Query[struct {
 		_     byke.With[Camera]
 		Phase *BinnedRenderPhase[Opaque]
@@ -163,18 +163,13 @@ func prepareMesh3dInstancesSystem[M Material](
 				continue
 			}
 
-			if key.MatType != reflect.TypeFor[M]() {
-				// wrong material
-				continue
-			}
-
 			batch[0].BatchBegin = uint32(instances.InstanceCount())
 			batch[0].BatchCount = uint32(len(batch))
 
 			for _, item := range batch {
-				mesh := &meshes.Meshes[item.ExtractedIndex]
+				item := &meshes.Meshes[item.ExtractedIndex]
 
-				bufs, ok := meshAllocator.Get(mesh.Mesh)
+				bufs, ok := meshAllocator.Get(item.Mesh)
 				if !ok {
 					panic("mesh not found")
 				}
@@ -183,19 +178,19 @@ func prepareMesh3dInstancesSystem[M Material](
 				instances.StartNew(60)
 
 				// transform
-				instances.AppendVec3f(mesh.Transform.Column(0).Truncate())
-				instances.AppendVec3f(mesh.Transform.Column(1).Truncate())
-				instances.AppendVec3f(mesh.Transform.Column(2).Truncate())
-				instances.AppendVec3f(mesh.Transform.Column(3).Truncate())
+				instances.AppendVec3f(item.Transform.Column(0).Truncate())
+				instances.AppendVec3f(item.Transform.Column(1).Truncate())
+				instances.AppendVec3f(item.Transform.Column(2).Truncate())
+				instances.AppendVec3f(item.Transform.Column(3).Truncate())
 
 				// initial vertex position
 				instances.AppendUint(bufs.FirstVertex)
 
 				// material index
-				instances.AppendUint(materialUniforms.Indices[mesh.EntityId])
+				instances.AppendUint(materialUniforms.Get(item.Material).Indices[item.EntityId])
 
 				// reference morph info if available
-				idx, _ := morphUniforms.DescriptorIndex(mesh.EntityId)
+				idx, _ := morphUniforms.DescriptorIndex(item.EntityId)
 				instances.AppendUint(idx)
 			}
 		}

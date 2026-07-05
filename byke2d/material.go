@@ -51,76 +51,109 @@ type MaterialBindGroupKey interface {
 
 func pluginMaterialCommon(app *byke.App) {
 	app.InsertResource(MaterialBindGroups{})
+	app.InsertResource(MaterialUniforms{})
 
 	app.AddSystems(PreRender, tickMaterialBindGroupsSystems)
+
+	app.AddSystems(Render, byke.
+		System(prepareMaterialUniforms).
+		InSet(RenderPhasePrepareResources))
+
+	app.AddSystems(Render, byke.
+		System(prepareMesh3dInstancesSystem).
+		After(prepareMaterialUniforms).
+		InSet(RenderPhasePrepareResources))
+
+	app.AddSystems(Render, byke.
+		System(prepareMaterialBindGroupsSystem).
+		InSet(RenderPhasePrepareBindGroups))
 }
 
 func PluginMaterial2d[M Material](app *byke.App) {
-	app.InsertResource(MaterialUniforms[M]{})
-
-	app.AddSystems(Render, byke.System(extractMesh2dSystem[M]).InSet(RenderPhaseExtract))
-
 	app.AddSystems(Render, byke.
-		System(prepareMaterialUniforms[M]).
-		InSet(RenderPhasePrepareResources))
-
-	app.AddSystems(Render, byke.
-		System(prepareMaterialBindGroupsSystem[M]).
-		InSet(RenderPhasePrepareBindGroups))
+		System(extractMesh2dSystem[M]).
+		InSet(RenderPhaseExtract))
 }
 
 func PluginMaterial3d[M Material](app *byke.App) {
-	app.InsertResource(MaterialBindGroups{})
-	app.InsertResource(MaterialUniforms[M]{})
-
 	app.AddSystems(Render, byke.
 		System(extractMesh3dSystem[M]).
 		InSet(RenderPhaseExtract))
-
-	app.AddSystems(Render, byke.
-		System(prepareMaterialUniforms[M], prepareMesh3dInstancesSystem[M]).
-		Chain().
-		InSet(RenderPhasePrepareResources))
-
-	app.AddSystems(Render, byke.
-		System(prepareMaterialBindGroupsSystem[M]).
-		InSet(RenderPhasePrepareBindGroups))
-
 }
 
-type MaterialUniforms[M Material] struct {
+type MaterialUniforms struct {
+	// by material type
+	byMaterial map[reflect.Type]*MaterialUniformValues
+}
+
+func (m *MaterialUniforms) Clear() {
+	for _, values := range m.byMaterial {
+		values.Clear()
+	}
+}
+
+func (m *MaterialUniforms) Get(mat Material) *MaterialUniformValues {
+	matType := reflect.TypeOf(mat)
+
+	values, ok := m.byMaterial[matType]
+	if ok {
+		return values
+	}
+
+	ensureMapIsInitialized(&m.byMaterial)
+
+	values = &MaterialUniformValues{
+		Indices: map[byke.EntityId]uint32{},
+	}
+
+	m.byMaterial[matType] = values
+
+	return values
+}
+
+func (m *MaterialUniforms) Upload(ctx *RenderContext) {
+	for matType, values := range m.byMaterial {
+		if len(values.Indices) == 0 {
+			continue
+		}
+
+		// upload buffer to gpu
+		label := matType.Name()
+		values.Writer.WriteTo(ctx, &values.Buffer, label, wgpu.BufferUsageStorage)
+	}
+}
+
+type MaterialUniformValues struct {
 	Writer  wgsl.ArrayWriter
 	Indices map[byke.EntityId]uint32
 
-	buffer *wgpu.Buffer
+	Buffer *wgpu.Buffer
 }
 
-func prepareMaterialUniforms[M Material](
+func (v *MaterialUniformValues) Clear() {
+	v.Writer.Clear()
+	clear(v.Indices)
+}
+
+func prepareMaterialUniforms(
 	ctx *RenderContext,
 	meshes ExtractedMeshes3d,
-	uniforms *MaterialUniforms[M],
+	uniforms *MaterialUniforms,
 ) {
-	ensureMapIsInitialized(&uniforms.Indices)
-
-	uniforms.Writer.Clear()
+	uniforms.Clear()
 
 	for idx := range meshes.Meshes {
 		item := &meshes.Meshes[idx]
 
-		if _, ok := item.Material.(M); !ok {
-			// not the right material
-			continue
-		}
+		values := uniforms.Get(item.Material)
 
 		// write material & store index for lookup
-		index := uint32(uniforms.Writer.ItemCount)
-		item.Material.WriteUniforms(uniforms.Writer.Next())
-		uniforms.Indices[item.EntityId] = index
+		index := uint32(values.Writer.ItemCount)
+		item.Material.WriteUniforms(values.Writer.Next())
+		values.Indices[item.EntityId] = index
 	}
 
-	// upload buffer to gpu
-	label := reflect.TypeFor[M]().Name()
-	uniforms.Writer.WriteTo(ctx, &uniforms.buffer, label, wgpu.BufferUsageStorage)
+	uniforms.Upload(ctx)
 }
 
 type MaterialBindGroups struct {
@@ -147,24 +180,18 @@ func tickMaterialBindGroupsSystems(
 }
 
 // This must be on a per-material basis, as we need to reference the per-material uniforms.
-// TODO evaluate if we would like to use a generic map[MaterialType]MaterialUniforms to not make
 //
 //	this function generic on the material.
-func prepareMaterialBindGroupsSystem[M Material](
+func prepareMaterialBindGroupsSystem(
 	ctx *RenderContext,
 	meshes *ExtractedMeshes3d,
 	bindGroups *MaterialBindGroups,
-	uniforms *MaterialUniforms[M],
+	uniforms *MaterialUniforms,
 ) {
 	ensureMapIsInitialized(&bindGroups.lookup)
 
 	for idx := range meshes.Meshes {
 		item := &meshes.Meshes[idx]
-
-		if _, ok := item.Material.(M); !ok {
-			// not the right material
-			continue
-		}
 
 		// we need to create one bind group per unique material key.
 		key := item.Material.BindGroupKey()
@@ -172,8 +199,10 @@ func prepareMaterialBindGroupsSystem[M Material](
 		if _, ok := bindGroups.lookup[key]; !ok {
 			label := reflect.TypeOf(item.Material).Name()
 
+			values := uniforms.Get(item.Material)
+
 			var bindings []wgpu.BindGroupEntry
-			bindings = append(bindings, BindingBuffer(uniforms.buffer))
+			bindings = append(bindings, BindingBuffer(values.Buffer))
 			bindings = append(bindings, item.Material.Bindings()...)
 
 			var layout []wgpu.BindGroupLayoutEntry
