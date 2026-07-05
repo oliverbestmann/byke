@@ -1,6 +1,8 @@
 package byke2d
 
 import (
+	"cmp"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
@@ -13,6 +15,9 @@ type FirstPersonViewController struct {
 
 	Pitch glm.Rad
 	Yaw   glm.Rad
+
+	// defaults to 4m/s
+	Velocity float32
 }
 
 func pluginFPV(app *byke.App) {
@@ -46,29 +51,32 @@ func fpvMoveSystem(
 		}
 
 		var move glm.Vec3f
+		var moveAbsY float32
+
+		velocity := cmp.Or(item.FPV.Velocity, 4.0)
 
 		if keys.IsPressed(vyn.KeyA) {
-			move[0] -= 2 * vt.DeltaSecs
+			move[0] -= velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyD) {
-			move[0] += 2 * vt.DeltaSecs
+			move[0] += velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyW) {
-			move[2] += 2 * vt.DeltaSecs
+			move[2] += velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyS) {
-			move[2] -= 2 * vt.DeltaSecs
+			move[2] -= velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyQ) {
-			move[1] -= 2 * vt.DeltaSecs
+			moveAbsY -= velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyE) {
-			move[1] += 2 * vt.DeltaSecs
+			moveAbsY += velocity * vt.DeltaSecs
 		}
 
 		yaw := item.FPV.Yaw
@@ -81,6 +89,8 @@ func fpvMoveSystem(
 		moveTransformed := item.Transform.
 			Affine3().
 			Transform(move.Extend(0))
+
+		moveTransformed[1] += moveAbsY
 
 		item.Transform.Translation = item.Transform.Translation.Add(moveTransformed.Truncate())
 	}

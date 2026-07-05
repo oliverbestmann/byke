@@ -50,14 +50,6 @@ type StandardMaterial struct {
 	DoubleSided bool
 }
 
-func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
-	return standardMaterialKey{
-		Texture:         m.Texture,
-		EmissiveTexture: m.EmissiveTexture,
-		NormalTexture:   m.NormalTexture,
-	}
-}
-
 func (m StandardMaterial) Shader() *ShaderDef {
 	key := shaderKey{
 		Texture:  m.Texture != nil,
@@ -147,10 +139,31 @@ func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendUint(uint32(boolToInt(m.DoubleSided)))
 }
 
+func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
+	return standardMaterialKey{
+		Texture:         m.Texture,
+		EmissiveTexture: m.EmissiveTexture,
+		NormalTexture:   m.NormalTexture,
+		FrontFace:       m.FrontFace,
+		DoubleSided:     m.DoubleSided,
+	}
+}
+
+func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
+	pipeline.Primitive.FrontFace = frontFaceOf(m.FrontFace)
+
+	if m.DoubleSided {
+		// disable culling so we can render both sides of the triangles
+		pipeline.Primitive.CullMode = wgpu.CullModeNone
+	}
+}
+
 type standardMaterialKey struct {
 	Texture         *Texture
 	EmissiveTexture *Texture
 	NormalTexture   *Texture
+	FrontFace       wgpu.FrontFace
+	DoubleSided     bool
 }
 
 func (s standardMaterialKey) SortValue() uint64 {

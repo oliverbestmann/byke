@@ -370,22 +370,13 @@ func drawMesh3dBatchSystem(
 	skinOffset, skinOk := skinUniforms.OffsetOf(mesh.Skin.EntityId)
 	_, morphOk := morphUniforms.DescriptorIndex(mesh.EntityId)
 
-	var materialBindings []wgpu.BindGroupLayoutEntry
-	materialBindings = append(materialBindings, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
-	materialBindings = append(materialBindings, mesh.Material.BindingsLayout()...)
-
 	pipelineConfig := mesh3dPipelineConfig{
-		Format:           view.ViewTarget.Format,
-		SampleCount:      view.ViewTarget.SampleCount,
-		Shader:           mesh.Material.Shader(),
-		MaterialBindings: materialBindings,
-		Skinned:          skinOk && mesh.Skin.IsSet(),
-		Morph:            morphOk,
-		VertexLayout:     mesh.Mesh.VertexLayout(),
-
-		// TODO what to do with this, how do we get this?
-		FrontFace:   frontFaceOf(mesh.Material.(StandardMaterial).FrontFace),
-		DoubleSided: mesh.Material.(StandardMaterial).DoubleSided,
+		Format:       view.ViewTarget.Format,
+		SampleCount:  view.ViewTarget.SampleCount,
+		Skinned:      skinOk && mesh.Skin.IsSet(),
+		Morph:        morphOk,
+		VertexLayout: mesh.Mesh.VertexLayout(),
+		Material:     mesh.Material,
 	}
 
 	pipeline := pipelines.Specialize(pipelineConfig)

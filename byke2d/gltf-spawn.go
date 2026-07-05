@@ -146,6 +146,12 @@ func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 			},
 		)
 	}
+
+	slog.Debug(
+		"Spawn scene summary",
+		slog.Int("textures", len(sc.images)),
+		slog.Int("meshes", len(sc.meshes)),
+	)
 }
 
 func (sc *spawnContext) spawnNodeTree(parentId byke.EntityId, node gltf.Node, parentTransform glm.Mat4f) {
@@ -186,6 +192,8 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 		if ma := prim.Material; ma.IsSet {
 			material = sc.materialAt(ma.Get())
 		}
+
+		material.FrontFace = wgpu.FrontFaceCCW
 
 		worldTransform := sc.nodeWorldTransform[node.Id]
 		flipWinding := worldTransform[0][0]*worldTransform[1][1]*worldTransform[2][2] < 0

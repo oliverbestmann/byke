@@ -35,19 +35,15 @@ var emissive: texture_2d<f32>;
 var emissive_sampler: sampler;
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
-fn calculate_normal(normal: vec3f, tangent_space: vec4f, uv: vec2f) -> vec3f {
-    // normal from texture
-    let vNt = textureSample(normalmap, normalmap_sampler, uv);
-
-    // decode tangent space
-    let sign = tangent_space.w;
-    let tangent = tangent_space.xyz;
+fn calculate_normal(normal: vec3f, tangent: vec3f, tangent_sign: f32, uv: vec2f) -> vec3f {
+    // normal from texture (in tangent space)
+    let vNt = textureSample(normalmap, normalmap_sampler, uv).xyz * 2.0 - vec3f(1.0);;
 
     // calculate bi-tangent
-    let bi_tangent = cross(normal, tangent) * sign;
+    let bi_tangent = cross(normal, tangent) * tangent_sign;
 
     // calculate transformed normal
-    return normalize(vNt.x * tangent + vNt.y * bi_tangent + vNt.z * normal);
+    return vNt.x * tangent + vNt.y * bi_tangent + vNt.z * normal;
 }
 #endif
 
@@ -62,16 +58,13 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @location(0) vec4f {
     var vertex = param;
 
-    // ensure normal is normalized
-    vertex.normal = normalize(vertex.normal);
-
 #ifdef MESH3D_COLOR_HAS_NORMAL
     #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
-        vertex.normal = calculate_normal(vertex.normal, vertex.tangent_space, vertex.uv);
+        vertex.normal = calculate_normal(vertex.normal, vertex.tangent, vertex.tangent_sign, vertex.uv);
     #endif
 #endif
 
-    if ! front_facing {
+    if ! front_facing && materials[vertex.material].double_sided != 0 {
         // flip normal for double sided lighting
         vertex.normal = -vertex.normal;
     }

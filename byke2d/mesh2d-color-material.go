@@ -40,6 +40,10 @@ type ColorMaterial struct {
 	Texture *Texture
 }
 
+func (m ColorMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
+	// no specialization needed
+}
+
 func (m ColorMaterial) Shader() *ShaderDef {
 	if m.Texture != nil {
 		return colorMaterialShaderWithTexture

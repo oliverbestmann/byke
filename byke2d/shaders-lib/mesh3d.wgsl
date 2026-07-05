@@ -59,7 +59,8 @@ struct VertexOutput {
     @location(0) color: vec4f,
     @location(1) position_world: vec3f,
     @location(2) normal: vec3f,
-    @location(3) tangent_space: vec4f,
+    @location(3) tangent: vec3f,
+    @location(4) @interpolate(flat) tangent_sign: f32,
     @location(5) uv: vec2f,
 
     // index into materials array (if any)
@@ -154,22 +155,26 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
     out.color *= v_color;
 #endif
 
+    // upper left of the model matrix
+    let world_from_local_normal = mat3x3(
+        world_from_local[0].xyz,
+        world_from_local[1].xyz,
+        world_from_local[2].xyz,
+    );
+
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
     #ifdef SKINNED
         out.normal = skin_normals(world_from_local, in.v_normal);
     #else
-        let world_from_local_normal = mat3x3(
-            world_from_local[0].xyz,
-            world_from_local[1].xyz,
-            world_from_local[2].xyz,
-        );
-
+        // mikktspace: normalize in fragment shader
         out.normal = world_from_local_normal * in.v_normal;
     #endif
+#endif
 
-    #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
-        out.tangent_space = in.v_tangent_space;
-    #endif
+#ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
+    // mikktspace: normalize in fragment shader
+    out.tangent = world_from_local_normal * in.v_tangent_space.xyz;
+    out.tangent_sign = in.v_tangent_space.w;
 #endif
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_UV
@@ -185,13 +190,14 @@ fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
     var tint = light_config.ambient;
 
+    var normal = normalize(vertex.normal);
+
     // apply directional lights
     for (var i: u32 = 0; i < directional_lights.count; i++) {
         let light = directional_lights.lights[i];
 
         let l = normalize(light.direction);
-        let n = normalize(vertex.normal);
-        let n_dot_l = max(dot(n, l), 0.0);
+        let n_dot_l = max(dot(normal, l), 0.0);
 
         tint += light.color.rgb * n_dot_l;
     }
@@ -203,8 +209,7 @@ fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
         let light_vec = light.position - vertex.position_world;
         let distance = length(light_vec);
         let l = normalize(light_vec);
-        let n = normalize(vertex.normal);
-        let n_dot_l = max(dot(n, l), 0.0);
+        let n_dot_l = max(dot(normal, l), 0.0);
 
         let attenuation =
             1.0 /

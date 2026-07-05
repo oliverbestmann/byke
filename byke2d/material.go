@@ -40,6 +40,9 @@ type Material interface {
 	// Multiple materials can have different uniform values with the same BindGroupKey.
 	// The returned value must be comparable (i.e. can be used in a hashmap)
 	BindGroupKey() MaterialBindGroupKey
+
+	// Specialize specializes the provided pipeline.
+	Specialize(pipeline *RenderPipelineDescriptor)
 }
 
 type MaterialBindGroupKey interface {
