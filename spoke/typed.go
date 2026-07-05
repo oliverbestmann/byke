@@ -70,5 +70,3 @@ type IsSupportsChangeDetectionComponent[C IsComponent[C]] interface {
 	IsComponent[C]
 	supportsChangeDetection(componentMarkerType)
 }
-
-type Foo[T Foo[T]] struct{}
