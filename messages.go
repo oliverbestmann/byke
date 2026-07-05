@@ -7,14 +7,9 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 )
 
-func MessageType[E any]() AddMessageType {
-	return newMessage[E]{}
-}
+func pluginMessage[E any](app *App) {
+	app.InitResource[Messages[E]]()
 
-type newMessage[E any] struct{}
-
-func (newMessage[E]) configureMessageIn(app *App) {
-	app.InsertResource(Messages[E]{})
 	app.AddSystems(Last, updateMessagesSystem[E])
 }
 

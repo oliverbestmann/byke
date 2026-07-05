@@ -41,7 +41,7 @@ func pluginDebug(app *byke.App) {
 		RunIf(KeyIsJustPressed(vyn.KeyD)).
 		RunIf(KeyIsPressed(vyn.KeyShiftLeft)))
 
-	app.InitState(byke.StateType[DebugState]{})
+	app.InitState(DebugStateOff)
 
 	app.AddSystems(byke.OnEnter(DebugStateOn), setupDebugCameraSystem)
 

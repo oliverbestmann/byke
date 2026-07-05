@@ -24,53 +24,53 @@ func (s *StructWriter) Bytes() []byte {
 
 func (s *StructWriter) AppendFloat32(value float32) {
 	s.AlignTo(4)
-	structAppend(s, value, 4)
+	s.appendValue(value, 4)
 }
 
 func (s *StructWriter) AppendInt(value int32) {
 	s.AlignTo(4)
-	structAppend(s, value, 4)
+	s.appendValue(value, 4)
 }
 
 func (s *StructWriter) AppendUint(value uint32) {
 	s.AlignTo(4)
-	structAppend(s, value, 4)
+	s.appendValue(value, 4)
 }
 
 func (s *StructWriter) AppendVec2f(value glm.Vec2f) {
 	s.AlignTo(8)
-	structAppend(s, value, 8)
+	s.appendValue(value, 8)
 }
 
 func (s *StructWriter) AppendVec3f(value glm.Vec3f) {
 	s.AlignTo(16)
-	structAppend(s, value, 12)
+	s.appendValue(value, 12)
 }
 
 func (s *StructWriter) AppendVec4f(value glm.Vec4f) {
 	s.AlignTo(16)
-	structAppend(s, value, 16)
+	s.appendValue(value, 16)
 }
 
 func (s *StructWriter) AppendMat2f(value glm.Mat4f) {
 	s.AlignTo(8)
-	structAppend(s, value.Column(0), 8)
-	structAppend(s, value.Column(1), 8)
+	s.appendValue(value.Column(0), 8)
+	s.appendValue(value.Column(1), 8)
 }
 
 func (s *StructWriter) AppendMat3f(value glm.Mat3f) {
 	s.AlignTo(16)
-	structAppend(s, value.Column(0), 16)
-	structAppend(s, value.Column(1), 16)
-	structAppend(s, value.Column(2), 16)
+	s.appendValue(value.Column(0), 16)
+	s.appendValue(value.Column(1), 16)
+	s.appendValue(value.Column(2), 16)
 }
 
 func (s *StructWriter) AppendMat4f(value glm.Mat4f) {
 	s.AlignTo(16)
-	structAppend(s, value.Column(0), 16)
-	structAppend(s, value.Column(1), 16)
-	structAppend(s, value.Column(2), 16)
-	structAppend(s, value.Column(3), 16)
+	s.appendValue(value.Column(0), 16)
+	s.appendValue(value.Column(1), 16)
+	s.appendValue(value.Column(2), 16)
+	s.appendValue(value.Column(3), 16)
 }
 
 func (s *StructWriter) WriteTo(ctx RenderContext, bufRef **wgpu.Buffer, label string, usage wgpu.BufferUsage) {
@@ -100,7 +100,7 @@ func (s *StructWriter) Sync() {
 	s.AlignTo(s.align)
 }
 
-func structAppend[T any](s *StructWriter, value T, size int) {
+func (s *StructWriter) appendValue[T any](value T, size int) {
 	if unsafe.Sizeof(value) > uintptr(size) {
 		panic("value is larger than its expected size")
 	}

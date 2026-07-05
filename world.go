@@ -400,11 +400,6 @@ func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRela
 // If the world already contains a resource of the same type, this value will
 // just be updated with the newly provided one.
 func (w *World) InsertResource(resource any) {
-	// special casing for resources created with InitFromWorld
-	if ifw, ok := resource.(initFromWorld); ok {
-		resource = ifw(w)
-	}
-
 	resType := reflect.PointerTo(reflect.TypeOf(resource))
 
 	if existing, ok := w.resources[resType]; ok {
@@ -592,12 +587,4 @@ func triggerObserverSystem(
 	}
 }
 
-// InitFromWorld can be passed to World.InsertResource to initialize a resource
-// from the world.
-func InitFromWorld[R any](fromWorld func(world *World) R) any {
-	return initFromWorld(func(world *World) any {
-		return fromWorld(world)
-	})
-}
-
-type initFromWorld func(world *World) any
+type InitFromWorld[T any] func(world *World) T

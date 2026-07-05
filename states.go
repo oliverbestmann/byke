@@ -5,25 +5,23 @@ import (
 	"reflect"
 )
 
-type StateType[S comparable] struct {
-	InitialValue S
-}
+func pluginState[S comparable](initialValue S) Plugin {
+	return func(app *App) {
+		ValidateComponent[despawnOnExitStateComponent[S]]()
+		ValidateComponent[despawnOnEnterStateComponent[S]]()
+		ValidateComponent[despawnOnStateTransitionComponent[S]]()
 
-func (r StateType[S]) configureStateIn(app *App) {
-	ValidateComponent[despawnOnExitStateComponent[S]]()
-	ValidateComponent[despawnOnEnterStateComponent[S]]()
-	ValidateComponent[despawnOnStateTransitionComponent[S]]()
+		app.InsertResource(State[S]{current: initialValue})
+		app.InitResource[NextState[S]]()
 
-	app.InsertResource(State[S]{current: r.InitialValue})
-	app.InsertResource(NextState[S]{})
+		app.AddMessage[StateTransitionEvent[S]]()
 
-	app.AddMessage(MessageType[StateTransitionEvent[S]]())
-
-	app.AddSystems(StateTransition, System(
-		performStateTransition[S],
-		despawnOnExitStateSystem[S],
-		despawnOnEnterStateSystem[S],
-	).Chain())
+		app.AddSystems(StateTransition, System(
+			performStateTransition[S],
+			despawnOnExitStateSystem[S],
+			despawnOnEnterStateSystem[S],
+		).Chain())
+	}
 }
 
 type StateTransitionEvent[S comparable] struct {

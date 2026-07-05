@@ -56,16 +56,32 @@ func (a *App) InsertResource(res any) {
 	a.World().InsertResource(res)
 }
 
+// InitResource initializes a resource.
+// You can provide an optional initialization function.
+func (a *App) InitResource[T any](init ...InitFromWorld[T]) {
+	world := a.World()
+
+	switch len(init) {
+	case 0:
+		var zeroT T
+		world.InsertResource(zeroT)
+	case 1:
+		world.InsertResource(init[0](world))
+	default:
+		panic("InitResource must be invoked with zero or one parameter")
+	}
+}
+
 // InitState configures a new state in the World.
 // Use StateType to acquire a value implementing stateType.
-func (a *App) InitState(newState stateType) {
-	newState.configureStateIn(a)
+func (a *App) InitState[S comparable](initialValue S) {
+	a.AddPlugin(pluginState(initialValue))
 }
 
 // AddMessage configures a new event in the World.
 // Use MessageType to acquire a value implementing AddMessageType.
-func (a *App) AddMessage(newEvent AddMessageType) {
-	newEvent.configureMessageIn(a)
+func (a *App) AddMessage[E any]() {
+	a.AddPlugin(pluginMessage[E])
 }
 
 // RunWorld configures the function that is executed in Run.
@@ -108,9 +124,4 @@ type Runner func(world *World) error
 // stateType is a type erased interface implemented by StateType.
 type stateType interface {
 	configureStateIn(app *App)
-}
-
-// AddMessageType is a type erased interface implemented by MessageType.
-type AddMessageType interface {
-	configureMessageIn(app *App)
 }

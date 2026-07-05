@@ -65,9 +65,8 @@ func PluginRender(app *byke.App) {
 
 	app.AddPlugin(pluginShader)
 
-	app.InsertResource(byke.InitFromWorld(PipelineCacheFromWorld))
-
-	app.InsertResource(byke.InitFromWorld(TextureCacheFromWorld))
+	app.InitResource(PipelineCacheFromWorld)
+	app.InitResource(TextureCacheFromWorld)
 
 	app.AddPlugin(ComponentUniformsPlugin[bloomUniforms])
 	app.AddPlugin(ComponentUniformsPlugin[ColorGrading])
@@ -88,7 +87,7 @@ func PluginRender(app *byke.App) {
 		GLTFLoader{},
 	))
 
-	app.AddMessage(byke.MessageType[AppExit]())
+	app.AddMessage[AppExit]()
 
 	app.AddSystems(byke.First, updateMouseCursorSystem)
 
