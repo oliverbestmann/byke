@@ -63,6 +63,17 @@ func requireCallback(t *testing.T, fn func(allGood func())) {
 	fn(func() { called = true })
 	require.True(t, called)
 }
+func TestWorldQuery(t *testing.T) {
+	q := buildSimpleWorld().Query[Position]()
+
+	require.Len(t, slices.Collect(q.Items()), 3)
+
+	// can collect again)
+	require.Len(t, slices.Collect(q.Items()), 3)
+
+	// count is also valid
+	require.Equal(t, 3, q.Count())
+}
 
 func TestRunSystemWithQuery(t *testing.T) {
 	t.Run("query with immutable component", func(t *testing.T) {
@@ -312,8 +323,7 @@ func TestRelationships(t *testing.T) {
 		w, _, childId := makeWorld()
 
 		w.RunSystem(func(commands *Commands) {
-			commands.Entity(childId).
-				Update(RemoveComponent[ChildOf]())
+			commands.Entity(childId).Remove[ChildOf]()
 		})
 
 		w.RunSystem(func(q Query[Children]) {
@@ -350,8 +360,7 @@ func TestRelationships(t *testing.T) {
 		w.RunSystem(detectChangesSystem)
 
 		w.RunSystem(func(commands *Commands) {
-			commands.Entity(childId).
-				Update(RemoveComponent[ChildOf]())
+			commands.Entity(childId).Remove[ChildOf]()
 		})
 
 		w.RunSystem(func(q Query[struct{ Children Children }]) {
@@ -409,7 +418,7 @@ func BenchmarkWorld_RunSystem(b *testing.B) {
 		for idx := range 2000 {
 			ec := c.Spawn(X{Value: 1}, Y{Value: 2})
 			if idx%2 == 0 {
-				ec.Update(InsertComponent(Named("Component")))
+				ec.Insert(Named("Component"))
 			}
 		}
 	})

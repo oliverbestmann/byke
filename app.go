@@ -103,7 +103,7 @@ func (a *App) Run() error {
 		}
 	}
 
-	a.World().DebugSystems()
+	a.World().PrintSystems()
 
 	return a.run(a.World())
 }
@@ -121,7 +121,4 @@ type Plugin func(app *App)
 
 type Runner func(world *World) error
 
-// stateType is a type erased interface implemented by StateType.
-type stateType interface {
-	configureStateIn(app *App)
-}
+type InitFromWorld[T any] func(world *World) T

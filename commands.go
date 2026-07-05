@@ -40,29 +40,29 @@ func (c *Commands) applyToWorld() {
 	c.queue = c.queue[:0]
 }
 
-func makeCommandsSystemStateParam(world *World, pType reflect.Type) SystemParamState {
-	if pType != reflect.TypeFor[*Commands]() {
-		return nil
+// Add adds a command to be executed.
+func (c *Commands) Add(command Command) *Commands {
+	if len(c.queue) > 0 {
+		lastIndex := len(c.queue) - 1
+		if prev, ok := c.queue[lastIndex].(mergeableCommand); ok {
+			if prev.MergeWith(command) {
+				return c
+			}
+		}
 	}
 
-	return (*commandSystemParamState)(
-		&Commands{world: world},
-	)
-}
-
-func (c *Commands) Queue(command Command) *Commands {
 	c.queue = append(c.queue, command)
 	return c
 }
 
 func (c *Commands) InsertResource(resource any) *Commands {
-	return c.Queue(insertResourceCommand{Resource: resource})
+	return c.Add(&insertResourceCommand{Resource: resource})
 }
 
 func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
 	entityId := c.world.reserveEntityId()
 
-	c.Queue(spawnCommand{
+	c.Add(&spawnCommand{
 		EntityId:   entityId,
 		Components: components,
 	})
@@ -74,20 +74,20 @@ func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
 }
 
 func (c *Commands) RunSystem(system AnySystem) *Commands {
-	return c.Queue(runSystemCommand{
+	return c.Add(&runSystemCommand{
 		System: system,
 	})
 }
 
 func (c *Commands) RunSystemWith(system AnySystem, inValue any) *Commands {
-	return c.Queue(runSystemCommand{
+	return c.Add(&runSystemCommand{
 		System:  system,
 		InValue: inValue,
 	})
 }
 
 func (c *Commands) Trigger(eventValue any) *Commands {
-	return c.Queue(triggerCommand{
+	return c.Add(&triggerCommand{
 		EventValue: eventValue,
 	})
 }
@@ -108,17 +108,8 @@ func (e EntityCommands) Id() EntityId {
 	return e.entityId
 }
 
-func (e EntityCommands) Update(commands ...EntityCommand) EntityCommands {
-	e.commands.Queue(applyEntityCommands{
-		EntityId: e.entityId,
-		Commands: commands,
-	})
-
-	return e
-}
-
 func (e EntityCommands) Despawn() {
-	e.commands.queue = append(e.commands.queue, despawnCommand{e.entityId})
+	e.commands.queue = append(e.commands.queue, &despawnCommand{e.entityId})
 }
 
 // Trigger triggers the given EntityEvent.
@@ -128,13 +119,13 @@ func (e EntityCommands) Trigger(eventValue EntityEvent) *Commands {
 		panic(fmt.Sprintf("EntityId %q missmatch with event: %q", e.entityId, eventValue.TargetEntityId()))
 	}
 
-	return e.commands.Queue(triggerCommand{
+	return e.commands.Add(&triggerCommand{
 		EventValue: eventValue,
 	})
 }
 
 func (e EntityCommands) Observe(system AnySystem) EntityCommands {
-	e.commands.Queue(observeCommand{
+	e.commands.Add(&observeCommand{
 		EntityId: e.entityId,
 		System:   system,
 	})
@@ -143,29 +134,7 @@ func (e EntityCommands) Observe(system AnySystem) EntityCommands {
 }
 
 func (e EntityCommands) Insert(components ...ErasedComponent) EntityCommands {
-	if len(e.commands.queue) > 0 {
-		idx := len(e.commands.queue) - 1
-
-		// we can optimize spawning by merging the components into the previous command
-		// TODO we can do this more generic & better
-		switch cmd := e.commands.queue[idx].(type) {
-		case spawnCommand:
-			if cmd.EntityId == e.entityId {
-				cmd.Components = append(cmd.Components, components...)
-				e.commands.queue[idx] = cmd
-				return e
-			}
-
-		case insertComponentsCommand:
-			if cmd.EntityId == e.entityId {
-				cmd.Components = append(cmd.Components, components...)
-				e.commands.queue[idx] = cmd
-				return e
-			}
-		}
-	}
-
-	e.commands.Queue(insertComponentsCommand{
+	e.commands.Add(&insertComponentsCommand{
 		EntityId:   e.entityId,
 		Components: components,
 	})
@@ -173,27 +142,129 @@ func (e EntityCommands) Insert(components ...ErasedComponent) EntityCommands {
 	return e
 }
 
-func RemoveComponent[C IsComponent[C]]() EntityCommand {
-	return (*removeComponentEntityCommand)(spoke.ComponentTypeOf[C]())
+func (e EntityCommands) Remove[C IsComponent[C]]() EntityCommands {
+	e.commands.Add(&applyEntityCommands{
+		EntityId: e.entityId,
+		Commands: []EntityCommand{
+			(*removeComponentEntityCommand)(
+				spoke.ComponentTypeOf[C](),
+			),
+		},
+	})
+
+	return e
 }
 
-func InsertComponent[C IsComponent[C]](optionalValue ...C) EntityCommand {
-	if len(optionalValue) > 1 {
-		panic("InsertComponent must be called with at most one argument")
+type mergeableCommand interface {
+	MergeWith(next Command) bool
+}
+
+type insertResourceCommand struct {
+	Resource any
+}
+
+func (c *insertResourceCommand) Apply(world *World) {
+	world.InsertResource(c.Resource)
+}
+
+type spawnCommand struct {
+	EntityId   EntityId
+	Components []ErasedComponent
+}
+
+func (c *spawnCommand) Apply(world *World) {
+	world.spawnWithEntityId(c.EntityId, c.Components)
+}
+
+type applyEntityCommands struct {
+	EntityId EntityId
+	Commands []EntityCommand
+}
+
+func (c *applyEntityCommands) Apply(world *World) {
+	for _, command := range c.Commands {
+		command.Apply(world, c.EntityId)
+	}
+}
+
+type despawnCommand struct {
+	EntityId EntityId
+}
+
+func (c *despawnCommand) Apply(world *World) {
+	world.Despawn(c.EntityId)
+}
+
+type observeCommand struct {
+	EntityId EntityId
+	System   AnySystem
+}
+
+func (c *observeCommand) Apply(world *World) {
+	world.AddObserver(NewObserver(c.System).WatchEntity(c.EntityId))
+}
+
+type triggerCommand struct {
+	EventValue Event
+}
+
+func (c *triggerCommand) Apply(world *World) {
+	world.TriggerObserver(c.EventValue)
+}
+
+type removeComponentEntityCommand spoke.ComponentType
+
+func (c *removeComponentEntityCommand) Apply(world *World, entityId EntityId) {
+	world.removeComponent(entityId, (*spoke.ComponentType)(c))
+}
+
+type insertComponentsCommand struct {
+	EntityId   EntityId
+	Components []ErasedComponent
+}
+
+func (c *insertComponentsCommand) MergeWith(next Command) bool {
+	switch next := next.(type) {
+	case *insertComponentsCommand:
+		if c.EntityId == next.EntityId {
+			c.Components = append(c.Components, next.Components...)
+			return true
+		}
+
+	case *spawnCommand:
+		if c.EntityId == next.EntityId {
+			c.Components = append(c.Components, next.Components...)
+			return true
+		}
 	}
 
-	var component C
-	if len(optionalValue) == 1 {
-		component = optionalValue[0]
-	}
+	return false
+}
 
-	return insertComponentEntityCommand{
-		InitialValue: component,
-	}
+func (c *insertComponentsCommand) Apply(world *World) {
+	world.insertComponents(c.EntityId, c.Components)
+}
+
+type runSystemCommand struct {
+	System  AnySystem
+	InValue any
+}
+
+func (c *runSystemCommand) Apply(world *World) {
+	world.RunSystemWithInValue(c.System, c.InValue)
 }
 
 type commandSystemParamState Commands
 
+func makeCommandsSystemStateParam(world *World, pType reflect.Type) SystemParamState {
+	if pType != reflect.TypeFor[*Commands]() {
+		return nil
+	}
+
+	return (*commandSystemParamState)(
+		&Commands{world: world},
+	)
+}
 func (c *commandSystemParamState) GetValue(SystemContext) (reflect.Value, error) {
 	return reflect.ValueOf((*Commands)(c)), nil
 }
@@ -208,89 +279,4 @@ func (c *commandSystemParamState) CleanupValue() {
 
 func (*commandSystemParamState) ValueType() reflect.Type {
 	return reflect.TypeFor[*Commands]()
-}
-
-type insertResourceCommand struct {
-	Resource any
-}
-
-func (c insertResourceCommand) Apply(world *World) {
-	world.InsertResource(c.Resource)
-}
-
-type spawnCommand struct {
-	EntityId   EntityId
-	Components []ErasedComponent
-}
-
-func (c spawnCommand) Apply(world *World) {
-	world.spawnWithEntityId(c.EntityId, c.Components)
-}
-
-type applyEntityCommands struct {
-	EntityId EntityId
-	Commands []EntityCommand
-}
-
-func (c applyEntityCommands) Apply(world *World) {
-	for _, command := range c.Commands {
-		command.Apply(world, c.EntityId)
-	}
-}
-
-type despawnCommand struct {
-	EntityId EntityId
-}
-
-func (c despawnCommand) Apply(world *World) {
-	world.Despawn(c.EntityId)
-}
-
-type observeCommand struct {
-	EntityId EntityId
-	System   AnySystem
-}
-
-func (c observeCommand) Apply(world *World) {
-	world.AddObserver(NewObserver(c.System).WatchEntity(c.EntityId))
-}
-
-type triggerCommand struct {
-	EventValue Event
-}
-
-func (c triggerCommand) Apply(world *World) {
-	world.TriggerObserver(c.EventValue)
-}
-
-type removeComponentEntityCommand spoke.ComponentType
-
-func (c *removeComponentEntityCommand) Apply(world *World, entityId EntityId) {
-	world.removeComponent(entityId, (*spoke.ComponentType)(c))
-}
-
-type insertComponentEntityCommand struct {
-	InitialValue ErasedComponent
-}
-
-func (c insertComponentEntityCommand) Apply(world *World, entityId EntityId) {
-	world.insertComponents(entityId, []ErasedComponent{c.InitialValue})
-}
-
-type insertComponentsCommand struct {
-	EntityId   EntityId
-	Components []ErasedComponent
-}
-
-func (c insertComponentsCommand) Apply(world *World) {
-	world.insertComponents(c.EntityId, c.Components)
-}
-
-type runSystemCommand struct {
-	System  AnySystem
-	InValue any
-}
-
-func (c runSystemCommand) Apply(world *World) {
-	world.RunSystemWithInValue(c.System, c.InValue)
 }

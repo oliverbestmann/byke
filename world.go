@@ -423,6 +423,18 @@ func (w *World) RemoveResource(resourceType reflect.Type) {
 	delete(w.resources, resType)
 }
 
+// Resource returns a pointer to the resource of the given reflect type.
+// The type must be the non-pointer type of the resource, i.e. the type of the resource
+// as it was passed to InsertResource.
+func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
+	resValue, ok := w.resources[reflect.PointerTo(ty)]
+	if !ok {
+		return nil, false
+	}
+
+	return resValue.Value.Interface(), true
+}
+
 func (w *World) ResourceOf[T any]() (*T, bool) {
 	value, ok := w.Resource(reflect.TypeFor[T]())
 	if !ok {
@@ -478,16 +490,25 @@ func (w *World) Despawn(entityId EntityId) {
 	}
 }
 
-// Resource returns a pointer to the resource of the given reflect type.
-// The type must be the non-pointer type of the resource, i.e. the type of the resource
-// as it was passed to InsertResource.
-func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
-	resValue, ok := w.resources[reflect.PointerTo(ty)]
-	if !ok {
-		return nil, false
+func (w *World) Query[T any]() Query[T] {
+	state := NewQuerySystemParamState[T](w)
+	value, err := state.GetValue(SystemContext{})
+	if err != nil {
+		panic(err)
 	}
 
-	return resValue.Value.Interface(), true
+	return value.Interface().(Query[T])
+}
+
+func (w *World) PrintSystems() {
+	for id, schedule := range w.schedules {
+		fmt.Println()
+		fmt.Printf("Schedule %q:\n", id)
+
+		for _, sys := range schedule.Systems() {
+			fmt.Println(" ->", sys.Name)
+		}
+	}
 }
 
 func (w *World) flushCommands() {
@@ -508,10 +529,6 @@ func (w *World) flushCommands() {
 	}
 }
 
-func copyComponent(value ErasedComponent) ErasedComponent {
-	return value.ComponentType().CopyOf(value)
-}
-
 func (w *World) removeComponent(entityId EntityId, componentType *spoke.ComponentType) {
 	component, ok := w.storage.RemoveComponent(w.currentTick, entityId, componentType)
 	if !ok {
@@ -525,15 +542,8 @@ func (w *World) recheckComponents(query *spoke.CachedQuery, componentTypes []*sp
 	w.storage.CheckChanged(w.currentTick, query, componentTypes)
 }
 
-func (w *World) DebugSystems() {
-	for id, schedule := range w.schedules {
-		fmt.Println()
-		fmt.Printf("Schedule %q:\n", id)
-
-		for _, sys := range schedule.Systems() {
-			fmt.Println(" ->", sys.Name)
-		}
-	}
+func copyComponent(value ErasedComponent) ErasedComponent {
+	return value.ComponentType().CopyOf(value)
 }
 
 type triggerObserverIn struct {
@@ -576,5 +586,3 @@ func triggerObserverSystem(
 		})
 	}
 }
-
-type InitFromWorld[T any] func(world *World) T

@@ -389,13 +389,12 @@ func cleanupAudioSinkSystem(
 		if item.AudioSink.Empty() {
 			item.AudioSink.Stop()
 
-			commands.Entity(item.EntityId).Update(
-				byke.RemoveComponent[AudioPlayer](),
-				byke.RemoveComponent[AudioSink](),
-				byke.RemoveComponent[PlaybackSettings](),
-				byke.RemoveComponent[playbackRemoveMarker](),
-				byke.RemoveComponent[spatialSinkMarker](),
-			)
+			commands.Entity(item.EntityId).
+				Remove[AudioPlayer]().
+				Remove[AudioSink]().
+				Remove[PlaybackSettings]().
+				Remove[playbackRemoveMarker]().
+				Remove[spatialSinkMarker]()
 		}
 	}
 }

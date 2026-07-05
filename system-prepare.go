@@ -21,7 +21,7 @@ type systemTrigger struct {
 }
 
 type SystemContext struct {
-	// a value that has triggerd the execution of the system.
+	// a value that has triggered the execution of the system.
 	// Should be an event.
 	Trigger systemTrigger
 

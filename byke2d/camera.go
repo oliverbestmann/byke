@@ -355,7 +355,7 @@ func updateCameraViewTargetSystem(
 		)
 
 		if !hasViewTarget {
-			commands.Entity(camera.EntityId).Update(byke.RemoveComponent[ViewTarget]())
+			commands.Entity(camera.EntityId).Remove[ViewTarget]()
 			continue
 		}
 
