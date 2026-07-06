@@ -30,7 +30,8 @@ func TestSystemOrder(t *testing.T) {
 	}
 
 	t.Run("c, a, b", func(t *testing.T) {
-		runTest(t,
+		runTest(
+			t,
 			asSystemConfigs(
 				System(a).Before(b),
 				System(c).Before(a),
@@ -41,7 +42,8 @@ func TestSystemOrder(t *testing.T) {
 	})
 
 	t.Run("a, b, c", func(t *testing.T) {
-		runTest(t,
+		runTest(
+			t,
 			asSystemConfigs(
 				System(a).Before(c),
 				System(b).After(a),

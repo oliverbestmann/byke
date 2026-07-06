@@ -98,7 +98,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 func rotateSystem(vt VirtualTime, query Query[struct {
 	_         Or[With[Sprite], With[Mesh2d]]
 	Transform *Transform
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		rot := glm.RotationZQuat(glm.Rad(3 * vt.DeltaSecs))
 		item.Transform.Rotation = item.Transform.Rotation.Mul(rot)

@@ -22,25 +22,35 @@ func init() {
 	slog.SetDefault(slog.New(handler))
 }
 
-const PaddleWidth = 5
-const PaddleHeight = 50
-const PaddleAbsX = 450
-const BallRadius = 10
+const (
+	PaddleWidth  = 5
+	PaddleHeight = 50
+	PaddleAbsX   = 450
+	BallRadius   = 10
+)
 
-const AreaHeight = 500
-const AreaWidth = 1000
+const (
+	AreaHeight = 500
+	AreaWidth  = 1000
+)
 
-const PaddleSpeed = 300
-const BallSpeed = 500
+const (
+	PaddleSpeed = 300
+	BallSpeed   = 500
+)
 
-var InputSystems = &SystemSet{Name: "InputSystem"}
-var MovementSystems = &SystemSet{Name: "MovementSystems"}
+var (
+	InputSystems    = &SystemSet{Name: "InputSystem"}
+	MovementSystems = &SystemSet{Name: "MovementSystems"}
+)
 
 type GameState int
 
-const GameStateWaiting GameState = 0
-const GameStatePlaying GameState = 1
-const GameStateLost GameState = 2
+const (
+	GameStateWaiting GameState = 0
+	GameStatePlaying GameState = 1
+	GameStateLost    GameState = 2
+)
 
 func main() {
 	var app App
@@ -56,10 +66,11 @@ func main() {
 
 	app.AddSystems(Update, System(handleInputSystem).InSet(InputSystems))
 
-	app.AddSystems(FixedUpdate, System(paddleCollisionSystem, restrictBallVerticalSystem, applyVelocitySystems, registerGameLostSystem).
-		Chain().
-		RunIf(InState(GameStatePlaying)).
-		InSet(MovementSystems),
+	app.AddSystems(
+		FixedUpdate, System(paddleCollisionSystem, restrictBallVerticalSystem, applyVelocitySystems, registerGameLostSystem).
+			Chain().
+			RunIf(InState(GameStatePlaying)).
+			InSet(MovementSystems),
 	)
 	app.AddSystems(Update, paddleGlowSystem)
 
@@ -143,7 +154,8 @@ type PlayerPaddle struct {
 func applyVelocitySystems(ft FixedTime, query Query[struct {
 	Transform *Transform
 	Velocity  Velocity
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		delta := item.Velocity.Value.Scale(ft.DeltaSecs)
 		item.Transform.Translation = item.Transform.Translation.Add(delta.Extend(0.0))

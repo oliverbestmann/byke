@@ -183,7 +183,8 @@ func moveSprites(vt VirtualTime, query Query[struct {
 	_         With[Sprite]
 	Transform *Transform
 	Velocity  Velocity
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		vel := item.Velocity.Scale(vt.DeltaSecs)
 		newValue := item.Transform.Translation.Truncate().Add(vel)
@@ -195,7 +196,8 @@ func moveSprites(vt VirtualTime, query Query[struct {
 func animateSprite(vt *VirtualTime, query Query[struct {
 	Animation    *Animate
 	TextureAtlas *TextureAtlas
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		if item.Animation.Tick(vt.Delta).JustFinished() {
 			item.TextureAtlas.Index += 1
@@ -207,7 +209,8 @@ func handleInputSystem(keys Keys, player Single[struct {
 	Player       *Player
 	Sprite       *Sprite
 	TextureAtlas *TextureAtlas
-}]) {
+}],
+) {
 	var direction int
 	var attack, hurt bool
 

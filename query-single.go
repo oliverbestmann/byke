@@ -13,7 +13,6 @@ func (s Single[T]) Get() T {
 }
 
 func (s Single[T]) newState(world *World, _ singleT) SystemParamState {
-
 	// instantiate a query that we can delegate to
 	var query Query[T]
 	queryState := query.newState(world, &query)

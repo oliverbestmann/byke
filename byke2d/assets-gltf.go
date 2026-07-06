@@ -11,8 +11,7 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/gltf"
 )
 
-type LoadGLTFSettings struct {
-}
+type LoadGLTFSettings struct{}
 
 func (*LoadGLTFSettings) IsLoadSettings() {}
 

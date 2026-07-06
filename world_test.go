@@ -26,10 +26,12 @@ type Enemy struct {
 	ImmutableComponent[Enemy]
 }
 
-var _ = ValidateComponent[Position]()
-var _ = ValidateComponent[Velocity]()
-var _ = ValidateComponent[Player]()
-var _ = ValidateComponent[Enemy]()
+var (
+	_ = ValidateComponent[Position]()
+	_ = ValidateComponent[Velocity]()
+	_ = ValidateComponent[Player]()
+	_ = ValidateComponent[Enemy]()
+)
 
 func buildSimpleWorld() *World {
 	w := NewWorld()
@@ -63,6 +65,7 @@ func requireCallback(t *testing.T, fn func(allGood func())) {
 	fn(func() { called = true })
 	require.True(t, called)
 }
+
 func TestWorldQuery(t *testing.T) {
 	q := buildSimpleWorld().Query[Position]()
 

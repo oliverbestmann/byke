@@ -6,8 +6,10 @@ import (
 	"github.com/oliverbestmann/byke/spoke"
 )
 
-var _ = ValidateComponent[Children]()
-var _ = ValidateComponent[ChildOf]()
+var (
+	_ = ValidateComponent[Children]()
+	_ = ValidateComponent[ChildOf]()
+)
 
 type IsRelationshipTargetComponent[T IsImmutableComponent[T]] interface {
 	IsImmutableComponent[T]

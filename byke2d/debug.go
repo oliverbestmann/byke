@@ -17,8 +17,10 @@ type DebugCamera struct {
 
 type DebugState bool
 
-const DebugStateOff DebugState = false
-const DebugStateOn DebugState = true
+const (
+	DebugStateOff DebugState = false
+	DebugStateOn  DebugState = true
+)
 
 type debugMetricsTextMaker struct {
 	byke.ImmutableComponent[debugMetricsTextMaker]

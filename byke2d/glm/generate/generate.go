@@ -19,7 +19,8 @@ func generateVecs() {
 	var vecTypes []modelVec
 
 	for _, ty := range []string{"float32", "float64", "uint32", "uint16"} {
-		vecTypes = append(vecTypes,
+		vecTypes = append(
+			vecTypes,
 			modelVec{
 				Len:           2,
 				LenWGPU:       2,
@@ -42,7 +43,6 @@ func generateVecs() {
 
 		var buf bytes.Buffer
 		err := tmplVec.Execute(&buf, vecType)
-
 		if err != nil {
 			panic(err)
 		}
@@ -56,7 +56,8 @@ func generateMats() {
 	matTypes := []modelMat{}
 
 	for _, ty := range []string{"float32", "float64", "uint32", "uint16"} {
-		matTypes = append(matTypes,
+		matTypes = append(
+			matTypes,
 
 			modelMat{
 				Len:           2,
@@ -76,7 +77,6 @@ func generateMats() {
 	for _, matType := range matTypes {
 		var buf bytes.Buffer
 		err := tmplMat.Execute(&buf, matType)
-
 		if err != nil {
 			panic(err)
 		}
@@ -90,7 +90,8 @@ func generateRects() {
 	rectTypes := []modelRect{}
 
 	for _, ty := range []string{"float32", "float64", "uint32", "uint16"} {
-		rectTypes = append(rectTypes,
+		rectTypes = append(
+			rectTypes,
 			modelRect{
 				ComponentType: ty,
 			},
@@ -100,7 +101,6 @@ func generateRects() {
 	for _, rectType := range rectTypes {
 		var buf bytes.Buffer
 		err := tmplRect.Execute(&buf, rectType)
-
 		if err != nil {
 			panic(err)
 		}
@@ -113,11 +113,11 @@ func generateRects() {
 func writeCode(name string, source string) {
 	formatted, err := format.Source([]byte(source))
 	if err != nil {
-		_ = os.WriteFile("/tmp/broken.go", []byte(source), 0644)
+		_ = os.WriteFile("/tmp/broken.go", []byte(source), 0o644)
 		panic(err)
 	}
 
-	err = os.WriteFile(name, formatted, 0644)
+	err = os.WriteFile(name, formatted, 0o644)
 	if err != nil {
 		panic(err)
 	}
@@ -167,7 +167,6 @@ func generateAllSwizzles(lenVec, n int) []Swizzle {
 	}
 
 	return swizzles
-
 }
 
 func componentTypeToSuffix(ty string) string {
@@ -270,14 +269,12 @@ var funcs = template.FuncMap{
 			return " "
 		}
 		return ","
-
 	},
 	"sep": func(idx int, empty, sep string) string {
 		if idx == 0 {
 			return empty
 		}
 		return sep
-
 	},
 	"plus": func(a, b int) int {
 		return a + b

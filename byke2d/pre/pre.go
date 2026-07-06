@@ -8,14 +8,18 @@ import (
 	"github.com/oliverbestmann/byke/internal/set"
 )
 
-var reIfdef = regexp.MustCompile(`(?m)^\s*#ifdef\s+(.*)$`)
-var reElseIfdef = regexp.MustCompile(`(?m)^\s*#else\s+ifdef\s+(.*)$`)
-var reIfndef = regexp.MustCompile(`(?m)^\s*#ifndef\s+(.*)$`)
-var reElse = regexp.MustCompile(`(?m)^\s*#else\s*$`)
-var reEnd = regexp.MustCompile(`(?m)^\s*#endif\s*$`)
+var (
+	reIfdef     = regexp.MustCompile(`(?m)^\s*#ifdef\s+(.*)$`)
+	reElseIfdef = regexp.MustCompile(`(?m)^\s*#else\s+ifdef\s+(.*)$`)
+	reIfndef    = regexp.MustCompile(`(?m)^\s*#ifndef\s+(.*)$`)
+	reElse      = regexp.MustCompile(`(?m)^\s*#else\s*$`)
+	reEnd       = regexp.MustCompile(`(?m)^\s*#endif\s*$`)
+)
 
-var reModule = regexp.MustCompile(`(?m)^#module\s+([a-zA-Z][a-zA-Z0-9_]*(?:::[a-zA-Z][a-zA-Z0-9_]*)*)\s*$`)
-var reImport = regexp.MustCompile(`(?m)^#import\s+([a-zA-Z][a-zA-Z0-9_]*(?:::[a-zA-Z][a-zA-Z0-9_]*)*)\s*$`)
+var (
+	reModule = regexp.MustCompile(`(?m)^#module\s+([a-zA-Z][a-zA-Z0-9_]*(?:::[a-zA-Z][a-zA-Z0-9_]*)*)\s*$`)
+	reImport = regexp.MustCompile(`(?m)^#import\s+([a-zA-Z][a-zA-Z0-9_]*(?:::[a-zA-Z][a-zA-Z0-9_]*)*)\s*$`)
+)
 
 func replace(re *regexp.Regexp, text string, repl func(match []string) string) string {
 	return re.ReplaceAllStringFunc(text, func(s string) string {

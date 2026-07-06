@@ -6,9 +6,11 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 )
 
-var ColorWhite = ColorLinearRGBA(1, 1, 1, 1)
-var ColorBlack = ColorLinearRGBA(0, 0, 0, 1)
-var ColorTransparent = ColorLinearRGBA(0, 0, 0, 0)
+var (
+	ColorWhite       = ColorLinearRGBA(1, 1, 1, 1)
+	ColorBlack       = ColorLinearRGBA(0, 0, 0, 1)
+	ColorTransparent = ColorLinearRGBA(0, 0, 0, 0)
+)
 
 // Color is an a straight rgba color value with alpha in linear rgb color space.
 // The default value of a Color value is fully opaque white.

@@ -7,13 +7,23 @@ import (
 	"sort"
 )
 
+// slabAllocator manages allocation and deallocation of variable-sized memory blocks
+// from a fixed-size buffer. It maintains sorted lists of used and free memory chunks,
+// automatically coalescing adjacent free chunks to reduce fragmentation.
 type slabAllocator struct {
+	totalSize uint32
+
+	// used tracks all allocated memory regions
 	used []memChunk
+
+	// free tracks available memory regions, kept sorted and merged
 	free []memChunk
 }
 
 func newSlabAllocator(size uint32) *slabAllocator {
 	return &slabAllocator{
+		totalSize: size,
+
 		free: []memChunk{
 			{
 				StartAt: 0,
@@ -78,6 +88,21 @@ func (m *slabAllocator) Free(allocStart uint32) {
 	// delete the entry
 	m.used = slices.Delete(m.used, idx, idx+1)
 
+	m.returnSpace(allocStart, allocSize)
+}
+
+func (m *slabAllocator) Grow(size uint32) (prevSize, newSize uint32) {
+	prevSize = m.totalSize
+	newSize = nextPowerOfTwo(m.totalSize + size)
+
+	// extend by the new free space
+	m.returnSpace(prevSize, newSize-prevSize)
+	m.totalSize = newSize
+
+	return prevSize, newSize
+}
+
+func (m *slabAllocator) returnSpace(allocStart, allocSize uint32) {
 	// just append free item
 	m.free = append(m.free, memChunk{
 		StartAt: allocStart,
@@ -119,13 +144,16 @@ func (m *slabAllocator) checkInvariants() {
 	}
 }
 
+// memChunk represents a contiguous region of memory with a starting offset and size.
 type memChunk struct {
+	// StartAt is the byte offset where this chunk begins in the buffer.
 	StartAt uint32
-	Size    uint32
+
+	// Size is the byte size of this chunk.
+	Size uint32
 }
 
-// NextStart returns the index of the first byte after
-// the current freeChunk
+// NextStart returns the byte offset of the first byte after this chunk.
 func (f *memChunk) NextStart() uint32 {
 	return f.StartAt + f.Size
 }

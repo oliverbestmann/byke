@@ -10,13 +10,17 @@ import (
 
 var _ = byke.ValidateComponent[FirstPersonViewController]()
 
+// FirstPersonViewController is a component that provides first-person camera controls
+// with pitch and yaw rotation, and WASD movement with Q/E for vertical movement.
 type FirstPersonViewController struct {
 	byke.Component[FirstPersonViewController]
 
+	// Pitch is the vertical rotation angle in radians.
 	Pitch glm.Rad
-	Yaw   glm.Rad
+	// Yaw is the horizontal rotation angle in radians.
+	Yaw glm.Rad
 
-	// defaults to 4m/s
+	// Velocity is the movement speed in units per second. Defaults to 4m/s if not set.
 	Velocity float32
 }
 

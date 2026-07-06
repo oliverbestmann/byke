@@ -85,7 +85,8 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 func rotateSpriteSystem(vt VirtualTime, sprites Query[struct {
 	_         With[SpriteToRotate]
 	Transform *Transform
-}]) {
+}],
+) {
 	for sprite := range sprites.Items() {
 		r := glm.RotationZQuat(glm.Rad(vt.DeltaSecs) * 0.01)
 		sprite.Transform.Rotation = sprite.Transform.Rotation.Mul(r)

@@ -137,7 +137,7 @@ func (v *ViewTargetAttachment) UnsampledAttachment() wgpu.RenderPassColorAttachm
 
 func (v *ViewTargetAttachment) attachment(view *wgpu.TextureView) wgpu.RenderPassColorAttachment {
 	var clearColor wgpu.Color
-	var loadOp = wgpu.LoadOpLoad
+	loadOp := wgpu.LoadOpLoad
 
 	if !v.hasContent {
 		v.hasContent = true

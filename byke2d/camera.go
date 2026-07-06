@@ -12,8 +12,10 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-var _ = byke.ValidateComponent[Camera]()
-var _ = byke.ValidateComponent[OrthographicProjection]()
+var (
+	_ = byke.ValidateComponent[Camera]()
+	_ = byke.ValidateComponent[OrthographicProjection]()
+)
 
 func pluginCamera(app *byke.App) {
 	app.AddPlugin(ComponentUniformsPlugin[ViewUniforms])
@@ -298,7 +300,8 @@ type ViewBindGroup struct {
 	BufferGlobals *wgpu.Buffer
 }
 
-var ViewBindGroupLayout = SequentialLayoutWithLabel("ViewUniforms",
+var ViewBindGroupLayout = SequentialLayoutWithLabel(
+	"ViewUniforms",
 	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true),
 	BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false),
 )
@@ -386,7 +389,8 @@ func blitCameraToTargetSystem(
 	}
 
 	// blit into the target texture
-	blitTextureSimple(ctx,
+	blitTextureSimple(
+		ctx,
 		pipelines.Specialize(blit),
 		view.ViewTarget.UnsampledTexture(),
 		view.ViewTarget.SurfaceTextureView,

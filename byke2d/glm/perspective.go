@@ -16,7 +16,7 @@ func Perspective(fovY Rad, aspect, near, far float32) Mat4f {
 }
 
 func LookAt(eye, center, up Vec3f) Mat4f {
-	f := (center.Sub(eye)).Normalize()
+	f := center.Sub(eye).Normalize()
 	s := f.Cross(up).Normalize()
 	u := s.Cross(f)
 

@@ -6,8 +6,10 @@ import (
 	"github.com/oliverbestmann/byke/spoke"
 )
 
-var _ = byke.ValidateComponent[Transform]()
-var _ = byke.ValidateComponent[GlobalTransform]()
+var (
+	_ = byke.ValidateComponent[Transform]()
+	_ = byke.ValidateComponent[GlobalTransform]()
+)
 
 type Transform struct {
 	byke.ComparableComponent[Transform]
@@ -37,6 +39,7 @@ func (t Transform) WithTranslationXY(x, y float32) Transform {
 	t.Translation = glm.Vec3f{x, y, 0}
 	return t
 }
+
 func (t Transform) WithTranslationXYZ(x, y, z float32) Transform {
 	t.Translation = glm.Vec3f{x, y, z}
 	return t

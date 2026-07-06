@@ -135,7 +135,7 @@ func (c *SamplerConfig) fillValues() {
 func NewTexture(ctx *RenderContext, opts NewTextureOptions) *Texture {
 	var sampleCount uint32 = 1
 
-	var mipmapLevels = mipmapLevelCount(opts.Width, opts.Height)
+	mipmapLevels := mipmapLevelCount(opts.Width, opts.Height)
 	if opts.MipmapLevels > 0 {
 		mipmapLevels = opts.MipmapLevels
 	}

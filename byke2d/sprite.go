@@ -7,8 +7,10 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 )
 
-var _ = byke.ValidateComponent[Sprite]()
-var _ = byke.ValidateComponent[Anchor]()
+var (
+	_ = byke.ValidateComponent[Sprite]()
+	_ = byke.ValidateComponent[Anchor]()
+)
 
 type Sprite struct {
 	byke.ComparableComponent[Sprite]
@@ -58,7 +60,8 @@ func pluginSprite(app *byke.App) {
 	app.InsertResource(spriteTextureBindGroupCache{})
 	app.InsertResource(metaSprites{})
 
-	app.AddSystems(Render,
+	app.AddSystems(
+		Render,
 		byke.System(extractSpritesSystem).InSet(RenderPhaseExtract),
 		byke.System(queueSpritesSystem).InSet(RenderPhaseQueue),
 		byke.System(prepareSpriteBindGroupsSystem).InSet(RenderPhasePrepareBindGroups),

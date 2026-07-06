@@ -81,7 +81,8 @@ func PluginRender(app *byke.App) {
 	app.InsertResource(GlobalVolume{Volume: 1.0})
 	app.InsertResource(GlobalSpatialScale{Scale: glm.Vec3f{1, 1, 1}})
 
-	app.InsertResource(makeAssets(app.World(), assetFs.FS,
+	app.InsertResource(makeAssets(
+		app.World(), assetFs.FS,
 		TextureLoader{},
 		AudioLoader{},
 		GLTFLoader{},
@@ -127,16 +128,17 @@ func PluginRender(app *byke.App) {
 	app.ConfigureSystemSets(byke.PostUpdate, TransformSystems)
 	app.ConfigureSystemSets(byke.PostUpdate, VisibilitySystems)
 
-	app.ConfigureSystemSets(Render, ChainSystemSets(
-		RenderPhaseExtract,
-		RenderPhaseQueue,
-		RenderPhaseSort,
-		RenderPhasePrepare,
-		RenderPhasePrepareResources,
-		RenderPhasePrepareBindGroups,
-		RenderPhaseExecute,
-		RenderPhaseCleanup,
-	),
+	app.ConfigureSystemSets(
+		Render, ChainSystemSets(
+			RenderPhaseExtract,
+			RenderPhaseQueue,
+			RenderPhaseSort,
+			RenderPhasePrepare,
+			RenderPhasePrepareResources,
+			RenderPhasePrepareBindGroups,
+			RenderPhaseExecute,
+			RenderPhaseCleanup,
+		),
 	)
 
 	app.ConfigureSystemSets(Core2d,
@@ -332,7 +334,8 @@ func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth
 
 	defer puffin.NewScope("surface.Configure").End()
 
-	slog.Debug("Configure surface",
+	slog.Debug(
+		"Configure surface",
 		slog.Int("width", int(surfaceWidth)),
 		slog.Int("height", int(surfaceHeight)),
 	)

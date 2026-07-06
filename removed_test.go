@@ -36,5 +36,4 @@ func TestRemovedComponents(t *testing.T) {
 	// now zero
 	expectedId = 0
 	w.RunSchedule(Update)
-
 }

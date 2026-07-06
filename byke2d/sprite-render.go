@@ -104,7 +104,8 @@ func prepareSpriteBindGroupsSystem(
 
 				// ensure bindgroup for image exists
 				if _, ok := bindGroups.Get(itemSprite.Texture); !ok {
-					bindGroups.Add(itemSprite.Texture,
+					bindGroups.Add(
+						itemSprite.Texture,
 						ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 							Label:  "Sprite Texture",
 							Layout: ctx.CreateBindGroupLayout(layoutSpriteTextures),
@@ -228,7 +229,8 @@ func drawSpriteBatchSystem(
 	pass.Draw(6, item.BatchCount, 0, item.BatchBegin)
 }
 
-var layoutSpriteTextures = SequentialLayoutWithLabel("Spite Textures",
+var layoutSpriteTextures = SequentialLayoutWithLabel(
+	"Spite Textures",
 	BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
 	BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
 )

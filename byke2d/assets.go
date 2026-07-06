@@ -179,7 +179,6 @@ func loadAsync[T any](load func() (T, error)) *asyncAsset[T] {
 
 		// load the value
 		value, err := load()
-
 		if err != nil {
 			asset.error.Store(&err)
 			return

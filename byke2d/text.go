@@ -23,12 +23,16 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-var _ = byke.ValidateComponent[Text]()
-var _ = byke.ValidateComponent[Font]()
-var _ = byke.ValidateComponent[textCache]()
+var (
+	_ = byke.ValidateComponent[Text]()
+	_ = byke.ValidateComponent[Font]()
+	_ = byke.ValidateComponent[textCache]()
+)
 
-var sharedShaper shaping.HarfbuzzShaper
-var sharedSegmenter shaping.Segmenter
+var (
+	sharedShaper    shaping.HarfbuzzShaper
+	sharedSegmenter shaping.Segmenter
+)
 
 type Text struct {
 	byke.ComparableComponent[Text]
@@ -203,7 +207,7 @@ func splitTextToLines(text []rune) []lineIndices {
 
 	lineIter := seg.LineIterator()
 
-	var lineStart = -1
+	lineStart := -1
 
 	for lineIter.Next() {
 		line := lineIter.Line()
@@ -308,7 +312,8 @@ func cacheGlyphs(ctx *RenderContext, fontSize float32, input shaping.Input, outp
 
 		entry := glyphCache.Store(ctx, output.Face, fontSize, glyph.GlyphID, img)
 
-		slog.Info("Cache glyph",
+		slog.Debug(
+			"Cache glyph",
 			slog.Int("glyph", int(input.Text[glyph.TextIndex()])),
 			slog.Any("size", entry.Rectangle.Size()),
 			slog.Any("offset", entry.Offset),
@@ -359,7 +364,7 @@ func (c *GlyphCache) Lookup(face *font.Face, fontSize float32, glyphId font.GID)
 func (c *GlyphCache) Store(ctx *RenderContext, face *font.Face, fontSize float32, glyphId font.GID, src *image.NRGBA) GlyphTexture {
 	rectGlyph := regionOfInterest(src)
 
-	var padding = 1
+	padding := 1
 
 	// allocate a buffer to hold the non-transparent region
 	// add padding to the glyphs size

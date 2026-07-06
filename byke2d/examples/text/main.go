@@ -89,7 +89,8 @@ type UpdateTextMarker struct {
 func updateTextSystem(vt VirtualTime, query Query[struct {
 	_    With[UpdateTextMarker]
 	Text *Text
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		fps := float64(vt.Frames) / vt.Elapsed.Seconds()
 		item.Text.Text = fmt.Sprintf("Seconds: %1.2f,\nabout %1.2f fps", vt.Elapsed.Seconds(), fps)

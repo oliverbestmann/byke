@@ -14,14 +14,18 @@ import (
 	"github.com/oliverbestmann/byke/spoke"
 )
 
-var _ = byke.ValidateComponent[AudioPlayer]()
-var _ = byke.ValidateComponent[AudioSink]()
-var _ = byke.ValidateComponent[PlaybackSettings]()
-var _ = byke.ValidateComponent[playbackDespawnMarker]()
-var _ = byke.ValidateComponent[playbackRemoveMarker]()
+var (
+	_ = byke.ValidateComponent[AudioPlayer]()
+	_ = byke.ValidateComponent[AudioSink]()
+	_ = byke.ValidateComponent[PlaybackSettings]()
+	_ = byke.ValidateComponent[playbackDespawnMarker]()
+	_ = byke.ValidateComponent[playbackRemoveMarker]()
+)
 
-type Sample = float32
-type StereoSample [2]Sample
+type (
+	Sample       = float32
+	StereoSample [2]Sample
+)
 
 const StereoSamplesPerSecond = 48000
 
@@ -36,7 +40,6 @@ func init() {
 		Format:       oto.FormatFloat32LE,
 		BufferSize:   64 * time.Millisecond,
 	})
-
 	if err != nil {
 		panic(fmt.Errorf("initialize audio context: %w", err))
 	}

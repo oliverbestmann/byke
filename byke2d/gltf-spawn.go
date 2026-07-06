@@ -249,7 +249,8 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 				AttConstant:  0,
 				AttLinear:    0,
 				AttQuadratic: 1,
-			})
+			},
+		)
 	}
 }
 
@@ -352,7 +353,8 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 		// get the buffer
 		buffer := sc.Handle.Buffer(image.BufferView)
 
-		slog.Debug("Load texture from memory",
+		slog.Debug(
+			"Load texture from memory",
 			slog.String("name", image.Name),
 			slog.Any("imageId", imageId),
 			slog.Int("size", len(buffer)),

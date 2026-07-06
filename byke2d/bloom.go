@@ -14,8 +14,10 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-var _ = byke.ValidateComponent[Bloom]()
-var _ = byke.ValidateComponent[bloomTexture]()
+var (
+	_ = byke.ValidateComponent[Bloom]()
+	_ = byke.ValidateComponent[bloomTexture]()
+)
 
 //go:embed bloom.wgsl
 var bloomShader string

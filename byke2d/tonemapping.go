@@ -10,15 +10,19 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-var _ = byke.ValidateComponent[ColorGrading]()
-var _ = byke.ValidateComponent[Tonemapping]()
-var _ = byke.ValidateComponent[DebandDither]()
+var (
+	_ = byke.ValidateComponent[ColorGrading]()
+	_ = byke.ValidateComponent[Tonemapping]()
+	_ = byke.ValidateComponent[DebandDither]()
+)
 
 //go:embed tonemapping.wgsl
 var tonemappingShader string
 
-var _D65Xy = glm.Vec2f{0.31272, 0.32903}
-var _D65Lms = glm.Vec3f{0.975538, 1.01648, 1.08475}
+var (
+	_D65Xy  = glm.Vec2f{0.31272, 0.32903}
+	_D65Lms = glm.Vec3f{0.975538, 1.01648, 1.08475}
+)
 
 // / The matrix that converts from the RGB to the LMS color space.
 // /
@@ -179,8 +183,10 @@ type DebandDither struct {
 	enable bool
 }
 
-var DebandDitherOn = DebandDither{enable: true}
-var DebandDitherOff = DebandDither{enable: false}
+var (
+	DebandDitherOn  = DebandDither{enable: true}
+	DebandDitherOff = DebandDither{enable: false}
+)
 
 type Tonemapping struct {
 	byke.Component[Tonemapping]
@@ -208,14 +214,16 @@ func (t Tonemapping) String() string {
 	}
 }
 
-var TonemappingNone = Tonemapping{value: 0}
-var TonemappingSomewhatBoringDisplayTransform = Tonemapping{value: 1}
-var TonemappingAcesFitted = Tonemapping{value: 2}
-var TonemappingReinhard = Tonemapping{value: 3}
-var TonemappingReinhardLuminance = Tonemapping{value: 4}
-var TonemappingTonyMcMapface = Tonemapping{value: 5}
-var TonemappingAgX = Tonemapping{value: 6}
-var TonemappingBlenderFilmic = Tonemapping{value: 7}
+var (
+	TonemappingNone                           = Tonemapping{value: 0}
+	TonemappingSomewhatBoringDisplayTransform = Tonemapping{value: 1}
+	TonemappingAcesFitted                     = Tonemapping{value: 2}
+	TonemappingReinhard                       = Tonemapping{value: 3}
+	TonemappingReinhardLuminance              = Tonemapping{value: 4}
+	TonemappingTonyMcMapface                  = Tonemapping{value: 5}
+	TonemappingAgX                            = Tonemapping{value: 6}
+	TonemappingBlenderFilmic                  = Tonemapping{value: 7}
+)
 
 type tonemappingPipelineConfig struct {
 	TargetFormat          wgpu.TextureFormat
@@ -231,7 +239,7 @@ func (c tonemappingPipelineConfig) EqualTo(other PipelineConfig) bool {
 }
 
 func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	var values = ShaderValues{}
+	values := ShaderValues{}
 
 	switch c.Tonemapping {
 	case TonemappingSomewhatBoringDisplayTransform:
@@ -268,7 +276,8 @@ func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelin
 
 	switch c.Tonemapping {
 	case TonemappingTonyMcMapface, TonemappingAgX, TonemappingBlenderFilmic:
-		bgl = append(bgl,
+		bgl = append(
+			bgl,
 			BindingLayoutTexture3D(wgpu.TextureSampleTypeFloat, false),
 			BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
 		)
@@ -347,17 +356,20 @@ func tonemappingSystem(
 
 	switch view.Tonemapping {
 	case TonemappingTonyMcMapface:
-		bindGroupEntries = append(bindGroupEntries,
+		bindGroupEntries = append(
+			bindGroupEntries,
 			BindingTextureView(luts.TonyMcMapface(ctx).TextureView),
 			BindingSampler(luts.TonyMcMapface(ctx).Sampler),
 		)
 	case TonemappingAgX:
-		bindGroupEntries = append(bindGroupEntries,
+		bindGroupEntries = append(
+			bindGroupEntries,
 			BindingTextureView(luts.AgX(ctx).TextureView),
 			BindingSampler(luts.AgX(ctx).Sampler),
 		)
 	case TonemappingBlenderFilmic:
-		bindGroupEntries = append(bindGroupEntries,
+		bindGroupEntries = append(
+			bindGroupEntries,
 			BindingTextureView(luts.BlenderFilmic(ctx).TextureView),
 			BindingSampler(luts.BlenderFilmic(ctx).Sampler),
 		)

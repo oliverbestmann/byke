@@ -68,7 +68,8 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 	}
 
 	for _, attr := range m.VertexLayout.Attributes {
-		vblPerVertex.Attributes = append(vblPerVertex.Attributes,
+		vblPerVertex.Attributes = append(
+			vblPerVertex.Attributes,
 			perVertexAttrs.AtLoc(attr.Location, attr.Format),
 		)
 

@@ -25,7 +25,6 @@ func TestSystemId(t *testing.T) {
 		require.Equal(t, a0, a1)
 		require.Equal(t, a0, a2)
 	})
-
 }
 
 func TestSystemIdWithClosure(t *testing.T) {

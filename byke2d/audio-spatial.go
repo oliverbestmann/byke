@@ -8,8 +8,10 @@ import (
 	"github.com/oliverbestmann/byke/spoke"
 )
 
-var _ = byke.ValidateComponent[Microphone]()
-var _ = byke.ValidateComponent[spatialSinkMarker]()
+var (
+	_ = byke.ValidateComponent[Microphone]()
+	_ = byke.ValidateComponent[spatialSinkMarker]()
+)
 
 type spatialSinkMarker struct {
 	byke.ImmutableComponent[spatialSinkMarker]

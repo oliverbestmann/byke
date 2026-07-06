@@ -62,7 +62,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 		return cached
 	}
 
-	var values = ShaderValues{}
+	values := ShaderValues{}
 	values.Define("MESH3D_COLOR_HAS_NORMAL", key.Normal)
 	values.Define("MESH3D_COLOR_HAS_TEXTURE", key.Texture)
 	values.Define("MESH3D_COLOR_HAS_EMISSIVE", key.Emissive)
@@ -83,21 +83,24 @@ func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 	var entries []wgpu.BindGroupLayoutEntry
 
 	if m.Texture != nil {
-		entries = append(entries,
+		entries = append(
+			entries,
 			Indexed(1, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
 			Indexed(2, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
 		)
 	}
 
 	if m.NormalTexture != nil {
-		entries = append(entries,
+		entries = append(
+			entries,
 			Indexed(3, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
 			Indexed(4, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
 		)
 	}
 
 	if m.EmissiveTexture != nil {
-		entries = append(entries,
+		entries = append(
+			entries,
 			Indexed(5, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
 			Indexed(6, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
 		)
@@ -110,21 +113,24 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 	var entries []wgpu.BindGroupEntry
 
 	if m.Texture != nil {
-		entries = append(entries,
+		entries = append(
+			entries,
 			BindingTextureView(m.Texture.TextureView),
 			BindingSampler(m.Texture.Sampler),
 		)
 	}
 
 	if m.NormalTexture != nil {
-		entries = append(entries,
+		entries = append(
+			entries,
 			BindingTextureView(m.NormalTexture.TextureView),
 			BindingSampler(m.NormalTexture.Sampler),
 		)
 	}
 
 	if m.EmissiveTexture != nil {
-		entries = append(entries,
+		entries = append(
+			entries,
 			BindingTextureView(m.EmissiveTexture.TextureView),
 			BindingSampler(m.EmissiveTexture.Sampler),
 		)

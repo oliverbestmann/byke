@@ -89,7 +89,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 func flipAllSpritesSystem(keys Keys, query Query[struct {
 	Sprite *Sprite
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		if keys.IsJustPressed(vyn.KeyX) {
 			item.Sprite.FlipX = !item.Sprite.FlipX
@@ -104,7 +105,8 @@ func flipAllSpritesSystem(keys Keys, query Query[struct {
 func rotateSpritesSystem(vt VirtualTime, query Query[struct {
 	Sprite    *Sprite
 	Transform *Transform
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		rot := glm.RotationZQuat(glm.Rad(3 * vt.DeltaSecs))
 		item.Transform.Rotation = item.Transform.Rotation.Mul(rot)

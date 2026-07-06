@@ -80,7 +80,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 func scaleColorSystem(vt VirtualTime, query Query[struct {
 	Sprite *Sprite
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		c := float32((math.Sin(vt.Elapsed.Seconds())+1.0)*3.0 + 1.0)
 		item.Sprite.Color = ColorSRGBA(c, c, c, 1)

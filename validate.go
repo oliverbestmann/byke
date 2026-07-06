@@ -6,9 +6,11 @@ import (
 	"sync"
 )
 
-var pendingValidationsLock sync.Mutex
-var pendingValidationsCleared bool
-var pendingValidations []func()
+var (
+	pendingValidationsLock    sync.Mutex
+	pendingValidationsCleared bool
+	pendingValidations        []func()
+)
 
 // ValidateComponent should be called to verify that the IsComponent interface is correctly implemented.
 //

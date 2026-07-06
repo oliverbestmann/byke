@@ -74,7 +74,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 func moveCameraSystem(vt VirtualTime, cam Single[struct {
 	_         With[Camera]
 	Transform *Transform
-}]) {
+}],
+) {
 	y := math.Sin(vt.Elapsed.Seconds())*20 + 30
 	cam.Get().Transform.Translation[1] = float32(y)
 }

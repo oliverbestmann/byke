@@ -16,7 +16,7 @@ type TextureAtlasAllocator struct {
 
 func (t *TextureAtlasAllocator) Allocate(ctx *RenderContext, width, height uint32) (*Texture, glm.Rectu) {
 	// round height up to next multiple of 4 to reduce number of bins
-	var height4 = height
+	height4 := height
 	if d := height4 % 4; d > 0 {
 		height4 += 4 - d
 	}

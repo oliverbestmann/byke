@@ -4,8 +4,10 @@ import "github.com/oliverbestmann/byke"
 
 var _ = byke.ValidateComponent[RenderLayers]()
 
-var renderLayerZero = RenderLayersOf(0)
-var renderLayerAll = RenderLayers{Layers: 0xffffffff}
+var (
+	renderLayerZero = RenderLayersOf(0)
+	renderLayerAll  = RenderLayers{Layers: 0xffffffff}
+)
 
 type RenderLayers struct {
 	byke.Component[RenderLayers]

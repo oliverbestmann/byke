@@ -13,14 +13,22 @@ import (
 
 var forceFallbackAdapter = os.Getenv("WGPU_FORCE_FALLBACK_ADAPTER") == "1"
 
+// RenderContext manages GPU resource creation, caching, and metrics tracking.
+// It provides convenient wrappers around WebGPU objects with automatic caching of samplers
+// and bind group layouts to reduce GPU memory fragmentation and creation overhead.
 type RenderContext struct {
 	_ byke.NoCopy
 
-	Metrics         RenderMetrics
+	// Metrics tracks GPU operation counts for performance analysis.
+	Metrics RenderMetrics
+
+	// MipmapGenerator creates mipmaps for textures.
 	MipmapGenerator *mipmapGenerator
 
 	// cache for samplers
-	samplerCache         *lru.Cache[wgpu.SamplerDescriptor, *wgpu.Sampler]
+	samplerCache *lru.Cache[wgpu.SamplerDescriptor, *wgpu.Sampler]
+
+	// bindGroupLayoutCache stores bind group layouts for reuse
 	bindGroupLayoutCache []cachedBindGroupLayout
 
 	*wgpuContext
@@ -35,8 +43,8 @@ func (rc *RenderContext) init(world *byke.World, ctx *wgpuContext) {
 	rc.samplerCache, _ = lru.New[wgpu.SamplerDescriptor, *wgpu.Sampler](256)
 }
 
-// CreateSampler returns a sampler matching your description. The sampler is cached,
-// you must NOT call release the returned wgpu.Sampler.
+// CreateSampler returns a sampler for the given descriptor. The sampler is cached internally;
+// do not release the returned sampler as it may be reused by other parts of the renderer.
 func (rc *RenderContext) CreateSampler(desc wgpu.SamplerDescriptor) *wgpu.Sampler {
 	if desc.MaxAnisotropy == 0 {
 		// must be at least 1.
@@ -62,6 +70,8 @@ func (rc *RenderContext) CreateSampler(desc wgpu.SamplerDescriptor) *wgpu.Sample
 	return sampler
 }
 
+// CreateBindGroupLayout returns a bind group layout for the given descriptor. Layouts are
+// cached and reused across multiple bind groups with identical structure.
 func (rc *RenderContext) CreateBindGroupLayout(desc wgpu.BindGroupLayoutDescriptor) *wgpu.BindGroupLayout {
 	for _, cached := range rc.bindGroupLayoutCache {
 		if cached.Matches(desc) {
@@ -80,51 +90,65 @@ func (rc *RenderContext) CreateBindGroupLayout(desc wgpu.BindGroupLayoutDescript
 	return bindGroupLayout
 }
 
+// Submit sends the given command buffers to the GPU queue for execution.
 func (rc *RenderContext) Submit(commandBuffers ...*wgpu.CommandBuffer) wgpu.SubmissionIndex {
 	rc.Metrics.Submit += 1
 	return rc.wgpuContext.Submit(commandBuffers...)
 }
 
+// TryWriteBuffer attempts to write data to the given buffer at the specified offset.
+// Returns an error if the write fails.
 func (rc *RenderContext) TryWriteBuffer(buffer *wgpu.Buffer, offset uint64, data []byte) (err error) {
 	rc.Metrics.WriteBuffer += 1
 	return rc.wgpuContext.TryWriteBuffer(buffer, offset, data)
 }
 
+// TryWriteTexture attempts to write data to the given texture at the specified location.
+// Returns an error if the write fails.
 func (rc *RenderContext) TryWriteTexture(destination *wgpu.TexelCopyTextureInfo, data []byte, dataLayout *wgpu.TexelCopyBufferLayout, writeSize *wgpu.Extent3D) (err error) {
 	rc.Metrics.WriteTexture += 1
 	return rc.wgpuContext.TryWriteTexture(destination, data, dataLayout, writeSize)
 }
 
+// WriteBuffer writes data to the given buffer at the specified offset.
+// Panics if the write fails.
 func (rc *RenderContext) WriteBuffer(buffer *wgpu.Buffer, bufferOffset uint64, data []byte) {
 	rc.Metrics.WriteBuffer += 1
 	rc.wgpuContext.WriteBuffer(buffer, bufferOffset, data)
 }
 
+// WriteTexture writes data to the given texture at the specified location.
+// Panics if the write fails.
 func (rc *RenderContext) WriteTexture(destination *wgpu.TexelCopyTextureInfo, data []byte, dataLayout *wgpu.TexelCopyBufferLayout, writeSize *wgpu.Extent3D) {
 	rc.Metrics.WriteTexture += 1
 	rc.wgpuContext.WriteTexture(destination, data, dataLayout, writeSize)
 }
 
+// CreateRenderPipeline creates a new render pipeline for the given descriptor.
 func (rc *RenderContext) CreateRenderPipeline(desc *wgpu.RenderPipelineDescriptor) *wgpu.RenderPipeline {
 	rc.Metrics.CreateRenderPipeline += 1
 	return rc.wgpuContext.CreateRenderPipeline(desc)
 }
 
+// CreateBindGroup creates a new bind group for the given descriptor.
 func (rc *RenderContext) CreateBindGroup(desc *wgpu.BindGroupDescriptor) *wgpu.BindGroup {
 	rc.Metrics.CreateBindGroup += 1
 	return rc.wgpuContext.CreateBindGroup(desc)
 }
 
+// CreateShaderModule creates a new shader module for the given descriptor.
 func (rc *RenderContext) CreateShaderModule(desc *wgpu.ShaderModuleDescriptor) *wgpu.ShaderModule {
 	rc.Metrics.CreateShaderModule += 1
 	return rc.wgpuContext.CreateShaderModule(desc)
 }
 
+// Create creates a new bind group layout for the given descriptor.
 func (rc *RenderContext) Create(desc *wgpu.BindGroupLayoutDescriptor) *wgpu.BindGroupLayout {
 	rc.Metrics.CreateBindGroupLayout += 1
 	return rc.wgpuContext.CreateBindGroupLayout(desc)
 }
 
+// CreateCommandEncoder creates a new command encoder for recording GPU commands.
 func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescriptor) *CommandEncoder {
 	rc.Metrics.CreateCommandEncoder += 1
 	return &CommandEncoder{
@@ -133,11 +157,13 @@ func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescripto
 	}
 }
 
+// CommandEncoder wraps wgpu.CommandEncoder and tracks command recording metrics.
 type CommandEncoder struct {
 	*wgpu.CommandEncoder
 	metrics *RenderMetrics
 }
 
+// Get creates a render pass encoder with metrics tracking.
 func (c *CommandEncoder) Get(desc *wgpu.RenderPassDescriptor) *TrackedRenderPassEncoder {
 	return &TrackedRenderPassEncoder{
 		RenderPassEncoder: c.BeginRenderPass(desc),

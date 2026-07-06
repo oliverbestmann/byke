@@ -16,8 +16,8 @@ func dumpTree(
 		EntityRef byke.EntityRef
 		Name      byke.Option[byke.Name]
 		Children  byke.Option[byke.Children]
-	}]) {
-
+	}],
+) {
 	// recursive declaration
 	var dumpTree func(level int, nodeId byke.EntityId)
 
@@ -55,7 +55,6 @@ func dumpTree(
 				dumpTree(level+1, child)
 			}
 		}
-
 	}
 	for root := range rootsQuery.Items() {
 		fmt.Println()

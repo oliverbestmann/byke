@@ -38,9 +38,11 @@ func (k *KeysState) nextTick() {
 
 type MouseButton uint32
 
-const MouseButtonLeft MouseButton = 0
-const MouseButtonRight MouseButton = 1
-const MouseButtonMiddle MouseButton = 2
+const (
+	MouseButtonLeft   MouseButton = 0
+	MouseButtonRight  MouseButton = 1
+	MouseButtonMiddle MouseButton = 2
+)
 
 type MouseState struct {
 	CursorX, CursorY float32

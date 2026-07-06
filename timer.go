@@ -7,8 +7,10 @@ import (
 
 type TimerMode uint8
 
-const TimerModeOnce TimerMode = 0
-const TimerModeRepeating TimerMode = 1
+const (
+	TimerModeOnce      TimerMode = 0
+	TimerModeRepeating TimerMode = 1
+)
 
 // Timer is either a one of or a repeating timer with a specific duration.
 type Timer struct {

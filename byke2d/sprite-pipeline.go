@@ -13,10 +13,10 @@ func (r renderSpritePipelineConfig) EqualTo(other PipelineConfig) bool {
 }
 
 func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	var shaderLabel = "Sprite"
-	var shaderSource = "#import byke2d::sprite"
-	var entryVertex = "vs_main"
-	var entryFragment = "fs_main"
+	shaderLabel := "Sprite"
+	shaderSource := "#import byke2d::sprite"
+	entryVertex := "vs_main"
+	entryFragment := "fs_main"
 	var shaderValues ShaderValues
 
 	if r.Shader != nil {
@@ -27,7 +27,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 		entryFragment = valueOr(r.Shader.FragmentEntry, entryFragment)
 	}
 
-	var module = ctx.Shader(shaderLabel, shaderSource, shaderValues)
+	module := ctx.Shader(shaderLabel, shaderSource, shaderValues)
 
 	var offset vertexAttributeOffsets
 

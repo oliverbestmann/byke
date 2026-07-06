@@ -11,11 +11,15 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-var _ = byke.ValidateComponent[BinnedRenderPhase[Opaque]]()
-var _ = byke.ValidateComponent[SortableRenderPhase[Transparent]]()
+var (
+	_ = byke.ValidateComponent[BinnedRenderPhase[Opaque]]()
+	_ = byke.ValidateComponent[SortableRenderPhase[Transparent]]()
+)
 
-type Transparent struct{}
-type Opaque struct{}
+type (
+	Transparent struct{}
+	Opaque      struct{}
+)
 
 func pluginRenderPhases(app *byke.App) {
 	app.AddSystems(Core2d, byke.System(dispatchOpaqueRenderSystem).InSet(Core2dOpaque))
@@ -24,7 +28,6 @@ func pluginRenderPhases(app *byke.App) {
 	app.AddSystems(Core2d, byke.System(dispatchTransparentRenderSystem).InSet(Core2dTransparent))
 	app.AddSystems(Render, byke.System(sortRenderPhasesSystem[Transparent]).InSet(RenderPhaseSort))
 	app.AddSystems(Render, byke.System(cleanupSortableRenderPhaseSystem[Transparent]).InSet(RenderPhaseCleanup))
-
 }
 
 type Draw func(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool)
@@ -262,14 +265,16 @@ func sortRenderPhase[M any](phase *SortableRenderPhase[M]) {
 }
 
 func cleanupSortableRenderPhaseSystem[M any](
-	phases byke.Query[*SortableRenderPhase[M]]) {
+	phases byke.Query[*SortableRenderPhase[M]],
+) {
 	for phase := range phases.Items() {
 		phase.Reset()
 	}
 }
 
 func cleanupBinnedRenderPhaseSystem[M any](
-	phases byke.Query[*BinnedRenderPhase[M]]) {
+	phases byke.Query[*BinnedRenderPhase[M]],
+) {
 	for phase := range phases.Items() {
 		phase.Reset()
 	}

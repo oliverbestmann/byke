@@ -77,7 +77,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 func moveLightSystem(vt VirtualTime, lightsQuery Query[struct {
 	_         With[PointLight]
 	Transform *Transform
-}]) {
+}],
+) {
 	for item := range lightsQuery.Items() {
 		rot := glm.RotationYQuat(glm.Rad(vt.Elapsed.Seconds()) * 0.1)
 		pos := rot.Transform(glm.Vec3f{-5, 3, 10})
@@ -90,7 +91,8 @@ func moveCameraSystem(vt VirtualTime, keys Keys, cam Single[struct {
 	_                With[Camera]
 	Transform        *Transform
 	CameraController *CameraController
-}]) {
+}],
+) {
 	c := cam.Get()
 
 	if keys.IsPressed(vyn.KeyE) {

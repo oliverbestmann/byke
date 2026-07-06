@@ -270,7 +270,8 @@ func (m *MeshBindGroups) ByMesh(mesh *Mesh) (*wgpu.BindGroup, bool) {
 	return m.groups.Get(mesh)
 }
 
-var MeshBindGroupLayout = SequentialLayoutWithLabel("Mesh",
+var MeshBindGroupLayout = SequentialLayoutWithLabel(
+	"Mesh",
 	// morph attributes
 	BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false),
 )

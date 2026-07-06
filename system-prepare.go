@@ -59,7 +59,7 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 
 	defer puffin.NewScopeWithValue("byke.PrepareSystem", preparedSystem.Name).End()
 
-	slog.Info("Prepare system", slog.String("name", preparedSystem.Name), slog.Int("idx", len(w.systems)))
+	slog.Debug("Prepare system", slog.String("name", preparedSystem.Name), slog.Int("idx", len(w.systems)))
 
 	systemType := rSystem.Type()
 
@@ -118,7 +118,6 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 
 		for idx, param := range params {
 			value, err := param.GetValue(sc)
-
 			if err != nil {
 				// need to cleanup the ones we've already added
 				for _, param := range params[:idx+1] {

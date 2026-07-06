@@ -8,9 +8,11 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-var _ = byke.ValidateComponent[DirectionalLight]()
-var _ = byke.ValidateComponent[PointLight]()
-var _ = byke.ValidateComponent[SpotLight]()
+var (
+	_ = byke.ValidateComponent[DirectionalLight]()
+	_ = byke.ValidateComponent[PointLight]()
+	_ = byke.ValidateComponent[SpotLight]()
+)
 
 type LightConfig struct {
 	Ambient Color

@@ -5,18 +5,24 @@ import (
 	"github.com/oliverbestmann/byke/spoke"
 )
 
-var _ = byke.ValidateComponent[Visibility]()
-var _ = byke.ValidateComponent[ComputedVisibility]()
+var (
+	_ = byke.ValidateComponent[Visibility]()
+	_ = byke.ValidateComponent[ComputedVisibility]()
+)
 
 type visibility uint8
 
-const visibilityInherit = 0
-const visibilityVisible = 1
-const visibilityInvisible = 2
+const (
+	visibilityInherit   = 0
+	visibilityVisible   = 1
+	visibilityInvisible = 2
+)
 
-var InheritVisibility = Visibility{value: visibilityInherit}
-var Visible = Visibility{value: visibilityVisible}
-var Invisible = Visibility{value: visibilityInvisible}
+var (
+	InheritVisibility = Visibility{value: visibilityInherit}
+	Visible           = Visibility{value: visibilityVisible}
+	Invisible         = Visibility{value: visibilityInvisible}
+)
 
 type Visibility struct {
 	byke.ComparableComponent[Visibility]

@@ -325,7 +325,6 @@ func TestParseQueryStruct(t *testing.T) {
 			},
 		})
 	}
-
 }
 
 func TestFromEntity(t *testing.T) {

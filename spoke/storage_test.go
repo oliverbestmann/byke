@@ -192,5 +192,4 @@ func TestStorage_OptimizeQuery(t *testing.T) {
 
 	_, ok = iter.Next()
 	require.False(t, ok)
-
 }

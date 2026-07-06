@@ -20,12 +20,14 @@ type Easing interface {
 	Eval(t float32) float32
 }
 
+// Linear is an easing function that returns the input value unchanged.
 type Linear struct{}
 
 func (Linear) Eval(t float32) float32 {
 	return t
 }
 
+// EaseInQuad is an easing function that accelerates from zero velocity.
 type EaseInQuad struct{}
 
 func (EaseInQuad) Eval(t float32) float32 {
@@ -37,12 +39,14 @@ type Interpolator[T any] interface {
 	Interpolate(a, b T, alpha float32) T
 }
 
+// FloatInterpolator implements linear interpolation for float32 values.
 type FloatInterpolator struct{}
 
 func (FloatInterpolator) Interpolate(a, b float32, alpha float32) float32 {
 	return a + (b-a)*alpha
 }
 
+// Vec3fInterpolator implements linear interpolation for Vec3f values.
 type Vec3fInterpolator struct{}
 
 func (Vec3fInterpolator) Interpolate(a, b glm.Vec3f, alpha float32) glm.Vec3f {
@@ -53,6 +57,7 @@ func (Vec3fInterpolator) Interpolate(a, b glm.Vec3f, alpha float32) glm.Vec3f {
 	}
 }
 
+// QuatInterpolator implements spherical linear interpolation for quaternion values.
 type QuatInterpolator struct{}
 
 func (QuatInterpolator) Interpolate(a, b glm.Quat, alpha float32) glm.Quat {
@@ -69,16 +74,24 @@ func (QuatInterpolator) Interpolate(a, b glm.Quat, alpha float32) glm.Quat {
 	return glm.QuatOf(aVec.Add(bVec).Normalize().XYZW())
 }
 
+// Keyframe represents a value at a specific time in an animation.
 type Keyframe[T any] struct {
-	Time  float32
+	// Time is the time position of this keyframe.
+	Time float32
+
+	// Value is the animated value at this keyframe.
 	Value T
 }
 
+// KeyframeCurve is a curve that interpolates values between keyframes.
 type KeyframeCurve[T any] struct {
-	Keys         []Keyframe[T]
+	// Keys is the sorted list of keyframes.
+	Keys []Keyframe[T]
+
+	// Interpolator defines how to interpolate between values.
 	Interpolator Interpolator[T]
 
-	// easing to apply to the value. Defaults to Linear if not set.
+	// Easing is the easing function to apply to the interpolation. Defaults to Linear if not set.
 	Easing Easing
 }
 
@@ -117,7 +130,9 @@ func (c *KeyframeCurve[T]) Sample(t float32) T {
 	return c.Interpolator.Interpolate(a.Value, b.Value, alpha)
 }
 
+// ConstantCurve is a curve that always returns the same value.
 type ConstantCurve[T any] struct {
+	// Value is the constant value returned by this curve.
 	Value T
 }
 
@@ -125,19 +140,25 @@ func (c ConstantCurve[T]) Sample(_ float32) T {
 	return c.Value
 }
 
+// FunctionCurve is a curve implemented by a function.
 type FunctionCurve[T any] func(t float32) T
 
 func (c FunctionCurve[T]) Sample(t float32) T {
 	return c(t)
 }
 
+// PropertyAccessor defines how to get and set a property on an entity.
 type PropertyAccessor[T any] interface {
+	// Set assigns a value to the property on the given entity.
 	Set(entity byke.EntityRef, value T)
+	// Get retrieves the value of the property from the given entity.
+	// It returns the value and a boolean indicating if the property exists.
 	Get(entity byke.EntityRef) (T, bool)
 }
 
 type fieldAccessorImpl[T any, C byke.IsComponent[C]] func(comp *C) *T
 
+// FieldAccessor creates a PropertyAccessor that accesses a field within a component.
 func FieldAccessor[T any, C byke.IsComponent[C]](f func(comp *C) *T) PropertyAccessor[T] {
 	return fieldAccessorImpl[T, C](f)
 }
@@ -163,18 +184,22 @@ func (pa fieldAccessorImpl[T, C]) Get(entity byke.EntityRef) (T, bool) {
 	return *ref, true
 }
 
+// TranslationPropertyAccessor accesses the Translation field of a Transform component.
 var TranslationPropertyAccessor = FieldAccessor(func(comp *Transform) *glm.Vec3f {
 	return &comp.Translation
 })
 
+// RotationPropertyAccessor accesses the Rotation field of a Transform component.
 var RotationPropertyAccessor = FieldAccessor(func(comp *Transform) *glm.Quat {
 	return &comp.Rotation
 })
 
+// ScalePropertyAccessor accesses the Scale field of a Transform component.
 var ScalePropertyAccessor = FieldAccessor(func(comp *Transform) *glm.Vec3f {
 	return &comp.Scale
 })
 
+// ComponentPropertyAccessor implements PropertyAccessor by treating the entire component as the value.
 type ComponentPropertyAccessor[T byke.IsComponent[T]] struct{}
 
 func (ComponentPropertyAccessor[T]) Set(entity byke.EntityRef, value T) {
@@ -196,24 +221,34 @@ func (ComponentPropertyAccessor[T]) Get(entity byke.EntityRef) (T, bool) {
 	return *any(tr).(*T), true
 }
 
+// TypedAnimationCurve animates a property on an entity using a curve.
 type TypedAnimationCurve[T any] struct {
+	// Accessor defines how to get and set the property on the entity.
 	Accessor PropertyAccessor[T]
-	Curve    Curve[T]
+
+	// Curve defines the animation curve to apply.
+	Curve Curve[T]
 }
 
 func (a *TypedAnimationCurve[T]) ApplyTo(ref byke.EntityRef, t float32) {
 	a.Accessor.Set(ref, a.Curve.Sample(t))
 }
 
+// AnimationCurve is a curve that can be applied to an entity at a given time.
 type AnimationCurve interface {
+	// ApplyTo applies the animation curve to the given entity at time t.
 	ApplyTo(ref byke.EntityRef, t float32)
 }
 
+// AnimationTargetId identifies an entity as a target for animations.
 type AnimationTargetId struct {
 	byke.Component[AnimationTargetId]
+
+	// Id is the hash identifier for this animation target.
 	Id [16]byte
 }
 
+// AnimationTargetIdOf creates an AnimationTargetId from a string value.
 func AnimationTargetIdOf(value string) AnimationTargetId {
 	hash := sha1.New()
 	hash.Write([]byte(value))
@@ -225,23 +260,32 @@ func AnimationTargetIdOf(value string) AnimationTargetId {
 	return targetId
 }
 
-var _ = byke.ValidateComponent[AnimatedBy]()
-var _ = byke.ValidateComponent[ActiveAnimation]()
-var _ = byke.ValidateComponent[AnimationTargetId]()
+var (
+	_ = byke.ValidateComponent[AnimatedBy]()
+	_ = byke.ValidateComponent[ActiveAnimation]()
+	_ = byke.ValidateComponent[AnimationTargetId]()
+)
 
+// AnimatedBy marks an entity as being animated by another entity.
 type AnimatedBy struct {
 	byke.Component[AnimatedBy]
-	// Animator is the entity that holds the AnimationPlayer and
-	// the current animation that has an AnimationTarget to the current entity.
+
+	// Animator is the entity that holds the AnimationPlayer and the current animation that has an AnimationTarget to the current entity.
 	Animator byke.EntityId
 }
 
+// ActiveAnimation holds the current state of a playing animation clip.
 type ActiveAnimation struct {
 	byke.Component[ActiveAnimation]
-	Time      float32
+
+	// Time is the current playback time of the animation in seconds.
+	Time float32
+
+	// Animation is the animation clip being played.
 	Animation AnimationClip
 }
 
+// AnimationClip is a collection of animation curves targeting different entities.
 type AnimationClip struct {
 	animations map[AnimationTargetId][]AnimationCurve
 }
@@ -312,7 +356,8 @@ func addAnimatedBySystem(
 
 func animationAdvanceTimeSystem(vt byke.VirtualTime, animations byke.Query[struct {
 	Animation *ActiveAnimation
-}]) {
+}],
+) {
 	for animation := range animations.Items() {
 		animation.Animation.Time += vt.DeltaSecs * 0.5
 	}

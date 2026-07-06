@@ -3,7 +3,7 @@
 package glm
 
 func mat4fMulAssign(m, o *mat4f) {
-	var mCopy = *m
+	mCopy := *m
 	mat4fMulGo(&mCopy, o, m)
 }
 

@@ -22,7 +22,7 @@ func (b blitConfig) EqualTo(other PipelineConfig) bool {
 func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	shader := ctx.Shader("Blit", blitShader, nil)
 
-	var blend = wgpu.BlendStateReplace
+	blend := wgpu.BlendStateReplace
 	if b.AlphaBlend {
 		blend = wgpu.BlendStateAlphaBlending
 	}
@@ -31,7 +31,8 @@ func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 		Label: "Blit",
 
 		Layout: []wgpu.BindGroupLayoutDescriptor{
-			SequentialLayout(
+			SequentialLayoutWithLabel(
+				"Blit",
 				BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
 				BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
 			),

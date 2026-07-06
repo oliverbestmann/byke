@@ -1,41 +1,59 @@
 package byke2d
 
 import (
-	"fmt"
-
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/meh"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+// MeshSlab represents the GPU-allocated resources for a single mesh.
+// It contains the index and vertex buffers along with offsets and counts needed for rendering.
 type MeshSlab struct {
+	// VertexLayout describes the structure of vertex data in the buffer.
 	VertexLayout VertexLayout
 
 	// the allocated buffer ids
-	Indices  *wgpu.Buffer
+	// Indices points to the GPU buffer containing index data (triangle definitions).
+	Indices *wgpu.Buffer
+
+	// Vertices points to the GPU buffer containing vertex data (positions, normals, uvs, etc.).
 	Vertices *wgpu.Buffer
 
+	// MorphAttributes points to the GPU buffer containing blend shape data for skeletal animation.
 	// optional, only if morph attributes data is defined
-	MorphAttributes      *wgpu.Buffer
+	MorphAttributes *wgpu.Buffer
+
+	// MorphAttributesIndex is the offset index into the morph attributes buffer for this mesh.
 	MorphAttributesIndex uint32
 
-	// index of first item
-	FirstIndex  uint32
+	// FirstIndex is the byte offset of the first index in the Indices buffer.
+	FirstIndex uint32
+
+	// FirstVertex is the byte offset of the first vertex in the Vertices buffer.
 	FirstVertex uint32
 
+	// IndicesCount is the number of indices in this mesh (must be a multiple of 3 for triangle rendering).
 	IndicesCount uint32
 }
 
+// MeshAllocator manages GPU buffer allocation for meshes.
+// It uses slab allocators to pack multiple meshes into large GPU buffers efficiently,
+// reducing allocation overhead and improving GPU memory coherence.
 type MeshAllocator struct {
-	context    *RenderContext
-	slabs      map[*Mesh]meshSlab
+	context *RenderContext
+
+	// slabs maps each mesh to its allocated GPU resources
+	slabs map[*Mesh]meshSlab
+
+	// allocators manages separate vertex and index buffer allocations for each vertex layout
 	allocators meh.Map[VertexLayout, *bufferSlabAllocator]
 
-	morphAttributesAlloc  *slabAllocator
-	morphAttributesBuffer *wgpu.Buffer
+	// morphAttributes manages allocation of blend shape data
+	morphAttributes *BufferAllocator
 }
 
+// NewMeshAllocator creates a new mesh allocator for the given render context.
 func NewMeshAllocator(ctx *RenderContext) *MeshAllocator {
 	return &MeshAllocator{
 		context: ctx,
@@ -48,6 +66,8 @@ func meshAllocatorFromWorld(world *byke.World) MeshAllocator {
 	return *NewMeshAllocator(ctx)
 }
 
+// Get retrieves the allocated GPU resources for the given mesh.
+// Returns false if the mesh has not been allocated yet.
 func (m *MeshAllocator) Get(mesh *Mesh) (MeshSlab, bool) {
 	slab, ok := m.slabs[mesh]
 	if !ok {
@@ -56,21 +76,24 @@ func (m *MeshAllocator) Get(mesh *Mesh) (MeshSlab, bool) {
 
 	result := MeshSlab{
 		VertexLayout: slab.VertexLayout,
-		Indices:      slab.Allocator.BufIndices,
-		Vertices:     slab.Allocator.BufVertices,
+		Indices:      slab.Allocator.Indices.Buffer,
+		Vertices:     slab.Allocator.Vertices.Buffer,
 		FirstIndex:   slab.FirstIndex,
 		FirstVertex:  slab.FirstVertex,
 		IndicesCount: slab.IndicesCount,
 	}
 
 	if slab.HasMorphAttributes {
-		result.MorphAttributes = m.morphAttributesBuffer
+		result.MorphAttributes = m.morphAttributes.Buffer
 		result.MorphAttributesIndex = slab.FirstMorphAttribute
 	}
 
 	return result, true
 }
 
+// Alloc allocates or reallocates GPU buffer space for the given mesh.
+// If the mesh has been modified since the last allocation, it will be reallocated.
+// Returns true if the mesh was newly allocated or reallocated, false if it was already current.
 func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 	existing, ok := m.slabs[mesh]
 	if ok {
@@ -80,11 +103,11 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 
 		// mesh has changed, we need to reallocate
 		alloc := m.getAllocator(existing.VertexLayout)
-		alloc.AllocVertices.Free(existing.VerticesStart)
-		alloc.AllocIndices.Free(existing.IndicesStart)
+		alloc.Vertices.Free(existing.VerticesStart)
+		alloc.Indices.Free(existing.IndicesStart)
 
 		if existing.HasMorphAttributes {
-			m.morphAttributesAlloc.Free(existing.MorphAttributesStart)
+			m.morphAttributes.Free(existing.MorphAttributesStart)
 		}
 	}
 
@@ -93,20 +116,14 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 	alloc := m.getAllocator(layout)
 
 	// allocate space for the vertices
-	verticesStart, ok := alloc.AllocVertices.Alloc(uint32(mesh.VertexCount()) * layout.Size())
-	if !ok {
-		panic(fmt.Errorf("failed to allocate %d vertices", mesh.VertexCount()))
-	}
+	verticesStart := alloc.Vertices.Alloc(uint32(mesh.VertexCount()) * layout.Size())
 
 	if verticesStart%layout.Size() != 0 {
 		panic("vertex data not aligned")
 	}
 
 	// allocate space for the indices
-	indicesStart, ok := alloc.AllocIndices.Alloc(uint32(len(mesh.indices)) * 4)
-	if !ok {
-		panic(fmt.Errorf("failed to allocate %d indices", len(mesh.indices)))
-	}
+	indicesStart := alloc.Indices.Alloc(uint32(len(mesh.indices)) * 4)
 
 	slab := meshSlab{
 		VertexLayout:  layout,
@@ -125,10 +142,7 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 
 		morph := collectMorphAttributes(morphTargets)
 
-		morphStart, ok := m.morphAttributesAlloc.Alloc(uint32(len(morph)))
-		if !ok {
-			panic(fmt.Errorf("failed to allocate %d bytes for morph attributes", len(morph)))
-		}
+		morphStart := m.morphAttributes.Alloc(uint32(len(morph)))
 
 		// vec3f (with padding) is 16 byte. we have three of them
 		const attributeSize = 3 * 4 * 4
@@ -138,7 +152,7 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 		slab.FirstMorphAttribute = morphStart / attributeSize
 
 		// upload data
-		m.context.WriteBuffer(m.morphAttributesBuffer, uint64(morphStart), morph)
+		m.context.WriteBuffer(m.morphAttributes.Buffer, uint64(morphStart), morph)
 	}
 
 	// store the allocation
@@ -146,11 +160,11 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 
 	// upload vertex data
 	vertices, _ := mesh.WriteVerticesTo(nil)
-	m.context.WriteBuffer(alloc.BufVertices, uint64(slab.VerticesStart), vertices)
+	m.context.WriteBuffer(alloc.Vertices.Buffer, uint64(slab.VerticesStart), vertices)
 
 	// upload index data
 	indices := wgpu.ToBytes(mesh.indices)
-	m.context.WriteBuffer(alloc.BufIndices, uint64(slab.IndicesStart), indices)
+	m.context.WriteBuffer(alloc.Indices.Buffer, uint64(slab.IndicesStart), indices)
 
 	return true
 }
@@ -158,26 +172,9 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 func (m *MeshAllocator) getAllocator(layout VertexLayout) *bufferSlabAllocator {
 	allocator, ok := m.allocators.Get(layout)
 	if !ok {
-		bufferSize := uint32(64 * 1024 * 1024)
-
-		bufVertex := m.context.CreateBuffer(&wgpu.BufferDescriptor{
-			Label: "VertexBuffer",
-			Usage: wgpu.BufferUsageCopyDst | wgpu.BufferUsageVertex,
-			Size:  uint64(bufferSize),
-		})
-
-		bufIndex := m.context.CreateBuffer(&wgpu.BufferDescriptor{
-			Label: "IndexBuffer",
-			Usage: wgpu.BufferUsageCopyDst | wgpu.BufferUsageIndex,
-			Size:  uint64(bufferSize),
-		})
-
 		allocator = &bufferSlabAllocator{
-			AllocVertices: newSlabAllocator(bufferSize),
-			AllocIndices:  newSlabAllocator(bufferSize),
-
-			BufVertices: bufVertex,
-			BufIndices:  bufIndex,
+			Vertices: NewBufferAllocator(m.context, "VertexBuffer", wgpu.BufferUsageVertex, 512*1024),
+			Indices:  NewBufferAllocator(m.context, "IndexBuffer", wgpu.BufferUsageIndex, 512*1024),
 		}
 
 		m.allocators.Insert(layout, allocator)
@@ -187,20 +184,16 @@ func (m *MeshAllocator) getAllocator(layout VertexLayout) *bufferSlabAllocator {
 }
 
 func (m *MeshAllocator) ensureMorphAttributes() {
-	if m.morphAttributesBuffer != nil {
+	if m.morphAttributes != nil {
 		return
 	}
 
-	const bufferSize = 4 * 1024 * 1024
-
-	bufMorphAttributes := m.context.CreateBuffer(&wgpu.BufferDescriptor{
-		Label: "MorphAttributes",
-		Usage: wgpu.BufferUsageCopyDst | wgpu.BufferUsageStorage,
-		Size:  uint64(bufferSize),
-	})
-
-	m.morphAttributesAlloc = newSlabAllocator(bufferSize)
-	m.morphAttributesBuffer = bufMorphAttributes
+	m.morphAttributes = NewBufferAllocator(
+		m.context,
+		"MorphAttributes",
+		wgpu.BufferUsageStorage,
+		512*1024,
+	)
 }
 
 type meshSlab struct {
@@ -225,11 +218,8 @@ type meshSlab struct {
 }
 
 type bufferSlabAllocator struct {
-	AllocVertices *slabAllocator
-	AllocIndices  *slabAllocator
-
-	BufVertices *wgpu.Buffer
-	BufIndices  *wgpu.Buffer
+	Vertices *BufferAllocator
+	Indices  *BufferAllocator
 }
 
 func collectMorphAttributes(targets [][]MorphAttributes) []byte {

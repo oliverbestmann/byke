@@ -75,7 +75,6 @@ func weightsCurve(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref, weights
 		Interpolator: &weightsInterpolator{},
 		Easing:       &Linear{},
 	}
-
 }
 
 type weightsInterpolator struct{}

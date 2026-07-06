@@ -94,7 +94,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 func moveSpritesSystem(t FixedTime, query Query[struct {
 	Transform *Transform
 	Velocity  Velocity
-}]) {
+}],
+) {
 	for item := range query.Items() {
 		posNew := item.Transform.Translation.
 			Truncate().

@@ -14,6 +14,9 @@ import (
 	"golang.org/x/mobile/exp/f32"
 )
 
+// Mesh represents a collection of vertices, indices, and vertex attributes that define
+// 3D geometry. It supports flexible vertex attributes, morph targets for skeletal animation,
+// and provides methods for geometric computations like normal and tangent generation.
 type Mesh struct {
 	// indices indexes into vertices to draw triangles from.
 	// Length of indices must be a multiple of three.
@@ -32,6 +35,7 @@ type Mesh struct {
 	version uint32
 }
 
+// MeshOf creates a new mesh with the given indices and vertex positions.
 func MeshOf(indices []uint32, vertices []glm.Vec3f) *Mesh {
 	data := ValuesAsByteSlice(vertices)
 
@@ -41,11 +45,15 @@ func MeshOf(indices []uint32, vertices []glm.Vec3f) *Mesh {
 	return mesh
 }
 
+// WithVertices updates the vertex positions of this mesh and returns the mesh for chaining.
 func (m *Mesh) WithVertices(vertices []glm.Vec3f) *Mesh {
 	data := ValuesAsByteSlice(vertices)
 	return m.WithAttributes(VertexAttributePosition, data)
 }
 
+// WithAttributes adds or updates a vertex attribute for all vertices in this mesh.
+// The values byte slice must contain exactly one attribute value per vertex.
+// Returns the mesh for method chaining.
 func (m *Mesh) WithAttributes(attr VertexAttribute, values []byte) *Mesh {
 	valueCount := len(values) / int(attr.Size())
 	if valueCount != m.VertexCount() {
@@ -58,12 +66,15 @@ func (m *Mesh) WithAttributes(attr VertexAttribute, values []byte) *Mesh {
 	return m
 }
 
+// HasAttribute reports whether this mesh has the specified vertex attribute.
 func (m *Mesh) HasAttribute(attr VertexAttribute) bool {
 	ok := m.attributes.Has(attr)
 	return ok
 }
 
-// WithMorphTarget adds another morph target to this vertex
+// WithMorphTarget adds a morph target to the mesh. Each morph target provides
+// alternative attributes for vertices to enable blend-shape animation.
+// The target must have one attribute value per vertex in the mesh.
 func (m *Mesh) WithMorphTarget(target []MorphAttributes) *Mesh {
 	if len(target) != m.VertexCount() {
 		panic(fmt.Errorf(
@@ -78,13 +89,15 @@ func (m *Mesh) WithMorphTarget(target []MorphAttributes) *Mesh {
 	return m
 }
 
-// Vertices returns the vertices of this Mesh. You should not modify the
-// returned slice.
+// Vertices returns the vertex positions of this mesh. The returned slice is a view
+// into the mesh's internal data and must not be modified; use WithVertices instead.
 func (m *Mesh) Vertices() []glm.Vec3f {
 	data := m.attributes.Get(VertexAttributePosition)
 	return ByteSliceAsValues[glm.Vec3f](data.Value)
 }
 
+// ComputeUV calculates UV coordinates for all vertices using the provided function.
+// The function receives a vertex position and should return its corresponding UV coordinate.
 func (m *Mesh) ComputeUV(compute func(point glm.Vec3f) glm.Vec2f) {
 	var uvs []glm.Vec2f
 
@@ -96,15 +109,17 @@ func (m *Mesh) ComputeUV(compute func(point glm.Vec3f) glm.Vec2f) {
 	m.WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs))
 }
 
+// VertexCount returns the number of vertices in this mesh.
 func (m *Mesh) VertexCount() int {
 	return len(m.Vertices())
 }
 
+// MorphTargetCount returns the number of morph targets attached to this mesh.
 func (m *Mesh) MorphTargetCount() int {
 	return len(m.morphTargets)
 }
 
-// Transform applies the given matrix to all vertices within this mesh
+// Transform applies the given transformation matrix to all vertices in this mesh.
 func (m *Mesh) Transform(tr glm.Mat4f) {
 	vertices := m.Vertices()
 
@@ -113,11 +128,12 @@ func (m *Mesh) Transform(tr glm.Mat4f) {
 	}
 }
 
+// AABBSize returns the dimensions of the axis-aligned bounding box that contains all vertices.
 func (m *Mesh) AABBSize() glm.Vec3f {
 	vertices := m.Vertices()
 
-	var maxVec = vertices[0]
-	var minVec = vertices[0]
+	maxVec := vertices[0]
+	minVec := vertices[0]
 	for _, v := range vertices {
 		maxVec = maxVec.Max(v)
 		minVec = minVec.Min(v)
@@ -126,6 +142,8 @@ func (m *Mesh) AABBSize() glm.Vec3f {
 	return maxVec.Sub(minVec)
 }
 
+// ComputeNormals calculates smooth vertex normals from the mesh geometry.
+// Normals are computed per-vertex by averaging the face normals of all adjacent faces.
 func (m *Mesh) ComputeNormals() {
 	m.MergeVertices()
 
@@ -164,6 +182,9 @@ func (m *Mesh) ComputeNormals() {
 	m.WithAttributes(VertexAttributeNormal, wgpu.ToBytes(normals))
 }
 
+// MergeVertices removes duplicate vertices from the mesh, reducing memory usage and improving
+// rendering performance. It returns true if vertices were merged, false if the mesh could not
+// be merged (e.g., due to vertex attributes or morph targets being present).
 func (m *Mesh) MergeVertices() bool {
 	if len(m.attributes) > 0 || len(m.morphTargets) > 0 {
 		return false
@@ -174,7 +195,7 @@ func (m *Mesh) MergeVertices() bool {
 
 	vertices := m.Vertices()
 
-	var byVertex = map[glm.Vec3f]uint32{}
+	byVertex := map[glm.Vec3f]uint32{}
 	var newIndices []uint32
 	var newVertices []glm.Vec3f
 
@@ -206,6 +227,8 @@ func (m *Mesh) MergeVertices() bool {
 	return true
 }
 
+// SmoothShade averages normals for vertices at the same position, creating smooth shading
+// across faces that share vertices. This requires normals to already be computed.
 func (m *Mesh) SmoothShade() {
 	type vertexInfo struct {
 		AccNormal glm.Vec3f
@@ -248,6 +271,9 @@ func (m *Mesh) SmoothShade() {
 	m.version += 1
 }
 
+// ComputeTangents calculates tangent and bitangent vectors for all vertices.
+// This requires both normals and UV coordinates to be present.
+// It uses the mikktspace algorithm.
 func (m *Mesh) ComputeTangents() {
 	normalsAttrs := m.attributes.Get(VertexAttributeNormal)
 	uvsAttrs := m.attributes.Get(VertexAttributeUV)
@@ -284,10 +310,14 @@ func (m *Mesh) updateVertexLayout() {
 	m.layout = NewVertexLayout(attrs)
 }
 
+// VertexLayout returns the layout descriptor for vertices in this mesh, which specifies
+// what attributes are present and their formats and offsets.
 func (m *Mesh) VertexLayout() VertexLayout {
 	return m.layout
 }
 
+// WriteVerticesTo serializes all vertices to the given buffer in GPU-friendly interleaved format
+// (position, normal, uv, etc.) and returns the extended buffer and vertex layout.
 func (m *Mesh) WriteVerticesTo(buf []byte) ([]byte, VertexLayout) {
 	layout := m.VertexLayout()
 
@@ -319,16 +349,19 @@ func appendVertexRawTo(target []byte, values []byte, format wgpu.VertexFormat, i
 	return append(target, slice...)
 }
 
+// RegularPolygon creates a mesh representing a regular polygon (equilateral triangle, square, etc.).
 func RegularPolygon(radius float32, sides uint) *Mesh {
 	// a regular polygon is actually just a circle
 	return Circle(radius, sides)
 }
 
+// Circle creates a mesh representing a circle with the given radius and vertex resolution.
 func Circle(radius float32, resolution uint) *Mesh {
 	size := glm.Vec2f{radius, radius}.Scale(2.0)
 	return Ellipse(size, resolution)
 }
 
+// Ellipse creates a mesh representing an ellipse with the given size and vertex resolution.
 func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 	halfSize := size.Scale(0.5)
 
@@ -362,6 +395,7 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 	return MeshOf(indices, vertices).WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs))
 }
 
+// Rectangle creates a mesh representing a rectangle with the given size, centered at the origin.
 func Rectangle(size glm.Vec2f) *Mesh {
 	hw, hh := size.Scale(0.5).XY()
 
@@ -384,6 +418,7 @@ func Rectangle(size glm.Vec2f) *Mesh {
 	return MeshOf(indices, vertices[:]).WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs[:]))
 }
 
+// VertexAttributesOf creates a VertexAttributes container from a vertex attribute and typed values.
 func VertexAttributesOf[T any](attr VertexAttribute, values []T) VertexAttributes {
 	return VertexAttributes{
 		{
@@ -393,6 +428,7 @@ func VertexAttributesOf[T any](attr VertexAttribute, values []T) VertexAttribute
 	}
 }
 
+// ConvexPolygon creates a mesh from a convex polygon by triangulating from its first vertex.
 func ConvexPolygon(vertices []glm.Vec3f) *Mesh {
 	if len(vertices) < 3 {
 		panic(errors.New("polygon must have at least 3 vertices"))
@@ -407,8 +443,8 @@ func ConvexPolygon(vertices []glm.Vec3f) *Mesh {
 	return MeshOf(indices, vertices)
 }
 
-// Polygon creates a Mesh from a (possibly concave) polygon. The polygon might
-// contain holes. A best effort at triangulation is performed.
+// Polygon creates a mesh from a 2D polygon using robust triangulation. The polygon can be
+// concave and may contain holes. Each hole is a sequence of 2D points defining its boundary.
 func Polygon(polygon []glm.Vec2f, holes ...[]glm.Vec2f) *Mesh {
 	// glm.Vec2f is binary compatible with earcut.Point[float32], so we can
 	// just cast the slice data accordingly without needing to copy the actual data

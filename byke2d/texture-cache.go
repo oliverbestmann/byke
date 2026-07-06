@@ -32,7 +32,8 @@ func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {
 	tex := NewTextureFromDesc(t.Context, SamplerConfig{}, desc)
 	t.used = append(t.used, tex)
 
-	slog.Info("Allocated texture",
+	slog.Debug(
+		"Allocated texture",
 		slog.String("label", tex.Descriptor.Label),
 		slog.Any("size", tex.Size()),
 	)
@@ -42,7 +43,8 @@ func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {
 
 func (t *TextureCache) Reset() {
 	for _, tex := range t.unused {
-		slog.Info("Freeing texture",
+		slog.Debug(
+			"Freeing texture",
 			slog.String("label", tex.Descriptor.Label),
 			slog.Any("size", tex.Size()),
 		)

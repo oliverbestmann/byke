@@ -72,7 +72,7 @@ func (c *Compiler) Add(source string) error {
 		return fmt.Errorf("parse module %q: %w", mod, err)
 	}
 
-	slog.Info("Added shader library", slog.String("module", mod))
+	slog.Debug("Added shader library", slog.String("module", mod))
 
 	return nil
 }
