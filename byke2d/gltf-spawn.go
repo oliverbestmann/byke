@@ -106,7 +106,10 @@ type spawnContext struct {
 
 func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 	// spawn root entity
-	sc.root = sc.Commands.Spawn(SceneInstance{}, byke.ChildOf{Parent: parentId}).Id()
+	sc.root = sc.Commands.Spawn(
+		SceneInstance{},
+		NewTransform().WithScaleXYZ(1, 1, -1),
+		byke.ChildOf{Parent: parentId}).Id()
 
 	// first step, spawn nodes
 	for _, node := range sc.Handle.Scene(sceneId) {

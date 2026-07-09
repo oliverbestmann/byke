@@ -7,7 +7,7 @@ import (
 	"github.com/oliverbestmann/byke"
 )
 
-func dumpTree(
+func dumpTreeSystem(
 	rootsQuery byke.Query[struct {
 		_        byke.Without[byke.ChildOf]
 		EntityId byke.EntityId
@@ -40,6 +40,10 @@ func dumpTree(
 		} else {
 			line.WriteString("<node>")
 		}
+
+		line.WriteString(" [")
+		line.WriteString(nodeId.String())
+		line.WriteString("] ")
 
 		line.WriteString(" (")
 		for _, comp := range node.EntityRef.Components() {

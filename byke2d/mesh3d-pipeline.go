@@ -132,13 +132,13 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 
 func frontFaceOf(f wgpu.FrontFace) wgpu.FrontFace {
 	switch f {
-	case wgpu.FrontFaceCCW:
+	case wgpu.FrontFaceCW:
 		return wgpu.FrontFaceCW
 
-	case wgpu.FrontFaceCW:
+	case wgpu.FrontFaceCCW:
 		return wgpu.FrontFaceCCW
 
 	default:
-		return wgpu.FrontFaceCW
+		return wgpu.FrontFaceCCW
 	}
 }

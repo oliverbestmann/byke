@@ -238,7 +238,7 @@ func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
 // This just applies the Cameras position. It does not apply the
 // cameras projection.
 func (v *ViewValues) WorldToCamera() glm.Mat4f {
-	inv, ok := inverseAeffine(v.CameraTransform.Affine)
+	inv, ok := inverseAffine(v.CameraTransform.Affine)
 	if !ok {
 		panic("not invertable")
 	}
@@ -424,7 +424,7 @@ func driveCameraSchedules(
 	}
 }
 
-func inverseAeffine(m glm.Mat4f) (glm.Mat4f, bool) {
+func inverseAffine(m glm.Mat4f) (glm.Mat4f, bool) {
 	// Convert to row-major variables for readability:
 	a := m[0][0]
 	b := m[1][0]

@@ -27,7 +27,7 @@ type debugMetricsTextMaker struct {
 }
 
 func pluginDebug(app *byke.App) {
-	app.AddSystems(byke.Update, byke.System(dumpTree).
+	app.AddSystems(byke.Update, byke.System(dumpTreeSystem).
 		RunIf(KeyIsJustPressed(vyn.KeyT)).
 		RunIf(KeyIsPressed(vyn.KeyShiftLeft)))
 

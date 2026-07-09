@@ -115,24 +115,24 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 	if m.Texture != nil {
 		entries = append(
 			entries,
-			BindingTextureView(m.Texture.TextureView),
-			BindingSampler(m.Texture.Sampler),
+			Indexed(1, BindingTextureView(m.Texture.TextureView)),
+			Indexed(2, BindingSampler(m.Texture.Sampler)),
 		)
 	}
 
 	if m.NormalTexture != nil {
 		entries = append(
 			entries,
-			BindingTextureView(m.NormalTexture.TextureView),
-			BindingSampler(m.NormalTexture.Sampler),
+			Indexed(3, BindingTextureView(m.NormalTexture.TextureView)),
+			Indexed(4, BindingSampler(m.NormalTexture.Sampler)),
 		)
 	}
 
 	if m.EmissiveTexture != nil {
 		entries = append(
 			entries,
-			BindingTextureView(m.EmissiveTexture.TextureView),
-			BindingSampler(m.EmissiveTexture.Sampler),
+			Indexed(5, BindingTextureView(m.EmissiveTexture.TextureView)),
+			Indexed(6, BindingSampler(m.EmissiveTexture.Sampler)),
 		)
 	}
 

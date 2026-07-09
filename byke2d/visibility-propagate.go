@@ -1,6 +1,8 @@
 package byke2d
 
-import "github.com/oliverbestmann/byke"
+import (
+	"github.com/oliverbestmann/byke"
+)
 
 func syncSimpleVisibilitySystem(
 	query byke.Query[struct {
@@ -20,6 +22,7 @@ func syncSimpleVisibilitySystem(
 }
 
 func propagateVisibilitySystem(
+	world *byke.World,
 	roots byke.Query[struct {
 		_ byke.Without[byke.ChildOf]
 		_ byke.With[byke.Children]
@@ -40,7 +43,9 @@ func propagateVisibilitySystem(
 	propagateVisibility = func(nodeId byke.EntityId, parentVisibility ComputedVisibility) {
 		node, ok := nodes.Get(nodeId)
 		if !ok {
-			panic("hierarchy is broken")
+			// Node does not exist or has no Visibility or ComputedVisibility field.
+			// A common case where this happens is a Light that is attached to a Mesh entity.
+			return
 		}
 
 		*node.ComputedVisibility = node.Visibility.Compute(parentVisibility)

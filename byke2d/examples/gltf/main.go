@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"log/slog"
-	"math"
 	"os"
 	"runtime"
 
@@ -38,44 +37,73 @@ func main() {
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Startup, setupSystem)
-	app.AddSystems(Update, moveCameraSystem)
+	app.AddSystems(Update, moveLightsInCircleSystem)
 	app.MustRun()
 }
 
+type MovingLight struct {
+	Component[MovingLight]
+	Offset      glm.Vec3f
+	AngleOffset glm.Rad
+}
+
 func setupSystem(commands *Commands, assets *Assets) {
-	model := assets.GLTF("HouseConstructionSite.glb").Await()
+	sphere := assets.GLTF("Sphere.glb").Await()
+	model := assets.GLTF("TestScene.gltf").Await()
 
 	commands.Spawn(
 		Camera{},
 		HDR{},
-		TransformFromXYZ(0, 20, -100),
+		FirstPersonViewController{},
+		TransformFromXYZ(5, 5, 5),
 		DefaultPerspectiveProjection,
 	)
 
 	commands.Spawn(
-		NewTransform().WithRotationY(glm.DegToRad(0)),
 		SceneRoot{Handle: model},
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(20, 20, -50),
+		SceneRoot{Handle: sphere},
+		MovingLight{Offset: glm.Vec3f{5, 3, 0}},
 		PointLight{
-			Color:        ColorLinearRGB(glm.Vec3f{1, 1, 1}.Scale(20).XYZ()),
-			AttQuadratic: 0.1,
+			Color:        ColorLinearRGB(glm.Vec3f{1, 1, 0}.Scale(20).XYZ()),
+			AttQuadratic: 1,
 		},
 	)
 
 	commands.Spawn(
-		NewTransform().WithRotationX(0.8),
-		DirectionalLight{Color: ColorLinearRGB(0.2, 0.1, 0.0)},
+		SceneRoot{Handle: sphere},
+		MovingLight{Offset: glm.Vec3f{4, 2, 0}, AngleOffset: glm.Rad(1)},
+		PointLight{
+			Color:        ColorLinearRGB(glm.Vec3f{1, 1, 1}.Scale(5).XYZ()),
+			AttQuadratic: 1,
+		},
+	)
+
+	commands.Spawn(
+		SceneRoot{Handle: sphere},
+		MovingLight{Offset: glm.Vec3f{3, 8, 0}, AngleOffset: glm.Rad(3.141)},
+		PointLight{
+			Color:        ColorLinearRGB(glm.Vec3f{0, 0, 1}.Scale(10).XYZ()),
+			AttQuadratic: 1,
+		},
 	)
 }
 
-func moveCameraSystem(vt VirtualTime, cam Single[struct {
-	_         With[Camera]
-	Transform *Transform
-}],
+func moveLightsInCircleSystem(
+	vt VirtualTime,
+
+	query Query[struct {
+		_           With[PointLight]
+		MovingLight MovingLight
+		Transform   *Transform
+	}],
 ) {
-	y := math.Sin(vt.Elapsed.Seconds())*20 + 30
-	cam.Get().Transform.Translation[1] = float32(y)
+	for item := range query.Items() {
+		r := glm.RotationYQuat(glm.Rad(vt.Elapsed.Seconds()) + item.MovingLight.AngleOffset)
+		pos := r.Transform(item.MovingLight.Offset)
+
+		item.Transform.Translation = pos
+	}
 }
