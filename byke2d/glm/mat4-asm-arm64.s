@@ -1,4 +1,4 @@
-//go:build !nosimd && arm64
+//go:build !nosimd && (arm64 && !goexperiment.simd)
 #include "textflag.h"
 
 

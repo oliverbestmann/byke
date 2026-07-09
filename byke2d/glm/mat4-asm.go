@@ -1,4 +1,4 @@
-//go:build !nosimd && ((amd64 && !goexperiment.simd) || arm64)
+//go:build !nosimd && ((amd64 && !goexperiment.simd) || (arm64 && !goexperiment.simd))
 
 package glm
 
