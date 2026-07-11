@@ -9,7 +9,7 @@ import (
 type BufferAllocator struct {
 	// The current buffer. It can change after each call to Alloc,
 	// so you might need to rebind.
-	Buffer *wgpu.Buffer
+	buffer *wgpu.Buffer
 
 	context   *RenderContext
 	allocator *slabAllocator
@@ -24,14 +24,18 @@ func NewBufferAllocator(ctx *RenderContext, label string, usage wgpu.BufferUsage
 	})
 
 	return &BufferAllocator{
-		Buffer:    buffer,
+		buffer:    buffer,
 		context:   ctx,
 		allocator: newSlabAllocator(size),
 		label:     label,
 	}
 }
 
-func (m *BufferAllocator) Alloc(size uint32) (addr uint32) {
+func (m *BufferAllocator) BufferAt(addr Addr) *wgpu.Buffer {
+	return m.buffer
+}
+
+func (m *BufferAllocator) Alloc(size uint32) (addr Addr) {
 	addr, ok := m.allocator.Alloc(size)
 	if !ok {
 		m.grow(size)
@@ -42,7 +46,7 @@ func (m *BufferAllocator) Alloc(size uint32) (addr uint32) {
 	return addr
 }
 
-func (m *BufferAllocator) Free(addr uint32) {
+func (m *BufferAllocator) Free(addr Addr) {
 	m.allocator.Free(addr)
 }
 
@@ -56,12 +60,12 @@ func (m *BufferAllocator) grow(size uint32) {
 		slog.Int("newSize", int(newSize)),
 	)
 
-	bufOld := m.Buffer
+	bufOld := m.buffer
 
 	// we need a new larger buffer
 	bufNew := m.context.CreateBuffer(&wgpu.BufferDescriptor{
 		Label: m.label,
-		Usage: m.Buffer.GetUsage(),
+		Usage: m.buffer.GetUsage(),
 		Size:  uint64(newSize),
 	})
 
@@ -76,6 +80,6 @@ func (m *BufferAllocator) grow(size uint32) {
 	m.context.Submit(buf)
 
 	// release the old buffer with the new one
-	m.Buffer.Release()
-	m.Buffer = bufNew
+	m.buffer.Release()
+	m.buffer = bufNew
 }

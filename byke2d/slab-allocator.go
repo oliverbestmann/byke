@@ -7,6 +7,12 @@ import (
 	"sort"
 )
 
+type Addr uint32
+
+func (a Addr) Add(size uint32) Addr {
+	return a + Addr(size)
+}
+
 // slabAllocator manages allocation and deallocation of variable-sized memory blocks
 // from a fixed-size buffer. It maintains sorted lists of used and free memory chunks,
 // automatically coalescing adjacent free chunks to reduce fragmentation.
@@ -33,14 +39,14 @@ func newSlabAllocator(size uint32) *slabAllocator {
 	}
 }
 
-func (m *slabAllocator) Alloc(size uint32) (startAt uint32, ok bool) {
+func (m *slabAllocator) Alloc(size uint32) (addr Addr, ok bool) {
 	defer m.checkInvariants()
 
 	for idx := range m.free {
 		chunk := m.free[idx]
 
 		if chunk.Size >= size {
-			allocStartAt := chunk.StartAt
+			allocAddr := chunk.StartAt
 
 			// remove free space from the end of chunk
 			if m.free[idx].Size == size {
@@ -48,38 +54,38 @@ func (m *slabAllocator) Alloc(size uint32) (startAt uint32, ok bool) {
 				m.free = slices.Delete(m.free, idx, idx+1)
 			} else {
 				// remove allocated space from chunk
-				m.free[idx].StartAt += size
+				m.free[idx].StartAt += Addr(size)
 				m.free[idx].Size -= size
 			}
 
 			// and create a new chunk for the memory we've allocated
 			idx := sort.Search(len(m.used), func(i int) bool {
-				return m.used[i].StartAt >= allocStartAt
+				return m.used[i].StartAt >= allocAddr
 			})
 
 			// insert so that the slice stays sorted
 			m.used = slices.Insert(m.used, idx, memChunk{
-				StartAt: allocStartAt,
+				StartAt: allocAddr,
 				Size:    size,
 			})
 
-			return allocStartAt, true
+			return allocAddr, true
 		}
 	}
 
 	return 0, false
 }
 
-func (m *slabAllocator) Free(allocStart uint32) {
+func (m *slabAllocator) Free(addr Addr) {
 	defer m.checkInvariants()
 
 	// find the index of the allocation
 	idx := sort.Search(len(m.used), func(i int) bool {
-		return m.used[i].StartAt >= allocStart
+		return m.used[i].StartAt >= addr
 	})
 
-	if idx >= len(m.used) || m.used[idx].StartAt != allocStart {
-		slog.Warn("Invalid address for free", slog.Uint64("startAt", uint64(allocStart)))
+	if idx >= len(m.used) || m.used[idx].StartAt != addr {
+		slog.Warn("Invalid address for free", slog.Uint64("startAt", uint64(addr)))
 		return
 	}
 
@@ -88,7 +94,7 @@ func (m *slabAllocator) Free(allocStart uint32) {
 	// delete the entry
 	m.used = slices.Delete(m.used, idx, idx+1)
 
-	m.returnSpace(allocStart, allocSize)
+	m.returnSpace(addr, allocSize)
 }
 
 func (m *slabAllocator) Grow(size uint32) (prevSize, newSize uint32) {
@@ -96,13 +102,13 @@ func (m *slabAllocator) Grow(size uint32) (prevSize, newSize uint32) {
 	newSize = nextPowerOfTwo(m.totalSize + size)
 
 	// extend by the new free space
-	m.returnSpace(prevSize, newSize-prevSize)
+	m.returnSpace(Addr(prevSize), newSize-prevSize)
 	m.totalSize = newSize
 
 	return prevSize, newSize
 }
 
-func (m *slabAllocator) returnSpace(allocStart, allocSize uint32) {
+func (m *slabAllocator) returnSpace(allocStart Addr, allocSize uint32) {
 	// just append free item
 	m.free = append(m.free, memChunk{
 		StartAt: allocStart,
@@ -147,13 +153,13 @@ func (m *slabAllocator) checkInvariants() {
 // memChunk represents a contiguous region of memory with a starting offset and size.
 type memChunk struct {
 	// StartAt is the byte offset where this chunk begins in the buffer.
-	StartAt uint32
+	StartAt Addr
 
 	// Size is the byte size of this chunk.
 	Size uint32
 }
 
 // NextStart returns the byte offset of the first byte after this chunk.
-func (f *memChunk) NextStart() uint32 {
-	return f.StartAt + f.Size
+func (f *memChunk) NextStart() Addr {
+	return f.StartAt.Add(f.Size)
 }

@@ -79,15 +79,15 @@ func (m *MeshAllocator) Get(mesh *Mesh) (MeshSlab, bool) {
 
 	result := MeshSlab{
 		VertexLayout: slab.VertexLayout,
-		Indices:      m.indices.Buffer,
-		Vertices:     slab.Allocator.Buffer,
+		Indices:      m.indices.BufferAt(slab.AddrIndices),
+		Vertices:     slab.Allocator.BufferAt(slab.AddrVertices),
 		FirstIndex:   slab.FirstIndex,
 		FirstVertex:  slab.FirstVertex,
 		IndicesCount: slab.IndicesCount,
 	}
 
 	if slab.HasMorphAttributes {
-		result.MorphAttributes = m.morphAttributes.Buffer
+		result.MorphAttributes = m.morphAttributes.BufferAt(slab.AddrMorphAttributes)
 		result.MorphAttributesIndex = slab.FirstMorphAttribute
 	}
 
@@ -108,12 +108,12 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 
 		// mesh has changed, we need to reallocate
 		alloc := m.getAllocator(existing.VertexLayout)
-		alloc.Free(existing.VerticesStart)
+		alloc.Free(existing.AddrVertices)
 
-		m.indices.Free(existing.IndicesStart)
+		m.indices.Free(existing.AddrIndices)
 
 		if existing.HasMorphAttributes {
-			m.morphAttributes.Free(existing.MorphAttributesStart)
+			m.morphAttributes.Free(existing.AddrMorphAttributes)
 		}
 	}
 
@@ -124,7 +124,7 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 	// allocate space for the vertices
 	verticesStart := alloc.Alloc(uint32(mesh.VertexCount()) * layout.Size())
 
-	if verticesStart%layout.Size() != 0 {
+	if verticesStart%Addr(layout.Size()) != 0 {
 		panic("vertex data not aligned")
 	}
 
@@ -132,14 +132,14 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 	indicesStart := m.indices.Alloc(uint32(len(mesh.indices)) * 4)
 
 	slab := meshSlab{
-		VertexLayout:  layout,
-		Version:       mesh.version,
-		Allocator:     alloc,
-		FirstIndex:    indicesStart / 4,
-		FirstVertex:   verticesStart / layout.Size(),
-		IndicesCount:  uint32(len(mesh.indices)),
-		VerticesStart: verticesStart,
-		IndicesStart:  indicesStart,
+		VertexLayout: layout,
+		Version:      mesh.version,
+		Allocator:    alloc,
+		FirstIndex:   uint32(indicesStart) / 4,
+		FirstVertex:  uint32(verticesStart) / layout.Size(),
+		IndicesCount: uint32(len(mesh.indices)),
+		AddrVertices: verticesStart,
+		AddrIndices:  indicesStart,
 	}
 
 	// if we have morph attributes, allocate those too
@@ -152,11 +152,11 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 		const attributeSize = 3 * 4 * 4
 
 		slab.HasMorphAttributes = true
-		slab.MorphAttributesStart = morphStart
-		slab.FirstMorphAttribute = morphStart / attributeSize
+		slab.AddrMorphAttributes = morphStart
+		slab.FirstMorphAttribute = uint32(morphStart) / attributeSize
 
 		// upload data
-		m.context.WriteBuffer(m.morphAttributes.Buffer, uint64(morphStart), morph)
+		m.context.WriteBuffer(m.morphAttributes.BufferAt(morphStart), uint64(morphStart), morph)
 	}
 
 	// store the allocation
@@ -164,11 +164,11 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 
 	// upload vertex data
 	vertices, _ := mesh.WriteVerticesTo(nil)
-	m.context.WriteBuffer(alloc.Buffer, uint64(slab.VerticesStart), vertices)
+	m.context.WriteBuffer(alloc.BufferAt(slab.AddrVertices), uint64(slab.AddrVertices), vertices)
 
 	// upload index data
 	indices := wgpu.ToBytes(mesh.indices)
-	m.context.WriteBuffer(m.indices.Buffer, uint64(slab.IndicesStart), indices)
+	m.context.WriteBuffer(m.indices.BufferAt(slab.AddrIndices), uint64(slab.AddrIndices), indices)
 
 	return true
 }
@@ -217,11 +217,11 @@ type meshSlab struct {
 	IndicesCount        uint32
 
 	// offsets into buffers
-	VerticesStart uint32
-	IndicesStart  uint32
+	AddrVertices Addr
+	AddrIndices  Addr
 
-	HasMorphAttributes   bool
-	MorphAttributesStart uint32
+	HasMorphAttributes  bool
+	AddrMorphAttributes Addr
 }
 
 func collectMorphAttributes(targets [][]MorphAttributes) []byte {
