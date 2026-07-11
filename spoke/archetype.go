@@ -24,7 +24,7 @@ type Archetype struct {
 	columns       []Column
 	columnsByType map[*ComponentType]Column
 
-	cachedColumnAccess []ColumnAccess
+	columnAccess []ColumnAccess
 }
 
 func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
@@ -47,7 +47,7 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 		columnsByType[ty] = column
 	}
 
-	return &Archetype{
+	a := &Archetype{
 		Id:            id,
 		Types:         sortedTypes,
 		entities:      nil,
@@ -55,6 +55,12 @@ func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
 		columnsByType: columnsByType,
 		index:         map[EntityId]Row{},
 	}
+
+	for _, ty := range columns {
+		ty.OnGrow(a.updateCachedColumnAccess)
+	}
+
+	return a
 }
 
 func (a *Archetype) String() string {
@@ -233,45 +239,22 @@ func (a *Archetype) getColumn(componentType *ComponentType) Column {
 }
 
 func (a *Archetype) getAt(row Row) EntityRef {
-	columns := a.getCachedColumnAccess()
-
 	return EntityRef{
-		fetch:     unsafeSlice(columns),
+		fetch:     unsafeSlice(a.columnAccess),
 		archetype: a,
 		row:       row,
 	}
 }
 
-func (a *Archetype) getCachedColumnAccess() []ColumnAccess {
-	if len(a.cachedColumnAccess) == len(a.columns) {
-		// TODO we can probably improve this by registering an action with
-		//  OnGrow to invalidate once the backing store changes. That way we
-		//  do not have to re-check on every get access
-		var dirty bool
-
-		for idx, column := range a.columns {
-			access := column.Access()
-			if a.cachedColumnAccess[idx] != access {
-				dirty = true
-				break
-			}
-		}
-
-		if !dirty {
-			return a.cachedColumnAccess
-		}
-	}
-
+func (a *Archetype) updateCachedColumnAccess() {
 	columns := make([]ColumnAccess, len(a.columns))
 
+	// create the accessors
 	for idx, column := range a.columns {
 		columns[idx] = column.Access()
 	}
 
-	// cache for next lookup
-	a.cachedColumnAccess = columns
-
-	return columns
+	a.columnAccess = columns
 }
 
 func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIter, []ColumnAccess) {

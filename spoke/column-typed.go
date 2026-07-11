@@ -8,7 +8,7 @@ import (
 type TypedColumn[C IsComponent[C]] struct {
 	ChangeTracker
 	values []C
-	onGrow func()
+	onGrow []func()
 }
 
 func NewTypedColumn[C IsComponent[C]]() Column {
@@ -19,8 +19,10 @@ func (c *TypedColumn[C]) Append(tick Tick, component ErasedComponent) {
 	grew := c.appendValue(c.toValue(component))
 	c.ChangeTracker.append(tick, tick)
 
-	if grew && c.onGrow != nil {
-		c.onGrow()
+	if grew {
+		for _, onGrow := range c.onGrow {
+			onGrow()
+		}
 	}
 }
 
@@ -55,8 +57,10 @@ func (c *TypedColumn[C]) Import(other Column, row Row) {
 	realloc := c.appendValue(c.toValue(other.Get(row)))
 	c.ChangeTracker.append(other.Added(row), other.Changed(row))
 
-	if realloc && c.onGrow != nil {
-		c.onGrow()
+	if realloc {
+		for _, onGrow := range c.onGrow {
+			onGrow()
+		}
 	}
 }
 
@@ -69,7 +73,7 @@ func (c *TypedColumn[C]) CheckChanged(Tick) {
 }
 
 func (c *TypedColumn[C]) OnGrow(onGrow func()) {
-	c.onGrow = onGrow
+	c.onGrow = append(c.onGrow, onGrow)
 }
 
 func (c *TypedColumn[C]) toValue(component ErasedComponent) C {
