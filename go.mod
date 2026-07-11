@@ -12,7 +12,7 @@ require (
 	github.com/oliverbestmann/earcut-go v1.0.0
 	github.com/oliverbestmann/mikktspace-go v0.0.0-20260628135113-36b1a30cb1e0
 	github.com/oliverbestmann/puffin-go v1.0.0
-	github.com/oliverbestmann/webgpu v1.34.0
+	github.com/oliverbestmann/webgpu v1.34.1
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
