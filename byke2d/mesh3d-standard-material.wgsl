@@ -77,8 +77,9 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
     out += texcol * vec4f(materials[vertex.material].emissive_scale, 0.0);
 #endif
 
-#ifdef MESH3D_COLOR_HAS_EMISSIVE@interpolate(flat)
-    let emissive = textureSample(texture, texture_sampler, vertex.uv).rgb * materials[vertex.material].emissive_scale;
+#ifdef MESH3D_COLOR_HAS_EMISSIVE
+    let emissive_color = textureSample(emissive, emissive_sampler, vertex.uv).rgb;
+    let emissive = emissive_color * materials[vertex.material].emissive_scale;
     out += vec4f(emissive, 0.0);
 #endif
 

@@ -130,7 +130,7 @@ func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 		}
 
 		// spawn light on node
-		light := gltfExtensionOf[gltf.KHRLightsPunctualInNode](node, "KHR_lights_punctual")
+		light := node.Extensions.MustParse[gltf.KHRLightsPunctualInNode]()
 		if light != nil {
 			sc.spawnLightInNode(node, light)
 		}
@@ -311,6 +311,17 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 	if no := mat.NormalTexture; no != nil {
 		// TODO handle no.Scale & no.TexCoords
 		m.NormalTexture = sc.textureAt(no.Index, true)
+	}
+
+	if em := mat.EmissiveTexture; em != nil {
+		m.EmissiveTexture = sc.textureAt(em.Index, false)
+	}
+
+	m.EmissiveScale = mat.EmissiveFactor
+
+	emissiveStrength := mat.Extensions.MustParse[gltf.KHRMaterialsEmissiveStrengthInMaterial]()
+	if emissiveStrength != nil {
+		m.EmissiveScale = m.EmissiveScale.Scale(emissiveStrength.EmissiveStrength)
 	}
 
 	return m
@@ -568,13 +579,4 @@ func toGltfHandle(h *gltf.Handle) gltfHandle {
 	}
 
 	return gltfHandle{h, e}
-}
-
-func gltfExtensionOf[T any](node gltf.Node, name string) *T {
-	ext, err := gltf.ExtensionOf[T](node.Extensions, name)
-	if err != nil {
-		panic(fmt.Errorf("read light extension: %w", err))
-	}
-
-	return ext
 }

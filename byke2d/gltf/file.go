@@ -347,10 +347,12 @@ type Material struct {
 	MetallicRoughness *MetallicRoughness `json:"pbrMetallicRoughness"`
 	EmissiveFactor    glm.Vec3f          `json:"emissiveFactor"`
 	NormalTexture     *TextureInfo       `json:"normalTexture"`
+	EmissiveTexture   *TextureInfo       `json:"emissiveTexture"`
 	OcclusionTexture  *TextureInfo       `json:"occlusionTexture"`
 	AlphaMode         string             `json:"alphaMode"`
 	AlphaCutoff       *float32           `json:"alphaCutoff"`
 	DoubleSided       bool               `json:"doubleSided"`
+	Extensions        Extensions         `json:"extensions"`
 }
 
 func (m *Material) BaseColor() glm.Vec4f {
@@ -557,14 +559,32 @@ type KHRLightsPunctualInFile struct {
 	Lights []Light `json:"lights"`
 }
 
+func (KHRLightsPunctualInFile) Key() string {
+	return "KHR_lights_punctual"
+}
+
 type KHRLightsPunctualInNode struct {
 	Light Ref `json:"light"`
 }
 
+func (KHRLightsPunctualInNode) Key() string {
+	return "KHR_lights_punctual"
+}
+
+type KHRMaterialsEmissiveStrengthInMaterial struct {
+	EmissiveStrength float32 `json:"emissiveStrength"`
+}
+
+func (KHRMaterialsEmissiveStrengthInMaterial) Key() string {
+	return "KHR_materials_emissive_strength"
+}
+
 type Extensions map[string]json.RawMessage
 
-func ExtensionOf[T any](e Extensions, name string) (*T, error) {
-	encoded, ok := e[name]
+func (ex Extensions) TryParse[T Extension]() (*T, error) {
+	var tZero T
+
+	encoded, ok := ex[tZero.Key()]
 	if !ok {
 		return nil, nil
 	}
@@ -578,6 +598,17 @@ func ExtensionOf[T any](e Extensions, name string) (*T, error) {
 	return new(tValue), nil
 }
 
-type AllExtensions struct {
-	Lights KHRLightsPunctualInFile `json:"KHR_lights_punctual"`
+func (ex Extensions) MustParse[T Extension]() *T {
+	parse, err := ex.TryParse[T]()
+	if err != nil {
+		panic(err)
+	}
+
+	return parse
+}
+
+type Extension interface {
+	// Key is a static method that returns the name
+	// of the extension in the Extensions object.
+	Key() string
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"net/url"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -94,6 +95,8 @@ func (a *Assets) LoadWithSettings(path string, settings LoadAssetSettings) Async
 		err := fmt.Errorf("no loader for extension %q", ext)
 		panic(err)
 	}
+
+	path, _ = url.QueryUnescape(path)
 
 	return a.generic.Get(path, func() (any, error) {
 		fp, err := a.fs.Open(path)
