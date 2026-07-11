@@ -7,10 +7,10 @@ import "simd/archsimd"
 // Multiplies m by o in place and saves the result back to o
 func mat4fMulAssign(m, o *mat4f) {
 	// load all columns of m into memory
-	mc0 := archsimd.LoadFloat32x4(&m[0])
-	mc1 := archsimd.LoadFloat32x4(&m[1])
-	mc2 := archsimd.LoadFloat32x4(&m[2])
-	mc3 := archsimd.LoadFloat32x4(&m[3])
+	mc0 := archsimd.LoadFloat32x4Array(&m[0])
+	mc1 := archsimd.LoadFloat32x4Array(&m[1])
+	mc2 := archsimd.LoadFloat32x4Array(&m[2])
+	mc3 := archsimd.LoadFloat32x4Array(&m[3])
 
 	{
 		// column 0
@@ -25,7 +25,7 @@ func mat4fMulAssign(m, o *mat4f) {
 		resC = mc2.MulAdd(oZ, resC)
 		resC = mc3.MulAdd(oW, resC)
 
-		resC.Store(&m[0])
+		resC.StoreArray(&m[0])
 	}
 
 	{
@@ -41,7 +41,7 @@ func mat4fMulAssign(m, o *mat4f) {
 		resC = mc2.MulAdd(oZ, resC)
 		resC = mc3.MulAdd(oW, resC)
 
-		resC.Store(&m[1])
+		resC.StoreArray(&m[1])
 	}
 
 	{
@@ -57,7 +57,7 @@ func mat4fMulAssign(m, o *mat4f) {
 		resC = mc2.MulAdd(oZ, resC)
 		resC = mc3.MulAdd(oW, resC)
 
-		resC.Store(&m[2])
+		resC.StoreArray(&m[2])
 	}
 
 	{
@@ -73,16 +73,16 @@ func mat4fMulAssign(m, o *mat4f) {
 		resC = mc2.MulAdd(oZ, resC)
 		resC = mc3.MulAdd(oW, resC)
 
-		resC.Store(&m[3])
+		resC.StoreArray(&m[3])
 	}
 }
 
 //goland:noinspection DuplicatedCode
 func mat4fTranslate(m *mat4f, x, y, z float32) {
-	mc0 := archsimd.LoadFloat32x4(&m[0])
-	mc1 := archsimd.LoadFloat32x4(&m[1])
-	mc2 := archsimd.LoadFloat32x4(&m[2])
-	mc3 := archsimd.LoadFloat32x4(&m[3])
+	mc0 := archsimd.LoadFloat32x4Array(&m[0])
+	mc1 := archsimd.LoadFloat32x4Array(&m[1])
+	mc2 := archsimd.LoadFloat32x4Array(&m[2])
+	mc3 := archsimd.LoadFloat32x4Array(&m[3])
 
 	oX := archsimd.BroadcastFloat32x4(x)
 	oY := archsimd.BroadcastFloat32x4(y)
@@ -92,7 +92,7 @@ func mat4fTranslate(m *mat4f, x, y, z float32) {
 	resC = mc1.MulAdd(oY, resC)
 	resC = mc2.MulAdd(oZ, resC)
 
-	resC.Store(&m[3])
+	resC.StoreArray(&m[3])
 }
 
 //goland:noinspection DuplicatedCode
@@ -101,11 +101,11 @@ func mat4fScale(m *mat4f, x, y, z float32) {
 	oY := archsimd.BroadcastFloat32x4(y)
 	oZ := archsimd.BroadcastFloat32x4(z)
 
-	mc0 := archsimd.LoadFloat32x4(&m[0]).Mul(oX)
-	mc1 := archsimd.LoadFloat32x4(&m[1]).Mul(oY)
-	mc2 := archsimd.LoadFloat32x4(&m[2]).Mul(oZ)
+	mc0 := archsimd.LoadFloat32x4Array(&m[0]).Mul(oX)
+	mc1 := archsimd.LoadFloat32x4Array(&m[1]).Mul(oY)
+	mc2 := archsimd.LoadFloat32x4Array(&m[2]).Mul(oZ)
 
-	mc0.Store(&m[0])
-	mc1.Store(&m[1])
-	mc2.Store(&m[2])
+	mc0.StoreArray(&m[0])
+	mc1.StoreArray(&m[1])
+	mc2.StoreArray(&m[2])
 }
