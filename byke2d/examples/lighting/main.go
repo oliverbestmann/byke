@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	_ "image/png"
 	"log/slog"
 	"os"
@@ -13,8 +12,9 @@ import (
 	"github.com/pkg/profile"
 )
 
-//go:embed assets
-var assets embed.FS
+// //go:embed assets
+// var assets embed.FS
+var assets = os.DirFS(".")
 
 func init() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
