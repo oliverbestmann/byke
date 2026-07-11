@@ -17,6 +17,9 @@ jobs:
 
           - runner: ubuntu-24.04-arm
 
+          - runner: ubuntu-24.04-arm
+            goexperiment: simd
+
     runs-on: "${{ matrix.config.runner }}"
 
     env:

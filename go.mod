@@ -1,6 +1,6 @@
 module github.com/oliverbestmann/byke
 
-go 1.27
+go 1.27rc2
 
 require (
 	github.com/ebitengine/oto/v3 v3.4.0
@@ -10,6 +10,7 @@ require (
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/oliverbestmann/earcut-go v1.0.0
+	github.com/oliverbestmann/mikktspace-go v0.0.0-20260628135113-36b1a30cb1e0
 	github.com/oliverbestmann/puffin-go v1.0.0
 	github.com/oliverbestmann/webgpu v1.34.0
 	github.com/pkg/profile v1.7.0
@@ -28,7 +29,6 @@ require (
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
-	github.com/oliverbestmann/mikktspace-go v0.0.0-20260628135113-36b1a30cb1e0 // indirect
 	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260628152806-6b27e30a172e // indirect
 	github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260628152755-66a5dfa57f8d // indirect
 	github.com/oliverbestmann/webgpu/libs-ios v0.0.0-20260628152757-fe2537e7ddac // indirect
