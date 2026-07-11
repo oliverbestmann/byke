@@ -60,7 +60,8 @@ func spawnGltfSceneSystem(
 			Assets:             assets,
 			nodes:              map[gltf.Ref]byke.EntityId{},
 			nodeWorldTransform: map[gltf.Ref]glm.Mat4f{},
-			images:             map[gltf.Ref]*Texture{},
+			images:             map[imageCacheKey]*Texture{},
+			textures:           map[textureCacheKey]*Texture{},
 			nodeToMesh:         map[gltf.Ref][]byke.EntityId{},
 			meshes:             map[meshKey]*Mesh{},
 		}
@@ -75,6 +76,17 @@ func spawnGltfSceneSystem(
 type meshKey struct {
 	MeshId gltf.Ref
 	SubId  uint32
+}
+
+type imageCacheKey struct {
+	Ref    gltf.Ref
+	Linear bool
+}
+
+type textureCacheKey struct {
+	ImageId   gltf.Ref
+	SamplerId gltf.Ref
+	Linear    bool
 }
 
 type spawnContext struct {
@@ -93,8 +105,11 @@ type spawnContext struct {
 	// we need this to calculate the mesh materials winding order
 	nodeWorldTransform map[gltf.Ref]glm.Mat4f
 
-	// map from imageId to texture
-	images map[gltf.Ref]*Texture
+	// map from imageId to loaded texture data
+	images map[imageCacheKey]*Texture
+
+	// map from textureId to loaded texture data & sampler
+	textures map[textureCacheKey]*Texture
 
 	// map from node to mesh entities
 	nodeToMesh map[gltf.Ref][]byke.EntityId
@@ -330,12 +345,22 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 func (sc *spawnContext) textureAt(texId gltf.Ref, linearColors bool) *Texture {
 	tex := sc.Handle.Textures[texId]
 
+	key := textureCacheKey{
+		ImageId:   tex.Source,
+		SamplerId: tex.Sampler,
+		Linear:    linearColors,
+	}
+
+	if cachedTexture, ok := sc.textures[key]; ok {
+		return cachedTexture
+	}
+
 	// get the image for this texture and create a shallow copy of the texture
-	texture := sc.imageOf(tex.Source, linearColors)
+	texture := new(*sc.imageOf(tex.Source, linearColors))
 
 	sampler := sc.Handle.Samplers[tex.Sampler]
 
-	// TODO set sampler according to sampler config
+	// TODO translate sampler
 	texture.Sampler = sc.RenderContext.CreateSampler(wgpu.SamplerDescriptor{
 		Label:        "gltf: " + sampler.Name,
 		AddressModeU: wgpu.AddressModeClampToEdge,
@@ -346,12 +371,15 @@ func (sc *spawnContext) textureAt(texId gltf.Ref, linearColors bool) *Texture {
 		MipmapFilter: wgpu.MipmapFilterModeLinear,
 	})
 
-	// TODO cache together with sample?
+	sc.textures[key] = texture
+
 	return texture
 }
 
 func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
-	if cached, ok := sc.images[imageId]; ok {
+	key := imageCacheKey{Ref: imageId, Linear: linearColors}
+
+	if cached, ok := sc.images[key]; ok {
 		return cached
 	}
 
@@ -372,6 +400,7 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 			slog.String("name", image.Name),
 			slog.Any("imageId", imageId),
 			slog.Int("size", len(buffer)),
+			slog.Bool("linear", linearColors),
 		)
 
 		var err error
@@ -382,7 +411,11 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 		}
 	}
 
-	sc.images[imageId] = texture
+	wgpu.Share(texture.Texture)
+	wgpu.Share(texture.TextureView)
+	wgpu.Share(texture.Sampler)
+
+	sc.images[key] = texture
 
 	return texture
 }

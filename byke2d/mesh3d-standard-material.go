@@ -171,6 +171,12 @@ func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
 		// disable culling so we can render both sides of the triangles
 		pipeline.Primitive.CullMode = wgpu.CullModeNone
 	}
+
+	if m.Texture != nil {
+		// we could have alpha values in the image that we want to have
+		// masked out
+		pipeline.Multisample.AlphaToCoverageEnabled = true
+	}
 }
 
 type standardMaterialBindGroupKey struct {

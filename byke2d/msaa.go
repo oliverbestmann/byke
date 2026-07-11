@@ -17,8 +17,13 @@ var multisampleStateOne = wgpu.MultisampleState{
 }
 
 func multisampleState(sampleCount uint32) wgpu.MultisampleState {
+	return multisampleStateWithAlpha(sampleCount, false)
+}
+
+func multisampleStateWithAlpha(sampleCount uint32, alphaToCoverage bool) wgpu.MultisampleState {
 	return wgpu.MultisampleState{
-		Count: sampleCount,
-		Mask:  0xffffffff,
+		Count:                  sampleCount,
+		Mask:                   0xffffffff,
+		AlphaToCoverageEnabled: alphaToCoverage,
 	}
 }
