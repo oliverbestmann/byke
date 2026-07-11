@@ -75,5 +75,5 @@ func (c *ZeroSizedColumn[T]) CheckChanged(tick Tick) {
 }
 
 func (c *ZeroSizedColumn[T]) OnGrow(onGrow func()) {
-	// memory will never change, so we dont need to trigger onGrow callbacks
+	// memory will never change, so we don't need to trigger any callbacks
 }

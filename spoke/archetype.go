@@ -23,6 +23,8 @@ type Archetype struct {
 
 	columns       []Column
 	columnsByType map[*ComponentType]Column
+
+	cachedColumnAccess []ColumnAccess
 }
 
 func makeArchetype(id ArchetypeId, sortedTypes []*ComponentType) *Archetype {
@@ -231,17 +233,45 @@ func (a *Archetype) getColumn(componentType *ComponentType) Column {
 }
 
 func (a *Archetype) getAt(row Row) EntityRef {
-	columns := make([]ColumnAccess, len(a.columns))
-
-	for idx, column := range a.columns {
-		columns[idx] = column.Access()
-	}
+	columns := a.getCachedColumnAccess()
 
 	return EntityRef{
 		fetch:     unsafeSlice(columns),
 		archetype: a,
 		row:       row,
 	}
+}
+
+func (a *Archetype) getCachedColumnAccess() []ColumnAccess {
+	if len(a.cachedColumnAccess) == len(a.columns) {
+		// TODO we can probably improve this by registering an action with
+		//  OnGrow to invalidate once the backing store changes. That way we
+		//  do not have to re-check on every get access
+		var dirty bool
+
+		for idx, column := range a.columns {
+			access := column.Access()
+			if a.cachedColumnAccess[idx] != access {
+				dirty = true
+				break
+			}
+		}
+
+		if !dirty {
+			return a.cachedColumnAccess
+		}
+	}
+
+	columns := make([]ColumnAccess, len(a.columns))
+
+	for idx, column := range a.columns {
+		columns[idx] = column.Access()
+	}
+
+	// cache for next lookup
+	a.cachedColumnAccess = columns
+
+	return columns
 }
 
 func (a *Archetype) IterForQuery(query *Query, fetches []ColumnAccess) (EntityIter, []ColumnAccess) {
