@@ -328,6 +328,10 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 		m.NormalTexture = sc.textureAt(no.Index, true)
 	}
 
+	if oc := mat.OcclusionTexture; oc != nil {
+		m.OcclusionTexture = sc.textureAt(oc.Index, false)
+	}
+
 	if em := mat.EmissiveTexture; em != nil {
 		m.EmissiveTexture = sc.textureAt(em.Index, false)
 	}

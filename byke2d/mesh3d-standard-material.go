@@ -16,9 +16,10 @@ var standardMaterialShaderCode string
 var standardMaterialShaderCache = map[shaderKey]*ShaderDef{}
 
 type shaderKey struct {
-	Texture  bool
-	Normal   bool
-	Emissive bool
+	Texture   bool
+	Normal    bool
+	Emissive  bool
+	Occlusion bool
 }
 
 type StandardMaterial struct {
@@ -42,6 +43,9 @@ type StandardMaterial struct {
 	// NormalTexture is an optional normal map texture
 	NormalTexture *Texture
 
+	// The occlusion texture if any
+	OcclusionTexture *Texture
+
 	// FrontFace defaults to wgpu.FrontFaceCCW
 	FrontFace wgpu.FrontFace
 
@@ -52,9 +56,10 @@ type StandardMaterial struct {
 
 func (m StandardMaterial) Shader() *ShaderDef {
 	key := shaderKey{
-		Texture:  m.Texture != nil,
-		Normal:   m.NormalTexture != nil,
-		Emissive: m.EmissiveTexture != nil,
+		Texture:   m.Texture != nil,
+		Normal:    m.NormalTexture != nil,
+		Emissive:  m.EmissiveTexture != nil,
+		Occlusion: m.OcclusionTexture != nil,
 	}
 
 	cached, ok := standardMaterialShaderCache[key]
@@ -63,9 +68,10 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	}
 
 	values := ShaderValues{}
-	values.Define("MESH3D_COLOR_HAS_NORMAL", key.Normal)
-	values.Define("MESH3D_COLOR_HAS_TEXTURE", key.Texture)
-	values.Define("MESH3D_COLOR_HAS_EMISSIVE", key.Emissive)
+	values.Define("MESH3D_MAT_HAS_NORMAL", key.Normal)
+	values.Define("MESH3D_MAT_HAS_TEXTURE", key.Texture)
+	values.Define("MESH3D_MAT_HAS_EMISSIVE", key.Emissive)
+	values.Define("MESH3D_MAT_HAS_OCCLUSION", key.Occlusion)
 
 	shader := &ShaderDef{
 		Label:         "standard material shader",
@@ -106,6 +112,14 @@ func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 		)
 	}
 
+	if m.OcclusionTexture != nil {
+		entries = append(
+			entries,
+			Indexed(7, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(8, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
+		)
+	}
+
 	return entries
 }
 
@@ -136,6 +150,14 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 		)
 	}
 
+	if m.OcclusionTexture != nil {
+		entries = append(
+			entries,
+			Indexed(7, BindingTextureView(m.OcclusionTexture.TextureView)),
+			Indexed(8, BindingSampler(m.OcclusionTexture.Sampler)),
+		)
+	}
+
 	return entries
 }
 
@@ -147,11 +169,12 @@ func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 
 func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
 	return standardMaterialBindGroupKey{
-		Texture:         m.Texture,
-		EmissiveTexture: m.EmissiveTexture,
-		NormalTexture:   m.NormalTexture,
-		FrontFace:       m.FrontFace,
-		DoubleSided:     m.DoubleSided,
+		Texture:          m.Texture,
+		EmissiveTexture:  m.EmissiveTexture,
+		NormalTexture:    m.NormalTexture,
+		OcclusionTexture: m.OcclusionTexture,
+		FrontFace:        m.FrontFace,
+		DoubleSided:      m.DoubleSided,
 	}
 }
 
@@ -180,11 +203,12 @@ func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
 }
 
 type standardMaterialBindGroupKey struct {
-	Texture         *Texture
-	EmissiveTexture *Texture
-	NormalTexture   *Texture
-	FrontFace       wgpu.FrontFace
-	DoubleSided     bool
+	Texture          *Texture
+	EmissiveTexture  *Texture
+	NormalTexture    *Texture
+	OcclusionTexture *Texture
+	FrontFace        wgpu.FrontFace
+	DoubleSided      bool
 }
 
 func (s standardMaterialBindGroupKey) SortValue() uint64 {

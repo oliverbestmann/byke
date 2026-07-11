@@ -34,6 +34,14 @@ var emissive: texture_2d<f32>;
 @binding(6)
 var emissive_sampler: sampler;
 
+@group(2)
+@binding(7)
+var occlusion: texture_2d<f32>;
+
+@group(2)
+@binding(8)
+var occlusion_sampler: sampler;
+
 #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
 fn calculate_normal(normal: vec3f, tangent: vec3f, tangent_sign: f32, uv: vec2f) -> vec3f {
     // normal from texture (in tangent space)
@@ -58,7 +66,15 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @location(0) vec4f {
     var vertex = param;
 
-#ifdef MESH3D_COLOR_HAS_NORMAL
+    var fin: FragmentIn;
+    fin.ambient_occlusion = 1.0;
+
+#ifdef MESH3D_MAT_HAS_OCCLUSION
+    // get ambient occlusion
+    fin.ambient_occlusion = textureSample(occlusion, occlusion_sampler, vertex.uv).r;
+#endif
+
+#ifdef MESH3D_MAT_HAS_NORMAL
     #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
         vertex.normal = calculate_normal(vertex.normal, vertex.tangent, vertex.tangent_sign, vertex.uv);
     #endif
@@ -69,15 +85,15 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
         vertex.normal = -vertex.normal;
     }
 
-    var out = default_mesh3d_fragment(vertex);
+    var out = default_mesh3d_fragment(vertex, fin);
 
-#ifdef MESH3D_COLOR_HAS_TEXTURE
+#ifdef MESH3D_MAT_HAS_TEXTURE
     let texcol = textureSample(texture, texture_sampler, vertex.uv);
     out *= texcol;
     out += texcol * vec4f(materials[vertex.material].emissive_scale, 0.0);
 #endif
 
-#ifdef MESH3D_COLOR_HAS_EMISSIVE
+#ifdef MESH3D_MAT_HAS_EMISSIVE
     let emissive_color = textureSample(emissive, emissive_sampler, vertex.uv).rgb;
     let emissive = emissive_color * materials[vertex.material].emissive_scale;
     out += vec4f(emissive, 0.0);

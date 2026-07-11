@@ -67,6 +67,10 @@ struct VertexOutput {
     @location(6) @interpolate(flat) material: u32,
 };
 
+struct FragmentIn {
+    ambient_occlusion: f32,
+};
+
 
 #ifdef SKINNED
 
@@ -184,11 +188,11 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
     return out;
 }
 
-fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
+fn default_mesh3d_fragment(vertex: VertexOutput, fin: FragmentIn) -> vec4f {
     var color = vertex.color;
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    var tint = light_config.ambient;
+    var tint = light_config.ambient * fin.ambient_occlusion;
 
     var normal = normalize(vertex.normal);
 
