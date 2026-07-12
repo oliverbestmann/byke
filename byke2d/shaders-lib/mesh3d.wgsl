@@ -142,9 +142,7 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 
     let position_world = world_from_local * vec4f(position_local, 1.0);
 
-    let position = view.screen_to_ndc
-        * view.world_to_screen
-        * position_world;
+    let position = view.world_to_screen * position_world;
 
     // move the vertex to the world
     var out: VertexOutput;

@@ -181,11 +181,7 @@ func dispatchTransparentRenderSystem(
 	})
 	defer pass.Release()
 
-	view.Phase.Dispatch(world, &TrackedRenderPassEncoder{
-		RenderPassEncoder: pass,
-		Metrics:           &ctx.Metrics,
-	})
-
+	view.Phase.Dispatch(world, pass)
 	pass.End()
 
 	buf := enc.Finish(nil)
@@ -218,11 +214,7 @@ func dispatchOpaqueRenderSystem(
 	})
 	defer pass.Release()
 
-	view.Phase.Dispatch(world, &TrackedRenderPassEncoder{
-		RenderPassEncoder: pass,
-		Metrics:           &ctx.Metrics,
-	})
-
+	view.Phase.Dispatch(world, pass)
 	pass.End()
 
 	buf := enc.Finish(nil)

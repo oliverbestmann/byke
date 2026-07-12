@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"time"
 
 	"github.com/oliverbestmann/byke/byke2d/audio"
@@ -29,6 +30,10 @@ type LoadAudioSettings struct {
 func (l *LoadAudioSettings) IsLoadSettings() {}
 
 type AudioLoader struct{}
+
+func (a AudioLoader) Type() reflect.Type {
+	return reflect.TypeFor[*AudioSource]()
+}
 
 func (a AudioLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	defer func() { _ = r.Close() }()

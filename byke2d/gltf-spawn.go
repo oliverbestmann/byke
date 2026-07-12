@@ -213,12 +213,12 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 			material = sc.materialAt(ma.Get())
 		}
 
-		material.FrontFace = wgpu.FrontFaceCCW
+		material.FrontFace = wgpu.FrontFaceCW
 
 		worldTransform := sc.nodeWorldTransform[node.Id]
 		flipWinding := worldTransform[0][0]*worldTransform[1][1]*worldTransform[2][2] < 0
 		if flipWinding {
-			material.FrontFace = wgpu.FrontFaceCW
+			material.FrontFace = wgpu.FrontFaceCCW
 		}
 
 		meshInst := sc.instantiateMesh(meshId, idx)

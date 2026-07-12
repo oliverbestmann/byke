@@ -226,17 +226,8 @@ type ViewValues struct {
 	WorldToClip glm.Mat4f
 }
 
-// SurfaceToNDC maps from Surface pixel coordinates to NDC (normalized device coordinates).
-// NDC is from -1 to +1 on both axis.
-func (v *ViewValues) SurfaceToNDC() glm.Mat4f {
-	return glm.IdentityMat4f()
-	// return glm.ScaleMat4f(2.0, 2.0, 1.0).
-	// 	Translate(-0.5, -0.5, 0)
-}
-
 // WorldToCamera maps a point from World space into Camera space.
-// This just applies the Cameras position. It does not apply the
-// cameras projection.
+// This just applies the Cameras position, not the cameras projection
 func (v *ViewValues) WorldToCamera() glm.Mat4f {
 	inv, ok := inverseAffine(v.CameraTransform.Affine)
 	if !ok {
@@ -244,6 +235,12 @@ func (v *ViewValues) WorldToCamera() glm.Mat4f {
 	}
 
 	return inv
+}
+
+// WorldToCameraInv maps a point from camera space into world space.
+// It is the inverse of WorldToCamera
+func (v *ViewValues) WorldToCameraInv() glm.Mat4f {
+	return v.CameraTransform.Affine
 }
 
 func prepareViewUniformsSystem(
@@ -275,11 +272,15 @@ func prepareViewUniformsSystem(
 			continue
 		}
 
-		cameraToClip := projection.ToMat4f(view.ViewTarget.Size)
+		cameraProjection := projection.ToMat4f(view.ViewTarget.Size)
+		cameraProjectionInv, ok := cameraProjection.TryInverse()
+		if !ok {
+			panic("failed to invert projection matrix")
+		}
 
 		vv := ViewValues{
 			CameraTransform: view.Transform,
-			WorldToClip:     cameraToClip,
+			WorldToClip:     cameraProjection,
 		}
 
 		if view.TAAA.Exists() {
@@ -288,8 +289,14 @@ func prepareViewUniformsSystem(
 		}
 
 		*view.ViewUniforms = ViewUniforms{
-			ScreenToNDC:   vv.SurfaceToNDC(),
-			WorldToScreen: vv.WorldToClip.Mul(vv.WorldToCamera()),
+			ViewportOrigin:    glm.Vec2f{},
+			ViewportSize:      view.ViewTarget.Size,
+			CameraToScreen:    cameraProjection,
+			CameraToScreenInv: cameraProjectionInv,
+			WorldToCamera:     vv.WorldToCamera(),
+			WorldToCameraInv:  vv.WorldToCameraInv(),
+			WorldToScreen:     cameraProjection.Mul(vv.WorldToCamera()),
+			WorldToScreenInv:  vv.WorldToCameraInv().Mul(cameraProjectionInv),
 		}
 	}
 }

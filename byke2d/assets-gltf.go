@@ -3,6 +3,7 @@ package byke2d
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 
 	_ "image/jpeg"
@@ -16,6 +17,10 @@ type LoadGLTFSettings struct{}
 func (*LoadGLTFSettings) IsLoadSettings() {}
 
 type GLTFLoader struct{}
+
+func (i GLTFLoader) Type() reflect.Type {
+	return reflect.TypeFor[*gltf.Handle]()
+}
 
 func (i GLTFLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	defer func() { _ = r.Close() }()
@@ -55,12 +60,4 @@ func (i GLTFLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 
 func (i GLTFLoader) Extensions() []string {
 	return []string{".glb", ".gltf"}
-}
-
-func (a *Assets) GLTF(path string) AsyncAsset[*gltf.Handle] {
-	return asTypedAsyncAsset[*gltf.Handle](a.Load(path))
-}
-
-func (a *Assets) GLTFWithSettings(path string, settings *LoadGLTFSettings) AsyncAsset[*gltf.Handle] {
-	return asTypedAsyncAsset[*gltf.Handle](a.LoadWithSettings(path, settings))
 }

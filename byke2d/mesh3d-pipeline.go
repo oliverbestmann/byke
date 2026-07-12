@@ -121,7 +121,7 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		DepthStencil: &wgpu.DepthStencilState{
 			Format:            wgpu.TextureFormatDepth32Float,
 			DepthWriteEnabled: wgpu.OptionalBoolTrue,
-			DepthCompare:      wgpu.CompareFunctionLessEqual,
+			DepthCompare:      wgpu.CompareFunctionGreater,
 		},
 	}
 

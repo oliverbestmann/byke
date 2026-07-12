@@ -3,6 +3,7 @@ package byke2d
 import (
 	"bytes"
 	"fmt"
+	"image"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/gltf"
 )
 
 type AssetFS struct {
@@ -43,6 +45,7 @@ type LoadContext struct {
 
 type AssetLoader interface {
 	Load(ctx LoadContext, r io.ReadSeekCloser) (any, error)
+	Type() reflect.Type
 	Extensions() []string
 }
 
@@ -50,17 +53,22 @@ type Assets struct {
 	fs fs.FS
 
 	world   *byke.World
-	loaders map[string]AssetLoader
+	loaders map[loaderKey]AssetLoader
 	generic *assetCache[any]
 
 	bytes *assetCache[[]byte]
+}
+
+type loaderKey struct {
+	Type reflect.Type
+	Ext  string
 }
 
 func makeAssets(world *byke.World, fs fs.FS, loaders ...AssetLoader) Assets {
 	assets := Assets{
 		world:   world,
 		fs:      fs,
-		loaders: make(map[string]AssetLoader, 32),
+		loaders: make(map[loaderKey]AssetLoader, 32),
 		generic: &assetCache[any]{},
 		bytes:   &assetCache[[]byte]{},
 	}
@@ -74,31 +82,38 @@ func makeAssets(world *byke.World, fs fs.FS, loaders ...AssetLoader) Assets {
 
 func (a *Assets) RegisterLoader(l AssetLoader) {
 	for _, ext := range l.Extensions() {
-		ext = strings.ToLower(ext)
-		a.loaders[ext] = l
+		key := loaderKey{
+			Ext:  strings.ToLower(ext),
+			Type: l.Type(),
+		}
+
+		a.loaders[key] = l
 	}
 }
 
-func (a *Assets) Load(path string) AsyncAsset[any] {
-	return a.LoadWithSettings(path, nil)
+func (a *Assets) Load[T any](path string) AsyncAsset[T] {
+	return a.LoadWithSettings[T](path, nil)
 }
 
-func (a *Assets) LoadWithSettings(path string, settings LoadAssetSettings) AsyncAsset[any] {
+func (a *Assets) LoadWithSettings[T any](path string, settings LoadAssetSettings) AsyncAsset[T] {
 	if a.generic == nil {
 		a.generic = &assetCache[any]{}
 	}
 
-	ext := strings.ToLower(filepath.Ext(path))
+	key := loaderKey{
+		Ext:  strings.ToLower(filepath.Ext(path)),
+		Type: reflect.TypeFor[T](),
+	}
 
-	loader, ok := a.loaders[ext]
+	loader, ok := a.loaders[key]
 	if !ok {
-		err := fmt.Errorf("no loader for extension %q", ext)
+		err := fmt.Errorf("no loader for extension %q and type %q", key.Ext, key.Type.String())
 		panic(err)
 	}
 
 	path, _ = url.QueryUnescape(path)
 
-	return a.generic.Get(path, func() (any, error) {
+	asyncAsset := a.generic.Get(path, func() (any, error) {
 		fp, err := a.fs.Open(path)
 		if err != nil {
 			return nil, fmt.Errorf("open asset %q: %w", path, err)
@@ -117,6 +132,8 @@ func (a *Assets) LoadWithSettings(path string, settings LoadAssetSettings) Async
 
 		return asset, nil
 	})
+
+	return &typedAsyncAsset[T]{Asset: asyncAsset}
 }
 
 func (a *Assets) Bytes(path string) AsyncAsset[[]byte] {
@@ -126,19 +143,31 @@ func (a *Assets) Bytes(path string) AsyncAsset[[]byte] {
 }
 
 func (a *Assets) Texture(path string) AsyncAsset[*Texture] {
-	return asTypedAsyncAsset[*Texture](a.Load(path))
+	return a.Load[*Texture](path)
 }
 
 func (a *Assets) TextureWithSettings(path string, settings *LoadTextureSettings) AsyncAsset[*Texture] {
-	return asTypedAsyncAsset[*Texture](a.LoadWithSettings(path, settings))
+	return a.LoadWithSettings[*Texture](path, settings)
+}
+
+func (a *Assets) Image(path string) AsyncAsset[image.Image] {
+	return a.Load[image.Image](path)
 }
 
 func (a *Assets) Audio(path string) AsyncAsset[*AudioSource] {
-	return asTypedAsyncAsset[*AudioSource](a.Load(path))
+	return a.Load[*AudioSource](path)
 }
 
 func (a *Assets) AudioWithSettings(path string, settings *LoadAudioSettings) AsyncAsset[*AudioSource] {
-	return asTypedAsyncAsset[*AudioSource](a.LoadWithSettings(path, settings))
+	return a.LoadWithSettings[*AudioSource](path, settings)
+}
+
+func (a *Assets) GLTF(path string) AsyncAsset[*gltf.Handle] {
+	return a.Load[*gltf.Handle](path)
+}
+
+func (a *Assets) GLTFWithSettings(path string, settings *LoadGLTFSettings) AsyncAsset[*gltf.Handle] {
+	return a.LoadWithSettings[*gltf.Handle](path, settings)
 }
 
 func (a *Assets) StartCount() int {
@@ -246,10 +275,6 @@ type AsyncAsset[T any] interface {
 	TryAwait() (T, error)
 	PollSuccess() (T, bool)
 	Poll() (T, error, bool)
-}
-
-func asTypedAsyncAsset[T any](asset AsyncAsset[any]) AsyncAsset[T] {
-	return &typedAsyncAsset[T]{Asset: asset}
 }
 
 type typedAsyncAsset[T any] struct {

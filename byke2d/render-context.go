@@ -163,10 +163,10 @@ type CommandEncoder struct {
 	metrics *RenderMetrics
 }
 
-// Get creates a render pass encoder with metrics tracking.
-func (c *CommandEncoder) Get(desc *wgpu.RenderPassDescriptor) *TrackedRenderPassEncoder {
+// BeginRenderPass creates a render pass encoder with metrics tracking.
+func (c *CommandEncoder) BeginRenderPass(desc *wgpu.RenderPassDescriptor) *TrackedRenderPassEncoder {
 	return &TrackedRenderPassEncoder{
-		RenderPassEncoder: c.BeginRenderPass(desc),
+		RenderPassEncoder: c.CommandEncoder.BeginRenderPass(desc),
 		Metrics:           c.metrics,
 	}
 }

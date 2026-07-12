@@ -111,6 +111,17 @@ func BindingLayoutTexture3D(sampleType wgpu.TextureSampleType, multisampled bool
 	}
 }
 
+func BindingLayoutTextureCube(sampleType wgpu.TextureSampleType, multisampled bool) wgpu.BindGroupLayoutEntry {
+	return wgpu.BindGroupLayoutEntry{
+		Visibility: wgpu.ShaderStageVertex | wgpu.ShaderStageFragment,
+		Texture: wgpu.TextureBindingLayout{
+			SampleType:    sampleType,
+			ViewDimension: wgpu.TextureViewDimensionCube,
+			Multisampled:  multisampled,
+		},
+	}
+}
+
 func BindingLayoutSampler(samplerType wgpu.SamplerBindingType) wgpu.BindGroupLayoutEntry {
 	return wgpu.BindGroupLayoutEntry{
 		Visibility: wgpu.ShaderStageVertex | wgpu.ShaderStageFragment,

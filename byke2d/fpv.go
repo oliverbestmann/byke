@@ -39,19 +39,19 @@ func fpvMoveSystem(
 ) {
 	for item := range items.Items() {
 		if keys.IsPressed(vyn.KeyArrowLeft) {
-			item.FPV.Yaw -= glm.Rad(2 * vt.DeltaSecs)
-		}
-
-		if keys.IsPressed(vyn.KeyArrowRight) {
 			item.FPV.Yaw += glm.Rad(2 * vt.DeltaSecs)
 		}
 
+		if keys.IsPressed(vyn.KeyArrowRight) {
+			item.FPV.Yaw -= glm.Rad(2 * vt.DeltaSecs)
+		}
+
 		if keys.IsPressed(vyn.KeyArrowUp) {
-			item.FPV.Pitch -= glm.Rad(2 * vt.DeltaSecs)
+			item.FPV.Pitch += glm.Rad(2 * vt.DeltaSecs)
 		}
 
 		if keys.IsPressed(vyn.KeyArrowDown) {
-			item.FPV.Pitch += glm.Rad(2 * vt.DeltaSecs)
+			item.FPV.Pitch -= glm.Rad(2 * vt.DeltaSecs)
 		}
 
 		var move glm.Vec3f
@@ -68,19 +68,19 @@ func fpvMoveSystem(
 		}
 
 		if keys.IsPressed(vyn.KeyW) {
-			move[2] += velocity * vt.DeltaSecs
-		}
-
-		if keys.IsPressed(vyn.KeyS) {
 			move[2] -= velocity * vt.DeltaSecs
 		}
 
+		if keys.IsPressed(vyn.KeyS) {
+			move[2] += velocity * vt.DeltaSecs
+		}
+
 		if keys.IsPressed(vyn.KeyQ) {
-			moveAbsY -= velocity * vt.DeltaSecs
+			moveAbsY += velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyE) {
-			moveAbsY += velocity * vt.DeltaSecs
+			moveAbsY -= velocity * vt.DeltaSecs
 		}
 
 		yaw := item.FPV.Yaw

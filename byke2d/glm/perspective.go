@@ -5,13 +5,11 @@ import "math"
 func Perspective(fovY Rad, aspect, near, far float32) Mat4f {
 	f := float32(1 / math.Tan(float64(fovY*0.5)))
 
-	r := far / (far - near)
-
 	return Mat4f{
 		{f / aspect, 0, 0, 0},
 		{0, f, 0, 0},
-		{0, 0, r, 1},
-		{0, 0, -r * near, 0},
+		{0, 0, 0, -1},
+		{0, 0, near, 0},
 	}
 }
 

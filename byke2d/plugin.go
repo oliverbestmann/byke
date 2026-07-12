@@ -44,6 +44,7 @@ var (
 
 var (
 	Core2dOpaque         = &byke.SystemSet{Name: "Core2dOpaque"}
+	Core2dSky            = &byke.SystemSet{Name: "Core2dSky"}
 	Core2dTransparent    = &byke.SystemSet{Name: "Core2dTransparent"}
 	Core2dPostProcessing = &byke.SystemSet{Name: "Core2dPostProcessing"}
 	Core2dBlit           = &byke.SystemSet{Name: "Core2dBlit"}
@@ -83,6 +84,7 @@ func PluginRender(app *byke.App) {
 
 	app.InsertResource(makeAssets(
 		app.World(), assetFs.FS,
+		ImageLoader{},
 		TextureLoader{},
 		AudioLoader{},
 		GLTFLoader{},
@@ -142,7 +144,7 @@ func PluginRender(app *byke.App) {
 	)
 
 	app.ConfigureSystemSets(Core2d,
-		ChainSystemSets(Core2dOpaque, Core2dTransparent, Core2dPostProcessing, Core2dBlit))
+		ChainSystemSets(Core2dOpaque, Core2dSky, Core2dTransparent, Core2dPostProcessing, Core2dBlit))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 
@@ -162,6 +164,7 @@ func PluginRender(app *byke.App) {
 	app.AddPlugin(pluginAnimations)
 
 	app.AddPlugin(pluginFPV)
+	app.AddPlugin(pluginSkybox)
 
 	app.RunWorld(runWorld)
 }

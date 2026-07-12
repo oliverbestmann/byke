@@ -83,29 +83,30 @@ type ViewDepthTexture struct {
 }
 
 func (vd *ViewDepthTexture) ReadWrite() wgpu.RenderPassDepthStencilAttachment {
-	var loadOp wgpu.LoadOp = wgpu.LoadOpClear
+	var loadOp = wgpu.LoadOpLoad
 
-	if vd.hasContent {
+	if !vd.hasContent {
 		vd.hasContent = true
-		loadOp = wgpu.LoadOpLoad
+		loadOp = wgpu.LoadOpClear
 	}
 
 	return wgpu.RenderPassDepthStencilAttachment{
 		View:            vd.TextureView,
 		DepthLoadOp:     loadOp,
 		DepthStoreOp:    wgpu.StoreOpStore,
-		DepthClearValue: 1,
-		DepthReadOnly:   false,
+		DepthClearValue: 0,
 	}
 }
 
 func (vd *ViewDepthTexture) ReadOnly() wgpu.RenderPassDepthStencilAttachment {
+	return vd.ReadWrite()
+	// if !vd.hasContent {
+	// 	return vd.ReadWrite()
+	// }
+
 	return wgpu.RenderPassDepthStencilAttachment{
-		View:            vd.TextureView,
-		DepthLoadOp:     wgpu.LoadOpUndefined,
-		DepthStoreOp:    wgpu.StoreOpUndefined,
-		DepthClearValue: 1,
-		DepthReadOnly:   true,
+		View:          vd.TextureView,
+		DepthReadOnly: true,
 	}
 }
 
