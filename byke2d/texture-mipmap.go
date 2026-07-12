@@ -37,21 +37,24 @@ func (m *mipmapGenerator) Generate(texture *Texture) {
 
 	defer enc.Release()
 
-	for level := uint32(1); level < texture.Descriptor.MipLevelCount; level++ {
-		m.generateLevel(enc, texture, level)
+	for mipLevel := uint32(1); mipLevel < texture.Descriptor.MipLevelCount; mipLevel++ {
+		for z := range texture.Descriptor.Size.DepthOrArrayLayers {
+			m.generate(enc, texture, z, mipLevel)
+		}
 	}
 
 	buf := enc.Finish(nil)
 	m.context.Submit(buf)
 }
 
-func (m *mipmapGenerator) generateLevel(enc *CommandEncoder, texture *Texture, level uint32) {
+func (m *mipmapGenerator) generate(enc *CommandEncoder, texture *Texture, z, mip uint32) {
 	inView := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Texture.MipMap.In",
 		Format:          texture.Descriptor.Format,
-		BaseMipLevel:    level - 1,
+		Dimension:       wgpu.TextureViewDimension2D,
+		BaseMipLevel:    mip - 1,
 		MipLevelCount:   1,
-		BaseArrayLayer:  0,
+		BaseArrayLayer:  z,
 		ArrayLayerCount: 1,
 		Aspect:          wgpu.TextureAspectAll,
 	})
@@ -61,9 +64,10 @@ func (m *mipmapGenerator) generateLevel(enc *CommandEncoder, texture *Texture, l
 	outView := texture.Texture.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Texture.MipMap.Out",
 		Format:          texture.Descriptor.Format,
-		BaseMipLevel:    level,
+		Dimension:       wgpu.TextureViewDimension2D,
+		BaseMipLevel:    mip,
 		MipLevelCount:   1,
-		BaseArrayLayer:  0,
+		BaseArrayLayer:  z,
 		ArrayLayerCount: 1,
 		Aspect:          wgpu.TextureAspectAll,
 	})

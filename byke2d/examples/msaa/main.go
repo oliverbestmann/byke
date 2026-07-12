@@ -42,7 +42,7 @@ type SpriteToRotate struct {
 func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	asset := assets.Texture("input.jpg").Await()
 
-	cameraTexture := NewTexture(ctx, NewTextureOptions{
+	cameraTexture := NewTexture2d(ctx, NewTexture2dOptions{
 		FilterMode: wgpu.FilterModeNearest,
 
 		Format:       wgpu.TextureFormatBGRA8UnormSrgb,

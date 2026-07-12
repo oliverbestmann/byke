@@ -11,8 +11,7 @@ import (
 )
 
 type LoadTextureSettings struct {
-	Sampler      SamplerConfig
-	LinearColors bool
+	TextureFromImageOptions
 }
 
 func (*LoadTextureSettings) IsLoadSettings() {}
@@ -37,7 +36,12 @@ func (i TextureLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 		return nil, fmt.Errorf("decode image: %w", err)
 	}
 
-	return NewTextureFromImage(renderContext, img, settings.Sampler, !settings.LinearColors), nil
+	if settings.Label == "" {
+		// use the path as label
+		settings.Label = ctx.Path
+	}
+
+	return NewTextureFromImage(renderContext, img, settings.TextureFromImageOptions), nil
 }
 
 func (i TextureLoader) Extensions() []string {

@@ -81,7 +81,7 @@ func (t *TextureAtlasAllocator) findSlice(ctx *RenderContext, height, width uint
 
 func (t *TextureAtlasAllocator) allocateNewTexture(ctx *RenderContext) {
 	// allocate a new texture and try again
-	texture := NewTexture(ctx, NewTextureOptions{
+	texture := NewTexture2d(ctx, NewTexture2dOptions{
 		SamplerConfig: t.SamplerConfig,
 		Label:         "TextureAtlas." + strconv.Itoa(len(t.textures)),
 		Format:        t.TextureFormat,

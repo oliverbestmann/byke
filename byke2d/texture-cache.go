@@ -29,7 +29,10 @@ func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {
 	}
 
 	// allocate a new texture
-	tex := NewTextureFromDesc(t.Context, SamplerConfig{}, desc)
+	tex := NewTextureFromDesc(t.Context, NewTextureDescriptor{
+		TextureDescriptor: desc,
+	})
+
 	t.used = append(t.used, tex)
 
 	slog.Debug(

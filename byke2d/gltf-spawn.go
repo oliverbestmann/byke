@@ -1,8 +1,10 @@
 package byke2d
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
 	"log/slog"
 
 	"github.com/oliverbestmann/byke"
@@ -387,21 +389,21 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 		return cached
 	}
 
-	image := sc.Handle.Images[imageId]
+	img := sc.Handle.Images[imageId]
 
 	var texture *Texture
-	if image.Uri != "" {
+	if img.Uri != "" {
 		// load from URL
-		settings := &LoadTextureSettings{LinearColors: linearColors}
-		texture = sc.Assets.TextureWithSettings(image.Uri, settings).Await()
+		settings := &LoadTextureSettings{SRGB: !linearColors}
+		texture = sc.Assets.TextureWithSettings(img.Uri, settings).Await()
 	} else {
 
 		// get the buffer
-		buffer := sc.Handle.Buffer(image.BufferView)
+		buffer := sc.Handle.Buffer(img.BufferView)
 
 		slog.Debug(
 			"Load texture from memory",
-			slog.String("name", image.Name),
+			slog.String("name", img.Name),
 			slog.Any("imageId", imageId),
 			slog.Int("size", len(buffer)),
 			slog.Bool("linear", linearColors),
@@ -409,10 +411,16 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 
 		var err error
 
-		texture, err = DecodeTextureFromMemory(sc.RenderContext, buffer, SamplerConfig{}, !linearColors)
+		// load the texture data into memory
+		src, _, err := image.Decode(bytes.NewReader(buffer))
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("decode image from memory: %w", err))
 		}
+
+		texture = NewTextureFromImage(sc.RenderContext, src, TextureFromImageOptions{
+			Label: "gltf:" + img.Name,
+			SRGB:  !linearColors,
+		})
 	}
 
 	wgpu.Share(texture.Texture)

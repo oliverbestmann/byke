@@ -108,14 +108,12 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 	asset := assets.Texture("circle.png").Await()
 
 	nnSettings := &LoadTextureSettings{
-		Sampler: SamplerConfig{
-			FilterMode: wgpu.FilterModeNearest,
-		},
+		FilterMode: wgpu.FilterModeNearest,
 	}
 
 	figure := assets.TextureWithSettings("figure.png", nnSettings).Await()
 
-	cameraTexture := NewTexture(ctx, NewTextureOptions{
+	cameraTexture := NewTexture2d(ctx, NewTexture2dOptions{
 		Label:      "PixelCamera",
 		Width:      360,
 		Height:     200,
