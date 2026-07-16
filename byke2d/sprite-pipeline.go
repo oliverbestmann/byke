@@ -74,7 +74,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 		DepthStencil: &wgpu.DepthStencilState{
 			Format:            wgpu.TextureFormatDepth32Float,
 			DepthWriteEnabled: wgpu.OptionalBoolFalse,
-			DepthCompare:      wgpu.CompareFunctionGreater,
+			DepthCompare:      wgpu.CompareFunctionGreaterEqual,
 		},
 	}
 }

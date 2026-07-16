@@ -22,6 +22,7 @@ type RenderMetrics struct {
 	SetBindGroup     uint32
 	SetImmediates    uint32
 	SetBlendConstant uint32
+	Draw             uint32
 	DrawIndexed      uint32
 }
 
@@ -55,6 +56,7 @@ func (m *RenderMetrics) String() string {
 	writef("  BindGroup:     %5d", m.SetBindGroup)
 	writef("  Immediates:    %5d", m.SetImmediates)
 	writef("  BlendConstant: %5d", m.SetBlendConstant)
+	writef("  Draw:          %5d", m.Draw)
 	writef("  DrawIndexed:   %5d", m.DrawIndexed)
 
 	return out.String()

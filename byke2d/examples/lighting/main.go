@@ -50,6 +50,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 
 	commands.Spawn(
 		Camera{},
+		Camera3d,
 		HDR{},
 		FirstPersonViewController{},
 		DefaultPerspectiveProjection,

@@ -58,6 +58,8 @@ func setupDebugCameraSystem(commands *byke.Commands) {
 	commands.Spawn(
 		byke.DespawnOnExitState(DebugStateOn),
 		Camera{Order: math.MaxInt},
+		Camera2d,
+		DebugCamera{},
 		RenderLayersOf(31),
 		ClearColor{Color: ColorSRGBA(0, 0, 0, 0)},
 		OrthographicProjection{
@@ -69,6 +71,7 @@ func setupDebugCameraSystem(commands *byke.Commands) {
 	commands.Spawn(
 		byke.DespawnOnExitState(DebugStateOn),
 		debugMetricsTextMaker{},
+		DefaultFontMono(),
 		RenderLayersOf(31),
 		AnchorTopLeft,
 		TransformFromXY(16, 600),

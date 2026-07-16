@@ -44,10 +44,15 @@ var (
 
 var (
 	Core2dOpaque         = &byke.SystemSet{Name: "Core2dOpaque"}
-	Core2dSky            = &byke.SystemSet{Name: "Core2dSky"}
 	Core2dTransparent    = &byke.SystemSet{Name: "Core2dTransparent"}
 	Core2dPostProcessing = &byke.SystemSet{Name: "Core2dPostProcessing"}
 	Core2dBlit           = &byke.SystemSet{Name: "Core2dBlit"}
+
+	Core3dOpaque         = &byke.SystemSet{Name: "Core3dOpaque"}
+	Core3dSky            = &byke.SystemSet{Name: "Core3dSky"}
+	Core3dTransparent    = &byke.SystemSet{Name: "Core3dTransparent"}
+	Core3dPostProcessing = &byke.SystemSet{Name: "Core3dPostProcessing"}
+	Core3dBlit           = &byke.SystemSet{Name: "Core3dBlit"}
 )
 
 func PluginRender(app *byke.App) {
@@ -127,6 +132,11 @@ func PluginRender(app *byke.App) {
 		Chain().
 		InSet(Core2dPostProcessing))
 
+	app.AddSystems(Core3d, byke.
+		System(applyBloomSystem, tonemappingSystem).
+		Chain().
+		InSet(Core3dPostProcessing))
+
 	app.ConfigureSystemSets(byke.PostUpdate, TransformSystems)
 	app.ConfigureSystemSets(byke.PostUpdate, VisibilitySystems)
 
@@ -144,7 +154,10 @@ func PluginRender(app *byke.App) {
 	)
 
 	app.ConfigureSystemSets(Core2d,
-		ChainSystemSets(Core2dOpaque, Core2dSky, Core2dTransparent, Core2dPostProcessing, Core2dBlit))
+		ChainSystemSets(Core2dOpaque, Core2dTransparent, Core2dPostProcessing, Core2dBlit))
+
+	app.ConfigureSystemSets(Core3d,
+		ChainSystemSets(Core3dOpaque, Core3dSky, Core3dTransparent, Core3dPostProcessing, Core3dBlit))
 
 	app.AddSystems(byke.Last, readAppExitEventsSystem)
 

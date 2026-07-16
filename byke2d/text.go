@@ -44,7 +44,7 @@ type Text struct {
 func (Text) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
 		NewTransform(),
-		DefaultFont(),
+		DefaultFontSans(),
 		InheritVisibility,
 		AnchorCenter,
 		renderLayerZero,

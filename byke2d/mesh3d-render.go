@@ -90,8 +90,10 @@ func queueMesh3dSystem(
 	meshes *ExtractedMeshes3d,
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
+		Transform    GlobalTransform
 		RenderLayers RenderLayers
 		RenderPhase  *BinnedRenderPhase[Opaque]
+		Transparent  *SortableRenderPhase[Transparent]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -114,7 +116,22 @@ func queueMesh3dSystem(
 				LayoutKey: sp.Mesh.VertexLayout().Key(),
 			}
 
-			view.RenderPhase.Append(renderItem, key)
+			var isTransparent bool
+
+			// TODO expose AlphaMode in material?
+			if mat, ok := sp.Material.(StandardMaterial); ok {
+				isTransparent = mat.AlphaMode == AlphaModeBlend
+			}
+
+			if isTransparent {
+				distanceToCameraSq := sp.Transform.Translation().
+					Sub(view.Transform.Affine.Translation()).
+					LengthSqr()
+
+				view.Transparent.Append(renderItem, distanceToCameraSq)
+			} else {
+				view.RenderPhase.Append(renderItem, key)
+			}
 		}
 	}
 }

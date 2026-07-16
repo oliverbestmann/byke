@@ -33,9 +33,9 @@ func pluginSkybox(app *byke.App) {
 		System(prepareSkyboxBindGroupsSystem).
 		InSet(RenderPhasePrepareBindGroups))
 
-	app.AddSystems(Core2d, byke.
+	app.AddSystems(Core3d, byke.
 		System(drawSkyboxSystem).
-		InSet(Core2dSky))
+		InSet(Core3dSky))
 }
 
 type skyboxPipeline struct {

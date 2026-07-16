@@ -45,6 +45,10 @@ func pluginCamera(app *byke.App) {
 	app.AddSystems(Core2d, byke.
 		System(blitCameraToTargetSystem).
 		InSet(Core2dBlit))
+
+	app.AddSystems(Core3d, byke.
+		System(blitCameraToTargetSystem).
+		InSet(Core3dBlit))
 }
 
 type Camera struct {
@@ -78,8 +82,17 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 		ViewUniforms{},
 		BinnedRenderPhase[Opaque]{},
 		SortableRenderPhase[Transparent]{},
+		Camera2d,
 	}
 }
+
+type CameraSchedule struct {
+	byke.Component[CameraSchedule]
+	Schedule byke.ScheduleId
+}
+
+var Camera2d = CameraSchedule{Schedule: Core2d}
+var Camera3d = CameraSchedule{Schedule: Core3d}
 
 type OrthographicProjection struct {
 	byke.Component[OrthographicProjection]
@@ -231,7 +244,7 @@ type ViewValues struct {
 func (v *ViewValues) WorldToCamera() glm.Mat4f {
 	inv, ok := inverseAffine(v.CameraTransform.Affine)
 	if !ok {
-		panic("not invertable")
+		panic("not invertible")
 	}
 
 	return inv
@@ -272,15 +285,15 @@ func prepareViewUniformsSystem(
 			continue
 		}
 
-		cameraProjection := projection.ToMat4f(view.ViewTarget.Size)
-		cameraProjectionInv, ok := cameraProjection.TryInverse()
+		cameraToScreen := projection.ToMat4f(view.ViewTarget.Size)
+		cameraToScreenInv, ok := cameraToScreen.TryInverse()
 		if !ok {
 			panic("failed to invert projection matrix")
 		}
 
 		vv := ViewValues{
 			CameraTransform: view.Transform,
-			WorldToClip:     cameraProjection,
+			WorldToClip:     cameraToScreen,
 		}
 
 		if view.TAAA.Exists() {
@@ -291,12 +304,12 @@ func prepareViewUniformsSystem(
 		*view.ViewUniforms = ViewUniforms{
 			ViewportOrigin:    glm.Vec2f{},
 			ViewportSize:      view.ViewTarget.Size,
-			CameraToScreen:    cameraProjection,
-			CameraToScreenInv: cameraProjectionInv,
+			CameraToScreen:    cameraToScreen,
+			CameraToScreenInv: cameraToScreenInv,
 			WorldToCamera:     vv.WorldToCamera(),
 			WorldToCameraInv:  vv.WorldToCameraInv(),
-			WorldToScreen:     cameraProjection.Mul(vv.WorldToCamera()),
-			WorldToScreenInv:  vv.WorldToCameraInv().Mul(cameraProjectionInv),
+			WorldToScreen:     cameraToScreen.Mul(vv.WorldToCamera()),
+			WorldToScreenInv:  vv.WorldToCameraInv().Mul(cameraToScreenInv),
 		}
 	}
 }
@@ -411,8 +424,9 @@ func blitCameraToTargetSystem(
 func driveCameraSchedules(
 	world *byke.World,
 	camerasQuery byke.Query[struct {
-		EntityId byke.EntityId
-		Camera   Camera
+		EntityId       byke.EntityId
+		Camera         Camera
+		CameraSchedule CameraSchedule
 	}],
 ) {
 	// TODO reuse allocation
@@ -427,7 +441,7 @@ func driveCameraSchedules(
 
 	for _, camera := range cameras {
 		world.InsertResource(CurrentView(camera.EntityId))
-		world.RunSchedule(Core2d)
+		world.RunSchedule(camera.CameraSchedule.Schedule)
 	}
 }
 

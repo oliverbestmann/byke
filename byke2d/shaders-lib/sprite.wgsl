@@ -73,12 +73,8 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     let y = f32(index & 1);
     let vertex_position = vec2f(x, y);
 
-    let identity = mat4x4f(1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1);
-    let position = identity
-        * view.screen_to_ndc
-        * view.world_to_screen
-        * model_to_world
-        * vec4f(vertex_position, 0.0, 1.0);
+    // transform sprite
+    let position = view.world_to_screen * model_to_world * vec4f(vertex_position, 0.0, 1.0);
 
     // move the vertex to the world
     var out: VertexOutput;

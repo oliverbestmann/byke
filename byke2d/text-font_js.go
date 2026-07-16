@@ -3,7 +3,6 @@
 package byke2d
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 
@@ -11,18 +10,8 @@ import (
 	"github.com/go-text/typesetting/font/opentype"
 )
 
-func loadDefaultFont() Faces {
-	var fm fontmap
-
-	if err := fm.AddFont(bytes.NewReader(fontNormal)); err != nil {
-		panic(err)
-	}
-
-	if err := fm.AddFont(bytes.NewReader(fontJapanese)); err != nil {
-		panic(err)
-	}
-
-	return &fm
+func fontscan_NewFontMap() fontmap {
+	return fontmap{}
 }
 
 type fontmap struct {
@@ -40,7 +29,7 @@ func (fm *fontmap) ResolveFace(r rune) *font.Face {
 	return nil
 }
 
-func (fm *fontmap) AddFont(fontFile font.Resource) error {
+func (fm *fontmap) AddFont(fontFile font.Resource, fileID, family string) error {
 	loaders, err := opentype.NewLoaders(fontFile)
 	if err != nil {
 		return fmt.Errorf("unsupported font resource: %s", err)

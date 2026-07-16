@@ -23,9 +23,12 @@ type (
 
 func pluginRenderPhases(app *byke.App) {
 	app.AddSystems(Core2d, byke.System(dispatchOpaqueRenderSystem).InSet(Core2dOpaque))
-	app.AddSystems(Render, byke.System(cleanupBinnedRenderPhaseSystem[Opaque]).InSet(RenderPhaseCleanup))
-
 	app.AddSystems(Core2d, byke.System(dispatchTransparentRenderSystem).InSet(Core2dTransparent))
+
+	app.AddSystems(Core3d, byke.System(dispatchOpaqueRenderSystem).InSet(Core3dOpaque))
+	app.AddSystems(Core3d, byke.System(dispatchTransparentRenderSystem).InSet(Core3dTransparent))
+
+	app.AddSystems(Render, byke.System(cleanupBinnedRenderPhaseSystem[Opaque]).InSet(RenderPhaseCleanup))
 	app.AddSystems(Render, byke.System(sortRenderPhasesSystem[Transparent]).InSet(RenderPhaseSort))
 	app.AddSystems(Render, byke.System(cleanupSortableRenderPhaseSystem[Transparent]).InSet(RenderPhaseCleanup))
 }

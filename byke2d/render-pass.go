@@ -142,6 +142,11 @@ func (t *TrackedRenderPassEncoder) DrawIndexed(indexCount, instanceCount, firstI
 	t.Metrics.DrawIndexed += 1
 }
 
+func (t *TrackedRenderPassEncoder) Draw(vertexCount, instanceCount, firstVertex, firstInstance uint32) {
+	t.RenderPassEncoder.Draw(vertexCount, instanceCount, firstVertex, firstInstance)
+	t.Metrics.Draw += 1
+}
+
 func ensureMapIsInitialized[K comparable, V any](m *map[K]V) {
 	if *m == nil {
 		*m = make(map[K]V)
