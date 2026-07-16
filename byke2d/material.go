@@ -48,8 +48,10 @@ type Material interface {
 	Specialize(pipeline *RenderPipelineDescriptor)
 }
 
-type MaterialBindGroupKey interface {
-	SortValue() uint64
+type MaterialBindGroupKey uint64
+
+func (k MaterialBindGroupKey) SortValue() uint64 {
+	return uint64(k)
 }
 
 func pluginMaterialCommon(app *byke.App) {

@@ -4,6 +4,7 @@ struct StandardMaterial {
     color: vec4f,
     emissive_scale: vec3f,
     double_sided: u32,
+    alpha_cutoff: f32,
 }
 
 @group(2)
@@ -66,6 +67,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @location(0) vec4f {
     var vertex = param;
 
+    let m = materials[vertex.material];
+
     var fin: FragmentIn;
     fin.ambient_occlusion = 1.0;
 
@@ -80,7 +83,7 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
     #endif
 #endif
 
-    if ! front_facing && materials[vertex.material].double_sided != 0 {
+    if ! front_facing && m.double_sided != 0 {
         // flip normal for double sided lighting
         vertex.normal = -vertex.normal;
     }
@@ -90,13 +93,29 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
 #ifdef MESH3D_MAT_HAS_TEXTURE
     let texcol = textureSample(texture, texture_sampler, vertex.uv);
     out *= texcol;
-    out += texcol * vec4f(materials[vertex.material].emissive_scale, 0.0);
+    out += texcol * vec4f(m.emissive_scale, 0.0);
 #endif
 
 #ifdef MESH3D_MAT_HAS_EMISSIVE
     let emissive_color = textureSample(emissive, emissive_sampler, vertex.uv).rgb;
-    let emissive = emissive_color * materials[vertex.material].emissive_scale;
+    let emissive = emissive_color * m.emissive_scale;
     out += vec4f(emissive, 0.0);
+#endif
+
+#ifdef ALPHAMODE_OPAQUE
+    out.a = 1.0;
+#endif
+
+#ifdef ALPHAMODE_MASK
+    if out.a < m.alpha_cutoff {
+        discard;
+    }
+
+    out.a = 1.0;
+#endif
+
+#ifdef ALPHAMODE_ALPHA_TO_COVERAGE
+    out.a = (out.a - 0.5) / max(fwidth(out.a), 0.0001) + 0.5;
 #endif
 
     return out;

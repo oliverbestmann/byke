@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	_ "embed"
-	"unsafe"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
@@ -79,7 +78,9 @@ func (m ColorMaterial) WriteUniforms(w *wgsl.StructWriter) {
 }
 
 func (m ColorMaterial) BindGroupKey() MaterialBindGroupKey {
-	return colorMaterialKey{Texture: m.Texture}
+	var hash Hash = colorMaterialHashSeed
+	hash.Pointer(m.Texture)
+	return MaterialBindGroupKey(hash)
 }
 
 func (m ColorMaterial) IsSameBindGroup(other Material) bool {
@@ -91,10 +92,4 @@ func (m ColorMaterial) IsSameBindGroup(other Material) bool {
 	return m.BindGroupKey() == matOther.BindGroupKey()
 }
 
-type colorMaterialKey struct {
-	Texture *Texture
-}
-
-func (c colorMaterialKey) SortValue() uint64 {
-	return uint64(uintptr(unsafe.Pointer(c.Texture)))
-}
+const colorMaterialHashSeed Hash = 0x5C36C6CE2CA4FD4F

@@ -318,6 +318,18 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 	// enable double sided rendering
 	m.DoubleSided = mat.DoubleSided
 
+	switch mat.AlphaMode {
+	case "OPAQUE":
+		m.AlphaMode = AlphaModeOpaque
+
+	case "BLEND":
+		m.AlphaMode = AlphaModeBlend
+
+	case "MASK":
+		m.AlphaMode = AlphaModeMask
+		m.AlphaCutoff = derefOr(mat.AlphaCutoff, 0.5)
+	}
+
 	if mr := mat.MetallicRoughness; mr != nil {
 		if baseColorTex := mr.BaseColorTexture; baseColorTex != nil {
 			// parse texture as srgb
