@@ -1,15 +1,19 @@
-//go:build cgo
+//go:build cgo && !radixsort_go
 
 package radix
 
-import "unsafe"
+import (
+	"unsafe"
 
-// #include <radixsort.h>
-import "C"
+	"github.com/oliverbestmann/byke/byke2d/radix/radix_c"
+)
 
 func doSort(values, scratch []Value) {
-	valuesC := (*C.value_t)(unsafe.Pointer(unsafe.SliceData(values)))
-	bufC := (*C.value_t)(unsafe.Pointer(unsafe.SliceData(scratch)))
+	ptrValues := unsafe.SliceData(values)
+	ptrScratch := unsafe.SliceData(scratch)
 
-	C.radixsort_c(valuesC, bufC, C.uint32_t(len(values)))
+	cValues := unsafe.Slice((*radix_c.Value)(ptrValues), len(values))
+	cScratch := unsafe.Slice((*radix_c.Value)(ptrScratch), len(values))
+
+	radix_c.Sort(cValues, cScratch)
 }

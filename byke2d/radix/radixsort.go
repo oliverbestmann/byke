@@ -1,8 +1,9 @@
 package radix
 
-import "math"
+import (
+	"math"
+)
 
-//go:inline
 func floatToSortableU32(f float32) uint32 {
 	x := math.Float32bits(f)
 	mask := uint32(int32(x)>>31) | 0x80000000
