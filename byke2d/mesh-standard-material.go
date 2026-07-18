@@ -9,7 +9,7 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-//go:embed mesh3d-standard-material.wgsl
+//go:embed mesh-standard-material.wgsl
 var standardMaterialShaderCode string
 
 var standardMaterialShaderCache = map[shaderKey]*ShaderDef{}
@@ -213,6 +213,16 @@ func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
 		// we could have alpha values in the image that we want to have
 		// masked out
 		pipeline.Multisample.AlphaToCoverageEnabled = true
+	}
+
+	if m.AlphaMode == AlphaModeBlend {
+		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAlphaBlending
+		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
+	}
+
+	if m.AlphaMode == AlphaModeAdd {
+		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAdd
+		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
 	}
 }
 

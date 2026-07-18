@@ -169,7 +169,7 @@ func prepareMesh2dInstances(
 				materialIndex := uint32(values.Writer.ItemCount)
 
 				// write sprite vertex data
-				instances.StartNew(48)
+				instances.StartNew(52)
 
 				// the meshes transform
 				instances.AppendVec3f(mesh.Transform.Column(0).Truncate())

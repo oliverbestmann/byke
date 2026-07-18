@@ -27,8 +27,9 @@ func (s SceneInstance) RequireComponents() []spoke.ErasedComponent {
 
 type SceneRoot struct {
 	byke.ComparableComponent[SceneRoot]
-	Handle *gltf.Handle
-	Scene  gltf.Ref
+	Handle   *gltf.Handle
+	Scene    gltf.Ref
+	MeshType MeshType
 }
 
 func (s SceneRoot) RequireComponents() []spoke.ErasedComponent {
@@ -37,6 +38,11 @@ func (s SceneRoot) RequireComponents() []spoke.ErasedComponent {
 		InheritVisibility,
 	}
 }
+
+type MeshType uint8
+
+const MeshType2d MeshType = 2
+const MeshType3d MeshType = 3
 
 func pluginGltf(app *byke.App) {
 	app.AddSystems(byke.PostUpdate, spawnGltfSceneSystem)
@@ -55,11 +61,17 @@ func spawnGltfSceneSystem(
 	for item := range scenesQuery.Items() {
 		handle := toGltfHandle(item.SceneRoot.Handle)
 
+		meshType := MeshType3d
+		if item.SceneRoot.MeshType != 0 {
+			meshType = item.SceneRoot.MeshType
+		}
+
 		sc := &spawnContext{
 			Commands:           commands,
 			Handle:             handle,
 			RenderContext:      ctx,
 			Assets:             assets,
+			MeshType:           meshType,
 			nodes:              map[gltf.Ref]byke.EntityId{},
 			nodeWorldTransform: map[gltf.Ref]glm.Mat4f{},
 			images:             map[imageCacheKey]*Texture{},
@@ -96,6 +108,8 @@ type spawnContext struct {
 	Handle        gltfHandle
 	RenderContext *RenderContext
 	Assets        *Assets
+
+	MeshType MeshType
 
 	// the root entity
 	root byke.EntityId
@@ -225,7 +239,7 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 
 		entityCommands := sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
-			Mesh3d{Mesh: meshInst},
+			ToMeshComponent(sc.MeshType, meshInst),
 			material,
 		)
 
@@ -249,6 +263,19 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 				Names:   mesh.Extras.TargetNames,
 			},
 		)
+	}
+}
+
+func ToMeshComponent(meshType MeshType, mesh *Mesh) byke.ErasedComponent {
+	switch meshType {
+	case MeshType2d:
+		return Mesh2d{Mesh: mesh}
+
+	case MeshType3d:
+		return Mesh3d{Mesh: mesh}
+
+	default:
+		panic(fmt.Errorf("unknown mesh type: %d", meshType))
 	}
 }
 

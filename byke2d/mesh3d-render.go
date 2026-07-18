@@ -151,18 +151,41 @@ func prepareMesh3dInstancesSystem(
 	morphUniforms *morphUniforms,
 	materialUniforms *MaterialUniforms,
 	viewsQuery byke.Query[struct {
-		_     byke.With[Camera]
-		Phase *BinnedRenderPhase[Opaque]
+		_           byke.With[Camera]
+		Phase       *BinnedRenderPhase[Opaque]
+		Transparent *SortableRenderPhase[Transparent]
 	}],
 ) {
 	instances := &meshInstances.Instances
 	instances.Clear()
 
-	for view := range viewsQuery.Items() {
-		if view.Phase.IsEmpty() {
-			continue
+	appendInstance := func(item *ExtractedMesh) {
+		bufs, ok := meshAllocator.Get(item.Mesh)
+		if !ok {
+			panic("mesh not found")
 		}
 
+		// write mesh instance data
+		instances.StartNew(60)
+
+		// transform
+		instances.AppendVec3f(item.Transform.Column(0).Truncate())
+		instances.AppendVec3f(item.Transform.Column(1).Truncate())
+		instances.AppendVec3f(item.Transform.Column(2).Truncate())
+		instances.AppendVec3f(item.Transform.Column(3).Truncate())
+
+		// initial vertex position
+		instances.AppendUint(bufs.FirstVertex)
+
+		// material index
+		instances.AppendUint(materialUniforms.Get(item.Material).Indices[item.EntityId])
+
+		// reference morph info if available
+		idx, _ := morphUniforms.DescriptorIndex(item.EntityId)
+		instances.AppendUint(idx)
+	}
+
+	for view := range viewsQuery.Items() {
 		for key, batch := range view.Phase.Batches() {
 			if len(batch) == 0 {
 				continue
@@ -173,9 +196,7 @@ func prepareMesh3dInstancesSystem(
 				continue
 			}
 
-			_, isMesh := key.Type.(*mesh3dRenderPhaseItem)
-
-			if !isMesh {
+			if _, isMesh := key.Type.(*mesh3dRenderPhaseItem); !isMesh {
 				// this batch is not a mesh
 				continue
 			}
@@ -185,31 +206,22 @@ func prepareMesh3dInstancesSystem(
 
 			for _, item := range batch {
 				item := &meshes.Meshes[item.ExtractedIndex]
-
-				bufs, ok := meshAllocator.Get(item.Mesh)
-				if !ok {
-					panic("mesh not found")
-				}
-
-				// write mesh instance data
-				instances.StartNew(60)
-
-				// transform
-				instances.AppendVec3f(item.Transform.Column(0).Truncate())
-				instances.AppendVec3f(item.Transform.Column(1).Truncate())
-				instances.AppendVec3f(item.Transform.Column(2).Truncate())
-				instances.AppendVec3f(item.Transform.Column(3).Truncate())
-
-				// initial vertex position
-				instances.AppendUint(bufs.FirstVertex)
-
-				// material index
-				instances.AppendUint(materialUniforms.Get(item.Material).Indices[item.EntityId])
-
-				// reference morph info if available
-				idx, _ := morphUniforms.DescriptorIndex(item.EntityId)
-				instances.AppendUint(idx)
+				appendInstance(item)
 			}
+		}
+
+		for idx := range view.Transparent.Len() {
+			item := view.Transparent.Get(idx)
+
+			if _, isMesh := item.Type.(*mesh3dRenderPhaseItem); !isMesh {
+				continue
+			}
+
+			item.BatchBegin = uint32(instances.InstanceCount())
+			item.BatchCount = uint32(1)
+
+			mesh := &meshes.Meshes[item.ExtractedIndex]
+			appendInstance(mesh)
 		}
 	}
 

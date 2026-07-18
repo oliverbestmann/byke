@@ -11,8 +11,10 @@ struct VertexInput {
     @location(2) i_affine_2: vec3f,
     @location(3) i_affine_3: vec3f,
 
+    @location(4) i_material_index: u32,
+
     // vertex position from per-vertex buffer
-    @location(4) v_position: vec3f,
+    @location(5) v_position: vec3f,
 
 #ifdef MESH2D_VERTEX_ATTRIBUTES_COLOR
     // vertex color from per-vertex buffer
@@ -40,8 +42,7 @@ fn default_mesh2d_vertex(in: VertexInput) -> VertexOutput {
         vec4f(in.i_affine_3, 1),
     );
 
-    let position = view.screen_to_ndc
-        * view.world_to_screen
+    let position = view.world_to_screen
         * model_to_world
         * vec4f(in.v_position, 1.0);
 

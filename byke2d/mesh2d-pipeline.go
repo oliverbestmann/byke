@@ -54,14 +54,14 @@ func (m mesh2dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 			Attributes: []wgpu.VertexAttribute{
 				{
 					Format:         wgpu.VertexFormatFloat32x3,
-					ShaderLocation: 4,
+					ShaderLocation: 5,
 					Offset:         0,
 				},
 			},
 		},
 	}
 
-	var attrShaderLocation uint32 = 5
+	var attrShaderLocation uint32 = 6
 	for _, attr := range m.Attributes {
 		buffers = append(buffers, wgpu.VertexBufferLayout{
 			ArrayStride: uint64(attr.Format.ByteSize()),
