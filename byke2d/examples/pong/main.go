@@ -89,6 +89,7 @@ func setupSystem(commands *Commands) {
 	// The game area is 1000x500 px large
 	commands.Spawn(
 		Camera{},
+		Camera2d,
 		ClearColor{Color: ColorBlack},
 		HDR{},
 		TransformFromXYZ(0, 0, -1.0),
@@ -100,34 +101,35 @@ func setupSystem(commands *Commands) {
 
 	// rectangle to highlight the game area
 	commands.Spawn(
-		Mesh2d{Mesh: Rectangle(Vec2f{1000, 500})},
+		TransformFromXYZ(0, 0, -0.8),
+		MeshInstance{Mesh: Rectangle(Vec2f{1000, 500})},
 		ColorMaterial{Tint: ColorSRGBA(0.1, 0.1, 0.1, 1.0)},
 	)
 
 	// the ball
 	commands.Spawn(
-		TransformFromXYZ(0, 0, 0.1),
+		TransformFromXYZ(0, 0, -0.2),
 		Ball{},
 		Velocity{Value: Vec2f{2, rand.Float32() * 0.01}.Normalize().Scale(BallSpeed)},
-		Mesh2d{Mesh: Circle(BallRadius, 32)},
+		MeshInstance{Mesh: Circle(BallRadius, 32)},
 		ColorMaterial{Tint: ColorSRGBA(0, 5, 0, 1.0)},
 	)
 
 	// left paddle
 	commands.Spawn(
-		TransformFromXYZ(-PaddleAbsX, 0, 0.2),
+		TransformFromXYZ(-PaddleAbsX, 0, -0.1),
 		Paddle{IsLeft: true},
 		PlayerPaddle{},
-		Mesh2d{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
+		MeshInstance{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
 		ColorMaterial{Tint: ColorSRGBA(10, 0, 5, 1.0)},
 		Velocity{},
 	)
 
 	// right paddle
 	commands.Spawn(
-		TransformFromXYZ(PaddleAbsX, 0, 0.2),
+		TransformFromXYZ(PaddleAbsX, 0, -0.1),
 		Paddle{},
-		Mesh2d{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
+		MeshInstance{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
 		ColorMaterial{Tint: ColorSRGBA(5, 0, 10, 1.0)},
 		Velocity{},
 	)

@@ -27,9 +27,8 @@ func (s SceneInstance) RequireComponents() []spoke.ErasedComponent {
 
 type SceneRoot struct {
 	byke.ComparableComponent[SceneRoot]
-	Handle   *gltf.Handle
-	Scene    gltf.Ref
-	MeshType MeshType
+	Handle *gltf.Handle
+	Scene  gltf.Ref
 }
 
 func (s SceneRoot) RequireComponents() []spoke.ErasedComponent {
@@ -38,11 +37,6 @@ func (s SceneRoot) RequireComponents() []spoke.ErasedComponent {
 		InheritVisibility,
 	}
 }
-
-type MeshType uint8
-
-const MeshType2d MeshType = 2
-const MeshType3d MeshType = 3
 
 func pluginGltf(app *byke.App) {
 	app.AddSystems(byke.PostUpdate, spawnGltfSceneSystem)
@@ -61,17 +55,11 @@ func spawnGltfSceneSystem(
 	for item := range scenesQuery.Items() {
 		handle := toGltfHandle(item.SceneRoot.Handle)
 
-		meshType := MeshType3d
-		if item.SceneRoot.MeshType != 0 {
-			meshType = item.SceneRoot.MeshType
-		}
-
 		sc := &spawnContext{
 			Commands:           commands,
 			Handle:             handle,
 			RenderContext:      ctx,
 			Assets:             assets,
-			MeshType:           meshType,
 			nodes:              map[gltf.Ref]byke.EntityId{},
 			nodeWorldTransform: map[gltf.Ref]glm.Mat4f{},
 			images:             map[imageCacheKey]*Texture{},
@@ -108,8 +96,6 @@ type spawnContext struct {
 	Handle        gltfHandle
 	RenderContext *RenderContext
 	Assets        *Assets
-
-	MeshType MeshType
 
 	// the root entity
 	root byke.EntityId
@@ -239,7 +225,7 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 
 		entityCommands := sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
-			ToMeshComponent(sc.MeshType, meshInst),
+			MeshInstance{Mesh: meshInst},
 			material,
 		)
 
@@ -263,19 +249,6 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 				Names:   mesh.Extras.TargetNames,
 			},
 		)
-	}
-}
-
-func ToMeshComponent(meshType MeshType, mesh *Mesh) byke.ErasedComponent {
-	switch meshType {
-	case MeshType2d:
-		return Mesh2d{Mesh: mesh}
-
-	case MeshType3d:
-		return Mesh3d{Mesh: mesh}
-
-	default:
-		panic(fmt.Errorf("unknown mesh type: %d", meshType))
 	}
 }
 
@@ -433,7 +406,7 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 	var texture *Texture
 	if img.Uri != "" {
 		// load from URL
-		settings := &LoadTextureSettings{SRGB: !linearColors}
+		settings := &LoadTextureSettings{Linear: linearColors}
 		texture = sc.Assets.TextureWithSettings(img.Uri, settings).Await()
 	} else {
 
@@ -457,8 +430,8 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 		}
 
 		texture = NewTextureFromImage(sc.RenderContext, src, TextureFromImageOptions{
-			Label: "gltf:" + img.Name,
-			SRGB:  !linearColors,
+			Label:  "gltf:" + img.Name,
+			Linear: linearColors,
 		})
 	}
 

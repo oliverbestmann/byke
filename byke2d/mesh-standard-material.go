@@ -12,16 +12,6 @@ import (
 //go:embed mesh-standard-material.wgsl
 var standardMaterialShaderCode string
 
-var standardMaterialShaderCache = map[shaderKey]*ShaderDef{}
-
-type shaderKey struct {
-	Texture   bool
-	Normal    bool
-	Emissive  bool
-	Occlusion bool
-	AlphaMode AlphaMode
-}
-
 type StandardMaterial struct {
 	byke.Component[StandardMaterial]
 
@@ -46,55 +36,30 @@ type StandardMaterial struct {
 	// The occlusion texture if any
 	OcclusionTexture *Texture
 
-	// FrontFace defaults to wgpu.FrontFaceCCW
-	FrontFace wgpu.FrontFace
-
-	// AlphaMode decides on the way this material handles alpha values.
-	AlphaMode AlphaMode
-
-	// AlphaCutoff is used with AlphaModeMask to define the
-	// cutoff for the alpha value.
-	AlphaCutoff float32
-
-	// DoubleSided enables double-sided lighting.
-	// Need to flip the backface vertex in pixel shader
-	DoubleSided bool
+	// Some common material values
+	MaterialValues
 }
 
 func (m StandardMaterial) Shader() *ShaderDef {
-	key := shaderKey{
-		Texture:   m.Texture != nil,
-		Normal:    m.NormalTexture != nil,
-		Emissive:  m.EmissiveTexture != nil,
-		Occlusion: m.OcclusionTexture != nil,
-		AlphaMode: m.AlphaMode,
-	}
-
-	cached, ok := standardMaterialShaderCache[key]
-	if ok {
-		return cached
-	}
-
 	values := ShaderValues{}
-	values.Define("MESH3D_MAT_HAS_NORMAL", key.Normal)
-	values.Define("MESH3D_MAT_HAS_TEXTURE", key.Texture)
-	values.Define("MESH3D_MAT_HAS_EMISSIVE", key.Emissive)
-	values.Define("MESH3D_MAT_HAS_OCCLUSION", key.Occlusion)
+	values.Define("MESH3D_MAT_HAS_TEXTURE", m.Texture != nil)
+	values.Define("MESH3D_MAT_HAS_NORMAL", m.NormalTexture != nil)
+	values.Define("MESH3D_MAT_HAS_EMISSIVE", m.EmissiveTexture != nil)
+	values.Define("MESH3D_MAT_HAS_OCCLUSION", m.OcclusionTexture != nil)
 
-	values.Define("ALPHAMODE_OPAQUE", key.AlphaMode == AlphaModeOpaque)
-	values.Define("ALPHAMODE_MASK", key.AlphaMode == AlphaModeMask)
-	values.Define("ALPHAMODE_ALPHA_TO_COVERAGE", key.AlphaMode == AlphaModeAlphaToCoverage)
+	values.Define("ALPHAMODE_OPAQUE", m.AlphaMode == AlphaModeOpaque)
+	values.Define("ALPHAMODE_MASK", m.AlphaMode == AlphaModeMask)
+	values.Define("ALPHAMODE_ALPHA_TO_COVERAGE", m.AlphaMode == AlphaModeAlphaToCoverage)
 
-	shader := &ShaderDef{
+	values.Define("LIGHTING", true)
+
+	return &ShaderDef{
 		Label:         "standard material shader",
 		Source:        standardMaterialShaderCode,
 		VertexEntry:   "vs_main",
 		FragmentEntry: "fs_main",
 		Values:        values,
 	}
-
-	standardMaterialShaderCache[key] = shader
-	return shader
 }
 
 func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
@@ -181,49 +146,29 @@ func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 }
 
 func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
-	var hash = standardMaterialHashSeed
+	var hash Hash = 0xC2ACE5D3D65CE2C6
 	hash.Pointer(m.Texture)
 	hash.Pointer(m.EmissiveTexture)
 	hash.Pointer(m.NormalTexture)
 	hash.Pointer(m.OcclusionTexture)
-	hash.Int(m.FrontFace)
-	hash.Int(m.AlphaMode)
-	hash.Bool(m.DoubleSided)
+	hash.Int(m.MaterialValues.BindGroupKey())
 	return MaterialBindGroupKey(hash)
 }
 
-func (m StandardMaterial) IsSameBindGroup(other Material) bool {
-	matOther, ok := other.(StandardMaterial)
-	if !ok {
-		return false
-	}
+func (m StandardMaterial) BindGroupLayoutKey() MaterialBindGroupLayoutKey {
+	var key uint64
 
-	return m.BindGroupKey() == matOther.BindGroupKey()
+	key |= boolToUint64(m.Texture != nil) << 1
+	key |= boolToUint64(m.EmissiveTexture != nil) << 2
+	key |= boolToUint64(m.NormalTexture != nil) << 3
+	key |= boolToUint64(m.OcclusionTexture != nil) << 4
+
+	var hash Hash = 0xC2ACE5D3D65CE2C6
+	hash.Int(key)
+	hash.Int(m.MaterialValues.BindGroupKey())
+	return MaterialBindGroupLayoutKey(hash)
 }
 
-func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
-	pipeline.Primitive.FrontFace = frontFaceOf(m.FrontFace)
-
-	if m.DoubleSided {
-		// disable culling so we can render both sides of the triangles
-		pipeline.Primitive.CullMode = wgpu.CullModeNone
-	}
-
-	if m.AlphaMode == AlphaModeAlphaToCoverage {
-		// we could have alpha values in the image that we want to have
-		// masked out
-		pipeline.Multisample.AlphaToCoverageEnabled = true
-	}
-
-	if m.AlphaMode == AlphaModeBlend {
-		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAlphaBlending
-		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
-	}
-
-	if m.AlphaMode == AlphaModeAdd {
-		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAdd
-		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
-	}
+func boolToUint64(value bool) uint64 {
+	return uint64(boolToInt(value))
 }
-
-const standardMaterialHashSeed Hash = 0xC2ACE5D3D65CE2C6

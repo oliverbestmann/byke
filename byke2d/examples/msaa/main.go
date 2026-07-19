@@ -56,6 +56,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	// camera with MSAA activated
 	commands.Spawn(
 		Camera{},
+		Camera2d,
 		MSAA{},
 		RenderTarget{Texture: AsRenderTexture(cameraTexture)},
 	)
@@ -73,6 +74,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	commands.Spawn(
 		NewTransform().WithScaleXY(8, 8),
 		Camera{Order: 1},
+		Camera2d,
 		RenderLayersOf(1),
 	)
 

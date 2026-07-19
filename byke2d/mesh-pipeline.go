@@ -7,29 +7,27 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-type mesh3dPipelineConfig struct {
+type meshPipelineConfig struct {
 	Format       wgpu.TextureFormat
 	VertexLayout VertexLayout
 	Material     Material
 	SampleCount  uint32
 	Skinned      bool
 	Morph        bool
-
-	cachedMaterialBindGroupKey uint64
 }
 
-func (m mesh3dPipelineConfig) EqualTo(other PipelineConfig) bool {
-	otherConfig, ok := other.(mesh3dPipelineConfig)
+func (m meshPipelineConfig) EqualTo(other PipelineConfig) bool {
+	otherConfig, ok := other.(meshPipelineConfig)
 	return ok &&
 		m.Format == otherConfig.Format &&
 		m.SampleCount == otherConfig.SampleCount &&
 		m.Skinned == otherConfig.Skinned &&
 		m.Morph == otherConfig.Morph &&
 		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
-		m.Material.IsSameBindGroup(otherConfig.Material)
+		m.Material.BindGroupLayoutKey() == otherConfig.Material.BindGroupLayoutKey()
 }
 
-func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
+func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	shader := m.Material.Shader()
 	values := shader.Values.Clone()
 
@@ -103,7 +101,7 @@ func (m mesh3dPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDesc
 		},
 		Primitive: wgpu.PrimitiveState{
 			Topology:  wgpu.PrimitiveTopologyTriangleList,
-			CullMode:  wgpu.CullModeBack,
+			CullMode:  wgpu.CullModeNone,
 			FrontFace: wgpu.FrontFaceCW,
 		},
 		Multisample: multisampleState(m.SampleCount),

@@ -37,20 +37,75 @@ type Material interface {
 	WriteUniforms(w *wgsl.StructWriter)
 
 	// BindGroupKey returns a key that is unique to this materials bind group.
-	// Multiple materials can have different uniform values with the same BindGroupKey.
-	// The returned value must be comparable (i.e. can be used in a hashmap)
 	BindGroupKey() MaterialBindGroupKey
 
-	// IsSameBindGroup returns true, if the BindGroupKey of both materials is equal
-	IsSameBindGroup(other Material) bool
+	// BindGroupLayoutKey returns key that uniquely identifies the BindGroupLayout
+	// for this material. This will be used to deduplicate pipelines for this
+	// material type.
+	BindGroupLayoutKey() MaterialBindGroupLayoutKey
 
 	// Specialize specializes the provided pipeline.
 	Specialize(pipeline *RenderPipelineDescriptor)
 }
 
+type MaterialValues struct {
+	// FrontFace defaults to wgpu.FrontFaceCCW
+	FrontFace wgpu.FrontFace
+
+	// AlphaMode decides on the way this material handles alpha values.
+	AlphaMode AlphaMode
+
+	// AlphaCutoff is used with AlphaModeMask to define the
+	// cutoff for the alpha value.
+	AlphaCutoff float32
+
+	// DoubleSided enables double-sided lighting.
+	// Need to flip the backface vertex in pixel shader
+	DoubleSided bool
+}
+
+func (m MaterialValues) Specialize(pipeline *RenderPipelineDescriptor) {
+	pipeline.Primitive.FrontFace = frontFaceOf(m.FrontFace)
+
+	if m.DoubleSided {
+		// disable culling so we can render both sides of the triangles
+		pipeline.Primitive.CullMode = wgpu.CullModeNone
+	}
+
+	if m.AlphaMode == AlphaModeAlphaToCoverage {
+		// we could have alpha values in the image that we want to have
+		// masked out
+		pipeline.Multisample.AlphaToCoverageEnabled = true
+	}
+
+	if m.AlphaMode == AlphaModeBlend {
+		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAlphaBlending
+		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
+	}
+
+	if m.AlphaMode == AlphaModeAdd {
+		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAdd
+		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
+	}
+}
+
+func (m MaterialValues) BindGroupKey() Hash {
+	var hash Hash = 0xdead
+	hash.Int(m.FrontFace)
+	hash.Int(m.AlphaMode)
+	hash.Bool(m.DoubleSided)
+	return hash
+}
+
 type MaterialBindGroupKey uint64
 
 func (k MaterialBindGroupKey) SortValue() uint64 {
+	return uint64(k)
+}
+
+type MaterialBindGroupLayoutKey uint64
+
+func (k MaterialBindGroupLayoutKey) SortValue() uint64 {
 	return uint64(k)
 }
 
@@ -74,15 +129,9 @@ func pluginMaterialCommon(app *byke.App) {
 		InSet(RenderPhasePrepareBindGroups))
 }
 
-func PluginMaterial2d[M Material](app *byke.App) {
+func PluginMaterial[M Material](app *byke.App) {
 	app.AddSystems(Render, byke.
-		System(extractMesh2dSystem[M]).
-		InSet(RenderPhaseExtract))
-}
-
-func PluginMaterial3d[M Material](app *byke.App) {
-	app.AddSystems(Render, byke.
-		System(extractMesh3dSystem[M]).
+		System(extractMeshesSystem[M]).
 		InSet(RenderPhaseExtract))
 }
 
@@ -142,7 +191,7 @@ func (v *MaterialUniformValues) Clear() {
 
 func prepareMaterialUniforms(
 	ctx *RenderContext,
-	meshes ExtractedMeshes3d,
+	meshes ExtractedMeshes,
 	uniforms *MaterialUniforms,
 ) {
 	uniforms.Clear()
@@ -189,7 +238,7 @@ func tickMaterialBindGroupsSystems(
 //	this function generic on the material.
 func prepareMaterialBindGroupsSystem(
 	ctx *RenderContext,
-	meshes *ExtractedMeshes3d,
+	meshes *ExtractedMeshes,
 	bindGroups *MaterialBindGroups,
 	uniforms *MaterialUniforms,
 ) {

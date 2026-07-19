@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"path"
 	"reflect"
 
 	_ "image/jpeg"
@@ -29,6 +30,10 @@ func (i TextureLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	var settings LoadTextureSettings
 	if ctx.Settings != nil {
 		settings = *ctx.Settings.(*LoadTextureSettings)
+	}
+
+	if settings.Label == "" {
+		settings.Label = path.Base(ctx.Path)
 	}
 
 	renderContext, ok := ctx.World.ResourceOf[RenderContext]()

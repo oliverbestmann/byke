@@ -32,7 +32,7 @@ func prepareSkinsUniformsSystem(
 	ctx *RenderContext,
 	uniforms *skinUniforms,
 	jointsQuery byke.Query[GlobalTransform],
-	meshes *ExtractedMeshes3d,
+	meshes *ExtractedMeshes,
 ) {
 	const maxJoints = 256
 

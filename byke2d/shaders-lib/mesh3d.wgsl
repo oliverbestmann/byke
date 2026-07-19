@@ -3,8 +3,10 @@
 #import byke2d::view
 #import byke2d::view::bindings
 
+#ifdef LIGHTING
 #import byke2d::lights
 #import byke2d::lights::bindings
+#endif
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
@@ -189,6 +191,8 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 fn default_mesh3d_fragment(vertex: VertexOutput, fin: FragmentIn) -> vec4f {
     var color = vertex.color;
 
+    // TODO support logical expressions
+#ifdef LIGHTING
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
     var tint = light_config.ambient * fin.ambient_occlusion;
 
@@ -227,6 +231,8 @@ fn default_mesh3d_fragment(vertex: VertexOutput, fin: FragmentIn) -> vec4f {
 
     // apply light
     color = vec4f(color.rgb * tint, color.a);
+
+#endif
 #endif
 
     return color;

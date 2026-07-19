@@ -169,7 +169,6 @@ func PluginRender(app *byke.App) {
 
 	app.AddPlugin(pluginMaterialCommon)
 	app.AddPlugin(pluginMesh)
-	app.AddPlugin(pluginMesh2d)
 	app.AddPlugin(pluginMesh3d)
 
 	app.AddPlugin(pluginDebug)

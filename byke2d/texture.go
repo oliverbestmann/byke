@@ -224,7 +224,7 @@ type TextureFromImageOptions struct {
 	Label string
 
 	// Set to true to interpret the pixel data as srgb, not linear.
-	SRGB bool
+	Linear bool
 
 	// Usage defaults to RenderAttachment | TextureBinding | CopyDst.
 	Usage wgpu.TextureUsage
@@ -238,7 +238,7 @@ func NewTextureFromImage(ctx *RenderContext, src image.Image, opts TextureFromIm
 
 	return newTextureFromImagesRGBA(ctx, []image.Image{src}, TextureFromSourcesOptions{
 		Label:            opts.Label,
-		SRGB:             opts.SRGB,
+		SRGB:             !opts.Linear,
 		TextureDimension: wgpu.TextureDimension2D,
 		ViewDimension:    wgpu.TextureViewDimension2D,
 		Usage:            opts.Usage,
@@ -257,7 +257,7 @@ func NewTextureFromImages(ctx *RenderContext, sources []image.Image, opts Textur
 
 	return newTextureFromImagesRGBA(ctx, sources, TextureFromSourcesOptions{
 		Label:            opts.Label,
-		SRGB:             opts.SRGB,
+		SRGB:             !opts.Linear,
 		TextureDimension: wgpu.TextureDimension2D,
 		ViewDimension:    opts.ViewDimension,
 		Usage:            opts.Usage,

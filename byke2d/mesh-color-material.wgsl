@@ -2,6 +2,7 @@
 
 struct ColorMaterial {
     color: vec4f,
+    alpha_cutoff: f32,
 }
 
 @group(2)
@@ -30,13 +31,24 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
     let m = materials[vertex.material];
 
     var fin: FragmentIn;
-    fin.ambient_occlusion = 1.0;
 
     var out = default_mesh3d_fragment(vertex, fin);
 
 #ifdef MESH3D_MAT_HAS_TEXTURE
     let texcol = textureSample(texture, texture_sampler, vertex.uv);
     out *= texcol;
+#endif
+
+#ifdef ALPHAMODE_OPAQUE
+    out.a = 1.0;
+#endif
+
+#ifdef ALPHAMODE_MASK
+    if out.a < m.alpha_cutoff {
+        discard;
+    }
+
+    out.a = 1.0;
 #endif
 
 #ifdef ALPHAMODE_ALPHA_TO_COVERAGE

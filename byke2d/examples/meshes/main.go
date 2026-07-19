@@ -49,7 +49,8 @@ func main() {
 func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Camera{},
-		TransformFromXYZ(0, 0, 0.5).WithScaleXY(2, 2),
+		Camera2d,
+		TransformFromXYZ(0, 0, 0.5).WithScaleXY(0.5, 0.5),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 640},
@@ -67,7 +68,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		TransformFromXYZ(-24, 0, -0.1),
-		Mesh2d{Mesh: RegularPolygon(32, 3)},
+		MeshInstance{Mesh: RegularPolygon(32, 3)},
 		ColorMaterial{
 			Tint:    ColorSRGBA(1.0, 0.0, 0.5, 1.0),
 			Texture: asset,
@@ -89,14 +90,14 @@ func setupSystem(commands *Commands, assets *Assets) {
 		// circle should be batched
 		commands.Spawn(
 			TransformFromXYZ(24, float32(-32*i), -0.1).WithScaleXY(0.5, 0.5),
-			Mesh2d{Mesh: circle},
+			MeshInstance{Mesh: circle},
 			ColorMaterial{},
 		)
 	}
 }
 
 func rotateSystem(vt VirtualTime, query Query[struct {
-	_         Or[With[Sprite], With[Mesh2d]]
+	_         Or[With[Sprite], With[MeshInstance]]
 	Transform *Transform
 }],
 ) {

@@ -10,8 +10,7 @@ import (
 func pluginMesh(app *byke.App) {
 	app.InitResource(meshAllocatorFromWorld)
 
-	app.AddSystems(Render, byke.System(prepareMesh2dBuffers).InSet(RenderPhasePrepareResources))
-	app.AddSystems(Render, byke.System(prepareMesh3dBuffers).InSet(RenderPhasePrepareResources))
+	app.AddSystems(Render, byke.System(allocateMeshesSystem).InSet(RenderPhasePrepareResources))
 }
 
 // ExtractedMesh represents a mesh in the render pipeline after being extracted from ECS entities.
@@ -53,18 +52,9 @@ func (s *ExtractedSkin) IsSet() bool {
 	return s.EntityId != byke.NoEntityId
 }
 
-func prepareMesh2dBuffers(
-	meshes byke.Query[*Mesh2d],
-	meshAllocator *MeshAllocator,
-) {
-	for item := range meshes.Items() {
-		meshAllocator.Alloc(item.Mesh)
-	}
-}
-
-func prepareMesh3dBuffers(
+func allocateMeshesSystem(
 	meshes byke.Query[struct {
-		Mesh *Mesh3d
+		Mesh *MeshInstance
 		Name byke.Option[byke.Name]
 	}],
 	meshAllocator *MeshAllocator,

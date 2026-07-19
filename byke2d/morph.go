@@ -14,7 +14,7 @@ type MorphWeights struct {
 }
 
 // meshMorphWeights are copied to all children of MorphWeights
-// that have a Mesh3d attribute.
+// that have a MeshInstance attribute.
 type meshMorphWeights struct {
 	byke.Component[meshMorphWeights]
 	Weights []float32
@@ -38,7 +38,7 @@ func syncMeshMorphWeightsSystem(
 		MeshMorphWeights byke.OptionMut[meshMorphWeights]
 	}],
 	meshes byke.Query[struct {
-		_                byke.With[Mesh3d]
+		_                byke.With[MeshInstance]
 		MeshMorphWeights *meshMorphWeights
 	}],
 ) {
@@ -81,7 +81,7 @@ func prepareMorphUniformsSystem(
 	meshAllocator *MeshAllocator,
 	meshes byke.Query[struct {
 		EntityId         byke.EntityId
-		Mesh             Mesh3d
+		Mesh             MeshInstance
 		MeshMorphWeights *meshMorphWeights
 	}],
 ) {

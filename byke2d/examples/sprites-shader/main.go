@@ -60,7 +60,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{Order: 1},
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{640, 360}},
+			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{320, 180}},
 			// ScalingMode: ScalingModeWindowSize{},
 		},
 	)
@@ -74,7 +74,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		TransformFromXY(-32, 0),
-		Sprite{Texture: asset},
+		Sprite{Texture: asset, Color: ColorLinearRGB(1, 0, 0)},
 		AnchorTopLeft,
 		CustomShader{Shader: noisyShader},
 	)

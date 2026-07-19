@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"cmp"
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
@@ -10,18 +11,18 @@ import (
 )
 
 func pluginMesh3d(app *byke.App) {
-	app.InsertResource(ExtractedMeshes3d{})
-	app.InsertResource(mesh3dInstances{})
+	app.InsertResource(ExtractedMeshes{})
+	app.InsertResource(meshInstances{})
 	app.InsertResource(MeshBindGroups{})
 	app.InsertResource(skinUniforms{})
 	app.InsertResource(morphUniforms{})
 
-	app.AddSystems(Render, byke.System(queueMesh3dSystem).InSet(RenderPhaseQueue))
+	app.AddSystems(Render, byke.System(queueMeshInstancesSystem).InSet(RenderPhaseQueue))
 
 	app.AddSystems(Render, byke.System(prepareSkinsUniformsSystem).InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.System(prepareMorphUniformsSystem).
-		After(prepareMesh3dBuffers).
+		After(allocateMeshesSystem).
 		InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.System(prepareMeshViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
@@ -32,18 +33,19 @@ func pluginMesh3d(app *byke.App) {
 	// need to sync the Weights to the actual mesh node
 	app.AddSystems(PreRender, syncMeshMorphWeightsSystem)
 
-	app.AddPlugin(PluginMaterial3d[StandardMaterial])
+	app.AddPlugin(PluginMaterial[StandardMaterial])
+	app.AddPlugin(PluginMaterial[ColorMaterial])
 }
 
-type ExtractedMeshes3d struct {
+type ExtractedMeshes struct {
 	Meshes []ExtractedMesh
 }
 
-func extractMesh3dSystem[M Material](
-	meshes *ExtractedMeshes3d,
+func extractMeshesSystem[M Material](
+	meshes *ExtractedMeshes,
 	meshQuery byke.Query[struct {
 		EntityId     byke.EntityId
-		Mesh         query.Ref[Mesh3d]
+		Mesh         query.Ref[MeshInstance]
 		Transform    GlobalTransform
 		Material     M
 		RenderLayers byke.Option[RenderLayers]
@@ -78,16 +80,35 @@ func extractMesh3dSystem[M Material](
 }
 
 func clearExtractedMesh3dSystem(
-	meshes *ExtractedMeshes3d,
+	meshes *ExtractedMeshes,
 ) {
 	clear(meshes.Meshes)
 	meshes.Meshes = meshes.Meshes[:0]
 }
 
-type mesh3dRenderPhaseItem struct{}
+type MeshKey struct {
+	MatType   reflect.Type
+	MatKey    MaterialBindGroupKey
+	LayoutKey VertexLayoutKey
+}
 
-func queueMesh3dSystem(
-	meshes *ExtractedMeshes3d,
+func (m *MeshKey) CompareTo(other any) int {
+	o, ok := other.(*MeshKey)
+	if !ok {
+		return compareByType(m, other)
+	}
+
+	return cmp.Or(
+		compareType(m.MatType, o.MatType),
+		cmp.Compare(m.LayoutKey, o.LayoutKey),
+		cmp.Compare(m.MatKey.SortValue(), o.MatKey.SortValue()),
+	)
+}
+
+type meshRenderPhaseItem struct{}
+
+func queueMeshInstancesSystem(
+	meshes *ExtractedMeshes,
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		Transform    GlobalTransform
@@ -104,13 +125,12 @@ func queueMesh3dSystem(
 			}
 
 			renderItem := RenderItem{
-				Type:           &mesh3dRenderPhaseItem{},
+				Type:           &meshRenderPhaseItem{},
 				Draw:           drawMesh3dBatch,
 				ExtractedIndex: uint32(idx),
 			}
 
 			key := &MeshKey{
-				Type:      &mesh3dRenderPhaseItem{},
 				MatKey:    sp.Material.BindGroupKey(),
 				MatType:   reflect.TypeOf(sp.Material),
 				LayoutKey: sp.Mesh.VertexLayout().Key(),
@@ -136,17 +156,17 @@ func queueMesh3dSystem(
 	}
 }
 
-// mesh3dInstances stores the instance buffer for all per-instance
+// meshInstances stores the instance buffer for all per-instance
 // data of the meshes
-type mesh3dInstances struct {
+type meshInstances struct {
 	Buffer    *wgpu.Buffer
 	Instances wgsl.InstanceWriter
 }
 
 func prepareMesh3dInstancesSystem(
 	ctx *RenderContext,
-	meshes *ExtractedMeshes3d,
-	meshInstances *mesh3dInstances,
+	meshes *ExtractedMeshes,
+	meshInstances *meshInstances,
 	meshAllocator *MeshAllocator,
 	morphUniforms *morphUniforms,
 	materialUniforms *MaterialUniforms,
@@ -186,18 +206,8 @@ func prepareMesh3dInstancesSystem(
 	}
 
 	for view := range viewsQuery.Items() {
-		for key, batch := range view.Phase.Batches() {
+		for _, batch := range view.Phase.Batches() {
 			if len(batch) == 0 {
-				continue
-			}
-
-			key, ok := key.(*MeshKey)
-			if !ok {
-				continue
-			}
-
-			if _, isMesh := key.Type.(*mesh3dRenderPhaseItem); !isMesh {
-				// this batch is not a mesh
 				continue
 			}
 
@@ -213,7 +223,7 @@ func prepareMesh3dInstancesSystem(
 		for idx := range view.Transparent.Len() {
 			item := view.Transparent.Get(idx)
 
-			if _, isMesh := item.Type.(*mesh3dRenderPhaseItem); !isMesh {
+			if _, isMesh := item.Type.(*meshRenderPhaseItem); !isMesh {
 				continue
 			}
 
@@ -308,7 +318,7 @@ var MeshBindGroupLayout = SequentialLayoutWithLabel(
 func prepareMeshBindGroupSystem(
 	ctx *RenderContext,
 	bindGroups *MeshBindGroups,
-	meshes *ExtractedMeshes3d,
+	meshes *ExtractedMeshes,
 	meshAllocator *MeshAllocator,
 ) {
 	if bindGroups.emptyBindGroup == nil {
@@ -368,8 +378,8 @@ func drawMesh3dBatchSystem(
 	meshViewBindGroup meshViewBindGroup,
 	meshBindGroups MeshBindGroups,
 	pipelines *PipelineCache,
-	meshes *ExtractedMeshes3d,
-	meshInstances *mesh3dInstances,
+	meshes *ExtractedMeshes,
+	meshInstances *meshInstances,
 	meshAllocator *MeshAllocator,
 	materialBindGroups *MaterialBindGroups,
 	skinUniforms *skinUniforms,
@@ -395,7 +405,7 @@ func drawMesh3dBatchSystem(
 	skinOffset, skinOk := skinUniforms.OffsetOf(mesh.Skin.EntityId)
 	_, morphOk := morphUniforms.DescriptorIndex(mesh.EntityId)
 
-	pipelineConfig := mesh3dPipelineConfig{
+	pipelineConfig := meshPipelineConfig{
 		Format:       view.ViewTarget.Format,
 		SampleCount:  view.ViewTarget.SampleCount,
 		Skinned:      skinOk && mesh.Skin.IsSet(),

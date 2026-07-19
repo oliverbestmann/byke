@@ -118,7 +118,6 @@ func loadSkybox(ctx *RenderContext, a *Assets) *Texture {
 
 	return NewTextureFromImages(ctx, images, TextureFromImagesOptions{
 		Label:         "Skybox",
-		SRGB:          true,
 		ViewDimension: wgpu.TextureViewDimensionCube,
 	})
 }
