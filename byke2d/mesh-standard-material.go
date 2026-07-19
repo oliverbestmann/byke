@@ -158,10 +158,10 @@ func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
 func (m StandardMaterial) BindGroupLayoutKey() MaterialBindGroupLayoutKey {
 	var key uint64
 
-	key |= boolToUint64(m.Texture != nil) << 1
-	key |= boolToUint64(m.EmissiveTexture != nil) << 2
-	key |= boolToUint64(m.NormalTexture != nil) << 3
-	key |= boolToUint64(m.OcclusionTexture != nil) << 4
+	key |= boolToUint64(m.Texture != nil) << 0
+	key |= boolToUint64(m.EmissiveTexture != nil) << 1
+	key |= boolToUint64(m.NormalTexture != nil) << 2
+	key |= boolToUint64(m.OcclusionTexture != nil) << 3
 
 	var hash Hash = 0xC2ACE5D3D65CE2C6
 	hash.Int(key)

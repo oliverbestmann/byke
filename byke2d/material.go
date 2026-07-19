@@ -72,20 +72,28 @@ func (m MaterialValues) Specialize(pipeline *RenderPipelineDescriptor) {
 		pipeline.Primitive.CullMode = wgpu.CullModeNone
 	}
 
-	if m.AlphaMode == AlphaModeAlphaToCoverage {
-		// we could have alpha values in the image that we want to have
-		// masked out
-		pipeline.Multisample.AlphaToCoverageEnabled = true
-	}
-
-	if m.AlphaMode == AlphaModeBlend {
+	switch m.AlphaMode {
+	case AlphaModeBlend:
 		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAlphaBlending
 		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
-	}
 
-	if m.AlphaMode == AlphaModeAdd {
+	case Premultiplied:
+		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStatePremultipliedAlphaBlending
+		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
+
+	case AlphaModeAlphaToCoverage:
+		pipeline.Multisample.AlphaToCoverageEnabled = true
+
+	case AlphaModeAdd:
 		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAdd
 		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
+
+	case AlphaModeMultiply:
+		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateMultiply
+		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
+
+	default:
+		// no specialization needed
 	}
 }
 
@@ -271,5 +279,15 @@ func prepareMaterialBindGroupsSystem(
 
 			bindGroups.lookup[key] = bindGroup
 		}
+	}
+}
+
+func frontFaceOf(f wgpu.FrontFace) wgpu.FrontFace {
+	switch f {
+	case wgpu.FrontFaceCW, wgpu.FrontFaceCCW:
+		return f
+
+	default:
+		return wgpu.FrontFaceCCW
 	}
 }
