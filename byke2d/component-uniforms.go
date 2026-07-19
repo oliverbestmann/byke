@@ -51,7 +51,7 @@ func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
 func (c *ComponentUniforms[C]) upload(ctx *RenderContext) {
 	requiredSize := uint64(max(len(c.bytes), 4096))
 
-	if c.bufferSize <= requiredSize {
+	if c.bufferSize < requiredSize {
 		if c.buffer != nil {
 			// release existing buffer reference
 			c.buffer.Release()

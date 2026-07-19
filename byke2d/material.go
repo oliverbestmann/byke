@@ -128,7 +128,7 @@ func pluginMaterialCommon(app *byke.App) {
 		InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.
-		System(prepareMesh3dInstancesSystem).
+		System(prepareMeshInstancesSystem).
 		After(prepareMaterialUniforms).
 		InSet(RenderPhasePrepareResources))
 
@@ -219,12 +219,12 @@ func prepareMaterialUniforms(
 }
 
 type MaterialBindGroups struct {
-	lookup map[MaterialBindGroupKey]*wgpu.BindGroup
+	cache tickCache[MaterialBindGroupKey, *wgpu.BindGroup]
 }
 
 func (m *MaterialBindGroups) MustLookup(mat Material) *wgpu.BindGroup {
-	bindGroup := m.lookup[mat.BindGroupKey()]
-	if bindGroup == nil {
+	bindGroup, ok := m.cache.Get(mat.BindGroupKey())
+	if !ok {
 		panic(fmt.Errorf("no BindGroup found for material type %T", mat))
 	}
 
@@ -234,11 +234,7 @@ func (m *MaterialBindGroups) MustLookup(mat Material) *wgpu.BindGroup {
 func tickMaterialBindGroupsSystems(
 	bindGroups *MaterialBindGroups,
 ) {
-	for _, bindGroup := range bindGroups.lookup {
-		bindGroup.Release()
-	}
-
-	clear(bindGroups.lookup)
+	bindGroups.cache.Tick()
 }
 
 // This must be on a per-material basis, as we need to reference the per-material uniforms.
@@ -250,15 +246,13 @@ func prepareMaterialBindGroupsSystem(
 	bindGroups *MaterialBindGroups,
 	uniforms *MaterialUniforms,
 ) {
-	ensureMapIsInitialized(&bindGroups.lookup)
-
 	for idx := range meshes.Meshes {
 		item := &meshes.Meshes[idx]
 
 		// we need to create one bind group per unique material key.
 		key := item.Material.BindGroupKey()
 
-		if _, ok := bindGroups.lookup[key]; !ok {
+		if _, ok := bindGroups.cache.Get(key); !ok {
 			label := reflect.TypeOf(item.Material).Name()
 
 			values := uniforms.Get(item.Material)
@@ -277,7 +271,7 @@ func prepareMaterialBindGroupsSystem(
 				Entries: Sequential(bindings...),
 			})
 
-			bindGroups.lookup[key] = bindGroup
+			bindGroups.cache.Add(key, bindGroup)
 		}
 	}
 }

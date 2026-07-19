@@ -19,13 +19,13 @@ func (c *tickCache[K, V]) Tick() {
 			delete(c.entries, key)
 			entry.Value.Release()
 		}
+
+		entry.InUse = false
 	}
 }
 
 func (c *tickCache[K, V]) Add(key K, value V) {
-	if c.entries == nil {
-		c.entries = map[K]*tickCacheEntry[V]{}
-	}
+	ensureMapIsInitialized(&c.entries)
 
 	c.entries[key] = &tickCacheEntry[V]{
 		Value: value,

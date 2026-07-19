@@ -114,6 +114,7 @@ func (rc *RenderContext) TryWriteTexture(destination *wgpu.TexelCopyTextureInfo,
 // Panics if the write fails.
 func (rc *RenderContext) WriteBuffer(buffer *wgpu.Buffer, bufferOffset uint64, data []byte) {
 	rc.Metrics.WriteBuffer += 1
+	rc.Metrics.WriteBufferSize += uint64(len(data))
 	rc.wgpuContext.WriteBuffer(buffer, bufferOffset, data)
 }
 

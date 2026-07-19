@@ -28,7 +28,7 @@ func pluginMesh3d(app *byke.App) {
 	app.AddSystems(Render, byke.System(prepareMeshViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
 	app.AddSystems(Render, byke.System(prepareMeshBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
 
-	app.AddSystems(Render, byke.System(clearExtractedMesh3dSystem).InSet(RenderPhaseCleanup))
+	app.AddSystems(Render, byke.System(clearExtractedMeshesSystem).InSet(RenderPhaseCleanup))
 
 	// need to sync the Weights to the actual mesh node
 	app.AddSystems(PreRender, syncMeshMorphWeightsSystem)
@@ -79,7 +79,7 @@ func extractMeshesSystem[M Material](
 	}
 }
 
-func clearExtractedMesh3dSystem(
+func clearExtractedMeshesSystem(
 	meshes *ExtractedMeshes,
 ) {
 	clear(meshes.Meshes)
@@ -126,7 +126,7 @@ func queueMeshInstancesSystem(
 
 			renderItem := RenderItem{
 				Type:           &meshRenderPhaseItem{},
-				Draw:           drawMesh3dBatch,
+				Draw:           drawMeshesBatch,
 				ExtractedIndex: uint32(idx),
 			}
 
@@ -163,7 +163,7 @@ type meshInstances struct {
 	Instances wgsl.InstanceWriter
 }
 
-func prepareMesh3dInstancesSystem(
+func prepareMeshInstancesSystem(
 	ctx *RenderContext,
 	meshes *ExtractedMeshes,
 	meshInstances *meshInstances,
@@ -236,7 +236,7 @@ func prepareMesh3dInstancesSystem(
 	}
 
 	// upload buffer to gpu
-	instances.WriteTo(ctx, &meshInstances.Buffer, "Mesh3d Instances")
+	instances.WriteTo(ctx, &meshInstances.Buffer, "Mesh Instances")
 }
 
 var MeshViewBindGroupLayout = SequentialLayout(
@@ -364,8 +364,8 @@ func prepareMeshBindGroupSystem(
 	}
 }
 
-func drawMesh3dBatch(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
-	world.RunSystemWithInValue(drawMesh3dBatchSystem, RenderTask{
+func drawMeshesBatch(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
+	world.RunSystemWithInValue(drawMeshesBatchSystem, RenderTask{
 		Pass: pass,
 		Item: item,
 	})
@@ -373,7 +373,7 @@ func drawMesh3dBatch(world *byke.World, pass *TrackedRenderPassEncoder, item Ren
 	return true
 }
 
-func drawMesh3dBatchSystem(
+func drawMeshesBatchSystem(
 	task byke.In[RenderTask],
 	meshViewBindGroup meshViewBindGroup,
 	meshBindGroups MeshBindGroups,

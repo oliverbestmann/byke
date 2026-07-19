@@ -15,6 +15,8 @@ type RenderMetrics struct {
 	WriteBuffer           uint32
 	WriteTexture          uint32
 
+	WriteBufferSize uint64
+
 	// render encoder metrics
 	SetPipeline      uint32
 	SetVertexBuffer  uint32
@@ -45,7 +47,7 @@ func (m *RenderMetrics) String() string {
 	writef("  CreateRenderPipeline:  %5d", m.CreateRenderPipeline)
 	writef("  CreateShaderModule:    %5d", m.CreateShaderModule)
 	writef("  Submit:                %5d", m.Submit)
-	writef("  WriteBuffer:           %5d", m.WriteBuffer)
+	writef("  WriteBuffer:           %5d (%1.2fmb)", m.WriteBuffer, float64(m.WriteBufferSize)/(102.0*1024.0))
 	writef("  WriteTexture:          %5d", m.WriteTexture)
 
 	writef("")

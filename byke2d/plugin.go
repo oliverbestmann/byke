@@ -74,7 +74,6 @@ func PluginRender(app *byke.App) {
 	app.InitResource(PipelineCacheFromWorld)
 	app.InitResource(TextureCacheFromWorld)
 
-	app.AddPlugin(ComponentUniformsPlugin[bloomUniforms])
 	app.AddPlugin(ComponentUniformsPlugin[ColorGrading])
 
 	// input resources
@@ -116,26 +115,21 @@ func PluginRender(app *byke.App) {
 		Chain().
 		InSet(AudioSystems))
 
+	app.AddSystems(Core2d, byke.
+		System(tonemappingSystem).
+		Chain().
+		InSet(Core2dPostProcessing))
+
+	app.AddSystems(Core3d, byke.
+		System(tonemappingSystem).
+		Chain().
+		InSet(Core3dPostProcessing))
+
 	app.AddSystems(PreRender, cacheTextSystem)
 
 	app.AddSystems(Render, byke.
 		System(renderTextSystem).
 		InSet(RenderPhaseExtract))
-
-	app.AddSystems(Render, byke.
-		System(prepareBloomUniformsSystem).
-		Chain().
-		InSet(RenderPhasePrepare))
-
-	app.AddSystems(Core2d, byke.
-		System(applyBloomSystem, tonemappingSystem).
-		Chain().
-		InSet(Core2dPostProcessing))
-
-	app.AddSystems(Core3d, byke.
-		System(applyBloomSystem, tonemappingSystem).
-		Chain().
-		InSet(Core3dPostProcessing))
 
 	app.ConfigureSystemSets(byke.PostUpdate, TransformSystems)
 	app.ConfigureSystemSets(byke.PostUpdate, VisibilitySystems)
@@ -164,6 +158,7 @@ func PluginRender(app *byke.App) {
 	app.AddPlugin(pluginRenderPhases)
 	app.AddPlugin(pluginCamera)
 	app.AddPlugin(pluginSprite)
+	app.AddPlugin(pluginBloom)
 
 	app.AddPlugin(pluginLights)
 
