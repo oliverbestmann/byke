@@ -2,7 +2,6 @@ package byke2d
 
 import (
 	"iter"
-	"maps"
 	"slices"
 
 	"github.com/oliverbestmann/byke"
@@ -83,24 +82,35 @@ func (r *SortableRenderPhase[M]) IsEmpty() bool {
 type BinnedRenderPhase[M any] struct {
 	byke.Component[BinnedRenderPhase[M]]
 	items map[CompareTo][]RenderItem
-	keys  []CompareTo
+
+	// a cache to re-use when re-creating keysSorted
+	keysCache  []CompareTo
+	keysSorted []CompareTo
 }
 
 func (r *BinnedRenderPhase[M]) Optimize() {
-	if r.keys != nil {
+	if r.keysSorted != nil {
 		return
 	}
 
-	r.keys = slices.SortedFunc(maps.Keys(r.items), func(lhs, rhs CompareTo) int {
+	keys := r.keysCache[:0]
+	for key := range r.items {
+		keys = append(keys, key)
+	}
+
+	slices.SortFunc(keys, func(lhs, rhs CompareTo) int {
 		return lhs.CompareTo(rhs)
 	})
+
+	r.keysCache = keys
+	r.keysSorted = keys
 }
 
 //goland:noinspection GoMixedReceiverTypes
 func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPassEncoder) {
 	r.Optimize()
 
-	for _, key := range r.keys {
+	for _, key := range r.keysSorted {
 		values := r.items[key]
 
 		if len(values) == 0 {
@@ -112,8 +122,19 @@ func (r BinnedRenderPhase[M]) Dispatch(world *byke.World, pass *TrackedRenderPas
 }
 
 func (r *BinnedRenderPhase[M]) Reset() {
-	clear(r.items)
-	r.keys = nil
+	r.keysSorted = nil
+
+	for key, items := range r.items {
+		if len(items) == 0 {
+			// not used in the previous tick,
+			// so get rid of this one.
+			delete(r.items, key)
+			continue
+		}
+
+		// re-use slice for next iteration
+		r.items[key] = items[:0]
+	}
 }
 
 func (r *BinnedRenderPhase[M]) Append(item RenderItem, key CompareTo) {
@@ -122,14 +143,14 @@ func (r *BinnedRenderPhase[M]) Append(item RenderItem, key CompareTo) {
 	}
 
 	r.items[key] = append(r.items[key], item)
-	r.keys = nil
+	r.keysSorted = nil
 }
 
 func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[CompareTo, []RenderItem] {
 	return func(yield func(CompareTo, []RenderItem) bool) {
 		r.Optimize()
 
-		for _, key := range r.keys {
+		for _, key := range r.keysSorted {
 			items := r.items[key]
 
 			if len(items) == 0 {

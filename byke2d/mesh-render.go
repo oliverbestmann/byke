@@ -41,8 +41,9 @@ type ExtractedMeshes struct {
 	Meshes []ExtractedMesh
 }
 
-func extractMeshesSystem[M Material](
+func extractMeshesWithMaterialSystem[M Material](
 	meshes *ExtractedMeshes,
+	materials *Area[M],
 	meshQuery byke.Query[struct {
 		EntityId     byke.EntityId
 		Mesh         query.Ref[MeshInstance]
@@ -71,7 +72,7 @@ func extractMeshesSystem[M Material](
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
 			Mesh:         mesh.Mesh,
 			Transform:    item.Transform.Affine,
-			Material:     item.Material,
+			Material:     any(materials.Alloc(item.Material)).(Material),
 			RenderLayers: item.RenderLayers.Or(renderLayerZero),
 			Skin:         skin,
 			EntityId:     item.EntityId,
@@ -90,10 +91,11 @@ type MeshKey struct {
 	MatType   reflect.Type
 	MatKey    MaterialBindGroupKey
 	LayoutKey VertexLayoutKey
+	Mesh      *Mesh
 }
 
-func (m *MeshKey) CompareTo(other any) int {
-	o, ok := other.(*MeshKey)
+func (m MeshKey) CompareTo(other any) int {
+	o, ok := other.(MeshKey)
 	if !ok {
 		return compareByType(m, other)
 	}
@@ -102,6 +104,7 @@ func (m *MeshKey) CompareTo(other any) int {
 		compareType(m.MatType, o.MatType),
 		cmp.Compare(m.LayoutKey, o.LayoutKey),
 		cmp.Compare(m.MatKey.SortValue(), o.MatKey.SortValue()),
+		compareByAddress(m.Mesh, o.Mesh),
 	)
 }
 
@@ -109,6 +112,7 @@ type meshRenderPhaseItem struct{}
 
 func queueMeshInstancesSystem(
 	meshes *ExtractedMeshes,
+	meshKeyArea *byke.Local[Area[MeshKey]],
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		Transform    GlobalTransform
@@ -117,6 +121,8 @@ func queueMeshInstancesSystem(
 		Transparent  *SortableRenderPhase[Transparent]
 	}],
 ) {
+	meshKeyArea.Value.Tick()
+
 	for view := range viewsQuery.Items() {
 		for idx := range meshes.Meshes {
 			sp := &meshes.Meshes[idx]
@@ -130,27 +136,26 @@ func queueMeshInstancesSystem(
 				ExtractedIndex: uint32(idx),
 			}
 
-			key := &MeshKey{
+			key := MeshKey{
 				MatKey:    sp.Material.BindGroupKey(),
 				MatType:   reflect.TypeOf(sp.Material),
 				LayoutKey: sp.Mesh.VertexLayout().Key(),
+				Mesh:      sp.Mesh,
 			}
 
-			var isTransparent bool
+			if sp.Material.IsOrderIndependent() {
+				view.RenderPhase.Append(renderItem, key)
 
-			// TODO expose AlphaMode in material?
-			if mat, ok := sp.Material.(StandardMaterial); ok {
-				isTransparent = mat.AlphaMode == AlphaModeBlend
-			}
-
-			if isTransparent {
+			} else {
 				distanceToCameraSq := sp.Transform.Translation().
 					Sub(view.Transform.Affine.Translation()).
 					LengthSqr()
 
+				// will be sorting ascending, but we want to draw the largest
+				// distance first
+				distanceToCameraSq = -distanceToCameraSq
+
 				view.Transparent.Append(renderItem, distanceToCameraSq)
-			} else {
-				view.RenderPhase.Append(renderItem, key)
 			}
 		}
 	}

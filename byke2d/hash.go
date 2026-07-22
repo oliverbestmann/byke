@@ -17,6 +17,10 @@ func (h *Hash) Float32(value float32) {
 	h.Update(uint64(math.Float32bits(value)))
 }
 
+func (h *Hash) Float64(value float64) {
+	h.Update(math.Float64bits(value))
+}
+
 func (h *Hash) Int[T constraints.Integer](value T) {
 	h.Update(uint64(value))
 }
@@ -40,4 +44,18 @@ func splitMix64(x uint64) Hash {
 	x *= 0x94d049bb133111eb
 	x ^= x >> 31
 	return Hash(x)
+}
+
+func hashIntegerSlice[T constraints.Integer](values []T) Hash {
+	// start with a "randomish" hash
+	var h Hash = 0x44CA2D356ECF5645
+
+	// hash the length in there
+	h.Int(len(values))
+
+	for _, value := range values {
+		h.Int(value)
+	}
+
+	return h
 }

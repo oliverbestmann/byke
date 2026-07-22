@@ -83,9 +83,9 @@ func (m ColorMaterial) BindGroupKey() MaterialBindGroupKey {
 	return MaterialBindGroupKey(hash)
 }
 
-func (m ColorMaterial) BindGroupLayoutKey() MaterialBindGroupLayoutKey {
+func (m ColorMaterial) PipelineKey() MaterialPipelineKey {
 	var hash Hash = 0xC2ACE5D3D65CE2C6
 	hash.Bool(m.Texture != nil)
 	hash.Int(m.MaterialValues.BindGroupKey())
-	return MaterialBindGroupLayoutKey(hash)
+	return MaterialPipelineKey(hash)
 }

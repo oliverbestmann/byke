@@ -1,15 +1,12 @@
 package byke2d
 
 import (
-	"slices"
-	"unsafe"
-
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
 type trackedBindGroup struct {
 	Group          *wgpu.BindGroup
-	DynamicOffsets []uint32
+	DynamicOffsets Hash
 }
 
 type trackedVertexBuffer struct {
@@ -20,7 +17,7 @@ type trackedVertexBuffer struct {
 
 type trackedImmediates struct {
 	Offset uint32
-	Data   trackedSlice
+	Data   Hash
 }
 
 type trackedIndexBuffer struct {
@@ -28,11 +25,6 @@ type trackedIndexBuffer struct {
 	BufferFormat wgpu.IndexFormat
 	FormatOffset uint64
 	FormatSize   uint64
-}
-
-type trackedSlice struct {
-	Data unsafe.Pointer
-	Size int
 }
 
 type TrackedRenderPassEncoder struct {
@@ -47,12 +39,16 @@ type TrackedRenderPassEncoder struct {
 	bindGroups    map[uint32]trackedBindGroup
 	vertexBuffers map[uint32]trackedVertexBuffer
 
-	blendColor *wgpu.Color
+	blendColorSet bool
+	blendColor    Hash
 }
 
 func (t *TrackedRenderPassEncoder) SetBindGroup(groupIndex uint32, group *wgpu.BindGroup, dynamicOffsets []uint32) {
 	active := t.bindGroups[groupIndex]
-	if active.Group == group && slices.Equal(active.DynamicOffsets, dynamicOffsets) {
+
+	dynamicOffsetsHash := hashIntegerSlice(dynamicOffsets)
+
+	if active.Group == group && active.DynamicOffsets == dynamicOffsetsHash {
 		return
 	}
 
@@ -60,7 +56,7 @@ func (t *TrackedRenderPassEncoder) SetBindGroup(groupIndex uint32, group *wgpu.B
 
 	t.bindGroups[groupIndex] = trackedBindGroup{
 		Group:          group,
-		DynamicOffsets: dynamicOffsets,
+		DynamicOffsets: dynamicOffsetsHash,
 	}
 
 	t.RenderPassEncoder.SetBindGroup(groupIndex, group, dynamicOffsets)
@@ -68,11 +64,14 @@ func (t *TrackedRenderPassEncoder) SetBindGroup(groupIndex uint32, group *wgpu.B
 }
 
 func (t *TrackedRenderPassEncoder) SetBlendConstant(color *wgpu.Color) {
-	if t.blendColor != nil && *t.blendColor == *color {
+	blendColorHash := hashColor(color)
+
+	if t.blendColor == blendColorHash {
 		return
 	}
 
-	t.blendColor = color
+	t.blendColor = blendColorHash
+
 	t.RenderPassEncoder.SetBlendConstant(color)
 	t.Metrics.SetBlendConstant += 1
 }
@@ -80,7 +79,7 @@ func (t *TrackedRenderPassEncoder) SetBlendConstant(color *wgpu.Color) {
 func (t *TrackedRenderPassEncoder) SetImmediates(offset uint32, data []byte) {
 	immediates := trackedImmediates{
 		Offset: offset,
-		Data:   toTrackedSlice(data),
+		Data:   hashIntegerSlice(data),
 	}
 
 	if t.immediates == immediates {
@@ -153,9 +152,11 @@ func ensureMapIsInitialized[K comparable, V any](m *map[K]V) {
 	}
 }
 
-func toTrackedSlice[T any](offsets []T) trackedSlice {
-	return trackedSlice{
-		Data: unsafe.Pointer(unsafe.SliceData(offsets)),
-		Size: len(offsets),
-	}
+func hashColor(c *wgpu.Color) Hash {
+	var h Hash = 0xC773DA2626A764DC
+	h.Float64(c.R)
+	h.Float64(c.G)
+	h.Float64(c.B)
+	h.Float64(c.A)
+	return h
 }

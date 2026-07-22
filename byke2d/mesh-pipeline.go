@@ -24,13 +24,14 @@ func (m meshPipelineConfig) EqualTo(other PipelineConfig) bool {
 		m.Skinned == otherConfig.Skinned &&
 		m.Morph == otherConfig.Morph &&
 		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
-		m.Material.BindGroupLayoutKey() == otherConfig.Material.BindGroupLayoutKey()
+		m.Material.PipelineKey() == otherConfig.Material.PipelineKey()
 }
 
 func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	shader := m.Material.Shader()
 	values := shader.Values.Clone()
 
+	// TODO could be set in Material.Specialize()
 	var bindings []wgpu.BindGroupLayoutEntry
 	bindings = append(bindings, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
 	bindings = append(bindings, m.Material.BindingsLayout()...)

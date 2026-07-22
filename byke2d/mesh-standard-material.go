@@ -50,6 +50,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	values.Define("ALPHAMODE_OPAQUE", m.AlphaMode == AlphaModeOpaque)
 	values.Define("ALPHAMODE_MASK", m.AlphaMode == AlphaModeMask)
 	values.Define("ALPHAMODE_ALPHA_TO_COVERAGE", m.AlphaMode == AlphaModeAlphaToCoverage)
+	values.Define("ALPHAMODE_BLEND", m.AlphaMode == AlphaModeBlend)
 
 	values.Define("LIGHTING", true)
 
@@ -155,7 +156,7 @@ func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
 	return MaterialBindGroupKey(hash)
 }
 
-func (m StandardMaterial) BindGroupLayoutKey() MaterialBindGroupLayoutKey {
+func (m StandardMaterial) PipelineKey() MaterialPipelineKey {
 	var key uint64
 
 	key |= boolToUint64(m.Texture != nil) << 0
@@ -165,8 +166,8 @@ func (m StandardMaterial) BindGroupLayoutKey() MaterialBindGroupLayoutKey {
 
 	var hash Hash = 0xC2ACE5D3D65CE2C6
 	hash.Int(key)
-	hash.Int(m.MaterialValues.BindGroupKey())
-	return MaterialBindGroupLayoutKey(hash)
+	hash.Int(m.MaterialValues.PipelineKey())
+	return MaterialPipelineKey(hash)
 }
 
 func boolToUint64(value bool) uint64 {

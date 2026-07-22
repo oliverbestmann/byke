@@ -39,29 +39,46 @@ type Material interface {
 	// BindGroupKey returns a key that is unique to this materials bind group.
 	BindGroupKey() MaterialBindGroupKey
 
-	// BindGroupLayoutKey returns key that uniquely identifies the BindGroupLayout
-	// for this material. This will be used to deduplicate pipelines for this
-	// material type.
-	BindGroupLayoutKey() MaterialBindGroupLayoutKey
+	// PipelineKey returns key that indicates that the bind group layout or the pipeline
+	// specialization for this material is different.
+	PipelineKey() MaterialPipelineKey
 
 	// Specialize specializes the provided pipeline.
 	Specialize(pipeline *RenderPipelineDescriptor)
+
+	// IsOrderIndependent indicates that this material can be drawn in arbitrary order
+	// with other order independent materials.
+	IsOrderIndependent() bool
 }
 
 type MaterialValues struct {
 	// FrontFace defaults to wgpu.FrontFaceCCW
 	FrontFace wgpu.FrontFace
 
-	// AlphaMode decides on the way this material handles alpha values.
-	AlphaMode AlphaMode
-
 	// AlphaCutoff is used with AlphaModeMask to define the
 	// cutoff for the alpha value.
 	AlphaCutoff float32
 
+	// AlphaMode decides on the way this material handles alpha values.
+	AlphaMode AlphaMode
+
 	// DoubleSided enables double-sided lighting.
 	// Need to flip the backface vertex in pixel shader
 	DoubleSided bool
+}
+
+// IsOrderIndependent mirrors Material.OrderIndependent
+func (m MaterialValues) IsOrderIndependent() bool {
+	switch m.AlphaMode {
+	case AlphaModeOpaque, AlphaModeMask, AlphaModeAlphaToCoverage:
+		return true
+
+	case AlphaModeBlend, Premultiplied, AlphaModeAdd, AlphaModeMultiply:
+		return false
+
+	default:
+		panic(fmt.Errorf("unknown alpha mode %d", m.AlphaMode))
+	}
 }
 
 func (m MaterialValues) Specialize(pipeline *RenderPipelineDescriptor) {
@@ -73,6 +90,9 @@ func (m MaterialValues) Specialize(pipeline *RenderPipelineDescriptor) {
 	}
 
 	switch m.AlphaMode {
+	case AlphaModeAlphaToCoverage:
+		pipeline.Multisample.AlphaToCoverageEnabled = true
+
 	case AlphaModeBlend:
 		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAlphaBlending
 		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
@@ -80,9 +100,6 @@ func (m MaterialValues) Specialize(pipeline *RenderPipelineDescriptor) {
 	case Premultiplied:
 		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStatePremultipliedAlphaBlending
 		pipeline.DepthStencil.DepthWriteEnabled = wgpu.OptionalBoolFalse
-
-	case AlphaModeAlphaToCoverage:
-		pipeline.Multisample.AlphaToCoverageEnabled = true
 
 	case AlphaModeAdd:
 		pipeline.Fragment.Targets[0].Blend = &wgpu.BlendStateAdd
@@ -101,6 +118,13 @@ func (m MaterialValues) BindGroupKey() Hash {
 	var hash Hash = 0xdead
 	hash.Int(m.FrontFace)
 	hash.Int(m.AlphaMode)
+	return hash
+}
+
+func (m MaterialValues) PipelineKey() Hash {
+	var hash Hash = 0xdeadbeef
+	hash.Int(m.FrontFace)
+	hash.Int(m.AlphaMode)
 	hash.Bool(m.DoubleSided)
 	return hash
 }
@@ -111,9 +135,9 @@ func (k MaterialBindGroupKey) SortValue() uint64 {
 	return uint64(k)
 }
 
-type MaterialBindGroupLayoutKey uint64
+type MaterialPipelineKey uint64
 
-func (k MaterialBindGroupLayoutKey) SortValue() uint64 {
+func (k MaterialPipelineKey) SortValue() uint64 {
 	return uint64(k)
 }
 
@@ -138,8 +162,13 @@ func pluginMaterialCommon(app *byke.App) {
 }
 
 func PluginMaterial[M Material](app *byke.App) {
+	app.InitResource[Area[M]]()
+
+	app.AddSystems(PreRender, byke.
+		System(tickMaterialAreaSystem[M]))
+
 	app.AddSystems(Render, byke.
-		System(extractMeshesSystem[M]).
+		System(extractMeshesWithMaterialSystem[M]).
 		InSet(RenderPhaseExtract))
 }
 
@@ -261,6 +290,7 @@ func prepareMaterialBindGroupsSystem(
 			bindings = append(bindings, BindingBuffer(values.Buffer))
 			bindings = append(bindings, item.Material.Bindings()...)
 
+			// TODO would be good if we had the pipeline here, maybe keyed to a material pointer
 			var layout []wgpu.BindGroupLayoutEntry
 			layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
 			layout = append(layout, item.Material.BindingsLayout()...)
@@ -274,6 +304,12 @@ func prepareMaterialBindGroupsSystem(
 			bindGroups.cache.Add(key, bindGroup)
 		}
 	}
+}
+
+func tickMaterialAreaSystem[M Material](
+	area *Area[M],
+) {
+	area.Tick()
 }
 
 func frontFaceOf(f wgpu.FrontFace) wgpu.FrontFace {

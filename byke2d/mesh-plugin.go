@@ -22,9 +22,6 @@ type ExtractedMesh struct {
 	// Transform is the object-to-world matrix positioning and orienting the mesh.
 	Transform glm.Mat4f
 
-	// RenderLayers specifies which render passes should include this mesh.
-	RenderLayers RenderLayers
-
 	// Material defines the appearance of the mesh (colors, textures, shaders).
 	Material Material
 
@@ -33,6 +30,9 @@ type ExtractedMesh struct {
 
 	// EntityId is the entity this mesh was extracted from.
 	EntityId byke.EntityId
+
+	// RenderLayers specifies which render passes should include this mesh.
+	RenderLayers RenderLayers
 }
 
 // ExtractedSkin contains skeletal animation data for a mesh.
