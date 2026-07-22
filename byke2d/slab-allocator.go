@@ -17,6 +17,8 @@ func (a Addr) Add(size uint32) Addr {
 // from a fixed-size buffer. It maintains sorted lists of used and free memory chunks,
 // automatically coalescing adjacent free chunks to reduce fragmentation.
 type slabAllocator struct {
+	InUse uint32
+
 	totalSize uint32
 
 	// used tracks all allocated memory regions
@@ -69,6 +71,8 @@ func (m *slabAllocator) Alloc(size uint32) (addr Addr, ok bool) {
 				Size:    size,
 			})
 
+			m.InUse += size
+
 			return allocAddr, true
 		}
 	}
@@ -93,6 +97,9 @@ func (m *slabAllocator) Free(addr Addr) {
 
 	// delete the entry
 	m.used = slices.Delete(m.used, idx, idx+1)
+
+	// update in use memory
+	m.InUse -= allocSize
 
 	m.returnSpace(addr, allocSize)
 }

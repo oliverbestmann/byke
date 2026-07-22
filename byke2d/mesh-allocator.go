@@ -37,6 +37,12 @@ type MeshSlab struct {
 	IndicesCount uint32
 }
 
+type MeshAllocatorStats struct {
+	Vertices        uint32
+	Indices         uint32
+	MorphAttributes uint32
+}
+
 // MeshAllocator manages GPU buffer allocation for meshes.
 // It uses slab allocators to pack multiple meshes into large GPU buffers efficiently,
 // reducing allocation overhead and improving GPU memory coherence.
@@ -92,6 +98,24 @@ func (m *MeshAllocator) Get(mesh *Mesh) (MeshSlab, bool) {
 	}
 
 	return result, true
+}
+
+func (m *MeshAllocator) Stats() MeshAllocatorStats {
+	var stats MeshAllocatorStats
+
+	if m.morphAttributes != nil {
+		stats.MorphAttributes = m.morphAttributes.InUse()
+	}
+
+	if m.indices != nil {
+		stats.Indices = m.indices.InUse()
+	}
+
+	for alloc := range m.allocators.Values() {
+		stats.Vertices += alloc.InUse()
+	}
+
+	return stats
 }
 
 // Alloc allocates or reallocates GPU buffer space for the given mesh.

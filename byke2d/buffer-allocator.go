@@ -31,6 +31,10 @@ func NewBufferAllocator(ctx *RenderContext, label string, usage wgpu.BufferUsage
 	}
 }
 
+func (m *BufferAllocator) InUse() uint32 {
+	return m.allocator.InUse
+}
+
 func (m *BufferAllocator) BufferAt(addr Addr) *wgpu.Buffer {
 	return m.buffer
 }

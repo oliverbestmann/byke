@@ -1,8 +1,10 @@
 package byke2d
 
 import (
+	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
@@ -110,12 +112,29 @@ func toggleDebugStateSystem(
 
 func renderDebugTextSystem(
 	ctx *RenderContext,
+	alloc *MeshAllocator,
 	query byke.Query[struct {
 		_    byke.With[debugMetricsTextMaker]
 		Text *Text
 	}],
 ) {
+	meshAllocatorStats := alloc.Stats()
+
 	for item := range query.Items() {
-		item.Text.Text = ctx.Metrics.String()
+		var out strings.Builder
+
+		writef := func(format string, args ...any) {
+			_, _ = fmt.Fprintf(&out, format, args...)
+			out.WriteByte('\n')
+		}
+
+		writef("%s", ctx.Metrics.String())
+		writef("")
+		writef("MeshAllocator")
+		writef("  Vertices:        %1.2fkb", float64(meshAllocatorStats.Vertices)/1024)
+		writef("  Indices:         %1.2fkb", float64(meshAllocatorStats.Indices)/1024)
+		writef("  MorphAttributes: %1.2fkb", float64(meshAllocatorStats.MorphAttributes)/1024)
+
+		item.Text.Text = out.String()
 	}
 }
