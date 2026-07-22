@@ -63,6 +63,16 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	}
 }
 
+func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
+	m.MaterialValues.Specialize(pipeline)
+
+	var bindings []wgpu.BindGroupLayoutEntry
+	bindings = append(bindings, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
+	bindings = append(bindings, m.BindingsLayout()...)
+
+	pipeline.Layout = append(pipeline.Layout, SequentialLayoutWithLabel("StandardMaterial", bindings...))
+}
+
 func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 	var entries []wgpu.BindGroupLayoutEntry
 

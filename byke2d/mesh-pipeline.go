@@ -31,11 +31,6 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 	shader := m.Material.Shader()
 	values := shader.Values.Clone()
 
-	// TODO could be set in Material.Specialize()
-	var bindings []wgpu.BindGroupLayoutEntry
-	bindings = append(bindings, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
-	bindings = append(bindings, m.Material.BindingsLayout()...)
-
 	var instanceAttrs, perVertexAttrs vertexAttributeOffsets
 
 	vblInstances := wgpu.VertexBufferLayout{
@@ -93,7 +88,6 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		Layout: []wgpu.BindGroupLayoutDescriptor{
 			MeshViewBindGroupLayout,
 			MeshBindGroupLayout,
-			SequentialLayout(bindings...),
 		},
 		Vertex: wgpu.VertexState{
 			Module:     mod,

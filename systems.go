@@ -34,6 +34,10 @@ func asSystemConfig(value AnySystem) *systemConfig {
 	}
 }
 
+func AsCachedSystem(system AnySystem) AnySystem {
+	return asSystemConfig(system)
+}
+
 func asSystemConfigs(values ...AnySystem) []*systemConfig {
 	var configs []*systemConfig
 

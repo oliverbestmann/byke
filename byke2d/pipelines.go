@@ -128,3 +128,7 @@ func (pc *Pipeline) BindGroupLayout(idx uint32) *wgpu.BindGroupLayout {
 
 	return pc.bindGroupLayouts[idx]
 }
+
+// Release is a noop to satisfy the Releaser interface
+func (pc Pipeline) Release() {
+}

@@ -11,13 +11,16 @@ import (
 )
 
 func pluginMesh3d(app *byke.App) {
-	app.InsertResource(ExtractedMeshes{})
-	app.InsertResource(meshInstances{})
-	app.InsertResource(MeshBindGroups{})
-	app.InsertResource(skinUniforms{})
-	app.InsertResource(morphUniforms{})
+	app.InitResource[ExtractedMeshes]()
+	app.InitResource[meshInstances]()
+	app.InitResource[MeshBindGroups]()
+	app.InitResource[skinUniforms]()
+	app.InitResource[morphUniforms]()
+	app.InitResource[meshPipelineCache]()
 
 	app.AddSystems(Render, byke.System(queueMeshInstancesSystem).InSet(RenderPhaseQueue))
+
+	app.AddSystems(Render, byke.System(prepareMeshPipelinesSystems).InSet(RenderPhasePrepare))
 
 	app.AddSystems(Render, byke.System(prepareSkinsUniformsSystem).InSet(RenderPhasePrepareResources))
 
@@ -45,14 +48,15 @@ func extractMeshesWithMaterialSystem[M Material](
 	meshes *ExtractedMeshes,
 	materials *Area[M],
 	meshQuery byke.Query[struct {
-		EntityId     byke.EntityId
-		Mesh         query.Ref[MeshInstance]
-		Transform    GlobalTransform
-		Material     M
-		RenderLayers byke.Option[RenderLayers]
-		CustomShader byke.Option[CustomShader]
-		SkinnedMesh  byke.Option[SkinnedMesh]
-		Visibility   ComputedVisibility
+		EntityId        byke.EntityId
+		Mesh            query.Ref[MeshInstance]
+		Transform       GlobalTransform
+		Material        M
+		RenderLayers    byke.Option[RenderLayers]
+		CustomShader    byke.Option[CustomShader]
+		SkinnedMesh     byke.Option[SkinnedMesh]
+		HasMorphWeights byke.Has[meshMorphWeights]
+		Visibility      ComputedVisibility
 	}],
 ) {
 	for item := range meshQuery.Items() {
@@ -70,12 +74,13 @@ func extractMeshesWithMaterialSystem[M Material](
 		}
 
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
-			Mesh:         mesh.Mesh,
-			Transform:    item.Transform.Affine,
-			Material:     any(materials.Alloc(item.Material)).(Material),
-			RenderLayers: item.RenderLayers.Or(renderLayerZero),
-			Skin:         skin,
-			EntityId:     item.EntityId,
+			Mesh:             mesh.Mesh,
+			Transform:        item.Transform.Affine,
+			Material:         any(materials.Alloc(item.Material)).(Material),
+			RenderLayers:     item.RenderLayers.Or(renderLayerZero),
+			Skin:             skin,
+			HashMorphWeights: item.HasMorphWeights.Exists(),
+			EntityId:         item.EntityId,
 		})
 	}
 }
@@ -157,6 +162,48 @@ func queueMeshInstancesSystem(
 
 				view.Transparent.Append(renderItem, distanceToCameraSq)
 			}
+		}
+	}
+}
+
+type meshPipelineCacheKey struct {
+	View   byke.EntityId
+	Entity byke.EntityId
+}
+
+type meshPipelineCache struct {
+	tickCache[meshPipelineCacheKey, Pipeline]
+}
+
+func prepareMeshPipelinesSystems(
+	meshes ExtractedMeshes,
+	pipelines *PipelineCache,
+	cache *meshPipelineCache,
+	viewsQuery byke.Query[struct {
+		ViewId     byke.EntityId
+		ViewTarget ViewTarget
+	}],
+) {
+	cache.Tick()
+
+	for view := range viewsQuery.Items() {
+		for _, mesh := range meshes.Meshes {
+			pipelineConfig := meshPipelineConfig{
+				Format:       view.ViewTarget.Format,
+				SampleCount:  view.ViewTarget.SampleCount,
+				Skinned:      mesh.Skin.IsSet(),
+				Morph:        mesh.HashMorphWeights,
+				VertexLayout: mesh.Mesh.VertexLayout(),
+				Material:     mesh.Material,
+			}
+
+			key := meshPipelineCacheKey{
+				View:   view.ViewId,
+				Entity: mesh.EntityId,
+			}
+
+			pipeline := pipelines.Specialize(pipelineConfig)
+			cache.Add(key, pipeline)
 		}
 	}
 }
@@ -369,8 +416,10 @@ func prepareMeshBindGroupSystem(
 	}
 }
 
+var drawMeshesBatchSystemCached = byke.AsCachedSystem(drawMeshesBatchSystem)
+
 func drawMeshesBatch(world *byke.World, pass *TrackedRenderPassEncoder, item RenderItem) (ok bool) {
-	world.RunSystemWithInValue(drawMeshesBatchSystem, RenderTask{
+	world.RunSystemWithInValue(drawMeshesBatchSystemCached, RenderTask{
 		Pass: pass,
 		Item: item,
 	})
@@ -382,14 +431,14 @@ func drawMeshesBatchSystem(
 	task byke.In[RenderTask],
 	meshViewBindGroup meshViewBindGroup,
 	meshBindGroups MeshBindGroups,
-	pipelines *PipelineCache,
 	meshes *ExtractedMeshes,
 	meshInstances *meshInstances,
 	meshAllocator *MeshAllocator,
+	meshPipelineCache *meshPipelineCache,
 	materialBindGroups *MaterialBindGroups,
 	skinUniforms *skinUniforms,
-	morphUniforms *morphUniforms,
 	viewQuery ViewQuery[struct {
+		ViewId             byke.EntityId
 		ViewTarget         *ViewTarget
 		ViewUniformsOffset DynamicOffset[ViewUniforms]
 	}],
@@ -407,19 +456,15 @@ func drawMeshesBatchSystem(
 		panic("mesh data not in cache")
 	}
 
-	skinOffset, skinOk := skinUniforms.OffsetOf(mesh.Skin.EntityId)
-	_, morphOk := morphUniforms.DescriptorIndex(mesh.EntityId)
+	skinOffset, _ := skinUniforms.OffsetOf(mesh.Skin.EntityId)
 
-	pipelineConfig := meshPipelineConfig{
-		Format:       view.ViewTarget.Format,
-		SampleCount:  view.ViewTarget.SampleCount,
-		Skinned:      skinOk && mesh.Skin.IsSet(),
-		Morph:        morphOk,
-		VertexLayout: mesh.Mesh.VertexLayout(),
-		Material:     mesh.Material,
+	pipeline, ok := meshPipelineCache.Get(meshPipelineCacheKey{
+		View:   view.ViewId,
+		Entity: mesh.EntityId,
+	})
+	if !ok {
+		panic("mesh pipeline not found")
 	}
-
-	pipeline := pipelines.Specialize(pipelineConfig)
 
 	materialBindGroup := materialBindGroups.MustLookup(mesh.Material)
 

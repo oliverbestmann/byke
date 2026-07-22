@@ -25,10 +25,6 @@ type Material interface {
 	// Shader returns the shader for the material in its current configuration
 	Shader() *ShaderDef
 
-	// BindingsLayout returns the layout of this material that is needed
-	// to create the bind group.
-	BindingsLayout() []wgpu.BindGroupLayoutEntry
-
 	// Bindings return the Bindings for the BindingsLayout above.
 	Bindings() []wgpu.BindGroupEntry
 
@@ -274,7 +270,16 @@ func prepareMaterialBindGroupsSystem(
 	meshes *ExtractedMeshes,
 	bindGroups *MaterialBindGroups,
 	uniforms *MaterialUniforms,
+	pipelines *meshPipelineCache,
+	viewsQuery byke.Query[struct {
+		_        byke.With[ViewTarget]
+		EntityId byke.EntityId
+	}],
 ) {
+	// TODO access layout for mesh without view. While the pipeline might depend on
+	//  the output format, the bind group layout should not.
+	viewId := viewsQuery.MustFirst().EntityId
+
 	for idx := range meshes.Meshes {
 		item := &meshes.Meshes[idx]
 
@@ -290,14 +295,14 @@ func prepareMaterialBindGroupsSystem(
 			bindings = append(bindings, BindingBuffer(values.Buffer))
 			bindings = append(bindings, item.Material.Bindings()...)
 
-			// TODO would be good if we had the pipeline here, maybe keyed to a material pointer
-			var layout []wgpu.BindGroupLayoutEntry
-			layout = append(layout, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
-			layout = append(layout, item.Material.BindingsLayout()...)
+			pipeline, ok := pipelines.Get(meshPipelineCacheKey{viewId, item.EntityId})
+			if !ok {
+				panic("mesh pipeline not found")
+			}
 
 			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 				Label:   label,
-				Layout:  ctx.CreateBindGroupLayout(SequentialLayoutWithLabel(label, layout...)),
+				Layout:  pipeline.BindGroupLayout(2),
 				Entries: Sequential(bindings...),
 			})
 

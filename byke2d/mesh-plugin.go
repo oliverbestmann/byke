@@ -33,6 +33,9 @@ type ExtractedMesh struct {
 
 	// RenderLayers specifies which render passes should include this mesh.
 	RenderLayers RenderLayers
+
+	// HasMorphWeights indicates that the mesh has morph weights
+	HashMorphWeights bool
 }
 
 // ExtractedSkin contains skeletal animation data for a mesh.
