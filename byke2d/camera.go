@@ -23,12 +23,12 @@ func pluginCamera(app *byke.App) {
 	app.InsertResource(ViewBindGroup{})
 
 	app.AddSystems(Render, byke.
-		System(prepareViewUniformsSystem).
-		InSet(RenderPhasePrepare))
+		System(updateCameraViewTargetSystem).
+		InSet(RenderPhaseSetupView))
 
 	app.AddSystems(Render, byke.
-		System(updateCameraViewTargetSystem).
-		InSet(RenderPhasePrepare))
+		System(prepareViewUniformsSystem).
+		InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.
 		System(prepareGlobals).

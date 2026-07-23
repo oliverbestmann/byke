@@ -33,6 +33,7 @@ var (
 
 var (
 	RenderPhaseExtract           = &byke.SystemSet{Name: "RenderPhaseExtract"}
+	RenderPhaseSetupView         = &byke.SystemSet{Name: "RenderPhaseSetupView"}
 	RenderPhaseQueue             = &byke.SystemSet{Name: "RenderPhaseQueue"}
 	RenderPhaseSort              = &byke.SystemSet{Name: "RenderPhaseSort"}
 	RenderPhasePrepare           = &byke.SystemSet{Name: "RenderPhasePrepare"}
@@ -137,6 +138,7 @@ func PluginRender(app *byke.App) {
 	app.ConfigureSystemSets(
 		Render, ChainSystemSets(
 			RenderPhaseExtract,
+			RenderPhaseSetupView,
 			RenderPhaseQueue,
 			RenderPhaseSort,
 			RenderPhasePrepare,
