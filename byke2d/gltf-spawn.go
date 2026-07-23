@@ -29,6 +29,10 @@ type SceneRoot struct {
 	byke.ComparableComponent[SceneRoot]
 	Handle *gltf.Handle
 	Scene  gltf.Ref
+
+	// PreferAlphaToCoverage indicates that we prefer to use alpha to coverage in the material
+	// settings instead of alpha mode blend
+	PreferAlphaToCoverage bool
 }
 
 func (s SceneRoot) RequireComponents() []spoke.ErasedComponent {
@@ -56,16 +60,17 @@ func spawnGltfSceneSystem(
 		handle := toGltfHandle(item.SceneRoot.Handle)
 
 		sc := &spawnContext{
-			Commands:           commands,
-			Handle:             handle,
-			RenderContext:      ctx,
-			Assets:             assets,
-			nodes:              map[gltf.Ref]byke.EntityId{},
-			nodeWorldTransform: map[gltf.Ref]glm.Mat4f{},
-			images:             map[imageCacheKey]*Texture{},
-			textures:           map[textureCacheKey]*Texture{},
-			nodeToMesh:         map[gltf.Ref][]byke.EntityId{},
-			meshes:             map[meshKey]*Mesh{},
+			Commands:              commands,
+			Handle:                handle,
+			RenderContext:         ctx,
+			Assets:                assets,
+			nodes:                 map[gltf.Ref]byke.EntityId{},
+			nodeWorldTransform:    map[gltf.Ref]glm.Mat4f{},
+			images:                map[imageCacheKey]*Texture{},
+			textures:              map[textureCacheKey]*Texture{},
+			nodeToMesh:            map[gltf.Ref][]byke.EntityId{},
+			meshes:                map[meshKey]*Mesh{},
+			preferAlphaToCoverage: item.SceneRoot.PreferAlphaToCoverage,
 		}
 
 		scene := sc.Handle.Scenes[item.SceneRoot.Scene]
@@ -119,6 +124,9 @@ type spawnContext struct {
 	// primitive meshes that can be used for instantiation if
 	// referenced multiple times
 	meshes map[meshKey]*Mesh
+
+	// prefer alpha to coverage over blend
+	preferAlphaToCoverage bool
 }
 
 func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
@@ -324,6 +332,9 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 
 	case "BLEND":
 		m.AlphaMode = AlphaModeBlend
+		if sc.preferAlphaToCoverage {
+			m.AlphaMode = AlphaModeAlphaToCoverage
+		}
 
 	case "MASK":
 		m.AlphaMode = AlphaModeMask

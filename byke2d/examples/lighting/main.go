@@ -61,7 +61,10 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 			// WithScaleXYZ(0.05, 0.05, 0.05).
 			WithRotationY(glm.DegToRad(120)),
 
-		SceneRoot{Handle: model},
+		SceneRoot{
+			Handle:                model,
+			PreferAlphaToCoverage: true,
+		},
 	)
 
 	commands.Spawn(
