@@ -96,7 +96,7 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		},
 		Primitive: wgpu.PrimitiveState{
 			Topology:  wgpu.PrimitiveTopologyTriangleList,
-			CullMode:  wgpu.CullModeNone,
+			CullMode:  wgpu.CullModeBack,
 			FrontFace: wgpu.FrontFaceCW,
 		},
 		Multisample: multisampleState(m.SampleCount),

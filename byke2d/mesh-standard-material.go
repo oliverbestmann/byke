@@ -12,6 +12,9 @@ import (
 //go:embed mesh-standard-material.wgsl
 var standardMaterialShaderCode string
 
+// DebugNormals can be set to true to output normals instead of colors
+var DebugNormals bool
+
 type StandardMaterial struct {
 	byke.Component[StandardMaterial]
 
@@ -53,6 +56,8 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	values.Define("ALPHAMODE_BLEND", m.AlphaMode == AlphaModeBlend)
 
 	values.Define("LIGHTING", true)
+
+	values.Define("DEBUG_NORMALS", DebugNormals)
 
 	return &ShaderDef{
 		Label:         "standard material shader",

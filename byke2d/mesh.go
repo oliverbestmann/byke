@@ -374,6 +374,7 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 
 	indices := make([]uint32, 0, (resolution-2)*3)
 	vertices := make([]glm.Vec3f, 0, resolution)
+	normals := make([]glm.Vec3f, 0, resolution)
 	uvs := make([]glm.Vec2f, 0, resolution)
 
 	startAngle := glm.Rad(math.Pi / 2)
@@ -388,6 +389,7 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 		y := sin * halfSize[1]
 
 		vertices = append(vertices, glm.Vec3f{x, y})
+		normals = append(normals, glm.Vec3f{0, 0, 1})
 
 		uvs = append(uvs, glm.Vec2f{
 			0.5 * (cos + 1.0),
@@ -399,7 +401,9 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 		indices = append(indices, 0, i, i+1)
 	}
 
-	return MeshOf(indices, vertices).WithAttributes(VertexAttributeUV, uvs)
+	return MeshOf(indices, vertices).
+		WithAttributes(VertexAttributeNormal, normals).
+		WithAttributes(VertexAttributeUV, uvs)
 }
 
 // Rectangle creates a mesh representing a rectangle with the given size, centered at the origin.
