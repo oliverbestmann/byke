@@ -166,14 +166,29 @@ func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 		sc.spawnAnimationTargets(sc.root, animation)
 	}
 
-	if len(sc.Handle.Animations) > 0 {
+	var mergedAnimation AnimationClip
+	for _, anim := range sc.Handle.Animations {
+		slog.Debug("Animation", slog.String("name", anim.Name))
+		mergedAnimation = mergedAnimation.MergeWith(sc.buildAnimation(anim))
+	}
+
+	if !mergedAnimation.IsEmpty() {
 		// spawn the first animation on the root entity
 		sc.Commands.Entity(sc.root).Insert(
 			ActiveAnimation{
-				Animation: sc.buildAnimation(sc.Handle.Animations[0]),
+				Animation: mergedAnimation,
 			},
 		)
 	}
+
+	// 	if len(sc.Handle.Animations) > 0 {
+	// 		// spawn the first animation on the root entity
+	// 		sc.Commands.Entity(sc.root).Insert(
+	// 			ActiveAnimation{
+	// 				Animation: sc.buildAnimation(sc.Handle.Animations[0]),
+	// 			},
+	// 		)
+	// 	}
 
 	slog.Debug(
 		"Spawn scene summary",
@@ -545,27 +560,31 @@ func gltfConvertPrimitiveMesh(h *gltfHandle, prim gltf.MeshPrimitive) *Mesh {
 
 		case "TEXCOORD_0":
 			values := h.Resolve(value).([]glm.Vec2f)
-			mesh.WithAttributes(VertexAttributeUV, wgpu.ToBytes(values))
+			mesh.WithAttributes(VertexAttributeUV, values)
 
 		case "TEXCOORD_1":
 			values := h.Resolve(value).([]glm.Vec2f)
-			mesh.WithAttributes(VertexAttributeUV1, wgpu.ToBytes(values))
+			mesh.WithAttributes(VertexAttributeUV1, values)
 
 		case "TEXCOORD_2":
 			values := h.Resolve(value).([]glm.Vec2f)
-			mesh.WithAttributes(VertexAttributeUV2, wgpu.ToBytes(values))
+			mesh.WithAttributes(VertexAttributeUV2, values)
 
 		case "NORMAL":
 			values := h.Resolve(value).([]glm.Vec3f)
-			mesh.WithAttributes(VertexAttributeNormal, wgpu.ToBytes(values))
+			mesh.WithAttributes(VertexAttributeNormal, values)
+
+		case "TANGENT":
+			values := h.Resolve(value).([]glm.Vec4f)
+			mesh.WithAttributes(VertexAttributeTangentSpace, values)
 
 		case "JOINTS_0":
 			values := h.Resolve(value).([]glm.Vec4uh)
-			mesh.WithAttributes(VertexAttributeJoints, wgpu.ToBytes(values))
+			mesh.WithAttributes(VertexAttributeJoints, values)
 
 		case "WEIGHTS_0":
 			values := h.Resolve(value).([]glm.Vec4f)
-			mesh.WithAttributes(VertexAttributeJointWeights, wgpu.ToBytes(values))
+			mesh.WithAttributes(VertexAttributeJointWeights, values)
 
 		default:
 			slog.Warn("Cannot map vertex attributes from gltf", slog.String("name", key))

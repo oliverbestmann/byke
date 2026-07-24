@@ -44,6 +44,9 @@ func newSlabAllocator(size uint32) *slabAllocator {
 func (m *slabAllocator) Alloc(size uint32) (addr Addr, ok bool) {
 	defer m.checkInvariants()
 
+	// align allocations to 16 byte
+	size = (size + 15) / 16 * 16
+
 	for idx := range m.free {
 		chunk := m.free[idx]
 

@@ -76,11 +76,12 @@ func fpvMoveSystem(
 		}
 
 		if keys.IsPressed(vyn.KeyQ) {
-			moveAbsY += velocity * vt.DeltaSecs
+			// TODO this should be flipped
+			moveAbsY -= velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyE) {
-			moveAbsY -= velocity * vt.DeltaSecs
+			moveAbsY += velocity * vt.DeltaSecs
 		}
 
 		yaw := item.FPV.Yaw

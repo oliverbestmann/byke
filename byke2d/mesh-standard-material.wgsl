@@ -77,6 +77,9 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
     fin.ambient_occlusion = textureSample(occlusion, occlusion_sampler, vertex.uv).r;
 #endif
 
+    // TODO remove, draw normal
+    // return vec4(normalize(vertex.normal) * 0.5 + 0.5, 1.0);
+
 #ifdef MESH3D_MAT_HAS_NORMAL
     #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
         vertex.normal = calculate_normal(vertex.normal, vertex.tangent, vertex.tangent_sign, vertex.uv);

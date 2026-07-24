@@ -11,7 +11,6 @@ import (
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
-	"github.com/oliverbestmann/webgpu/wgpu"
 	"github.com/pkg/profile"
 )
 
@@ -84,7 +83,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		colors = append(colors, color)
 	}
 
-	circle.WithAttributes(VertexAttributeColor, wgpu.ToBytes(colors))
+	circle.WithAttributes(VertexAttributeColor, colors)
 
 	for i := range 3 {
 		// circle should be batched

@@ -37,27 +37,28 @@ type Mesh struct {
 
 // MeshOf creates a new mesh with the given indices and vertex positions.
 func MeshOf(indices []uint32, vertices []glm.Vec3f) *Mesh {
-	data := ValuesAsByteSlice(vertices)
-
 	mesh := &Mesh{indices: indices, version: 1}
-	mesh.attributes.Insert(VertexAttributePosition, data)
+	mesh.attributes.Insert(VertexAttributePosition, vertices)
 	mesh.updateVertexLayout()
 	return mesh
 }
 
 // WithVertices updates the vertex positions of this mesh and returns the mesh for chaining.
 func (m *Mesh) WithVertices(vertices []glm.Vec3f) *Mesh {
-	data := ValuesAsByteSlice(vertices)
-	return m.WithAttributes(VertexAttributePosition, data)
+	return m.WithAttributes(VertexAttributePosition, vertices)
 }
 
 // WithAttributes adds or updates a vertex attribute for all vertices in this mesh.
 // The values byte slice must contain exactly one attribute value per vertex.
 // Returns the mesh for method chaining.
-func (m *Mesh) WithAttributes(attr VertexAttribute, values []byte) *Mesh {
-	valueCount := len(values) / int(attr.Size())
+func (m *Mesh) WithAttributes[T any](attr VertexAttribute, values []T) *Mesh {
+	if unsafeSizeOf[T]() != int(attr.Size()) {
+		panic(fmt.Errorf("expected value size of %d, got %d", attr.Size(), unsafeSizeOf[T]()))
+	}
+
+	valueCount := len(values)
 	if valueCount != m.VertexCount() {
-		panic(fmt.Errorf("expected values for %d vertices", m.VertexCount()))
+		panic(fmt.Errorf("expected values for %d vertices, got %d", m.VertexCount(), valueCount))
 	}
 
 	m.version += 1
@@ -106,7 +107,7 @@ func (m *Mesh) ComputeUV(compute func(point glm.Vec3f) glm.Vec2f) {
 		uvs = append(uvs, uv)
 	}
 
-	m.WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs))
+	m.WithAttributes(VertexAttributeUV, uvs)
 }
 
 // VertexCount returns the number of vertices in this mesh.
@@ -128,8 +129,9 @@ func (m *Mesh) Transform(tr glm.Mat4f) {
 	}
 }
 
-// AABBSize returns the dimensions of the axis-aligned bounding box that contains all vertices.
-func (m *Mesh) AABBSize() glm.Vec3f {
+// AABB returns the minimum and the maximum coordinate of
+// the axis-aligned bounding box that contains all vertices.
+func (m *Mesh) AABB() (min, max glm.Vec3f) {
 	vertices := m.Vertices()
 
 	maxVec := vertices[0]
@@ -139,15 +141,21 @@ func (m *Mesh) AABBSize() glm.Vec3f {
 		minVec = minVec.Min(v)
 	}
 
+	return minVec, maxVec
+}
+
+// AABBSize returns the dimensions of the axis-aligned bounding box that contains all vertices.
+func (m *Mesh) AABBSize() glm.Vec3f {
+	minVec, maxVec := m.AABB()
 	return maxVec.Sub(minVec)
 }
 
 // ComputeNormals calculates smooth vertex normals from the mesh geometry.
 // Normals are computed per-vertex by averaging the face normals of all adjacent faces.
 func (m *Mesh) ComputeNormals() {
-	m.MergeVertices()
 
 	// TODO better without merge, also differentiate to ComputeFlatNormals()
+	//  m.MergeVertices()
 
 	vertices := m.Vertices()
 
@@ -179,7 +187,7 @@ func (m *Mesh) ComputeNormals() {
 			Normalize()
 	}
 
-	m.WithAttributes(VertexAttributeNormal, wgpu.ToBytes(normals))
+	m.WithAttributes(VertexAttributeNormal, normals)
 }
 
 // MergeVertices removes duplicate vertices from the mesh, reducing memory usage and improving
@@ -217,8 +225,7 @@ func (m *Mesh) MergeVertices() bool {
 		byVertex[vertex] = idx
 	}
 
-	data := ValuesAsByteSlice(newVertices)
-	m.attributes.Insert(VertexAttributePosition, data)
+	m.attributes.Insert(VertexAttributePosition, newVertices)
 	m.updateVertexLayout()
 
 	m.indices = newIndices
@@ -293,12 +300,12 @@ func (m *Mesh) ComputeTangents() {
 	mikktspace.GenerateTangents(meshMikktspaceAdapter{
 		Indices:  m.indices,
 		Vertices: m.Vertices(),
-		Normals:  ByteSliceAsValues[glm.Vec3f](normalsAttrs.Value),
-		UVs:      ByteSliceAsValues[glm.Vec2f](uvsAttrs.Value),
+		Normals:  normalsAttrs.ValuesAs[glm.Vec3f](),
+		UVs:      uvsAttrs.ValuesAs[glm.Vec2f](),
 		Tangents: tangents,
 	})
 
-	m.WithAttributes(VertexAttributeTangentSpace, ValuesAsByteSlice(tangents))
+	m.WithAttributes(VertexAttributeTangentSpace, tangents)
 }
 
 func (m *Mesh) updateVertexLayout() {
@@ -392,7 +399,7 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 		indices = append(indices, 0, i, i+1)
 	}
 
-	return MeshOf(indices, vertices).WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs))
+	return MeshOf(indices, vertices).WithAttributes(VertexAttributeUV, uvs)
 }
 
 // Rectangle creates a mesh representing a rectangle with the given size, centered at the origin.
@@ -415,17 +422,7 @@ func Rectangle(size glm.Vec2f) *Mesh {
 
 	indices := []uint32{0, 1, 2, 0, 2, 3}
 
-	return MeshOf(indices, vertices[:]).WithAttributes(VertexAttributeUV, wgpu.ToBytes(uvs[:]))
-}
-
-// VertexAttributesOf creates a VertexAttributes container from a vertex attribute and typed values.
-func VertexAttributesOf[T any](attr VertexAttribute, values []T) VertexAttributes {
-	return VertexAttributes{
-		{
-			Attribute: attr,
-			Value:     wgpu.ToBytes(values),
-		},
-	}
+	return MeshOf(indices, vertices[:]).WithAttributes(VertexAttributeUV, uvs[:])
 }
 
 // ConvexPolygon creates a mesh from a convex polygon by triangulating from its first vertex.
@@ -467,4 +464,9 @@ func Polygon(polygon []glm.Vec2f, holes ...[]glm.Vec2f) *Mesh {
 
 func castVecsToEarcutPoints(vecs []glm.Vec2f) []earcut.Point[float32] {
 	return ValuesAsValues[glm.Vec2f, earcut.Point[float32]](vecs)
+}
+
+func unsafeSizeOf[T any]() int {
+	var tZero T
+	return int(unsafe.Sizeof(tZero))
 }

@@ -5,12 +5,17 @@ import (
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
+	"github.com/oliverbestmann/byke/internal/query"
 )
 
 func pluginMesh(app *byke.App) {
 	app.InitResource(meshAllocatorFromWorld)
 
-	app.AddSystems(Render, byke.System(allocateMeshesSystem).InSet(RenderPhasePrepareResources))
+	app.AddSystems(Render, byke.
+		System(allocateMeshesSystem).
+		InSet(RenderPhasePrepareResources))
+
+	app.AddSystems(byke.PostUpdate, updateAABBOfChangedMeshSystem)
 }
 
 // ExtractedMesh represents a mesh in the render pipeline after being extracted from ECS entities.
@@ -57,13 +62,13 @@ func (s *ExtractedSkin) IsSet() bool {
 
 func allocateMeshesSystem(
 	meshes byke.Query[struct {
-		Mesh *MeshInstance
+		Mesh query.Ref[MeshInstance]
 		Name byke.Option[byke.Name]
 	}],
 	meshAllocator *MeshAllocator,
 ) {
 	for item := range meshes.Items() {
-		mesh := item.Mesh.Mesh
+		mesh := item.Mesh.Value.Mesh
 
 		if meshAllocator.Alloc(mesh) {
 			name := item.Name.Or(byke.Named("unknown")).Name

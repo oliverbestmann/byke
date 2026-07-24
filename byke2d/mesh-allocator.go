@@ -1,6 +1,8 @@
 package byke2d
 
 import (
+	"fmt"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/meh"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
@@ -35,6 +37,9 @@ type MeshSlab struct {
 
 	// IndicesCount is the number of indices in this mesh (must be a multiple of 3 for triangle rendering).
 	IndicesCount uint32
+
+	// Format of data within the Indices buffer
+	IndexFormat wgpu.IndexFormat
 }
 
 type MeshAllocatorStats struct {
@@ -90,6 +95,7 @@ func (m *MeshAllocator) Get(mesh *Mesh) (MeshSlab, bool) {
 		FirstIndex:   slab.FirstIndex,
 		FirstVertex:  slab.FirstVertex,
 		IndicesCount: slab.IndicesCount,
+		IndexFormat:  slab.IndexFormat,
 	}
 
 	if slab.HasMorphAttributes {
@@ -152,16 +158,27 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 		panic("vertex data not aligned")
 	}
 
+	var indexFormat = wgpu.IndexFormatUint32
+	var indexByteSize uint32 = 4
+
+	if mesh.VertexCount() < 1024*64 {
+		// in this case we can go with a 16 bit index buffer and safe half of the
+		// the required space for the index buffer
+		indexFormat = wgpu.IndexFormatUint16
+		indexByteSize = 2
+	}
+
 	// allocate space for the indices
-	indicesStart := m.indices.Alloc(uint32(len(mesh.indices)) * 4)
+	indicesStart := m.indices.Alloc(uint32(len(mesh.indices)) * indexByteSize)
 
 	slab := meshSlab{
 		VertexLayout: layout,
 		Version:      mesh.version,
 		Allocator:    alloc,
-		FirstIndex:   uint32(indicesStart) / 4,
+		FirstIndex:   uint32(indicesStart) / indexByteSize,
 		FirstVertex:  uint32(verticesStart) / layout.Size(),
 		IndicesCount: uint32(len(mesh.indices)),
+		IndexFormat:  indexFormat,
 		AddrVertices: verticesStart,
 		AddrIndices:  indicesStart,
 	}
@@ -191,10 +208,33 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 	m.context.WriteBuffer(alloc.BufferAt(slab.AddrVertices), uint64(slab.AddrVertices), vertices)
 
 	// upload index data
-	indices := wgpu.ToBytes(mesh.indices)
+	indices := indicesToByteSlice(mesh.indices, indexFormat)
 	m.context.WriteBuffer(m.indices.BufferAt(slab.AddrIndices), uint64(slab.AddrIndices), indices)
 
 	return true
+}
+
+func indicesToByteSlice(indices []uint32, format wgpu.IndexFormat) []byte {
+	switch format {
+	case wgpu.IndexFormatUint16:
+		buf := make([]uint16, len(indices)+1)
+		for idx, value := range indices {
+			buf[idx] = uint16(value)
+		}
+
+		// need to align size to 4 byte
+		if len(buf)%2 != 0 {
+			buf = append(buf, 0)
+		}
+
+		return ValuesAsByteSlice(buf)
+
+	case wgpu.IndexFormatUint32:
+		return ValuesAsByteSlice(indices)
+
+	default:
+		panic(fmt.Errorf("invalid index format %d", format))
+	}
 }
 
 func (m *MeshAllocator) getAllocator(layout VertexLayout) *BufferAllocator {
@@ -240,12 +280,14 @@ type meshSlab struct {
 	FirstMorphAttribute uint32
 	IndicesCount        uint32
 
+	IndexFormat wgpu.IndexFormat
+
 	// offsets into buffers
 	AddrVertices Addr
 	AddrIndices  Addr
 
-	HasMorphAttributes  bool
 	AddrMorphAttributes Addr
+	HasMorphAttributes  bool
 }
 
 func collectMorphAttributes(targets [][]MorphAttributes) []byte {

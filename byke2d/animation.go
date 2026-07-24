@@ -3,6 +3,7 @@ package byke2d
 import (
 	"crypto/sha1"
 	"log/slog"
+	"maps"
 	"sort"
 
 	"github.com/oliverbestmann/byke"
@@ -288,6 +289,16 @@ type ActiveAnimation struct {
 // AnimationClip is a collection of animation curves targeting different entities.
 type AnimationClip struct {
 	animations map[AnimationTargetId][]AnimationCurve
+}
+
+func (clip *AnimationClip) MergeWith(other AnimationClip) AnimationClip {
+	cloned := maps.Clone(clip.animations)
+	if cloned == nil {
+		cloned = map[AnimationTargetId][]AnimationCurve{}
+	}
+
+	maps.Insert(cloned, maps.All(other.animations))
+	return AnimationClip{animations: cloned}
 }
 
 func (clip *AnimationClip) IsEmpty() bool {

@@ -485,6 +485,7 @@ func drawMeshesBatchSystem(
 	// the per vertex data for the current mesh
 	pass.SetVertexBuffer(1, buf.Vertices, 0, wgpu.WholeSize)
 
-	pass.SetIndexBuffer(buf.Indices, wgpu.IndexFormatUint32, 0, wgpu.WholeSize)
+	pass.SetIndexBuffer(buf.Indices, buf.IndexFormat, 0, wgpu.WholeSize)
+
 	pass.DrawIndexed(buf.IndicesCount, item.BatchCount, buf.FirstIndex, int32(buf.FirstVertex), item.BatchBegin)
 }

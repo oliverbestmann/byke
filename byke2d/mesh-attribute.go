@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"fmt"
 	"hash/maphash"
 	"slices"
 
@@ -102,6 +103,14 @@ type VertexAttributeValue struct {
 	Value []byte
 }
 
+func (v VertexAttributeValue) ValuesAs[T any]() []T {
+	if unsafeSizeOf[T]() != int(v.Attribute.Size()) {
+		panic(fmt.Errorf("expected value size of %d, got %d", v.Attribute.Size(), unsafeSizeOf[T]()))
+	}
+
+	return ByteSliceAsValues[T](v.Value)
+}
+
 // VertexAttributes is a collection of vertex attribute values for a mesh.
 type VertexAttributes []VertexAttributeValue
 
@@ -112,15 +121,19 @@ func (v *VertexAttributes) Values() []VertexAttributeValue {
 
 // Insert adds or updates an attribute in this collection.
 // If the attribute already exists, its values are replaced; otherwise it is appended.
-func (v *VertexAttributes) Insert(attr VertexAttribute, values []byte) {
+func (v *VertexAttributes) Insert[T any](attr VertexAttribute, values []T) {
+	if unsafeSizeOf[T]() != int(attr.Size()) {
+		panic(fmt.Errorf("expected value size of %d, got %d", attr.Size(), unsafeSizeOf[T]()))
+	}
+
 	if existing := v.Get(attr); existing != nil {
-		existing.Value = values
+		existing.Value = ValuesAsByteSlice(values)
 		return
 	}
 
 	*v = append(*v, VertexAttributeValue{
 		Attribute: attr,
-		Value:     values,
+		Value:     ValuesAsByteSlice(values),
 	})
 }
 

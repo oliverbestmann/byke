@@ -5,7 +5,7 @@ import (
 )
 
 type MeshInstance struct {
-	byke.Component[MeshInstance]
+	byke.ComparableComponent[MeshInstance]
 	Mesh *Mesh
 }
 
