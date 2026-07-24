@@ -372,7 +372,7 @@ func bloomDownsample(
 		panic("bindGroup for bloom pass not found")
 	}
 
-	pass := bloomPrepareRenderPass(enc, target, wgpu.LoadOpClear)
+	pass := bloomCreateRenderPass(enc, target, wgpu.LoadOpClear)
 
 	pass.SetPipeline(pipeline.Get())
 	pass.SetBindGroup(0, bindGroup.BindGroup, []uint32{view.BloomUniformsOffset.Offset})
@@ -400,7 +400,7 @@ func bloomUpsample(
 
 	bf := float64(bloomComputeBlendFactor(view.Bloom, float32(mip), float32(mipCount-1)))
 
-	pass := bloomPrepareRenderPass(enc, target, wgpu.LoadOpLoad)
+	pass := bloomCreateRenderPass(enc, target, wgpu.LoadOpLoad)
 
 	pass.SetPipeline(pipeline.Get())
 	pass.SetBlendConstant(&wgpu.Color{R: bf, G: bf, B: bf, A: 1.0})
@@ -420,7 +420,7 @@ var BloomSamplerDescriptor = wgpu.SamplerDescriptor{
 	MipmapFilter: wgpu.MipmapFilterModeLinear,
 }
 
-func bloomPrepareRenderPass(enc *CommandEncoder, target *wgpu.TextureView, loadOp wgpu.LoadOp) *TrackedRenderPassEncoder {
+func bloomCreateRenderPass(enc *CommandEncoder, target *wgpu.TextureView, loadOp wgpu.LoadOp) *TrackedRenderPassEncoder {
 	return enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
 		Label: "Bloom",
 		ColorAttachments: []wgpu.RenderPassColorAttachment{
