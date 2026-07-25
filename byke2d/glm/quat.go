@@ -1,6 +1,10 @@
 package glm
 
-import "math"
+import (
+	"math"
+
+	"golang.org/x/mobile/exp/f32"
+)
 
 type Quat struct {
 	x, y, z, s1 float32
@@ -78,6 +82,71 @@ func QuatFromRotationArc(from, to Vec3f) Quat {
 
 	c := from.Cross(to)
 	return QuatOf(Vec4f{c[0], c[1], c[2], 1.0 + dot}.Normalize().XYZW())
+}
+
+// QuatFromMat3 creates a quaternion from a 3x3 rotation matrix.
+// The columns of `mat` must be normalized and orthogonal to each other.
+func QuatFromMat3(mat Mat3f) Quat {
+	// Based on https://github.com/microsoft/DirectXMath `XMQuaternionRotationMatrix`.
+	// ToMat4 produces the transpose of the matrix the DirectXMath algorithm expects,
+	// so we index the transposed matrix here.
+	m00, m10, m20 := mat[0][0], mat[0][1], mat[0][2]
+	m01, m11, m21 := mat[1][0], mat[1][1], mat[1][2]
+	m02, m12, m22 := mat[2][0], mat[2][1], mat[2][2]
+
+	if m22 <= 0 {
+		// x^2 + y^2 >= z^2 + w^2
+		dif10 := m11 - m00
+		omm22 := 1 - m22
+
+		if dif10 <= 0 {
+			// x^2 >= y^2
+			fourXSq := omm22 - dif10
+			inv4x := 0.5 / f32.Sqrt(fourXSq)
+			return QuatOf(
+				fourXSq*inv4x,
+				(m01+m10)*inv4x,
+				(m02+m20)*inv4x,
+				(m12-m21)*inv4x,
+			)
+		}
+
+		// y^2 >= x^2
+		fourYSq := omm22 + dif10
+		inv4y := 0.5 / f32.Sqrt(fourYSq)
+		return QuatOf(
+			(m01+m10)*inv4y,
+			fourYSq*inv4y,
+			(m12+m21)*inv4y,
+			(m20-m02)*inv4y,
+		)
+	}
+
+	// z^2 + w^2 >= x^2 + y^2
+	sum10 := m11 + m00
+	opm22 := 1 + m22
+
+	if sum10 <= 0 {
+		// z^2 >= w^2
+		fourZSq := opm22 - sum10
+		inv4z := 0.5 / f32.Sqrt(fourZSq)
+		return QuatOf(
+			(m02+m20)*inv4z,
+			(m12+m21)*inv4z,
+			fourZSq*inv4z,
+			(m01-m10)*inv4z,
+		)
+	}
+
+	// w^2 >= z^2
+	fourWSq := opm22 + sum10
+	inv4w := 0.5 / f32.Sqrt(fourWSq)
+	return QuatOf(
+		(m12-m21)*inv4w,
+		(m20-m02)*inv4w,
+		(m01-m10)*inv4w,
+		fourWSq*inv4w,
+	)
 }
 
 func (q Quat) Inverse() Quat {

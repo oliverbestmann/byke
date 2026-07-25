@@ -150,7 +150,7 @@ func (p PerspectiveProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
 }
 
 var DefaultPerspectiveProjection = PerspectiveProjection{
-	Fov:  glm.DegToRad(70),
+	Fov:  glm.DegToRad(60),
 	Near: 0.1,
 	Far:  1000,
 }

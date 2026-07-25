@@ -75,6 +75,18 @@ func (t Transform) WithRotationZ(rotation glm.Rad) Transform {
 	return t
 }
 
+func (t Transform) LookingAt(target, up glm.Vec3f) Transform {
+	return t.LookingTo(target.Sub(t.Translation), up)
+}
+
+func (t Transform) LookingTo(direction, up glm.Vec3f) Transform {
+	back := direction.Scale(-1)
+	right := up.Cross(back).Normalize()
+	up = back.Cross(right)
+
+	return t.WithRotation(glm.QuatFromMat3(glm.Mat3f{right, up, back}))
+}
+
 func (t Transform) Affine3() glm.Mat4f {
 	mat := glm.TranslationMat4f(t.Translation.XYZ())
 	mat.RotateAssign(t.Rotation)

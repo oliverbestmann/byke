@@ -41,9 +41,25 @@ jobs:
       - name: "Run example offscreen: cube"
         run: |
           export BYKE_RUN_OFFSCREEN_TEST=true
-          go run --tags fakeClock ./byke2d/examples/cube/
+          rm -f /tmp/image-*.png
+          go run --tags fakeClock ./byke2d/examples/render3d/cube/
 
-      - uses: actions/upload-artifact@v7
+      - name: "Upload generated images: cube",
+        uses: actions/upload-artifact@v7
         with:
           name: "Images cube GOEXPERIMENT=${{ matrix.config.goexperiment }}"
           path: "/tmp/image-*.png"
+
+
+      - name: "Run example offscreen: animated-material"
+        run: |
+          export BYKE_RUN_OFFSCREEN_TEST=true
+          rm -f /tmp/image-*.png
+          go run --tags fakeClock ./byke2d/examples/render3d/animated-material/
+
+      - name: "Upload generated images: animated-material",
+        uses: actions/upload-artifact@v7
+        with:
+          name: "Images animated-material GOEXPERIMENT=${{ matrix.config.goexperiment }}"
+          path: "/tmp/image-*.png"
+

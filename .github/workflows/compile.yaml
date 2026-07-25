@@ -59,7 +59,7 @@ jobs:
       - name: "Build all examples"
         run: |
           cd byke2d
-          go build -v ./examples/*
+          go build -v ./examples/...
 
   CompileWASM:
     runs-on: ubuntu-latest
@@ -83,4 +83,4 @@ jobs:
       - name: Compile examples
         run: |
           cd byke2d
-          go build -v ./examples/*
+          go build -v ./examples/...

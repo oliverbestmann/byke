@@ -5,37 +5,45 @@ import (
 )
 
 func Cube() *Mesh {
+	return CubeWithSize(glm.Vec3f{1, 1, 1})
+}
+
+func CubeWithSize(size glm.Vec3f) *Mesh {
+	hx := size[0] / 2
+	hy := size[1] / 2
+	hz := size[2] / 2
+
 	vertices := []glm.Vec3f{
 		// top (facing towards +y)
-		{-0.5, 0.5, -0.5}, // vertex with index0
-		{0.5, 0.5, -0.5},  // vertex with index1
-		{0.5, 0.5, 0.5},   // etc. until 3
-		{-0.5, 0.5, 0.5},
+		{-hx, hy, -hz},
+		{hx, hy, -hz},
+		{hx, hy, hz},
+		{-hx, hy, hz},
 		// bottom   (-y)
-		{-0.5, -0.5, -0.5},
-		{0.5, -0.5, -0.5},
-		{0.5, -0.5, 0.5},
-		{-0.5, -0.5, 0.5},
+		{-hx, -hy, -hz},
+		{hx, -hy, -hz},
+		{hx, -hy, hz},
+		{-hx, -hy, hz},
 		// right    (+x)
-		{0.5, -0.5, -0.5},
-		{0.5, -0.5, 0.5},
-		{0.5, 0.5, 0.5}, // This vertex is at the same position as vertex with index 2, but they'll have different UV and norml
-		{0.5, 0.5, -0.5},
+		{hx, -hy, -hz},
+		{hx, -hy, hz},
+		{hx, hy, hz},
+		{hx, hy, -hz},
 		// left     (-x)
-		{-0.5, -0.5, -0.5},
-		{-0.5, -0.5, 0.5},
-		{-0.5, 0.5, 0.5},
-		{-0.5, 0.5, -0.5},
+		{-hx, -hy, -hz},
+		{-hx, -hy, hz},
+		{-hx, hy, hz},
+		{-hx, hy, -hz},
 		// back     (+z)
-		{-0.5, -0.5, 0.5},
-		{-0.5, 0.5, 0.5},
-		{0.5, 0.5, 0.5},
-		{0.5, -0.5, 0.5},
+		{-hx, -hy, hz},
+		{-hx, hy, hz},
+		{hx, hy, hz},
+		{hx, -hy, hz},
 		// forward  (-z)
-		{-0.5, -0.5, -0.5},
-		{-0.5, 0.5, -0.5},
-		{0.5, 0.5, -0.5},
-		{0.5, -0.5, -0.5},
+		{-hx, -hy, -hz},
+		{-hx, hy, -hz},
+		{hx, hy, -hz},
+		{hx, -hy, -hz},
 	}
 
 	indices := []uint32{
