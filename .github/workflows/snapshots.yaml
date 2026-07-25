@@ -38,13 +38,11 @@ jobs:
             libasound2-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev \
             libxkbcommon-dev libwayland-dev
 
-      - name: "Run example offscreen: cube"
-        run: |
-          export BYKE_RUN_OFFSCREEN_TEST=true
-          rm -f /tmp/image-*.png
-          go run --tags fakeClock ./byke2d/examples/render3d/cube/
 
-      - name: "Upload generated images: cube",
+      - name: "Run example offscreen: cube"
+        run: ./run-example-test.sh ./byke2d/examples/render3d/cube/
+
+      - name: "Upload generated images: cube"
         uses: actions/upload-artifact@v7
         with:
           name: "Images cube GOEXPERIMENT=${{ matrix.config.goexperiment }}"
@@ -52,12 +50,9 @@ jobs:
 
 
       - name: "Run example offscreen: animated-material"
-        run: |
-          export BYKE_RUN_OFFSCREEN_TEST=true
-          rm -f /tmp/image-*.png
-          go run --tags fakeClock ./byke2d/examples/render3d/animated-material/
+        run: ./run-example-test.sh ./byke2d/examples/render3d/animated-material/
 
-      - name: "Upload generated images: animated-material",
+      - name: "Upload generated images: animated-material"
         uses: actions/upload-artifact@v7
         with:
           name: "Images animated-material GOEXPERIMENT=${{ matrix.config.goexperiment }}"
