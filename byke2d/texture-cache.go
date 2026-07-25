@@ -2,6 +2,7 @@ package byke2d
 
 import (
 	"log/slog"
+	"reflect"
 	"slices"
 
 	"github.com/oliverbestmann/byke"
@@ -21,7 +22,7 @@ func TextureCacheFromWorld(world *byke.World) TextureCache {
 
 func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {
 	for idx, tex := range t.unused {
-		if *tex.Descriptor == *desc {
+		if reflect.DeepEqual(tex.Descriptor, desc) {
 			t.unused = slices.Delete(t.unused, idx, idx+1)
 			t.used = append(t.used, tex)
 			return tex
@@ -41,7 +42,7 @@ func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {
 		slog.Any("size", tex.Size()),
 	)
 
-	return tex
+	return tex.Share()
 }
 
 func (t *TextureCache) Reset() {

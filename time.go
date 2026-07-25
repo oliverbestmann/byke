@@ -38,7 +38,10 @@ type VirtualTime struct {
 func updateVirtualTime(v *VirtualTime, lastTime *Local[time.Time]) {
 	v.Frames += 1
 
-	now := time.Now()
+	// if in testing, we update time by exactly 1/60th of a second
+	incrementTime(time.Second / 60)
+
+	now := timeNow()
 
 	if lastTime.Value.IsZero() {
 		lastTime.Value = now

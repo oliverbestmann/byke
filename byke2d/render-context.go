@@ -11,7 +11,9 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-var forceFallbackAdapter = os.Getenv("WGPU_FORCE_FALLBACK_ADAPTER") == "1"
+func forceFallbackAdapter() bool {
+	return os.Getenv("WGPU_FORCE_FALLBACK_ADAPTER") == "1"
+}
 
 // RenderContext manages GPU resource creation, caching, and metrics tracking.
 // It provides convenient wrappers around WebGPU objects with automatic caching of samplers
@@ -172,6 +174,13 @@ func (c *CommandEncoder) BeginRenderPass(desc *wgpu.RenderPassDescriptor) *Track
 	}
 }
 
+type wgpuSurface interface {
+	Configure(device *wgpu.Device, conf *wgpu.SurfaceConfiguration)
+	GetCurrentTexture() wgpu.SurfaceTexture
+	Present()
+	Release()
+}
+
 // Context encapsulates the low level state of the webgpu context,
 // this includes the Device, Surface and active Adapter
 type wgpuContext struct {
@@ -179,11 +188,11 @@ type wgpuContext struct {
 	*wgpu.Queue
 	Instance *wgpu.Instance
 	Adapter  *wgpu.Adapter
-	Surface  *wgpu.Surface
+	Surface  wgpuSurface
 }
 
 // newContext creates a new Context for a wgpu.SurfaceDescriptor.
-func newContext(sd *wgpu.SurfaceDescriptor) (st *wgpuContext, err error) {
+func newContext(world *byke.World, sd *wgpu.SurfaceDescriptor) (st *wgpuContext, err error) {
 	defer func() {
 		if err != nil && st != nil {
 			st.Release()
@@ -197,13 +206,22 @@ func newContext(sd *wgpu.SurfaceDescriptor) (st *wgpuContext, err error) {
 	instance := wgpu.CreateInstance(nil)
 	st.Instance = instance
 
-	// create a Surface based on the window
-	st.Surface = instance.CreateSurface(sd)
+	var compatibleSurface *wgpu.Surface
+	if sd != nil {
+		// create a Surface based on the window
+		surface := instance.CreateSurface(sd)
+
+		st.Surface = surface
+		compatibleSurface = surface
+	} else {
+		// need to create an offscreen surface
+		st.Surface = &offscreenSurface{World: world}
+	}
 
 	// create an adapter that can render to the Surface
 	st.Adapter, err = instance.RequestAdapter(&wgpu.RequestAdapterOptions{
-		ForceFallbackAdapter: forceFallbackAdapter,
-		CompatibleSurface:    st.Surface,
+		ForceFallbackAdapter: forceFallbackAdapter(),
+		CompatibleSurface:    compatibleSurface,
 	})
 	if err != nil {
 		return

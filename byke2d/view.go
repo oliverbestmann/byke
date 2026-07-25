@@ -17,7 +17,7 @@ type ViewTarget struct {
 	Format wgpu.TextureFormat
 
 	// The target texture to render the final image to. This is normally backed by
-	// the surface, or by the cameras texture, if the camera renderes to a texture.
+	// the surface, or by the cameras texture, if the camera renders to a texture.
 	SurfaceTextureView *wgpu.TextureView
 
 	// The format of the final surface

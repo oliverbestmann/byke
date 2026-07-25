@@ -194,6 +194,9 @@ type WindowConfig struct {
 	Width         int
 	Height        int
 	DisableResize bool
+
+	// do not create a primary window
+	Offscreen bool
 }
 
 func DefaultWindowConfig() WindowConfig {
@@ -212,28 +215,80 @@ func DefaultSurfaceConfig() SurfaceConfig {
 }
 
 type PrimaryWindow struct {
-	window vyn.Window
+	window window
+}
+
+type Window struct {
+	byke.Component[Window]
+	window window
 }
 
 type ScreenSize struct {
 	glm.Vec2f
 }
 
+type offscreenWindow struct {
+	Width      uint32
+	Height     uint32
+	FrameCount int
+}
+
+func (o *offscreenWindow) SurfaceDescriptor() *wgpu.SurfaceDescriptor {
+	return nil
+}
+
+func (o *offscreenWindow) Run(fn func(state vyn.UpdateInputState) error) error {
+	noopInputState := func() vyn.InputState { return vyn.InputState{} }
+
+	for o.FrameCount > 0 {
+		o.FrameCount -= 1
+
+		if err := fn(noopInputState); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *offscreenWindow) GetSize() (width uint32, height uint32) {
+	return o.Width, o.Height
+}
+
 func runWorld(world *byke.World) error {
 	conf, _ := world.ResourceOf[WindowConfig]()
 
-	title := getOr(conf.Title, "Byke App")
-	width := getOr(conf.Width, 1280)
-	height := getOr(conf.Height, 720)
+	var pwin window
 
-	win, err := vyn.NewWindow(width, height, title, !conf.DisableResize)
-	if err != nil {
-		return fmt.Errorf("create window: %w", err)
+	if !conf.Offscreen {
+		title := getOr(conf.Title, "Byke App")
+		width := getOr(conf.Width, 1280)
+		height := getOr(conf.Height, 720)
+
+		win, err := vyn.NewWindow(width, height, title, !conf.DisableResize)
+		if err != nil {
+			return fmt.Errorf("create window: %w", err)
+		}
+
+		defer win.Terminate()
+
+		pwin = win
+	} else {
+		pwin = &offscreenWindow{
+			Width:      uint32(conf.Width),
+			Height:     uint32(conf.Height),
+			FrameCount: 60,
+		}
+
 	}
 
-	defer win.Terminate()
+	// spawn the window
+	world.Spawn([]byke.ErasedComponent{Window{window: pwin}})
 
-	wctx, err := newContext(win.SurfaceDescriptor())
+	// spawn the primary window
+	world.InsertResource(PrimaryWindow{window: pwin})
+
+	wctx, err := newContext(world, pwin.SurfaceDescriptor())
 	if err != nil {
 		return fmt.Errorf("initialize wgpu: %w", err)
 	}
@@ -242,12 +297,10 @@ func runWorld(world *byke.World) error {
 
 	dumpContextInfo(wctx)
 
-	world.InsertResource(PrimaryWindow{window: win})
-
 	renderContext := world.RequireResourceOf[RenderContext]()
 	renderContext.init(world, wctx)
 
-	err = win.Run(func(state vyn.UpdateInputState) error {
+	err = pwin.Run(func(state vyn.UpdateInputState) error {
 		return updateWorld(world, state)
 	})
 
@@ -257,6 +310,12 @@ func runWorld(world *byke.World) error {
 	}
 
 	return err
+}
+
+type window interface {
+	SurfaceDescriptor() *wgpu.SurfaceDescriptor
+	Run(func(state vyn.UpdateInputState) error) error
+	GetSize() (width uint32, height uint32)
 }
 
 func dumpContextInfo(ctx *wgpuContext) {
@@ -454,4 +513,63 @@ func renderMainSystem(
 		ctx.Surface.Present()
 		return nil
 	})
+}
+
+type offscreenSurface struct {
+	World  *byke.World
+	config wgpu.SurfaceConfiguration
+}
+
+func (o *offscreenSurface) Configure(_ *wgpu.Device, conf *wgpu.SurfaceConfiguration) {
+	o.config = *conf
+}
+
+func (o *offscreenSurface) GetCurrentTexture() wgpu.SurfaceTexture {
+	textureCache := o.World.RequireResourceOf[TextureCache]()
+
+	texture := textureCache.Allocate(&wgpu.TextureDescriptor{
+		Label:     "",
+		Usage:     wgpu.TextureUsageRenderAttachment | o.config.Usage,
+		Dimension: wgpu.TextureDimension2D,
+		Size: wgpu.Extent3D{
+			Width:              o.config.Width,
+			Height:             o.config.Height,
+			DepthOrArrayLayers: 1,
+		},
+		Format:        o.config.Format,
+		MipLevelCount: 1,
+		SampleCount:   1,
+		ViewFormats:   o.config.ViewFormats,
+	})
+
+	return wgpu.SurfaceTexture{
+		Texture: texture.Texture,
+		Status:  wgpu.SurfaceGetCurrentTextureStatusSuccessOptimal,
+	}
+}
+
+func (o *offscreenSurface) Present() {
+	renderContext := o.World.RequireResourceOf[RenderContext]()
+	waitUntilWorkCompleted(renderContext)
+}
+
+func (o *offscreenSurface) Release() {
+	// nothing to do here
+}
+
+func waitUntilWorkCompleted(ctx *RenderContext) {
+	var doneCh = make(chan struct{}, 1)
+
+	ctx.OnSubmittedWorkDone(func(status wgpu.QueueWorkDoneStatus) {
+		doneCh <- struct{}{}
+	})
+
+	for {
+		select {
+		case <-doneCh:
+			return
+		default:
+			ctx.Poll(true, nil)
+		}
+	}
 }

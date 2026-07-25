@@ -74,7 +74,7 @@ func (m *mipmapGenerator) generate(enc *CommandEncoder, texture *Texture, z, mip
 
 	defer outView.Release()
 
-	pipeline := m.cache.Specialize(blitConfig{
+	pipeline := m.cache.Specialize(BlitConfig{
 		Format: texture.Descriptor.Format,
 	})
 
@@ -88,5 +88,5 @@ func (m *mipmapGenerator) generate(enc *CommandEncoder, texture *Texture, z, mip
 		MipmapFilter: wgpu.MipmapFilterModeNearest,
 	})
 
-	blitTexture(m.context, enc, pipeline, inSampler, inView, outView)
+	BlitTexture(m.context, enc, pipeline, inSampler, inView, outView)
 }

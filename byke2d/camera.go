@@ -403,13 +403,13 @@ func blitCameraToTargetSystem(
 ) {
 	view := viewsQuery.Get()
 
-	blit := blitConfig{
+	blit := BlitConfig{
 		Format:     view.ViewTarget.SurfaceTextureFormat,
 		AlphaBlend: view.ClearColor.Alpha() < 1,
 	}
 
 	// blit into the target texture
-	blitTextureSimple(
+	BlitTextureSimple(
 		ctx,
 		pipelines.Specialize(blit),
 		view.ViewTarget.UnsampledTexture(),

@@ -10,16 +10,16 @@ import (
 //go:embed blit.wgsl
 var blitShader string
 
-type blitConfig struct {
+type BlitConfig struct {
 	Format     wgpu.TextureFormat
 	AlphaBlend bool
 }
 
-func (b blitConfig) EqualTo(other PipelineConfig) bool {
+func (b BlitConfig) EqualTo(other PipelineConfig) bool {
 	return b == other
 }
 
-func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
+func (b BlitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	shader := ctx.Shader("Blit", blitShader, nil)
 
 	blend := wgpu.BlendStateReplace
@@ -55,7 +55,7 @@ func (b blitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	}
 }
 
-func blitTextureSimple(
+func BlitTextureSimple(
 	ctx *RenderContext,
 	pipeline Pipeline,
 	sourceView, targetView *wgpu.TextureView,
@@ -73,7 +73,7 @@ func blitTextureSimple(
 	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Blit"})
 	defer enc.Release()
 
-	blitTexture(ctx, enc, pipeline, sampler, sourceView, targetView)
+	BlitTexture(ctx, enc, pipeline, sampler, sourceView, targetView)
 
 	// encode into a command buffer
 	buf := enc.Finish(&wgpu.CommandBufferDescriptor{Label: "Blit"})
@@ -82,7 +82,7 @@ func blitTextureSimple(
 	ctx.Submit(buf)
 }
 
-func blitTexture(ctx *RenderContext, enc *CommandEncoder, pipeline Pipeline, sampler *wgpu.Sampler, sourceView, targetView *wgpu.TextureView) {
+func BlitTexture(ctx *RenderContext, enc *CommandEncoder, pipeline Pipeline, sampler *wgpu.Sampler, sourceView, targetView *wgpu.TextureView) {
 	defer puffin.NewScope("byke2d.blitTexture").End()
 
 	bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{

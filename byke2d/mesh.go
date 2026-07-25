@@ -17,6 +17,8 @@ import (
 // Mesh represents a collection of vertices, indices, and vertex attributes that define
 // 3D geometry. It supports flexible vertex attributes, morph targets for skeletal animation,
 // and provides methods for geometric computations like normal and tangent generation.
+//
+// A modified mesh is uploaded automatically to the gpu on the next frame.
 type Mesh struct {
 	// indices indexes into vertices to draw triangles from.
 	// Length of indices must be a multiple of three.

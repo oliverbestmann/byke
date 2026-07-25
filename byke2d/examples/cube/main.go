@@ -14,6 +14,14 @@ func main() {
 
 	app.AddPlugin(PluginRender)
 	app.AddPlugin(shared.PluginRotatable)
+	app.AddPlugin(PluginDebugDumpCamera)
+
+	app.InsertResource(WindowConfig{
+		Width:     640,
+		Height:    480,
+		Offscreen: true,
+	})
+
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.MustRun()
