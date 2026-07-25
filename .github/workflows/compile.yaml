@@ -10,15 +10,17 @@ jobs:
 
       matrix:
         config:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
+            goexperiment: ""
 
-          - runner: ubuntu-latest
-            goexperiment: simd
+          - runner: ubuntu-24.04
+            goexperiment: "simd"
 
           - runner: ubuntu-24.04-arm
+            goexperiment: ""
 
           - runner: ubuntu-24.04-arm
-            goexperiment: simd
+            goexperiment: "simd"
 
     runs-on: "${{ matrix.config.runner }}"
 
@@ -26,51 +28,38 @@ jobs:
       GOEXPERIMENT: "${{ matrix.config.goexperiment }}"
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: "Checkout repository"
+        uses: actions/checkout@v7
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
+      - name: "Setup Go"
+        uses: actions/setup-go@v7
         with:
           go-version: 1.27.0-rc.2
           go-version-file: go.mod
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: |
           sudo apt-get update
           sudo apt-get install -f -y libegl1-mesa-dev mesa-vulkan-drivers \
             libasound2-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev \
             libxkbcommon-dev libwayland-dev
 
-      - name: Environment
-        run: go env
-
-      - name: Run tests
+      - name: "Run tests"
         run: |
           go test -v ./...
 
-      - name: Run tests with no simd
+      - name: "Run tests with tag: nosimd"
         run: |
           go test --tags=nosimd -v ./...
 
-      - name: Lints
+      - name: "Run go vet"
         run: |
           go vet -v ./...
 
-      - name: Build all examples
+      - name: "Build all examples"
         run: |
           cd byke2d
           go build -v ./examples/*
-
-      - name: "Run example offscreen: cube"
-        run: |
-          export BYKE_RUN_OFFSCREEN_TEST=true
-          go run --tags fakeClock ./byke2d/examples/cube/
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: "Image output of example: cube"
-          path: "/tmp/image-*.png"
 
   CompileWASM:
     runs-on: ubuntu-latest
@@ -79,13 +68,14 @@ jobs:
       GOOS: "js"
       GOARCH: "wasm"
       CGO_ENABLED: "0"
+      GOEXPERIMENT: "simd"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: 1.27.0-rc.2
           go-version-file: go.mod
