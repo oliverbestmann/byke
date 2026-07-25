@@ -16,7 +16,7 @@ var InTesting = os.Getenv("BYKE_RUN_OFFSCREEN_TEST") == "true"
 
 type Hashes map[int]byke2d.Hash
 
-func RunAppInTest(app byke.App, expected Hashes) {
+func RunAppInTest(app byke.App, frameCount int, expected Hashes) {
 	if !InTesting {
 		app.MustRun()
 		return
@@ -37,10 +37,15 @@ func RunAppInTest(app byke.App, expected Hashes) {
 
 	// override window with fixed size offscreen window for testing
 	app.InsertResource(byke2d.WindowConfig{
-		Width:     640,
-		Height:    480,
-		Offscreen: true,
+		Width:  640,
+		Height: 480,
+		Offscreen: &byke2d.OffscreenWindowConfig{
+			FrameCount: frameCount,
+		},
 	})
+
+	// force fallback adapter
+	_ = os.Setenv("WGPU_FORCE_FALLBACK_ADAPTER", "1")
 
 	app.MustRun()
 
@@ -73,6 +78,8 @@ func saveImage(frameIndex int, im *image.NRGBA) error {
 	if err != nil {
 		return err
 	}
+
+	defer fp.Close()
 
 	err = jpeg.Encode(fp, im, &jpeg.Options{Quality: 95})
 	if err != nil {

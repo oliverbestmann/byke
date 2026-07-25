@@ -17,8 +17,10 @@ func main() {
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
-	shared.RunAppInTest(app, shared.Hashes{
-		10: 0xe0bd0c2b5abbaa14,
+
+	shared.RunAppInTest(app, 20, shared.Hashes{
+		0:  0x759ec0027ba7bc7c, // first frame is empty
+		10: 0x124a79f1e93cb688,
 	})
 }
 

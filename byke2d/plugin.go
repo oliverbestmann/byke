@@ -196,7 +196,11 @@ type WindowConfig struct {
 	DisableResize bool
 
 	// do not create a primary window
-	Offscreen bool
+	Offscreen *OffscreenWindowConfig
+}
+
+type OffscreenWindowConfig struct {
+	FrameCount int
 }
 
 func DefaultWindowConfig() WindowConfig {
@@ -260,7 +264,7 @@ func runWorld(world *byke.World) error {
 
 	var pwin window
 
-	if !conf.Offscreen {
+	if offscreen := conf.Offscreen; offscreen == nil {
 		title := getOr(conf.Title, "Byke App")
 		width := getOr(conf.Width, 1280)
 		height := getOr(conf.Height, 720)
@@ -277,7 +281,7 @@ func runWorld(world *byke.World) error {
 		pwin = &offscreenWindow{
 			Width:      uint32(conf.Width),
 			Height:     uint32(conf.Height),
-			FrameCount: 60,
+			FrameCount: offscreen.FrameCount,
 		}
 
 	}

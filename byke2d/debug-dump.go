@@ -29,11 +29,12 @@ func dumpCameraViewToTextureSystem(
 ) {
 	var calls []func()
 
-	if vt.Frames%10 != 0 {
+	frame := vt.Frames - 1
+	if frame%10 != 0 {
 		return
 	}
 
-	log := slog.With(slog.Int("frame", vt.Frames))
+	log := slog.With(slog.Int("frame", frame))
 
 	enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Blit"})
 	defer enc.Release()
@@ -120,7 +121,7 @@ func dumpCameraViewToTextureSystem(
 					Rect:   image.Rect(0, 0, int(imageWidth), int(imageHeight)),
 				}
 
-				if err := frameCallback(vt.Frames, im); err != nil {
+				if err := frameCallback(frame, im); err != nil {
 					slog.Warn("Failed to handle frame dump", slog.String("error", err.Error()))
 					return
 				}
