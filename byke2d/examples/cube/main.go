@@ -14,17 +14,12 @@ func main() {
 
 	app.AddPlugin(PluginRender)
 	app.AddPlugin(shared.PluginRotatable)
-	app.AddPlugin(PluginDebugDumpCamera)
-
-	app.InsertResource(WindowConfig{
-		Width:     640,
-		Height:    480,
-		Offscreen: true,
-	})
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
-	app.MustRun()
+	shared.RunAppInTest(app, shared.Hashes{
+		10: 0xe0bd0c2b5abbaa14,
+	})
 }
 
 func setupSystem(commands *Commands) {

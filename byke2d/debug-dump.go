@@ -1,20 +1,20 @@
 package byke2d
 
 import (
-	"fmt"
 	"image"
-	"image/png"
 	"log/slog"
-	"os"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-func PluginDebugDumpCamera(app *byke.App) {
-	// _ = os.Setenv("WGPU_FORCE_FALLBACK_ADAPTER", "1")
+type DebugFrameCallback func(frameIndex int, image *image.NRGBA) error
 
-	app.AddSystems(PostRender, dumpCameraViewToTextureSystem)
+func PluginDebugDumpCamera(callback DebugFrameCallback) byke.Plugin {
+	return func(app *byke.App) {
+		app.InsertResource(callback)
+		app.AddSystems(PostRender, dumpCameraViewToTextureSystem)
+	}
 }
 
 func dumpCameraViewToTextureSystem(
@@ -22,6 +22,7 @@ func dumpCameraViewToTextureSystem(
 	ctx *RenderContext,
 	pipelines *PipelineCache,
 	textureCache *TextureCache,
+	frameCallback DebugFrameCallback,
 	viewsQuery byke.Query[struct {
 		Target *ViewTarget
 	}],
@@ -119,15 +120,8 @@ func dumpCameraViewToTextureSystem(
 					Rect:   image.Rect(0, 0, int(imageWidth), int(imageHeight)),
 				}
 
-				fp, err := os.Create(fmt.Sprintf("/tmp/image-%05d.png", vt.Frames))
-				if err != nil {
-					slog.Warn("Failed to create output file", slog.String("error", err.Error()))
-					return
-				}
-
-				err = png.Encode(fp, im)
-				if err != nil {
-					slog.Warn("Failed to write png file", slog.String("error", err.Error()))
+				if err := frameCallback(vt.Frames, im); err != nil {
+					slog.Warn("Failed to handle frame dump", slog.String("error", err.Error()))
 					return
 				}
 			})
