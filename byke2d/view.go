@@ -99,11 +99,6 @@ func (vd *ViewDepthTexture) ReadWrite() wgpu.RenderPassDepthStencilAttachment {
 }
 
 func (vd *ViewDepthTexture) ReadOnly() wgpu.RenderPassDepthStencilAttachment {
-	return vd.ReadWrite()
-	// if !vd.hasContent {
-	// 	return vd.ReadWrite()
-	// }
-
 	return wgpu.RenderPassDepthStencilAttachment{
 		View:          vd.TextureView,
 		DepthReadOnly: true,
