@@ -3,7 +3,7 @@ package shared
 import (
 	"fmt"
 	"image"
-	"image/jpeg"
+	"image/png"
 	"log/slog"
 	"maps"
 	"os"
@@ -71,7 +71,7 @@ func calculateImageHash(im *image.NRGBA) byke2d.Hash {
 }
 
 func saveImage(frameIndex int, im *image.NRGBA) error {
-	path := fmt.Sprintf("/tmp/image-%05d.jpg", frameIndex)
+	path := fmt.Sprintf("/tmp/image-%05d.png", frameIndex)
 	slog.Info("Saving image", slog.String("path", path))
 
 	fp, err := os.Create(path)
@@ -81,7 +81,7 @@ func saveImage(frameIndex int, im *image.NRGBA) error {
 
 	defer fp.Close()
 
-	err = jpeg.Encode(fp, im, &jpeg.Options{Quality: 95})
+	err = png.Encode(fp, im)
 	if err != nil {
 		return err
 	}

@@ -65,7 +65,12 @@ jobs:
       - name: "Run example offscreen: cube"
         run: |
           export BYKE_RUN_OFFSCREEN_TEST=true
-          go run ./byke2d/examples/cube/
+          go run --tags fakeClock ./byke2d/examples/cube/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: "Image output of example: cube"
+          path: "/tmp/image-*.png"
 
   CompileWASM:
     runs-on: ubuntu-latest
