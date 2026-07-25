@@ -10,8 +10,8 @@ import (
 	"github.com/go-text/typesetting/font/opentype"
 )
 
-func fontscan_NewFontMap() fontmap {
-	return fontmap{}
+func fontscan_NewFontMap() *fontmap {
+	return &fontmap{}
 }
 
 type fontmap struct {

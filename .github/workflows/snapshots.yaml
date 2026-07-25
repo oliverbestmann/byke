@@ -45,5 +45,5 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: "Images: cube, GOEXPERIMENT=${{ matrix.config.goexperiment }}"
+          name: "Images cube GOEXPERIMENT=${{ matrix.config.goexperiment }}"
           path: "/tmp/image-*.png"
