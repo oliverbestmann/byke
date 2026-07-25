@@ -6,7 +6,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/oliverbestmann/byke/byke2d/radix/radix_c"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +24,7 @@ func BenchmarkRadixGo(b *testing.B) {
 	scratch := make([]Value, ValueCount)
 
 	bench(b, func(valuesToSort []Value) {
-		radix_c.radixsortGo(valuesToSort, scratch)
+		radixsortGo(valuesToSort, scratch)
 	})
 }
 
