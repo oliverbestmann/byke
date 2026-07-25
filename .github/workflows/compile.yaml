@@ -57,10 +57,15 @@ jobs:
         run: |
           go vet -v ./...
 
-      - name: Build Examples
+      - name: Build all examples
         run: |
           cd byke2d
           go build -v ./examples/*
+
+      - name: "Run example offscreen: cube"
+        run: |
+          export BYKE_RUN_OFFSCREEN_TEST=true
+          go run ./byke2d/examples/cube/
 
   CompileWASM:
     runs-on: ubuntu-latest
