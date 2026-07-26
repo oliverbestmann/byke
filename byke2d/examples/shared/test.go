@@ -1,12 +1,15 @@
 package shared
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
 	"log/slog"
 	"maps"
 	"os"
+	"slices"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d"
@@ -14,22 +17,30 @@ import (
 
 var InTesting = os.Getenv("BYKE_RUN_OFFSCREEN_TEST") == "true"
 
-type Hashes map[int]byke2d.Hash
+type Snapshots map[int]byke2d.Hash
 
-func RunAppInTest(app byke.App, frameCount int, expected Hashes) {
+type FramesToSnapshot []int
+
+func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 	if !InTesting {
 		app.MustRun()
 		return
 	}
 
-	actual := Hashes{}
+	// load existing snapshots
+	expected := loadSnapshots()
+
+	frameCount := slices.Max(framesToSnapshot) + 15
+
+	actual := Snapshots{}
 
 	var callback byke2d.DebugFrameCallback = func(frameIndex int, image *image.NRGBA) error {
-		if _, ok := expected[frameIndex]; !ok {
+		if !slices.Contains(framesToSnapshot, frameIndex) {
 			return nil
 		}
 
-		actual[frameIndex] = calculateImageHash(image)
+		// record snapshot for this frame
+		actual[frameIndex] = calculateSnapshot(image)
 		return saveImage(frameIndex, image)
 	}
 
@@ -49,7 +60,12 @@ func RunAppInTest(app byke.App, frameCount int, expected Hashes) {
 
 	app.MustRun()
 
-	// compare hashes
+	// if we had no snapshots, write them to the file
+	if len(expected) == 0 && len(actual) > 0 {
+		writeSnapshots(actual)
+	}
+
+	// compare snapshots
 	if !maps.Equal(actual, expected) {
 		_, _ = fmt.Fprintf(os.Stderr, "Expected %#v\n", expected)
 		_, _ = fmt.Fprintf(os.Stderr, "Got %#v\n", actual)
@@ -57,7 +73,44 @@ func RunAppInTest(app byke.App, frameCount int, expected Hashes) {
 	}
 }
 
-func calculateImageHash(im *image.NRGBA) byke2d.Hash {
+func writeSnapshots(snapshots Snapshots) {
+	encoded, err := json.MarshalIndent(snapshots, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+
+	path := "snapshots.json"
+	err = os.WriteFile(path, encoded, 0644)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func loadSnapshots() Snapshots {
+	path := "snapshots.json"
+	slog.Info("Loading snapshots", slog.String("path", path))
+
+	fp, err := os.Open(path)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			panic(err)
+		}
+
+		slog.Warn("Hashes not found", slog.String("path", path))
+		return nil
+	}
+
+	defer fp.Close()
+
+	var snapshots Snapshots
+	if err := json.NewDecoder(fp).Decode(&snapshots); err != nil {
+		panic(err)
+	}
+
+	return snapshots
+}
+
+func calculateSnapshot(im *image.NRGBA) byke2d.Hash {
 	mask := uint32(0b_11111111_11110000_11110000_11110000)
 
 	var hash byke2d.Hash

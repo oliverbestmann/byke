@@ -18,10 +18,7 @@ func main() {
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
-	shared.RunAppInTest(app, 20, shared.Hashes{
-		// 0:  0x759ec0027ba7bc7c, // first frame is empty
-		10: 0x124a79f1e93cb688,
-	})
+	shared.RunAppInTest(app, shared.FramesToSnapshot{10})
 }
 
 func setupSystem(commands *Commands) {

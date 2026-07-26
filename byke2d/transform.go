@@ -80,11 +80,27 @@ func (t Transform) LookingAt(target, up glm.Vec3f) Transform {
 }
 
 func (t Transform) LookingTo(direction, up glm.Vec3f) Transform {
-	back := direction.Scale(-1)
+	back := direction.Scale(-1).Normalize()
 	right := up.Cross(back).Normalize()
 	up = back.Cross(right)
 
 	return t.WithRotation(glm.QuatFromMat3(glm.Mat3f{right, up, back}))
+}
+
+func (t Transform) TranslateAround(point glm.Vec3f, rotation glm.Quat) Transform {
+	t.Translation = point.Add(rotation.Transform(t.Translation.Sub(point)))
+	return t
+}
+
+func (t Transform) RotateAround(point glm.Vec3f, rotation glm.Quat) Transform {
+	t = t.TranslateAround(point, rotation)
+	t = t.Rotate(rotation)
+	return t
+}
+
+func (t Transform) Rotate(rotation glm.Quat) Transform {
+	t.Rotation = t.Rotation.Mul(rotation)
+	return t
 }
 
 func (t Transform) Affine3() glm.Mat4f {

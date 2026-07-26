@@ -58,3 +58,13 @@ jobs:
           name: "Images animated-material GOEXPERIMENT=${{ matrix.config.goexperiment }}"
           path: "/tmp/image-*.png"
 
+
+      - name: "Run example offscreen: blend-modes"
+        run: ./run-example-test.sh ./byke2d/examples/render3d/blend-modes/
+
+      - name: "Upload generated images: blend-modes"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "Images blend-modes GOEXPERIMENT=${{ matrix.config.goexperiment }}"
+          path: "/tmp/image-*.png"
+

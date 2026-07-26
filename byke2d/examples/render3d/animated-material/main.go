@@ -19,11 +19,7 @@ func main() {
 	app.AddSystems(Update, animateMaterialsSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
-	shared.RunAppInTest(app, 240, shared.Hashes{
-		10:  0x939cc3fb2c684f69,
-		100: 0x5e121963eadda1f6,
-		200: 0x9ec251ddbcb0fbc,
-	})
+	shared.RunAppInTest(app, []int{10, 100, 200})
 }
 
 func setupSystem(commands *Commands) {
