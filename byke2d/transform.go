@@ -103,6 +103,18 @@ func (t Transform) Rotate(rotation glm.Quat) Transform {
 	return t
 }
 
+func (t Transform) RotateX(rotation glm.Rad) Transform {
+	return t.Rotate(glm.RotationXQuat(rotation))
+}
+
+func (t Transform) RotateY(rotation glm.Rad) Transform {
+	return t.Rotate(glm.RotationYQuat(rotation))
+}
+
+func (t Transform) RotateZ(rotation glm.Rad) Transform {
+	return t.Rotate(glm.RotationZQuat(rotation))
+}
+
 func (t Transform) Affine3() glm.Mat4f {
 	mat := glm.TranslationMat4f(t.Translation.XYZ())
 	mat.RotateAssign(t.Rotation)
