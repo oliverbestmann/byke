@@ -68,3 +68,23 @@ jobs:
           name: "Images blend-modes GOEXPERIMENT=${{ matrix.config.goexperiment }}"
           path: "/tmp/image-*.png"
 
+
+      - name: "Run example offscreen: rotation"
+        run: ./run-example-test.sh ./byke2d/examples/transform/rotation/
+
+      - name: "Upload generated images: rotation"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "Images rotation GOEXPERIMENT=${{ matrix.config.goexperiment }}"
+          path: "/tmp/image-*.png"
+
+
+      - name: "Run example offscreen: scale"
+        run: ./run-example-test.sh ./byke2d/examples/transform/scale/
+
+      - name: "Upload generated images: scale"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "Images scale GOEXPERIMENT=${{ matrix.config.goexperiment }}"
+          path: "/tmp/image-*.png"
+
