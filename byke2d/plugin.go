@@ -22,7 +22,6 @@ var (
 	TransformSystems  = &byke.SystemSet{}
 	VisibilitySystems = &byke.SystemSet{}
 	AudioSystems      = &byke.SystemSet{}
-	DeriveSprites     = &byke.SystemSet{}
 )
 
 var (
@@ -90,6 +89,7 @@ func PluginRender(app *byke.App) {
 	app.InsertResource(makeAssets(
 		app.World(), assetFs.FS,
 		ImageLoader{},
+		Ktx2Loader{},
 		TextureLoader{},
 		AudioLoader{},
 		GLTFLoader{},

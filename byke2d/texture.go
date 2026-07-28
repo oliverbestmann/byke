@@ -11,10 +11,11 @@ import (
 )
 
 type Texture struct {
-	Texture     *wgpu.Texture
-	TextureView *wgpu.TextureView
-	Descriptor  *wgpu.TextureDescriptor
-	Sampler     *wgpu.Sampler
+	Texture            *wgpu.Texture
+	TextureView        *wgpu.TextureView
+	Descriptor         *wgpu.TextureDescriptor
+	Sampler            *wgpu.Sampler
+	DisableAutoMipmaps bool
 }
 
 func (t *Texture) Size() glm.Vec2f {
@@ -60,7 +61,7 @@ func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts ...WritePixelsOptio
 
 	region := glm.RectuFromXYWH(0, 0, t.Width(), t.Height())
 
-	var generateMipMaps = true
+	var generateMipMaps = !t.DisableAutoMipmaps
 
 	for _, opt := range opts {
 		// fail if not in rect
@@ -191,6 +192,7 @@ func NewTexture2d(ctx *RenderContext, opts NewTexture2dOptions) *Texture {
 }
 
 type NewTextureDescriptor struct {
+	DisableAutoMipmaps    bool
 	TextureDescriptor     *wgpu.TextureDescriptor
 	TextureViewDescriptor *wgpu.TextureViewDescriptor
 	SamplerDescriptor     *wgpu.SamplerDescriptor
@@ -217,6 +219,9 @@ func NewTextureFromDesc(ctx *RenderContext, desc NewTextureDescriptor) *Texture 
 		TextureView: textureView,
 		Descriptor:  desc.TextureDescriptor,
 		Sampler:     sampler,
+
+		// do not automatically generate mipmaps
+		DisableAutoMipmaps: desc.DisableAutoMipmaps,
 	}
 }
 

@@ -93,6 +93,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 }
 
 func loadSkybox(ctx *RenderContext, a *Assets) *Texture {
+	return a.Texture("skybox/pisa.ktx2").Await()
 	// layer 0 => positive x
 	// layer 1 => negative x
 	// layer 2 => positive y
