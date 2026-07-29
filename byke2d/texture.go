@@ -201,6 +201,11 @@ type NewTextureDescriptor struct {
 // NewTextureFromDesc gives you full control and creates a texture directly from
 // a TextureDescriptor, a TextureViewDescriptor and a SamplerConfig
 func NewTextureFromDesc(ctx *RenderContext, desc NewTextureDescriptor) *Texture {
+	if !desc.DisableAutoMipmaps {
+		desc.TextureDescriptor.Usage |= wgpu.TextureUsageRenderAttachment
+		desc.TextureDescriptor.Usage |= wgpu.TextureUsageTextureBinding
+	}
+
 	texture := ctx.CreateTexture(desc.TextureDescriptor)
 
 	// now create a default texture view

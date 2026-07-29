@@ -10,10 +10,16 @@ import (
 
 	_ "image/jpeg"
 	_ "image/png"
+
+	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
 type LoadTextureSettings struct {
 	TextureFromImageOptions
+
+	// for ktx loading
+	OverrideTextureDimension     wgpu.TextureDimension
+	OverrideTextureViewDimension wgpu.TextureViewDimension
 }
 
 func (*LoadTextureSettings) IsLoadSettings() {}

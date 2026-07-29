@@ -24,6 +24,11 @@ func (i Ktx2Loader) Type() reflect.Type {
 func (i Ktx2Loader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	defer func() { _ = r.Close() }()
 
+	var settings LoadTextureSettings
+	if ctx.Settings != nil {
+		settings = *ctx.Settings.(*LoadTextureSettings)
+	}
+
 	renderContext, ok := ctx.World.ResourceOf[RenderContext]()
 	if !ok {
 		return nil, errors.New("no RenderContext in world")
@@ -39,6 +44,14 @@ func (i Ktx2Loader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	dim, dimView, err := ktx2MapTextureType(k)
 	if err != nil {
 		return nil, fmt.Errorf("mapping dimension: %w", err)
+	}
+
+	if settings.OverrideTextureDimension != 0 {
+		dim = settings.OverrideTextureDimension
+	}
+
+	if settings.OverrideTextureViewDimension != 0 {
+		dimView = settings.OverrideTextureViewDimension
 	}
 
 	format, ok := ktx2VkFormatToWGSL[k.Header.VkFormat]
@@ -148,4 +161,7 @@ func (i Ktx2Loader) Extensions() []string {
 
 var ktx2VkFormatToWGSL = map[ktx2.VkFormat]wgpu.TextureFormat{
 	ktx2.VK_FORMAT_E5B9G9R9_UFLOAT_PACK32: wgpu.TextureFormatRGB9E5Ufloat,
+	ktx2.VK_FORMAT_B8G8R8A8_SRGB:          wgpu.TextureFormatBGRA8UnormSrgb,
+	ktx2.VK_FORMAT_R8G8B8A8_SRGB:          wgpu.TextureFormatRGBA8UnormSrgb,
+	ktx2.VK_FORMAT_R16G16B16A16_SFLOAT:    wgpu.TextureFormatRGBA16Float,
 }

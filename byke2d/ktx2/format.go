@@ -155,16 +155,16 @@ func (r Reader) TextureType() (TextureType, bool) {
 	h := r.Header
 
 	switch {
-	case h.PixelHeight == 0 && h.PixelDepth == 0 && h.LayerCount <= 1 && h.FaceCount == 1:
+	case h.PixelHeight == 0 && h.PixelDepth == 0 && h.LayerCount == 0 && h.FaceCount == 1:
 		return TextureType1d, true
 
-	case h.PixelHeight > 0 && h.PixelDepth == 0 && h.LayerCount <= 1 && h.FaceCount == 1:
+	case h.PixelHeight > 0 && h.PixelDepth == 0 && h.LayerCount == 0 && h.FaceCount == 1:
 		return TextureType2d, true
 
-	case h.PixelHeight > 0 && h.PixelDepth > 0 && h.LayerCount <= 1 && h.FaceCount == 1:
+	case h.PixelHeight > 0 && h.PixelDepth > 0 && h.LayerCount == 0 && h.FaceCount == 1:
 		return TextureType3d, true
 
-	case h.PixelHeight > 0 && h.PixelDepth == 0 && h.LayerCount <= 1 && h.FaceCount == 6:
+	case h.PixelHeight > 0 && h.PixelDepth == 0 && h.LayerCount == 0 && h.FaceCount == 6:
 		return TextureTypeCubemap, true
 
 	case h.PixelHeight == 0 && h.PixelDepth == 0 && h.LayerCount > 0 && h.FaceCount == 1:
