@@ -33,7 +33,7 @@ func setupSystem(commands *Commands) {
 
 	commands.Spawn(
 		TransformFromXYZ(5, 5, 10).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
-		PointLight{Color: ColorLinearRGB(10, 10, 10), AttQuadratic: 1},
+		PointLight{Color: ColorLinearRGB(1, 1, 1), Illuminance: 100},
 	)
 
 	cube := CubeWithSize(glm.Vec3f{0.5, 0.5, 0.5})
@@ -45,7 +45,7 @@ func setupSystem(commands *Commands) {
 			commands.Spawn(
 				TransformFromXYZ(float32(x), 0, float32(z)),
 				MeshInstance{Mesh: cube},
-				StandardMaterial{Tint: color.ToColor()},
+				StandardMaterial{BaseColor: color.ToColor()},
 				OkColor{Color: color},
 			)
 
@@ -68,6 +68,6 @@ func animateMaterialsSystem(
 ) {
 	for item := range blocksQuery.Items() {
 		item.OkColor.Color.H += 2 * vt.DeltaSecs
-		item.Material.Tint = item.OkColor.Color.ToColor()
+		item.Material.BaseColor = item.OkColor.Color.ToColor()
 	}
 }

@@ -34,20 +34,25 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(0, 0.5, 0),
 		MeshInstance{Mesh: Cube()},
-		StandardMaterial{Tint: ColorSRGB(0.5, 0.6, 1.0)},
+		StandardMaterial{BaseColor: ColorSRGB(0.5, 0.6, 1.0)},
 	)
 
 	commands.Spawn(
 		NewTransform().WithRotationX(glm.DegToRad(-90)),
 		MeshInstance{Mesh: Circle(4.0, 64)},
-		StandardMaterial{Tint: ColorSRGB(1, 1, 1), DoubleSided: true},
+		StandardMaterial{
+			BaseColor:           ColorSRGB(1, 1, 1),
+			DoubleSided:         true,
+			PerceptualRoughness: 0.5,
+			Metallic:            0.5,
+		},
 	)
 
 	commands.Spawn(
 		TransformFromXYZ(4, 8, 4),
 		PointLight{
-			Color:        ColorLinearRGB(10, 10, 10),
-			AttQuadratic: 1,
+			Color:       ColorLinearRGB(1, 1, 1),
+			Illuminance: 50,
 		},
 	)
 }

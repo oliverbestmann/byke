@@ -69,11 +69,6 @@ struct VertexOutput {
     @location(6) @interpolate(flat) material: u32,
 };
 
-struct FragmentIn {
-    ambient_occlusion: f32,
-};
-
-
 #ifdef SKINNED
 
 // Size of the array must match the maxJoints constant
@@ -110,10 +105,11 @@ fn skin_normals(
 
 #endif
 
-
 #ifdef MORPH
 #import byke2d::mesh::morph
 #endif
+
+#import byke2d::pbr
 
 fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 #ifdef SKINNED
@@ -188,53 +184,7 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
     return out;
 }
 
-fn default_mesh3d_fragment(vertex: VertexOutput, fin: FragmentIn) -> vec4f {
-    var color = vertex.color;
-
-    // TODO support logical expressions
-#ifdef LIGHTING
-#ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    var tint = light_config.ambient * fin.ambient_occlusion;
-
-    var normal = normalize(vertex.normal);
-
-    // apply directional lights
-    for (var i: u32 = 0; i < directional_lights.count; i++) {
-        let light = directional_lights.lights[i];
-
-        let l = normalize(light.direction);
-        let n_dot_l = max(dot(normal, l), 0.0);
-
-        tint += light.color.rgb * n_dot_l;
-    }
-
-    // apply point lights
-    for (var i: u32 = 0; i < point_lights.count; i++) {
-        let light = point_lights.lights[i];
-
-        let light_vec = light.position - vertex.position_world;
-        let distance = length(light_vec);
-        let l = normalize(light_vec);
-        let n_dot_l = max(dot(normal, l), 0.0);
-
-        let attenuation =
-            1.0 /
-            (light.att_constant +
-             light.att_linear * distance +
-             light.att_quadratic * distance * distance);
-
-        tint += light.color.rgb * attenuation * n_dot_l;
-    }
-
-    // apply spot lights
-    // TODO
-
-    // apply light
-    color = vec4f(color.rgb * tint, color.a);
-
-#endif
-#endif
-
-    return color;
+fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
+    return vertex.color;
 }
 

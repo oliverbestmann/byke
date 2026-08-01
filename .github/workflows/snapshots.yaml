@@ -88,3 +88,13 @@ jobs:
           name: "Images scale GOEXPERIMENT=${{ matrix.config.goexperiment }}"
           path: "/tmp/image-*.png"
 
+
+      - name: "Run example offscreen: pbr"
+        run: ./run-example-test.sh ./byke2d/examples/transform/pbr/
+
+      - name: "Upload generated images: pbr"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "Images pbr GOEXPERIMENT=${{ matrix.config.goexperiment }}"
+          path: "/tmp/image-*.png"
+

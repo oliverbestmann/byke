@@ -18,8 +18,12 @@ var DebugNormals bool
 type StandardMaterial struct {
 	byke.Component[StandardMaterial]
 
-	// Tint tints the mesh color rendering
-	Tint Color
+	// BaseColor tints the mesh color rendering
+	BaseColor Color
+
+	// PBR values, zero to one
+	Metallic            float32
+	PerceptualRoughness float32
 
 	// Texture is an optional texture to apply to the mesh. This requires the
 	// VertexAttributeUV to be set. Will be ignored if UVs are not set
@@ -155,10 +159,12 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 }
 
 func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
-	w.AppendVec4f(m.Tint.ToVec())
+	w.AppendVec4f(m.BaseColor.ToVec())
 	w.AppendVec3f(m.EmissiveScale)
 	w.AppendUint(uint32(boolToInt(m.DoubleSided)))
 	w.AppendFloat32(m.AlphaCutoff)
+	w.AppendFloat32(m.Metallic)
+	w.AppendFloat32(m.PerceptualRoughness)
 }
 
 func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {

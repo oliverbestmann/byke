@@ -36,7 +36,7 @@ fn coords_to_ray_direction(position: vec2<f32>, viewport: vec4<f32>) -> vec3<f32
     let skybox_transform = mat4x4(
         1, 0, 0, 0,
         0, 1, 0, 0,
-        0, 0, 1, 0,
+        0, 0, -1, 0, // flip z axis to match env map lighting^
         0, 0, 0, 1,
     );
 

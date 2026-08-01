@@ -288,10 +288,8 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 		sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
 			PointLight{
-				Color:        ColorLinearRGB(glm.Vec3f(light.Color).Scale(light.Intensity).XYZ()),
-				AttConstant:  0,
-				AttLinear:    0,
-				AttQuadratic: 1,
+				Color:       ColorLinearRGB(glm.Vec3f(light.Color).XYZ()),
+				Illuminance: light.Intensity,
 			},
 		)
 	}
@@ -336,7 +334,7 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 	mat := sc.Handle.Materials[matId]
 
 	// parse base color
-	m.Tint = ColorOf(mat.BaseColor())
+	m.BaseColor = ColorOf(mat.BaseColor())
 
 	// enable double sided rendering
 	m.DoubleSided = mat.DoubleSided

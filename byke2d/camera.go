@@ -304,6 +304,7 @@ func prepareViewUniformsSystem(
 		*view.ViewUniforms = ViewUniforms{
 			ViewportOrigin:    glm.Vec2f{},
 			ViewportSize:      view.ViewTarget.Size,
+			CameraPosition:    view.Transform.Affine.Translation(),
 			CameraToScreen:    cameraToScreen,
 			CameraToScreenInv: cameraToScreenInv,
 			WorldToCamera:     vv.WorldToCamera(),

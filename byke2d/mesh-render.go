@@ -1,7 +1,10 @@
 package byke2d
 
 import (
+	"bytes"
 	"cmp"
+	_ "embed"
+	"fmt"
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
@@ -10,6 +13,8 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
+var _ = byke.ValidateComponent[MeshViewBindGroup]()
+
 func pluginMesh3d(app *byke.App) {
 	app.InitResource[ExtractedMeshes]()
 	app.InitResource[meshInstances]()
@@ -17,6 +22,8 @@ func pluginMesh3d(app *byke.App) {
 	app.InitResource[skinUniforms]()
 	app.InitResource[morphUniforms]()
 	app.InitResource[meshPipelineCache]()
+
+	app.AddSystems(byke.Startup, setupBrdfLookupTableSystem)
 
 	app.AddSystems(Render, byke.System(queueMeshInstancesSystem).InSet(RenderPhaseQueue))
 
@@ -38,6 +45,8 @@ func pluginMesh3d(app *byke.App) {
 
 	app.AddPlugin(PluginMaterial[StandardMaterial])
 	app.AddPlugin(PluginMaterial[ColorMaterial])
+
+	app.AddPlugin(ComponentUniformsPlugin[EnvironmentMapLight])
 }
 
 type ExtractedMeshes struct {
@@ -180,8 +189,9 @@ func prepareMeshPipelinesSystems(
 	pipelines *PipelineCache,
 	cache *meshPipelineCache,
 	viewsQuery byke.Query[struct {
-		ViewId     byke.EntityId
-		ViewTarget ViewTarget
+		ViewId              byke.EntityId
+		ViewTarget          ViewTarget
+		EnvironmentMapLight byke.Has[EnvironmentMapLight]
 	}],
 ) {
 	cache.Tick()
@@ -195,6 +205,9 @@ func prepareMeshPipelinesSystems(
 				Morph:        mesh.HashMorphWeights,
 				VertexLayout: mesh.Mesh.VertexLayout(),
 				Material:     mesh.Material,
+				MeshView: MeshViewBindGroupLayoutOptions{
+					EnvironmentMapLight: view.EnvironmentMapLight.Exists(),
+				},
 			}
 
 			key := meshPipelineCacheKey{
@@ -291,48 +304,80 @@ func prepareMeshInstancesSystem(
 	instances.WriteTo(ctx, &meshInstances.Buffer, "Mesh Instances")
 }
 
-var MeshViewBindGroupLayout = SequentialLayout(
-	// View, offset by active ViewUniforms
-	Indexed(0, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
+type MeshViewBindGroupLayoutOptions struct {
+	EnvironmentMapLight bool
+}
 
-	// Globals
-	Indexed(1, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false)),
+func MeshViewBindGroupLayout(opts MeshViewBindGroupLayoutOptions) wgpu.BindGroupLayoutDescriptor {
+	var bindings = []wgpu.BindGroupLayoutEntry{
+		// View, offset by active ViewUniforms
+		Indexed(0, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
 
-	// All the lights
-	Indexed(10, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false)),
-	Indexed(11, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
-	Indexed(12, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
-	Indexed(13, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+		// Globals
+		Indexed(1, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false)),
 
-	// All morph descriptors
-	Indexed(20, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+		// All the lights
+		Indexed(10, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, false)),
+		Indexed(11, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+		Indexed(12, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+		Indexed(13, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
 
-	// All morph weights
-	Indexed(21, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+		// All morph descriptors
+		Indexed(20, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
 
-	// All skin joint transforms, offset by entityId
-	Indexed(30, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
-)
+		// All morph weights
+		Indexed(21, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
 
-type meshViewBindGroup struct {
+		// All skin joint transforms, offset by entityId
+		Indexed(30, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
+	}
+
+	if opts.EnvironmentMapLight {
+		bindings = append(bindings,
+			// For PBR rendering, we might need the environment map & specular lighting
+			// as well as its configuration parameters. If we do not have an environment map,
+			// we'll bind an empty texture
+			Indexed(40, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
+			Indexed(41, BindingLayoutTextureCube(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(42, BindingLayoutTextureCube(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(43, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(44, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
+		)
+	}
+
+	return SequentialLayoutWithLabel("MeshView", bindings...)
+}
+
+type MeshViewBindGroup struct {
+	byke.Component[MeshViewBindGroup]
+	Options   MeshViewBindGroupLayoutOptions
 	BindGroup *wgpu.BindGroup
 }
 
+// prepareMeshViewBindGroupSystem prepares the "view" bind group for the mesh pipeline.
+// It contains references to the projection, lights, etc.
+// This is created once per view.
 func prepareMeshViewBindGroupSystem(
+	commands *byke.Commands,
 	ctx *RenderContext,
-	bindGroup *meshViewBindGroup,
 	viewBindGroup ViewBindGroup,
 	morphUniforms morphUniforms,
 	skinUniforms skinUniforms,
 	lights *lightsStorage,
 	viewUniforms *ComponentUniforms[ViewUniforms],
+	environments *ComponentUniforms[EnvironmentMapLight],
+	brdfLookupTable brdfLookupTable,
+	cameraQuery byke.Query[struct {
+		_                   byke.With[ViewTarget]
+		EntityId            byke.EntityId
+		EnvironmentMapLight byke.Option[EnvironmentMapLight]
+		BindGroup           byke.OptionMut[MeshViewBindGroup]
+	}],
 ) {
-	bindGroup.BindGroup.Release()
+	for camera := range cameraQuery.Items() {
+		var opts MeshViewBindGroupLayoutOptions
 
-	bindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Label:  "MeshView",
-		Layout: ctx.CreateBindGroupLayout(MeshViewBindGroupLayout),
-		Entries: Sequential(
+		entries := []wgpu.BindGroupEntry{
 			Indexed(0, viewUniforms.Binding()),
 			Indexed(1, BindingBuffer(viewBindGroup.BufferGlobals)),
 
@@ -345,8 +390,61 @@ func prepareMeshViewBindGroupSystem(
 			Indexed(21, BindingBuffer(morphUniforms.BufWeights)),
 
 			Indexed(30, BindingBufferSize(skinUniforms.BufJoints, 0, 64*256)),
-		),
-	})
+		}
+
+		if env, ok := camera.EnvironmentMapLight.Get(); ok {
+			opts.EnvironmentMapLight = true
+
+			entries = append(entries,
+				Indexed(40, environments.Binding()),
+				Indexed(41, BindingTextureView(env.DiffuseMap.TextureView)),
+				Indexed(42, BindingTextureView(env.SpecularMap.TextureView)),
+				Indexed(43, BindingTextureView(brdfLookupTable.Texture.TextureView)),
+				Indexed(44, BindingSampler(brdfLookupTable.Texture.Sampler)),
+			)
+		}
+
+		layout := MeshViewBindGroupLayout(opts)
+
+		bindGroup := MeshViewBindGroup{
+			Options: opts,
+			BindGroup: ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+				Label:   "MeshView",
+				Layout:  ctx.CreateBindGroupLayout(layout),
+				Entries: Sequential(entries...),
+			}),
+		}
+
+		if b, ok := camera.BindGroup.Get(); ok {
+			// release previous bind group
+			b.BindGroup.Release()
+
+			// and replace with new one
+			*b = bindGroup
+		} else {
+			commands.Entity(camera.EntityId).Insert(bindGroup)
+		}
+	}
+}
+
+type brdfLookupTable struct {
+	Texture *Texture
+}
+
+//go:embed brdf-lut.ktx2
+var brdfLookupTableTextureKTX []byte
+
+func setupBrdfLookupTableSystem(commands *byke.Commands, ctx *RenderContext) {
+	tex, err := LoadKTXToTexture(ctx,
+		bytes.NewReader(brdfLookupTableTextureKTX),
+		LoadKTXTextureOptions{},
+		"brdf lut")
+
+	if err != nil {
+		panic(fmt.Errorf("load brdf-lut: %w", err))
+	}
+
+	commands.InsertResource(brdfLookupTable{Texture: tex})
 }
 
 // MeshBindGroups holds the per mesh bind group containing mesh
@@ -429,7 +527,6 @@ func drawMeshesBatch(world *byke.World, pass *TrackedRenderPassEncoder, item Ren
 
 func drawMeshesBatchSystem(
 	task byke.In[RenderTask],
-	meshViewBindGroup meshViewBindGroup,
 	meshBindGroups MeshBindGroups,
 	meshes *ExtractedMeshes,
 	meshInstances *meshInstances,
@@ -438,9 +535,11 @@ func drawMeshesBatchSystem(
 	materialBindGroups *MaterialBindGroups,
 	skinUniforms *skinUniforms,
 	viewQuery ViewQuery[struct {
-		ViewId             byke.EntityId
-		ViewTarget         *ViewTarget
-		ViewUniformsOffset DynamicOffset[ViewUniforms]
+		ViewId              byke.EntityId
+		ViewTarget          *ViewTarget
+		MeshBindGroup       MeshViewBindGroup
+		ViewUniformsOffset  DynamicOffset[ViewUniforms]
+		EnvironmentMapLight byke.Option[DynamicOffset[EnvironmentMapLight]]
 	}],
 ) {
 	view := viewQuery.Get()
@@ -473,9 +572,18 @@ func drawMeshesBatchSystem(
 		panic("mesh bind group is missing")
 	}
 
+	dynamicOffsetsForViewGroup := []uint32{
+		view.ViewUniformsOffset.Offset,
+		skinOffset,
+	}
+
+	if off, ok := view.EnvironmentMapLight.Get(); ok {
+		dynamicOffsetsForViewGroup = append(dynamicOffsetsForViewGroup, off.Offset)
+	}
+
 	pass.SetPipeline(pipeline.Get())
 
-	pass.SetBindGroup(0, meshViewBindGroup.BindGroup, []uint32{view.ViewUniformsOffset.Offset, skinOffset})
+	pass.SetBindGroup(0, view.MeshBindGroup.BindGroup, dynamicOffsetsForViewGroup)
 	pass.SetBindGroup(1, meshBindGroup, nil)
 	pass.SetBindGroup(2, materialBindGroup, nil)
 

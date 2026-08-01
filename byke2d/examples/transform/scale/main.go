@@ -54,7 +54,7 @@ func setupSystem(commands *Commands) {
 	// Spawn a cube to scale.
 	commands.Spawn(
 		MeshInstance{Mesh: Cube()},
-		StandardMaterial{Tint: ColorSRGB(1, 1, 1)},
+		StandardMaterial{BaseColor: ColorSRGB(1, 1, 1)},
 		TransformFromXYZ(0, 0, 0).RotateY(math.Pi/4),
 		NewScaling(),
 	)
@@ -69,7 +69,7 @@ func setupSystem(commands *Commands) {
 
 	// Add a light source so we can see clearly.
 	commands.Spawn(
-		PointLight{Color: ColorLinearRGB(5, 5, 5), AttQuadratic: 1},
+		PointLight{Color: ColorLinearRGB(1, 1, 1), Illuminance: 10},
 		TransformFromXYZ(3, 3, 3).LookingAt(glm.Vec3f{0, 0, 0}, glm.Vec3f{0, 1, 0}),
 	)
 }

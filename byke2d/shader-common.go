@@ -14,6 +14,8 @@ type ViewUniforms struct {
 	ViewportOrigin glm.Vec2f
 	ViewportSize   glm.Vec2f
 
+	CameraPosition glm.Vec3f
+
 	CameraToScreen    glm.Mat4f
 	CameraToScreenInv glm.Mat4f
 	WorldToCamera     glm.Mat4f
@@ -29,6 +31,8 @@ func (v ViewUniforms) ToWGPU() []byte {
 		v.ViewportOrigin[0], v.ViewportOrigin[1],
 		v.ViewportSize[0], v.ViewportSize[1],
 	})
+
+	w.AppendVec3f(v.CameraPosition)
 
 	w.AppendMat4f(v.CameraToScreen)
 	w.AppendMat4f(v.CameraToScreenInv)

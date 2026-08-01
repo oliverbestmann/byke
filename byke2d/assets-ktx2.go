@@ -36,6 +36,15 @@ func (i Ktx2Loader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 
 	label := path.Base(ctx.Path)
 
+	return LoadKTXToTexture(renderContext, r, settings.LoadKTXTextureOptions, label)
+}
+
+type LoadKTXTextureOptions struct {
+	OverrideTextureDimension     wgpu.TextureDimension
+	OverrideTextureViewDimension wgpu.TextureViewDimension
+}
+
+func LoadKTXToTexture(renderContext *RenderContext, r io.ReadSeeker, settings LoadKTXTextureOptions, label string) (*Texture, error) {
 	k, err := ktx2.Open(r)
 	if err != nil {
 		return nil, fmt.Errorf("load ktx2 header: %w", err)
@@ -164,4 +173,5 @@ var ktx2VkFormatToWGSL = map[ktx2.VkFormat]wgpu.TextureFormat{
 	ktx2.VK_FORMAT_B8G8R8A8_SRGB:          wgpu.TextureFormatBGRA8UnormSrgb,
 	ktx2.VK_FORMAT_R8G8B8A8_SRGB:          wgpu.TextureFormatRGBA8UnormSrgb,
 	ktx2.VK_FORMAT_R16G16B16A16_SFLOAT:    wgpu.TextureFormatRGBA16Float,
+	ktx2.VK_FORMAT_R16G16_SFLOAT:          wgpu.TextureFormatRG16Float,
 }

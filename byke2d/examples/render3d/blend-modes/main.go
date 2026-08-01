@@ -36,8 +36,8 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(4, 8, 4),
 		PointLight{
-			Color:        ColorLinearRGB(25, 25, 25),
-			AttQuadratic: 1,
+			Color:       ColorLinearRGB(1, 1, 1),
+			Illuminance: 100,
 		},
 	)
 
@@ -58,7 +58,7 @@ func setupSystem(commands *Commands) {
 		commands.Spawn(
 			TransformFromXYZ(-5+float32(2*idx), 0, 0),
 			MeshInstance{Mesh: sphere},
-			StandardMaterial{Tint: baseColor, AlphaMode: alphaMode},
+			StandardMaterial{BaseColor: baseColor, AlphaMode: alphaMode},
 		)
 	}
 }
@@ -81,7 +81,7 @@ func setupFloorTilesSystem(
 			commands.Spawn(
 				TransformFromXYZ(float32(2*x), -1, float32(2*z)),
 				MeshInstance{Mesh: plane},
-				StandardMaterial{Tint: tileColor},
+				StandardMaterial{BaseColor: tileColor},
 			)
 		}
 	}

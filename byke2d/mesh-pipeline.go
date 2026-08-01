@@ -14,6 +14,9 @@ type meshPipelineConfig struct {
 	SampleCount  uint32
 	Skinned      bool
 	Morph        bool
+
+	// options to pick the mesh view bind group layout
+	MeshView MeshViewBindGroupLayoutOptions
 }
 
 func (m meshPipelineConfig) EqualTo(other PipelineConfig) bool {
@@ -24,7 +27,8 @@ func (m meshPipelineConfig) EqualTo(other PipelineConfig) bool {
 		m.Skinned == otherConfig.Skinned &&
 		m.Morph == otherConfig.Morph &&
 		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
-		m.Material.PipelineKey() == otherConfig.Material.PipelineKey()
+		m.Material.PipelineKey() == otherConfig.Material.PipelineKey() &&
+		m.MeshView == otherConfig.MeshView
 }
 
 func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
@@ -80,13 +84,14 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 
 	values.Define("SKINNED", m.Skinned)
 	values.Define("MORPH", m.Morph)
+	values.Define("MESH_ENVMAP_LIGHT", m.MeshView.EnvironmentMapLight)
 
 	mod := ctx.Shader(shader.Label, shader.Source, values)
 
 	desc := RenderPipelineDescriptor{
 		Label: "mesh3d pipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
-			MeshViewBindGroupLayout,
+			MeshViewBindGroupLayout(m.MeshView),
 			MeshBindGroupLayout,
 		},
 		Vertex: wgpu.VertexState{

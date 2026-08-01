@@ -185,3 +185,7 @@ fn fast_atan2(y: f32, x: f32) -> f32 {
     return t3;
 }
 
+fn pow5(x: f32) -> f32 {
+  let x2 = x * x;
+  return x2 * x2 * x;
+}

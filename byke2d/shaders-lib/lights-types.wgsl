@@ -24,9 +24,6 @@ struct PointLights {
 struct PointLight {
     color: vec3f,
     position: vec3f,
-    att_constant: f32,
-    att_linear: f32,
-    att_quadratic: f32,
 }
 
 

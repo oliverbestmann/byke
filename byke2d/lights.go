@@ -19,7 +19,7 @@ type LightConfig struct {
 }
 
 var DefaultLightConfig = LightConfig{
-	Ambient: ColorSRGB(0.1, 0.1, 0.1),
+	Ambient: ColorSRGB(0.05, 0.05, 0.05),
 }
 
 type DirectionalLight struct {
@@ -35,10 +35,8 @@ func (DirectionalLight) RequireComponents() []spoke.ErasedComponent {
 
 type PointLight struct {
 	byke.Component[PointLight]
-	Color        Color
-	AttConstant  float32
-	AttLinear    float32
-	AttQuadratic float32
+	Color       Color
+	Illuminance float32
 }
 
 func (PointLight) RequireComponents() []spoke.ErasedComponent {
@@ -67,7 +65,6 @@ func pluginLights(app *byke.App) {
 	app.InsertResource(DefaultLightConfig)
 	app.InsertResource(ExtractedLights{})
 	app.InsertResource(lightsStorage{})
-	app.InsertResource(meshViewBindGroup{})
 	app.AddSystems(Render, byke.System(extractLights).InSet(RenderPhaseExtract))
 	app.AddSystems(Render, byke.System(prepareLightsStorage).InSet(RenderPhasePrepareResources))
 }
@@ -88,19 +85,13 @@ func (l *ExtractedLights) Clear() {
 }
 
 type ExtractedPointLight struct {
-	Position     glm.Vec3f
-	Color        glm.Vec3f
-	AttConstant  float32
-	AttLinear    float32
-	AttQuadratic float32
+	Position glm.Vec3f
+	Color    glm.Vec3f
 }
 
 func (l ExtractedPointLight) WriteTo(w *wgsl.StructWriter) {
-	w.AppendVec3f(l.Color.ToVec3f())
+	w.AppendVec3f(l.Color)
 	w.AppendVec3f(l.Position)
-	w.AppendFloat32(l.AttConstant)
-	w.AppendFloat32(l.AttLinear)
-	w.AppendFloat32(l.AttQuadratic)
 	w.Sync()
 }
 
@@ -169,11 +160,8 @@ func extractLights(
 		}
 
 		lights.PointLights = append(lights.PointLights, ExtractedPointLight{
-			Position:     item.Transform.Affine.Translation(),
-			Color:        item.Light.Color.ToVec3f(),
-			AttConstant:  item.Light.AttConstant,
-			AttLinear:    item.Light.AttLinear,
-			AttQuadratic: item.Light.AttQuadratic,
+			Position: item.Transform.Affine.Translation(),
+			Color:    item.Light.Color.ToVec3f().Scale(item.Light.Illuminance),
 		})
 	}
 
