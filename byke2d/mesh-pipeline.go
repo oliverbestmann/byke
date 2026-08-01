@@ -19,6 +19,18 @@ type meshPipelineConfig struct {
 	MeshView MeshViewBindGroupLayoutOptions
 }
 
+func (b meshPipelineConfig) Hash() uint32 {
+	h := HashFor[meshPipelineConfig]()
+	h.Int(b.Format)
+	h.Int(b.VertexLayout.Key())
+	h.Int(b.Material.PipelineKey())
+	h.Int(b.Material.BindGroupKey())
+	h.Int(b.SampleCount)
+	h.Bool(b.Skinned)
+	h.Bool(b.Morph)
+	return uint32(h)
+}
+
 func (m meshPipelineConfig) EqualTo(other PipelineConfig) bool {
 	otherConfig, ok := other.(meshPipelineConfig)
 	return ok &&

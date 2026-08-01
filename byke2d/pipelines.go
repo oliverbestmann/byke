@@ -19,6 +19,7 @@ type PipelineContext interface {
 type PipelineConfig interface {
 	Specialize(ctx PipelineContext) RenderPipelineDescriptor
 	EqualTo(other PipelineConfig) bool
+	Hash() uint32
 }
 
 type RenderPipelineDescriptor struct {

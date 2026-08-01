@@ -234,6 +234,12 @@ type tonemappingPipelineConfig struct {
 	SectionalColorGrading bool
 }
 
+func (r tonemappingPipelineConfig) Hash() uint32 {
+	h := HashFor[tonemappingPipelineConfig]()
+	h.Int(r.TargetFormat)
+	return uint32(h)
+}
+
 func (c tonemappingPipelineConfig) EqualTo(other PipelineConfig) bool {
 	return c == other
 }

@@ -2,12 +2,26 @@ package byke2d
 
 import (
 	"math"
+	"reflect"
 	"unsafe"
 
 	"golang.org/x/exp/constraints"
 )
 
 type Hash uint64
+
+func HashFor[T any]() Hash {
+	var h Hash = 0x6AFEC7DF3CEBAE4D
+
+	ty := reflect.TypeFor[T]()
+
+	// get the pointer to the interface type and use that to initialize the hash
+	type eface struct{ _, val unsafe.Pointer }
+
+	h.Int(uintptr((*eface)(unsafe.Pointer(&ty)).val))
+
+	return h
+}
 
 func (h *Hash) Pointer[T any](value *T) {
 	h.Update(uint64(uintptr(unsafe.Pointer(value))))

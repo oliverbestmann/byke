@@ -44,6 +44,13 @@ type skyboxPipeline struct {
 	SampleCount uint32
 }
 
+func (s skyboxPipeline) Hash() uint32 {
+	h := HashFor[bloomPipelineConfig]()
+	h.Int(s.ViewFormat)
+	h.Int(s.DepthFormat)
+	return uint32(h)
+}
+
 func (s skyboxPipeline) EqualTo(other PipelineConfig) bool {
 	return s == other
 }

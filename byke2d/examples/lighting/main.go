@@ -4,11 +4,13 @@ import (
 	_ "image/png"
 	"log/slog"
 	"os"
+	"runtime"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
+	"github.com/pkg/profile"
 )
 
 // //go:embed assets
@@ -30,9 +32,9 @@ func main() {
 	// configure assets before loading the plugin
 	app.InsertResource(MakeAssetFS(assets))
 
-	// if runtime.GOOS != "js" {
-	// 	defer profile.Start(profile.MemProfile).Stop()
-	// }
+	if runtime.GOOS != "js" {
+		defer profile.Start(profile.CPUProfile).Stop()
+	}
 
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Startup, setupSystem)

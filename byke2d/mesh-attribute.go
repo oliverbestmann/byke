@@ -177,6 +177,11 @@ type VertexLayout struct {
 	key VertexLayoutKey
 }
 
+// Hash returns the lower 32bit of Key() to satisfy the meh.Key interface.
+func (v VertexLayout) Hash() uint32 {
+	return uint32(v.Key())
+}
+
 // NewVertexLayout creates a new vertex layout from a set of attributes.
 // Attributes are automatically sorted by location for consistent GPU binding.
 func NewVertexLayout(attrs []VertexAttribute) VertexLayout {

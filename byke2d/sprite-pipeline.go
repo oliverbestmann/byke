@@ -8,6 +8,13 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
+func (r renderSpritePipelineConfig) Hash() uint32 {
+	h := HashFor[renderSpritePipelineConfig]()
+	h.Int(r.Format)
+	h.Int(r.SampleCount)
+	return uint32(h)
+}
+
 func (r renderSpritePipelineConfig) EqualTo(other PipelineConfig) bool {
 	return r == other
 }
