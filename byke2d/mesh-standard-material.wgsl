@@ -45,6 +45,14 @@ var occlusion: texture_2d<f32>;
 @binding(8)
 var occlusion_sampler: sampler;
 
+@group(2)
+@binding(9)
+var metallic_roughness: texture_2d<f32>;
+
+@group(2)
+@binding(10)
+var metallic_roughness_sampler: sampler;
+
 #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
 fn calculate_normal(normal: vec3f, tangent: vec3f, tangent_sign: f32, uv: vec2f) -> vec3f {
     // normal from texture (in tangent space)
@@ -98,16 +106,16 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
     color += texcol * vec4f(m.emissive_scale, 0.0);
 #endif
 
+    // calculate lighting and update color accordingly
+    let light = calculate_lighting(vertex, color.rgb);
+    color = vec4f(light, color.a);
+
 #ifdef MESH3D_MAT_HAS_EMISSIVE
     // apply emissive light to the color
     let emissive_color = textureSample(emissive, emissive_sampler, vertex.uv).rgb;
     let emissive = emissive_color * m.emissive_scale;
     color += vec4f(emissive, 0.0);
 #endif
-
-    // calculate lighting and update color accordingly
-    let light = calculate_lighting(vertex, color.rgb);
-    color = vec4f(light, color.a);
 
 #ifdef ALPHAMODE_OPAQUE
     color.a = 1.0;
@@ -151,14 +159,22 @@ fn calculate_lighting(vertex: VertexOutput, base_color: vec3f) -> vec3f {
     let V = normalize(view.camera_position - vertex.position_world);
     let N = normal;
 
+#ifdef MESH3D_MAT_HAS_RMTEX
+    let orm = textureSample(metallic_roughness, metallic_roughness_sampler, vertex.uv).rgb;
+    let metallic_scale = orm.b;
+    let roughness_scale = orm.g;
+#else
+    let metallic_scale: f32 = 1;
+    let roughness_scale: f32 = 1;
+#endif
 
     let material = materials[vertex.material];
-    let metallic = material.metallic;
-    let roughness = max(MIN_ROUGHNESS, material.perceptual_roughness);
+    let metallic = material.metallic * metallic_scale;
+    let roughness = max(MIN_ROUGHNESS, material.perceptual_roughness * roughness_scale);
 
 #ifdef MESH_ENVMAP_LIGHT
     // apply environment map to color
-    tint += sampleIBL(N, V, base_color, metallic, roughness)
+    tint += sample_ibl(N, V, base_color, metallic, roughness)
         // * pbr_env_options.intensity
         * ambient_occlusion;
 #endif

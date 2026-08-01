@@ -58,7 +58,7 @@ func setupSystem(commands *Commands) {
 		commands.Spawn(
 			TransformFromXYZ(-5+float32(2*idx), 0, 0),
 			MeshInstance{Mesh: sphere},
-			StandardMaterial{BaseColor: baseColor, AlphaMode: alphaMode},
+			StandardMaterial{BaseColor: baseColor, AlphaMode: alphaMode, PerceptualRoughness: 0.8},
 		)
 	}
 }
@@ -81,7 +81,7 @@ func setupFloorTilesSystem(
 			commands.Spawn(
 				TransformFromXYZ(float32(2*x), -1, float32(2*z)),
 				MeshInstance{Mesh: plane},
-				StandardMaterial{BaseColor: tileColor},
+				StandardMaterial{BaseColor: tileColor, PerceptualRoughness: 0.8},
 			)
 		}
 	}

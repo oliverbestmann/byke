@@ -51,10 +51,10 @@ func spawnGltfSceneSystem(
 	ctx *RenderContext,
 	assets *Assets,
 	scenesQuery byke.Query[struct {
-		_         byke.Changed[SceneRoot]
-		EntityId  byke.EntityId
-		SceneRoot SceneRoot
-	}],
+	_         byke.Changed[SceneRoot]
+	EntityId  byke.EntityId
+	SceneRoot SceneRoot
+}],
 ) {
 	for item := range scenesQuery.Items() {
 		handle := toGltfHandle(item.SceneRoot.Handle)
@@ -331,6 +331,8 @@ func (sc *spawnContext) spawnSkinInNode(node gltf.Node) {
 func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 	var m StandardMaterial
 
+	m.PerceptualRoughness = 1
+
 	mat := sc.Handle.Materials[matId]
 
 	// parse base color
@@ -359,6 +361,14 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 			// parse texture as srgb
 			m.Texture = sc.textureAt(baseColorTex.Index, false)
 		}
+
+		m.Metallic = derefOr(mr.MetallicFactor, 1.0)
+		m.PerceptualRoughness = sqr(derefOr(mr.RoughnessFactor, 1.0))
+
+		if rmTex := mr.MetallicRoughnessTexture; rmTex != nil {
+			// factors are linear
+			m.RoughnessMetallicTexture = sc.textureAt(rmTex.Index, true)
+		}
 	}
 
 	if no := mat.NormalTexture; no != nil {
@@ -382,6 +392,10 @@ func (sc *spawnContext) materialAt(matId gltf.Ref) StandardMaterial {
 	}
 
 	return m
+}
+
+func sqr(value float32) float32 {
+	return value * value
 }
 
 func (sc *spawnContext) textureAt(texId gltf.Ref, linearColors bool) *Texture {

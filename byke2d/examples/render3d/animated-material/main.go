@@ -45,7 +45,7 @@ func setupSystem(commands *Commands) {
 			commands.Spawn(
 				TransformFromXYZ(float32(x), 0, float32(z)),
 				MeshInstance{Mesh: cube},
-				StandardMaterial{BaseColor: color.ToColor()},
+				StandardMaterial{BaseColor: color.ToColor(), PerceptualRoughness: 0.8},
 				OkColor{Color: color},
 			)
 

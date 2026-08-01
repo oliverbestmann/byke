@@ -34,7 +34,7 @@ func setupSystem(commands *Commands) {
 	// Spawn a cube to rotate.
 	commands.Spawn(
 		MeshInstance{Mesh: Cube()},
-		StandardMaterial{BaseColor: ColorSRGB(1, 1, 1)},
+		StandardMaterial{BaseColor: ColorSRGB(1, 1, 1), PerceptualRoughness: 0.8},
 		Rotatable{speed: 0.3},
 	)
 

@@ -34,7 +34,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(0, 0.5, 0),
 		MeshInstance{Mesh: Cube()},
-		StandardMaterial{BaseColor: ColorSRGB(0.5, 0.6, 1.0)},
+		StandardMaterial{BaseColor: ColorSRGB(0.5, 0.6, 1.0), PerceptualRoughness: 0.8},
 	)
 
 	commands.Spawn(

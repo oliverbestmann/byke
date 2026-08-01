@@ -99,7 +99,7 @@ fn directPBR(
 
 #ifdef MESH_ENVMAP_LIGHT
 
-fn sampleIBL(
+fn sample_ibl(
   N: vec3<f32>,
   V: vec3<f32>,
   baseColor: vec3<f32>,
@@ -113,20 +113,20 @@ fn sampleIBL(
   let F = fresnelSchlick(NdotV, F0);
 
   let irradiance = textureSampleLevel(pbr_env_map_diffuse, pbr_env_sampler, N, 0.0).rgb;
-  let diffuseIBL = irradiance * baseColor / PI;
+  let diffuse_ibl = irradiance * baseColor;
 
-  let max_mip_level = f32(textureNumLevels(pbr_env_map_specular));
+  let max_mip_level = f32(textureNumLevels(pbr_env_map_specular) - 1);
   let mip_level = max_mip_level * roughness;
   let prefiltered_color = textureSampleLevel(pbr_env_map_specular, pbr_env_sampler, R, mip_level).rgb;
   let brdf = textureSample(pbr_brdf_lookup, pbr_env_sampler, vec2<f32>(NdotV, roughness)).rg;
 
   // Split-sum approximation
-  let specularIBL = prefiltered_color * (F0 * brdf.x + vec3<f32>(brdf.y));
+  let specular_ibl = prefiltered_color * (F0 * brdf.x + vec3<f32>(brdf.y));
 
   let kS = F;
   let kD = (vec3<f32>(1.0) - kS) * (1.0 - metallic);
 
-  return (kD * diffuseIBL + specularIBL);
+  return (kD * diffuse_ibl + specular_ibl);
 }
 
 #endif

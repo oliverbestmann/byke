@@ -18,21 +18,12 @@ var DebugNormals bool
 type StandardMaterial struct {
 	byke.Component[StandardMaterial]
 
-	// BaseColor tints the mesh color rendering
-	BaseColor Color
-
-	// PBR values, zero to one
-	Metallic            float32
-	PerceptualRoughness float32
+	// common material values
+	MaterialValues
 
 	// Texture is an optional texture to apply to the mesh. This requires the
 	// VertexAttributeUV to be set. Will be ignored if UVs are not set
 	Texture *Texture
-
-	// Optional emissive scale. This will be applied to the texture and added to the result,
-	// unaffected by lighting. If the material has an EmissiveTexture, it will multiply
-	// by the EmissiveTexture value
-	EmissiveScale glm.Vec3f
 
 	// The emissive texture if any
 	EmissiveTexture *Texture
@@ -40,11 +31,27 @@ type StandardMaterial struct {
 	// NormalTexture is an optional normal map texture
 	NormalTexture *Texture
 
-	// The occlusion texture if any
+	// The occlusion texture. Only Red channel is used
 	OcclusionTexture *Texture
 
-	// Some common material values
-	MaterialValues
+	// Texture for roughness (green) & metallic (blue)
+	RoughnessMetallicTexture *Texture
+
+	// BaseColor tints the mesh color rendering
+	BaseColor Color
+
+	// Optional emissive scale. This will be applied to the texture and added to the result,
+	// unaffected by lighting. If the material has an EmissiveTexture, it will multiply
+	// by the EmissiveTexture value
+	EmissiveScale glm.Vec3f
+
+	// Metallic value, zero to one.
+	Metallic float32
+
+	// PerceptualRoughness, zero to one.
+	// You should probably set this to a non-zero value.
+	// A good default is 1.0
+	PerceptualRoughness float32
 }
 
 func (m StandardMaterial) Shader() *ShaderDef {
@@ -53,6 +60,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	values.Define("MESH3D_MAT_HAS_NORMAL", m.NormalTexture != nil)
 	values.Define("MESH3D_MAT_HAS_EMISSIVE", m.EmissiveTexture != nil)
 	values.Define("MESH3D_MAT_HAS_OCCLUSION", m.OcclusionTexture != nil)
+	values.Define("MESH3D_MAT_HAS_RMTEX", m.RoughnessMetallicTexture != nil)
 
 	values.Define("ALPHAMODE_OPAQUE", m.AlphaMode == AlphaModeOpaque)
 	values.Define("ALPHAMODE_MASK", m.AlphaMode == AlphaModeMask)
@@ -117,6 +125,14 @@ func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 		)
 	}
 
+	if m.RoughnessMetallicTexture != nil {
+		entries = append(
+			entries,
+			Indexed(9, BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false)),
+			Indexed(10, BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering)),
+		)
+	}
+
 	return entries
 }
 
@@ -155,6 +171,14 @@ func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
 		)
 	}
 
+	if m.RoughnessMetallicTexture != nil {
+		entries = append(
+			entries,
+			Indexed(9, BindingTextureView(m.RoughnessMetallicTexture.TextureView)),
+			Indexed(10, BindingSampler(m.RoughnessMetallicTexture.Sampler)),
+		)
+	}
+
 	return entries
 }
 
@@ -173,6 +197,7 @@ func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
 	hash.Pointer(m.EmissiveTexture)
 	hash.Pointer(m.NormalTexture)
 	hash.Pointer(m.OcclusionTexture)
+	hash.Pointer(m.RoughnessMetallicTexture)
 	hash.Int(m.MaterialValues.BindGroupKey())
 	return MaterialBindGroupKey(hash)
 }
@@ -184,6 +209,7 @@ func (m StandardMaterial) PipelineKey() MaterialPipelineKey {
 	key |= boolToUint64(m.EmissiveTexture != nil) << 1
 	key |= boolToUint64(m.NormalTexture != nil) << 2
 	key |= boolToUint64(m.OcclusionTexture != nil) << 3
+	key |= boolToUint64(m.RoughnessMetallicTexture != nil) << 4
 
 	var hash Hash = 0xC2ACE5D3D65CE2C6
 	hash.Int(key)

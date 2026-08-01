@@ -368,8 +368,11 @@ func (m *Material) BaseColor() glm.Vec4f {
 }
 
 type MetallicRoughness struct {
-	BaseColorFactor  *[4]float32  `json:"baseColorFactor"`
-	BaseColorTexture *TextureInfo `json:"baseColorTexture"`
+	BaseColorFactor          *[4]float32  `json:"baseColorFactor"`
+	BaseColorTexture         *TextureInfo `json:"baseColorTexture"`
+	MetallicFactor           *float32     `json:"metallicFactor"`
+	RoughnessFactor          *float32     `json:"roughnessFactor"`
+	MetallicRoughnessTexture *TextureInfo `json:"metallicRoughnessTexture"`
 }
 
 type Animation struct {

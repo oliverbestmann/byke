@@ -16,6 +16,7 @@ import (
 )
 
 var InTesting = os.Getenv("BYKE_RUN_OFFSCREEN_TEST") == "true"
+var WriteSnapshots = os.Getenv("BYKE_WRITE_SNAPSHOTS") == "true"
 
 type Snapshots map[int]byke2d.Hash
 
@@ -61,7 +62,7 @@ func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 	app.MustRun()
 
 	// if we had no snapshots, write them to the file
-	if len(expected) == 0 && len(actual) > 0 {
+	if len(expected) == 0 && len(actual) > 0 || WriteSnapshots {
 		writeSnapshots(actual)
 	}
 
