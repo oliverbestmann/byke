@@ -24,6 +24,7 @@ struct PointLights {
 struct PointLight {
     color: vec3f,
     position: vec3f,
+    range: f32,
 }
 
 
@@ -38,8 +39,5 @@ struct SpotLight {
     direction: vec3f,
     inner_angle: f32,
     outer_angle: f32,
-    att_constant: f32,
-    att_linear: f32,
-    att_quadratic: f32,
+    range: f32,
 }
-

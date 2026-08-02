@@ -11,9 +11,6 @@ jobs:
       matrix:
         config:
           - runner: ubuntu-24.04-arm
-            goexperiment: ""
-
-          - runner: ubuntu-24.04-arm
             goexperiment: "simd"
 
     runs-on: "${{ matrix.config.runner }}"
@@ -39,62 +36,22 @@ jobs:
             libxkbcommon-dev libwayland-dev
 
 
-      - name: "Run example offscreen: cube"
-        run: ./run-example-test.sh ./byke2d/examples/render3d/cube/
-
-      - name: "Upload generated images: cube"
-        uses: actions/upload-artifact@v7
-        with:
-          name: "Images cube GOEXPERIMENT=${{ matrix.config.goexperiment }}"
-          path: "/tmp/image-*.png"
-
-
-      - name: "Run example offscreen: animated-material"
-        run: ./run-example-test.sh ./byke2d/examples/render3d/animated-material/
-
-      - name: "Upload generated images: animated-material"
-        uses: actions/upload-artifact@v7
-        with:
-          name: "Images animated-material GOEXPERIMENT=${{ matrix.config.goexperiment }}"
-          path: "/tmp/image-*.png"
-
-
-      - name: "Run example offscreen: blend-modes"
-        run: ./run-example-test.sh ./byke2d/examples/render3d/blend-modes/
-
-      - name: "Upload generated images: blend-modes"
-        uses: actions/upload-artifact@v7
-        with:
-          name: "Images blend-modes GOEXPERIMENT=${{ matrix.config.goexperiment }}"
-          path: "/tmp/image-*.png"
-
-
-      - name: "Run example offscreen: rotation"
-        run: ./run-example-test.sh ./byke2d/examples/transform/rotation/
-
-      - name: "Upload generated images: rotation"
-        uses: actions/upload-artifact@v7
-        with:
-          name: "Images rotation GOEXPERIMENT=${{ matrix.config.goexperiment }}"
-          path: "/tmp/image-*.png"
-
-
-      - name: "Run example offscreen: scale"
-        run: ./run-example-test.sh ./byke2d/examples/transform/scale/
-
-      - name: "Upload generated images: scale"
-        uses: actions/upload-artifact@v7
-        with:
-          name: "Images scale GOEXPERIMENT=${{ matrix.config.goexperiment }}"
-          path: "/tmp/image-*.png"
-
-
-      - name: "Run example offscreen: pbr"
-        run: ./run-example-test.sh ./byke2d/examples/transform/pbr/
-
-      - name: "Upload generated images: pbr"
-        uses: actions/upload-artifact@v7
-        with:
-          name: "Images pbr GOEXPERIMENT=${{ matrix.config.goexperiment }}"
-          path: "/tmp/image-*.png"
-
+      - name: "Run examples"
+        run: |
+          EXAMPLES=$(for F in $(grep --files-with-matches -R shared.RunAppInTest byke2d/examples/) ; do dirname $F ; done)
+          
+          FAILED=0
+          for EXAMPLE in $EXAMPLES ; do
+            echo "Run example $EXAMPLE"
+          
+            if ! ./run-example-test.sh $EXAMPLE ; then
+              echo "::error::Example failed: $EXAMPLE"
+              FAILED=1
+            fi
+          
+            echo 
+            echo
+            echo
+          done
+          
+          exit $FAILED

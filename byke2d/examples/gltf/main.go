@@ -67,8 +67,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 		SceneRoot{Handle: sphere},
 		MovingLight{Offset: glm.Vec3f{5, 3, 0}},
 		PointLight{
-			Color:       ColorLinearRGB(glm.Vec3f{1, 1, 0}.XYZ()),
-			Illuminance: 20,
+			Color:     ColorLinearRGB(glm.Vec3f{1, 1, 0}.XYZ()),
+			Intensity: 10000,
 		},
 	)
 
@@ -76,8 +76,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 		SceneRoot{Handle: sphere},
 		MovingLight{Offset: glm.Vec3f{4, 2, 0}, AngleOffset: glm.Rad(1)},
 		PointLight{
-			Color:       ColorLinearRGB(glm.Vec3f{1, 1, 1}.XYZ()),
-			Illuminance: 5,
+			Color:     ColorLinearRGB(glm.Vec3f{1, 1, 1}.XYZ()),
+			Intensity: 10000,
 		},
 	)
 
@@ -85,8 +85,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 		SceneRoot{Handle: sphere},
 		MovingLight{Offset: glm.Vec3f{3, 8, 0}, AngleOffset: glm.Rad(3.141)},
 		PointLight{
-			Color:       ColorLinearRGB(glm.Vec3f{0, 0, 1}.XYZ()),
-			Illuminance: 10,
+			Color:     ColorLinearRGB(glm.Vec3f{0, 0, 1}.XYZ()),
+			Intensity: 10000,
 		},
 	)
 }

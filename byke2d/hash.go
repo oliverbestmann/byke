@@ -73,3 +73,21 @@ func hashIntegerSlice[T constraints.Integer](values []T) Hash {
 
 	return h
 }
+
+func hashByteSlice(values []byte) Hash {
+	if uintptr(unsafe.Pointer(&values[0]))%8 != 0 {
+		panic("not aligned")
+	}
+
+	var h Hash = 0x64262D422DDBB64F
+	for len(values) >= 8 {
+		h.Int(ByteSliceAsValue[uint64](values))
+		values = values[8:]
+	}
+
+	for _, value := range values {
+		h.Int(value)
+	}
+
+	return h
+}

@@ -552,10 +552,13 @@ func readHeader(r io.Reader) (length uint32, err error) {
 }
 
 type Light struct {
-	Name      string     `json:"name"`
-	Type      string     `json:"type"`
-	Color     [3]float32 `json:"color"`
-	Intensity float32    `json:"intensity"`
+	Name           string     `json:"name"`
+	Type           string     `json:"type"`
+	Color          [3]float32 `json:"color"`
+	Intensity      float32    `json:"intensity"`
+	Range          float32    `json:"range"`
+	InnerConeAngle *float32   `json:"innerConeAngle"`
+	OuterConeAngle *float32   `json:"outerConeAngle"`
 }
 
 type KHRLightsPunctualInFile struct {

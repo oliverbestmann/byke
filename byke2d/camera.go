@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/chewxy/math32"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
@@ -223,6 +224,21 @@ func (s ScalingModeFixedHorizontal) ViewportSize(width, height float32) glm.Vec2
 	return glm.Vec2f{s.ViewportWidth, height * s.ViewportWidth / width}
 }
 
+type Exposure struct {
+	byke.Component[Exposure]
+
+	// Exposure value for ISO 100 film speed
+	EV100 float32
+}
+
+var ExposureBlender = Exposure{EV100: 9.7}
+
+// Exposure converts EV100 values to exposure values.
+// <https://google.github.io/filament/Filament.md.html#imagingpipeline/physicallybasedcamera/exposure>
+func (e Exposure) Exposure() float32 {
+	return math32.Exp2(-e.EV100) / 1.2
+}
+
 type Projection interface {
 	ToMat4f(viewSize glm.Vec2f) glm.Mat4f
 }
@@ -267,6 +283,7 @@ func prepareViewUniformsSystem(
 		ViewTarget             *ViewTarget
 		ViewUniforms           *ViewUniforms
 		TAAA                   byke.Has[TAA]
+		Exposure               byke.Option[Exposure]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
@@ -311,6 +328,7 @@ func prepareViewUniformsSystem(
 			WorldToCameraInv:  vv.WorldToCameraInv(),
 			WorldToScreen:     cameraToScreen.Mul(vv.WorldToCamera()),
 			WorldToScreenInv:  vv.WorldToCameraInv().Mul(cameraToScreenInv),
+			Exposure:          view.Exposure.Or(ExposureBlender).Exposure(),
 		}
 	}
 }

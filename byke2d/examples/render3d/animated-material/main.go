@@ -33,7 +33,7 @@ func setupSystem(commands *Commands) {
 
 	commands.Spawn(
 		TransformFromXYZ(5, 5, 10).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
-		PointLight{Color: ColorLinearRGB(1, 1, 1), Illuminance: 100},
+		PointLight{Color: ColorLinearRGB(1, 1, 1), Intensity: 100},
 	)
 
 	cube := CubeWithSize(glm.Vec3f{0.5, 0.5, 0.5})

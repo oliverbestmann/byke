@@ -31,7 +31,8 @@ func (t *TextureCache) Allocate(desc *wgpu.TextureDescriptor) *Texture {
 
 	// allocate a new texture
 	tex := NewTextureFromDesc(t.Context, NewTextureDescriptor{
-		TextureDescriptor: desc,
+		DisableAutoMipmaps: true,
+		TextureDescriptor:  desc,
 	})
 
 	t.used = append(t.used, tex)

@@ -22,7 +22,7 @@ type RenderContext struct {
 	_ byke.NoCopy
 
 	// Metrics tracks GPU operation counts for performance analysis.
-	Metrics RenderMetrics
+	Metrics FrameMetrics
 
 	// MipmapGenerator creates mipmaps for textures.
 	MipmapGenerator *mipmapGenerator
@@ -115,6 +115,11 @@ func (rc *RenderContext) TryWriteTexture(destination *wgpu.TexelCopyTextureInfo,
 // WriteBuffer writes data to the given buffer at the specified offset.
 // Panics if the write fails.
 func (rc *RenderContext) WriteBuffer(buffer *wgpu.Buffer, bufferOffset uint64, data []byte) {
+	if len(data) == 0 {
+		// skip upload & tracking, nothing to do here
+		return
+	}
+
 	rc.Metrics.WriteBuffer += 1
 	rc.Metrics.WriteBufferSize += uint64(len(data))
 	rc.wgpuContext.WriteBuffer(buffer, bufferOffset, data)
@@ -163,7 +168,7 @@ func (rc *RenderContext) CreateCommandEncoder(desc *wgpu.CommandEncoderDescripto
 // CommandEncoder wraps wgpu.CommandEncoder and tracks command recording metrics.
 type CommandEncoder struct {
 	*wgpu.CommandEncoder
-	metrics *RenderMetrics
+	metrics *FrameMetrics
 }
 
 // BeginRenderPass creates a render pass encoder with metrics tracking.

@@ -18,6 +18,13 @@ func ValueAsByteSlice[T any](value T) []byte {
 	return unsafe.Slice(bytes, unsafe.Sizeof(value))
 }
 
+func ByteSliceAsValue[T any](bytes []byte) T {
+	// TODO check alignment & size
+
+	ptr := unsafe.SliceData(bytes)
+	return *(*T)(unsafe.Pointer(ptr))
+}
+
 func ByteSliceAsValues[T any](bytes []byte) []T {
 	var tZero T
 

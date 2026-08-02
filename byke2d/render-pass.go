@@ -29,7 +29,7 @@ type trackedIndexBuffer struct {
 
 type TrackedRenderPassEncoder struct {
 	*wgpu.RenderPassEncoder
-	Metrics *RenderMetrics
+	Metrics *FrameMetrics
 
 	pipeline *wgpu.RenderPipeline
 

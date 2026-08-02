@@ -69,7 +69,7 @@ func setupSystem(commands *Commands) {
 
 	// Add a light source so we can see clearly.
 	commands.Spawn(
-		PointLight{Color: ColorLinearRGB(1, 1, 1), Illuminance: 10},
+		PointLight{Color: ColorLinearRGB(1, 1, 1), Intensity: 10000},
 		TransformFromXYZ(3, 3, 3).LookingAt(glm.Vec3f{0, 0, 0}, glm.Vec3f{0, 1, 0}),
 	)
 }

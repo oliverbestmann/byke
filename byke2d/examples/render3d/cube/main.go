@@ -51,8 +51,8 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(4, 8, 4),
 		PointLight{
-			Color:       ColorLinearRGB(1, 1, 1),
-			Illuminance: 50,
+			Color:     ColorLinearRGB(1, 1, 1),
+			Intensity: 10000,
 		},
 	)
 }

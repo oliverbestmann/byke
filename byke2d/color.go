@@ -67,6 +67,14 @@ func (c Color) ToVec() glm.Vec4f {
 	}
 }
 
+func (c Color) IsBlack() bool {
+	return c.r1 == -1 && c.g1 == -1 && c.b1 == -1
+}
+
+func (c Color) IsWhite() bool {
+	return c.r1 == 0 && c.g1 == 0 && c.b1 == 0
+}
+
 // ToVec3f returns a glm.Vec3f containing the components of this Color instance in
 // linear rgb space, dropping the alpha channel
 func (c Color) ToVec3f() glm.Vec3f {

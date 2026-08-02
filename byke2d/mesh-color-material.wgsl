@@ -57,5 +57,3 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
 
     return out;
 }
-
-

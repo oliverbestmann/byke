@@ -2,7 +2,7 @@
 #import byke2d::view::bindings
 
 struct SkyboxUniforms {
-	intensity: vec3f,
+    intensity: vec3f,
 }
 
 @group(1) @binding(0) var skybox: texture_cube<f32>;

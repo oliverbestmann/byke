@@ -64,6 +64,7 @@ func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 	// if we had no snapshots, write them to the file
 	if len(expected) == 0 && len(actual) > 0 || WriteSnapshots {
 		writeSnapshots(actual)
+		return
 	}
 
 	// compare snapshots

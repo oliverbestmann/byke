@@ -35,7 +35,7 @@ fn sample_current_lut(p: vec3<f32>) -> vec3<f32> {
     return textureSampleLevel(dt_lut_texture, dt_lut_sampler, p, 0.0).rgb;
 #else
     return vec3(1.0, 0.0, 1.0);
- #endif
+#endif
 }
 
 // --------------------------------------
@@ -148,10 +148,10 @@ fn ACESFitted(color: vec3<f32>) -> vec3<f32> {
 // https://github.com/sobotka/AgX
 
 /*
-    Increase color saturation of the given color data.
-    :param color: expected sRGB primaries input
-    :param saturationAmount: expected 0-1 range with 1=neutral, 0=no saturation.
-    -- ref[2] [4]
+Increase color saturation of the given color data.
+:param color: expected sRGB primaries input
+:param saturationAmount: expected 0-1 range with 1=neutral, 0=no saturation.
+-- ref[2] [4]
 */
 fn saturation(color: vec3<f32>, saturationAmount: f32) -> vec3<f32> {
     let luma = tonemapping_luminance(color);
@@ -159,9 +159,9 @@ fn saturation(color: vec3<f32>, saturationAmount: f32) -> vec3<f32> {
 }
 
 /*
-    Output log domain encoded data.
-    Similar to OCIO lg2 AllocationTransform.
-    ref[0]
+Output log domain encoded data.
+Similar to OCIO lg2 AllocationTransform.
+ref[0]
 */
 fn convertOpenDomainToNormalizedLog2_(color: vec3<f32>, minimum_ev: f32, maximum_ev: f32) -> vec3<f32> {
     let in_midgray = 0.18;
@@ -195,7 +195,7 @@ fn convertNormalizedLog2ToOpenDomain(color: vec3<f32>, minimum_ev: f32, maximum_
 
 
 /*=================
-    Main processes
+Main processes
 =================*/
 
 // Prepare the data for display encoding. Converted to log domain.

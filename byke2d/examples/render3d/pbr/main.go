@@ -41,6 +41,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{},
 		HDR{},
 
+		ClearColor{Color: ColorSRGB(0.2, 0.2, 0.2)},
+
 		TransformFromXYZ(0, 0, 100),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
@@ -60,8 +62,9 @@ func setupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(50, 50, 50),
-		PointLight{Illuminance: 1_500})
+		TransformFromXYZ(-50, -50, -50).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		DirectionalLight{Illuminance: 1_500},
+	)
 
 	sphere := Sphere(0.45, 64, 32)
 

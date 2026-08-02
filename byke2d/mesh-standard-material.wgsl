@@ -80,10 +80,10 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
     let m = materials[vertex.material];
 
 #ifdef MESH3D_MAT_HAS_NORMAL
-    #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
-        // transform the normal according to the normalmap
-        vertex.normal = calculate_normal(vertex.normal, vertex.tangent, vertex.tangent_sign, vertex.uv);
-    #endif
+#ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
+    // transform the normal according to the normalmap
+    vertex.normal = calculate_normal(vertex.normal, vertex.tangent, vertex.tangent_sign, vertex.uv);
+#endif
 #endif
 
     if ! front_facing && m.double_sided != 0 {
@@ -97,25 +97,30 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
 
     // base color of the material comes from the vertex
     //  (material color was put there in the vertex shader)
-    var color = vertex.color;
+    var base_color = vertex.color;
 
 #ifdef MESH3D_MAT_HAS_TEXTURE
-    // apply texture to the color
-    let texcol = textureSample(texture, texture_sampler, vertex.uv);
-    color *= texcol;
-    color += texcol * vec4f(m.emissive_scale, 0.0);
+    // apply color texture to the color
+    base_color *= textureSample(texture, texture_sampler, vertex.uv);
 #endif
 
     // calculate lighting and update color accordingly
-    let light = calculate_lighting(vertex, color.rgb);
-    color = vec4f(light, color.a);
+    var color = vec4f(
+        calculate_lighting(vertex, base_color.rgb) * view.exposure,
+        base_color.a,
+    );
 
 #ifdef MESH3D_MAT_HAS_EMISSIVE
     // apply emissive light to the color
     let emissive_color = textureSample(emissive, emissive_sampler, vertex.uv).rgb;
     let emissive = emissive_color * m.emissive_scale;
     color += vec4f(emissive, 0.0);
+
+#else ifdef MESH3D_MAT_HAS_TEXTURE
+    // apply emissive scale to the base color itself
+    color += base_color * vec4f(m.emissive_scale, 0.0);
 #endif
+
 
 #ifdef ALPHAMODE_OPAQUE
     color.a = 1.0;
@@ -137,7 +142,7 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
 }
 
 fn calculate_lighting(vertex: VertexOutput, base_color: vec3f) -> vec3f {
-    var tint = vec3f(0, 0, 0);
+    var outcol = vec3f(0, 0, 0);
 
     // by default nothing is occluded
     var ambient_occlusion = 1.0;
@@ -146,9 +151,6 @@ fn calculate_lighting(vertex: VertexOutput, base_color: vec3f) -> vec3f {
     // module ambient occlusion from texture
     ambient_occlusion *= textureSample(occlusion, occlusion_sampler, vertex.uv).r;
 #endif
-
-    // apply generic ambient light
-    tint += light_config.ambient * ambient_occlusion;
 
     // TODO support logical expressions
 #ifdef LIGHTING
@@ -172,10 +174,14 @@ fn calculate_lighting(vertex: VertexOutput, base_color: vec3f) -> vec3f {
     let metallic = material.metallic * metallic_scale;
     let roughness = max(MIN_ROUGHNESS, material.perceptual_roughness * roughness_scale);
 
+    // apply generic ambient light
+    outcol += pbr_ambient_light(N, V, light_config.ambient, base_color, metallic, roughness)
+        * ambient_occlusion;
+
 #ifdef MESH_ENVMAP_LIGHT
     // apply environment map to color
-    tint += sample_ibl(N, V, base_color, metallic, roughness)
-        // * pbr_env_options.intensity
+    outcol += sample_ibl(N, V, base_color, metallic, roughness)
+        * pbr_env_options.intensity
         * ambient_occlusion;
 #endif
 
@@ -187,27 +193,36 @@ fn calculate_lighting(vertex: VertexOutput, base_color: vec3f) -> vec3f {
         let dist = length(to_light);
 
         if (dist > 0.0001) {
-          let L = to_light / dist;
+            let L = to_light / dist;
 
-          // Inverse-square falloff with a soft range fade.
-          var attenuation = 1.0 / max(dist * dist, 0.01);
+            // Inverse-square falloff with a soft range fade.
+            var attenuation = 1.0 / max(dist * dist, 0.01);
 
-          // TODO add range?
-          // if (light.range > 0.0) {
-          //   let range_fade = 1.0 - smoothstep(0.8 * light.range, light.range, dist);
-          //   attenuation = attenuation * range_fade;
-          // }
+            if (light.range > 0.0) {
+                let range_fade = 1.0 - smoothstep(0.8 * light.range, light.range, dist);
+                attenuation = attenuation * range_fade;
+            }
 
-          let radiance = light.color * attenuation;
-          tint += directPBR(N, V, L, radiance, base_color, metallic, roughness);
+            let radiance = light.color * attenuation;
+            outcol += directPBR(N, V, L, radiance, base_color, metallic, roughness);
         }
     }
+
+
+    // apply directional lights
+    for (var i: u32 = 0; i < directional_lights.count; i++) {
+        let light = directional_lights.lights[i];
+
+        let L = light.direction;
+        let radiance = light.color;
+        outcol += directPBR(N, V, L, radiance, base_color, metallic, roughness);
+    }
+
 
     // TODO spot lights
 
 #endif
 #endif
 
-    return tint;
+    return outcol;
 }
-

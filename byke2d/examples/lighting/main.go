@@ -51,10 +51,13 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 
 	skybox := loadSkybox(assets)
 
+	commands.InsertResource(GlobalAmbientLightNone)
+
 	commands.Spawn(
 		Camera{},
 		Camera3d,
 		HDR{},
+
 		FirstPersonViewController{},
 		DefaultPerspectiveProjection,
 		TransformFromXYZ(-3.8791254, 2.5908828, 7.1305904),
@@ -63,7 +66,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		EnvironmentMapLight{
 			DiffuseMap:  diffuse.Await(),
 			SpecularMap: specular.Await(),
-			Intensity:   1,
+			Intensity:   900,
 		},
 	)
 

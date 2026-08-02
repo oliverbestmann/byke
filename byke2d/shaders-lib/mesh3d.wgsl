@@ -115,10 +115,10 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 #ifdef SKINNED
     // interpolate joint matrices
     let world_from_local =
-        in.v_joint_weights.x * joints[in.v_joint.x]+
-        in.v_joint_weights.y * joints[in.v_joint.y]+
-        in.v_joint_weights.z * joints[in.v_joint.z]+
-        in.v_joint_weights.w * joints[in.v_joint.w];
+    in.v_joint_weights.x * joints[in.v_joint.x]+
+    in.v_joint_weights.y * joints[in.v_joint.y]+
+    in.v_joint_weights.z * joints[in.v_joint.z]+
+    in.v_joint_weights.w * joints[in.v_joint.w];
 #else
     // transforms the four column vectors back to a full 4x4 matrix by adding the last row.
     let world_from_local = mat4x4f(
@@ -163,12 +163,12 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
     );
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_NORMAL
-    #ifdef SKINNED
-        out.normal = skin_normals(world_from_local, in.v_normal);
-    #else
-        // mikktspace: normalize in fragment shader
-        out.normal = world_from_local_normal * in.v_normal;
-    #endif
+#ifdef SKINNED
+    out.normal = skin_normals(world_from_local, in.v_normal);
+#else
+    // mikktspace: normalize in fragment shader
+    out.normal = world_from_local_normal * in.v_normal;
+#endif
 #endif
 
 #ifdef MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE
@@ -187,4 +187,3 @@ fn default_mesh3d_vertex(in: VertexInput) -> VertexOutput {
 fn default_mesh3d_fragment(vertex: VertexOutput) -> vec4f {
     return vertex.color;
 }
-

@@ -38,6 +38,9 @@ type ComponentUniforms[C WGPUComponent[C]] struct {
 	bufferSize uint64
 
 	elementSize uint64
+
+	// hash of the data currently stored in the buffer
+	hash Hash
 }
 
 func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
@@ -68,6 +71,23 @@ func (c *ComponentUniforms[C]) upload(ctx *RenderContext) {
 
 		c.bufferSize = requiredSize
 	}
+
+	if len(c.bytes) == 0 {
+		// no need to update an empty slice
+		c.hash = 0
+		return
+	}
+
+	// hash bytes to check if it has changed
+	hash := hashByteSlice(c.bytes)
+
+	if c.hash != 0 && c.hash == hash {
+		// no change in data, nothing needs to be uploaded
+		return
+	}
+
+	// record hash
+	c.hash = hash
 
 	// write data to buffer
 	ctx.WriteBuffer(c.buffer, 0, c.bytes)

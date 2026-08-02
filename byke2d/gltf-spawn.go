@@ -7,6 +7,7 @@ import (
 	"image"
 	"log/slog"
 
+	"github.com/chewxy/math32"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/gltf"
@@ -51,10 +52,10 @@ func spawnGltfSceneSystem(
 	ctx *RenderContext,
 	assets *Assets,
 	scenesQuery byke.Query[struct {
-	_         byke.Changed[SceneRoot]
-	EntityId  byke.EntityId
-	SceneRoot SceneRoot
-}],
+		_         byke.Changed[SceneRoot]
+		EntityId  byke.EntityId
+		SceneRoot SceneRoot
+	}],
 ) {
 	for item := range scenesQuery.Items() {
 		handle := toGltfHandle(item.SceneRoot.Handle)
@@ -288,6 +289,30 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 		sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
 			PointLight{
+				Color:     ColorLinearRGB(glm.Vec3f(light.Color).XYZ()),
+				Intensity: light.Intensity,
+				Range:     light.Range,
+			},
+		)
+	}
+
+	if light.Type == "spot" {
+		sc.Commands.Spawn(
+			byke.ChildOf{Parent: entityId},
+			SpotLight{
+				Color:      ColorLinearRGB(glm.Vec3f(light.Color).XYZ()),
+				Intensity:  light.Intensity,
+				Range:      light.Range,
+				InnerAngle: glm.Rad(derefOr(light.InnerConeAngle, 0)),
+				OuterAngle: glm.Rad(derefOr(light.OuterConeAngle, math32.Pi/4)),
+			},
+		)
+	}
+
+	if light.Type == "directional" {
+		sc.Commands.Spawn(
+			byke.ChildOf{Parent: entityId},
+			DirectionalLight{
 				Color:       ColorLinearRGB(glm.Vec3f(light.Color).XYZ()),
 				Illuminance: light.Intensity,
 			},

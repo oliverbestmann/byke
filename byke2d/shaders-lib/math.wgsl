@@ -16,10 +16,10 @@ fn affine2_to_square(affine: mat3x2<f32>) -> mat3x3<f32> {
 
 fn affine3_to_square(affine: mat3x4<f32>) -> mat4x4<f32> {
     return transpose(mat4x4<f32>(
-        affine[0],
-        affine[1],
-        affine[2],
-        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+            affine[0],
+            affine[1],
+            affine[2],
+            vec4<f32>(0.0, 0.0, 0.0, 1.0),
     ));
 }
 
@@ -163,7 +163,7 @@ fn fast_acos_4(x: f32) -> f32 {
     s = -0.0187293 * x3 + s;
     s = sqrt(1.0 - x1) * s;
 
-	// acos function mirroring
+    // acos function mirroring
     return select(PI - s, s, x >= 0.0);
 }
 
@@ -186,6 +186,6 @@ fn fast_atan2(y: f32, x: f32) -> f32 {
 }
 
 fn pow5(x: f32) -> f32 {
-  let x2 = x * x;
-  return x2 * x2 * x;
+    let x2 = x * x;
+    return x2 * x2 * x;
 }

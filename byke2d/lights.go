@@ -1,11 +1,11 @@
 package byke2d
 
 import (
+	"math"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/spoke"
-	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
 var (
@@ -14,17 +14,72 @@ var (
 	_ = byke.ValidateComponent[SpotLight]()
 )
 
-type LightConfig struct {
-	Ambient Color
+// GlobalAmbientLight configures the global ambient light, which lights the entire scene equally.
+// This resource is inserted by default and is set to a low ambient light.
+type GlobalAmbientLight struct {
+	// Color of the global ambient light
+	Color Color
+
+	// A direct scale factor multiplied with color before being passed to the shader.
+	// After applying this multiplier, the resulting value should be in units of cd/m^2.
+	Brightness float32
 }
 
-var DefaultLightConfig = LightConfig{
-	Ambient: ColorSRGB(0.05, 0.05, 0.05),
+var DefaultGlobalAmbientLight = GlobalAmbientLight{
+	Color:      ColorWhite,
+	Brightness: 80.0,
 }
 
+var GlobalAmbientLightNone = GlobalAmbientLight{}
+
+// DirectionalLight component.
+//
+// Directional lights don't exist in reality but they are a good
+// approximation for light sources VERY far away, like the sun or
+// the moon.
+//
+// The light shines along the forward direction of the entity's transform. With a default transform
+// this would be along the negative-Z axis.
+//
+// Valid values for `illuminance` are:
+//
+// | Illuminance (lux) | Surfaces illuminated by                        |
+// |-------------------|------------------------------------------------|
+// | 0.0001            | Moonless, overcast night sky (starlight)       |
+// | 0.002             | Moonless clear night sky with airglow          |
+// | 0.05–0.3          | Full moon on a clear night                     |
+// | 3.4               | Dark limit of civil twilight under a clear sky |
+// | 20–50             | Public areas with dark surroundings            |
+// | 50                | Family living room lights                      |
+// | 80                | Office building hallway/toilet lighting        |
+// | 100               | Very dark overcast day                         |
+// | 150               | Train station platforms                        |
+// | 320–500           | Office lighting                                |
+// | 400               | Sunrise or sunset on a clear day.              |
+// | 1000              | Overcast day; typical TV studio lighting       |
+// | 10,000–25,000     | Full daylight (not direct sun)                 |
+// | 32,000–100,000    | Direct sunlight                                |
+//
+// Source: [Wikipedia](https://en.wikipedia.org/wiki/Lux)
 type DirectionalLight struct {
 	byke.Component[DirectionalLight]
+
+	// The color of the light
 	Color Color
+
+	// Illuminance in lux (lumens per square meter), representing the amount of
+	// light projected onto surfaces by this light source. Lux is used here
+	// instead of lumens because a directional light illuminates all surfaces
+	// more-or-less the same way (depending on the angle of incidence). Lumens
+	// can only be specified for light sources which emit light from a specific
+	// area.
+	// The default is roughly ambient daylight at 10,000.
+	Illuminance float32
+}
+
+var DefaultDirectionalLight = DirectionalLight{
+	Color:       ColorWhite,
+	Illuminance: 10_000,
 }
 
 func (DirectionalLight) RequireComponents() []spoke.ErasedComponent {
@@ -35,8 +90,24 @@ func (DirectionalLight) RequireComponents() []spoke.ErasedComponent {
 
 type PointLight struct {
 	byke.Component[PointLight]
-	Color       Color
-	Illuminance float32
+
+	// The color of this light source.
+	Color Color
+
+	// Luminous power in lumens, representing the amount of light
+	// emitted by this source in all directions.
+	Intensity float32
+
+	// Cut-off for the light's area-of-effect. Fragments outside this range will not be affected by
+	// this light at all, so it's important to tune this together with `intensity` to prevent hard
+	// lighting cut-offs.
+	Range float32
+}
+
+var DefaultPointLight = PointLight{
+	Color:     ColorWhite,
+	Intensity: 1_000_000,
+	Range:     20,
 }
 
 func (PointLight) RequireComponents() []spoke.ErasedComponent {
@@ -45,14 +116,26 @@ func (PointLight) RequireComponents() []spoke.ErasedComponent {
 	}
 }
 
+// SpotLight describes a spotlight.
+// It shines into local -z direction.
 type SpotLight struct {
 	byke.Component[SpotLight]
-	Color        Color
-	InnerAngle   glm.Rad
-	OuterAngle   glm.Rad
-	AttConstant  float32
-	AttLinear    float32
-	AttQuadratic float32
+	Color Color
+
+	// Luminous power in lumens, representing the amount of light
+	// emitted by this source in all directions.
+	Intensity float32
+
+	Range      float32
+	InnerAngle glm.Rad
+	OuterAngle glm.Rad
+}
+
+var DefaultSpotLight = SpotLight{
+	Color:      ColorWhite,
+	Intensity:  1_000_000,
+	Range:      20,
+	OuterAngle: math.Pi / 4,
 }
 
 func (SpotLight) RequireComponents() []spoke.ErasedComponent {
@@ -62,198 +145,9 @@ func (SpotLight) RequireComponents() []spoke.ErasedComponent {
 }
 
 func pluginLights(app *byke.App) {
-	app.InsertResource(DefaultLightConfig)
+	app.InsertResource(DefaultGlobalAmbientLight)
 	app.InsertResource(ExtractedLights{})
 	app.InsertResource(lightsStorage{})
-	app.AddSystems(Render, byke.System(extractLights).InSet(RenderPhaseExtract))
-	app.AddSystems(Render, byke.System(prepareLightsStorage).InSet(RenderPhasePrepareResources))
-}
-
-type ExtractedLights struct {
-	// Ambient light color
-	Ambient glm.Vec3f
-
-	DirectionalLights []ExtractedDirectionalLight
-	PointLights       []ExtractedPointLight
-	SpotLights        []ExtractedSpotLight
-}
-
-func (l *ExtractedLights) Clear() {
-	l.DirectionalLights = l.DirectionalLights[:0]
-	l.PointLights = l.PointLights[:0]
-	l.SpotLights = l.SpotLights[:0]
-}
-
-type ExtractedPointLight struct {
-	Position glm.Vec3f
-	Color    glm.Vec3f
-}
-
-func (l ExtractedPointLight) WriteTo(w *wgsl.StructWriter) {
-	w.AppendVec3f(l.Color)
-	w.AppendVec3f(l.Position)
-	w.Sync()
-}
-
-type ExtractedSpotLight struct {
-	Color        glm.Vec3f
-	Position     glm.Vec3f
-	Direction    glm.Vec3f
-	InnerAngle   glm.Rad
-	OuterAngle   glm.Rad
-	AttConstant  float32
-	AttLinear    float32
-	AttQuadratic float32
-}
-
-func (l ExtractedSpotLight) WriteTo(w *wgsl.StructWriter) {
-	w.AppendVec3f(l.Color)
-	w.AppendVec3f(l.Position)
-	w.AppendVec3f(l.Direction)
-	w.AppendFloat32(float32(l.InnerAngle))
-	w.AppendFloat32(float32(l.OuterAngle))
-	w.AppendFloat32(l.AttConstant)
-	w.AppendFloat32(l.AttLinear)
-	w.AppendFloat32(l.AttQuadratic)
-	w.Sync()
-}
-
-type ExtractedDirectionalLight struct {
-	Color     glm.Vec3f
-	Direction glm.Vec3f
-}
-
-func (l ExtractedDirectionalLight) WriteTo(w *wgsl.StructWriter) {
-	w.AppendVec3f(l.Color)
-	w.AppendVec3f(l.Direction)
-	w.Sync()
-}
-
-func extractLights(
-	lights *ExtractedLights,
-
-	config LightConfig,
-
-	pointLights byke.Query[struct {
-		Light     PointLight
-		Transform GlobalTransform
-	}],
-
-	spotLights byke.Query[struct {
-		Light     SpotLight
-		Transform GlobalTransform
-	}],
-
-	directionalLights byke.Query[struct {
-		Light     DirectionalLight
-		Transform GlobalTransform
-	}],
-) {
-	lights.Clear()
-
-	lights.Ambient = config.Ambient.ToVec3f()
-
-	for item := range pointLights.Items() {
-		if item.Light.Color.ToVec3f() == (glm.Vec3f{}) {
-			// off, no light
-			continue
-		}
-
-		lights.PointLights = append(lights.PointLights, ExtractedPointLight{
-			Position: item.Transform.Affine.Translation(),
-			Color:    item.Light.Color.ToVec3f().Scale(item.Light.Illuminance),
-		})
-	}
-
-	for item := range spotLights.Items() {
-		if item.Light.Color.ToVec3f() == (glm.Vec3f{}) {
-			// off, no light
-			continue
-		}
-
-		// light into the negative z axis
-		direction := item.Transform.Affine.
-			Transform(glm.Vec4f{0, 0, -1, 0}).
-			Truncate().
-			Normalize()
-
-		lights.SpotLights = append(lights.SpotLights, ExtractedSpotLight{
-			Color:        item.Light.Color.ToVec3f(),
-			Position:     item.Transform.Affine.Translation(),
-			Direction:    direction,
-			InnerAngle:   item.Light.InnerAngle,
-			OuterAngle:   item.Light.OuterAngle,
-			AttConstant:  item.Light.AttConstant,
-			AttLinear:    item.Light.AttLinear,
-			AttQuadratic: item.Light.AttQuadratic,
-		})
-	}
-
-	for item := range directionalLights.Items() {
-		if item.Light.Color.ToVec3f() == (glm.Vec3f{}) {
-			// off, no light
-			continue
-		}
-
-		// light into the negative z axis
-		direction := item.Transform.Affine.
-			Transform(glm.Vec4f{0, 0, -1, 0}).
-			Truncate().
-			Normalize()
-
-		lights.DirectionalLights = append(lights.DirectionalLights, ExtractedDirectionalLight{
-			Color:     item.Light.Color.ToVec3f(),
-			Direction: direction,
-		})
-	}
-}
-
-type lightsStorage struct {
-	BindGroup *wgpu.BindGroup
-
-	BufConfig            *wgpu.Buffer
-	BufPointLights       *wgpu.Buffer
-	BufDirectionalLights *wgpu.Buffer
-	BufSpotLights        *wgpu.Buffer
-
-	staging wgsl.StructWriter
-}
-
-func prepareLightsStorage(
-	ctx *RenderContext,
-	uniforms *lightsStorage,
-	lights ExtractedLights,
-) {
-	s := &uniforms.staging
-
-	s.Clear()
-	s.AppendVec3f(lights.Ambient)
-	s.WriteTo(ctx, &uniforms.BufConfig, "LightConfig", wgpu.BufferUsageUniform)
-
-	writeSliceToStructWriter(s, lights.DirectionalLights)
-	s.WriteTo(ctx, &uniforms.BufDirectionalLights, "DirectionalLights", wgpu.BufferUsageStorage)
-
-	writeSliceToStructWriter(s, lights.PointLights)
-	s.WriteTo(ctx, &uniforms.BufPointLights, "PointLights", wgpu.BufferUsageStorage)
-
-	writeSliceToStructWriter(s, lights.SpotLights)
-	s.WriteTo(ctx, &uniforms.BufSpotLights, "SpotLights", wgpu.BufferUsageStorage)
-
-	uniforms.staging.AppendUint(uint32(len(lights.PointLights)))
-}
-
-func writeSliceToStructWriter[T writerTo](wr *wgsl.StructWriter, values []T) {
-	wr.Clear()
-
-	// write number of entries in slice
-	wr.AppendUint(uint32(len(values)))
-
-	// write each slice value
-	for idx := range values {
-		values[idx].WriteTo(wr)
-	}
-}
-
-type writerTo interface {
-	WriteTo(s *wgsl.StructWriter)
+	app.AddSystems(Render, byke.System(extractLightsSystem).InSet(RenderPhaseExtract))
+	app.AddSystems(Render, byke.System(prepareLightsStorageSystem).InSet(RenderPhasePrepareResources))
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type RenderMetrics struct {
+type FrameMetrics struct {
 	CreateBindGroup       uint32
 	CreateBindGroupLayout uint32
 	CreateCommandEncoder  uint32
@@ -28,11 +28,11 @@ type RenderMetrics struct {
 	DrawIndexed      uint32
 }
 
-func (m *RenderMetrics) reset() {
-	*m = RenderMetrics{}
+func (m *FrameMetrics) reset() {
+	*m = FrameMetrics{}
 }
 
-func (m *RenderMetrics) String() string {
+func (m *FrameMetrics) String() string {
 	var out strings.Builder
 
 	writef := func(format string, args ...any) {

@@ -36,8 +36,8 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(4, 8, 4),
 		PointLight{
-			Color:       ColorLinearRGB(1, 1, 1),
-			Illuminance: 100,
+			Color:     ColorLinearRGB(1, 1, 1),
+			Intensity: 100000,
 		},
 	)
 
@@ -58,7 +58,7 @@ func setupSystem(commands *Commands) {
 		commands.Spawn(
 			TransformFromXYZ(-5+float32(2*idx), 0, 0),
 			MeshInstance{Mesh: sphere},
-			StandardMaterial{BaseColor: baseColor, AlphaMode: alphaMode, PerceptualRoughness: 0.8},
+			StandardMaterial{BaseColor: baseColor, AlphaMode: alphaMode, PerceptualRoughness: 0.5},
 		)
 	}
 }

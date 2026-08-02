@@ -4,9 +4,6 @@ struct View {
     // in pixels, x, y, w, h
     viewport: vec4f,
 
-    // camera position in world space
-    camera_position: vec3f,
-
     // projects from camera space to the screen
     camera_to_screen: mat4x4<f32>,
     camera_to_screen_inv: mat4x4<f32>,
@@ -18,4 +15,10 @@ struct View {
     // camera_projection * world_to_camera
     world_to_screen: mat4x4<f32>,
     world_to_screen_inv: mat4x4<f32>,
+
+    // camera position in world space
+    camera_position: vec3f,
+
+    // the cameras exposure, used for pbr rendering
+    exposure: f32,
 };
