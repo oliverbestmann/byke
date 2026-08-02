@@ -358,6 +358,12 @@ func appendVertexRawTo(target []byte, values []byte, format wgpu.VertexFormat, i
 	return append(target, slice...)
 }
 
+// Triangle returns an equilateral triangle.
+// All points are on a circle with the given radius.
+func Triangle(radius float32) *Mesh {
+	return RegularPolygon(radius, 3)
+}
+
 // RegularPolygon creates a mesh representing a regular polygon (equilateral triangle, square, etc.).
 func RegularPolygon(radius float32, sides uint) *Mesh {
 	// a regular polygon is actually just a circle
@@ -401,6 +407,47 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 
 	for i := uint32(1); i < uint32(resolution)-1; i++ {
 		indices = append(indices, 0, i, i+1)
+	}
+
+	return MeshOf(indices, vertices).
+		WithAttributes(VertexAttributeNormal, normals).
+		WithAttributes(VertexAttributeUV, uvs)
+}
+
+// CircularSector sector extends around the y-axis in both directions by halfAngle
+func CircularSector(radius float32, halfAngle glm.Rad, segments int) *Mesh {
+	indices := make([]uint32, 0, segments*3)
+	vertices := make([]glm.Vec3f, 0, segments+2)
+	normals := make([]glm.Vec3f, 0, segments+2)
+	uvs := make([]glm.Vec2f, 0, segments+2)
+
+	startAngle := -halfAngle + glm.Rad(math.Pi/2)
+	step := 2 * halfAngle / glm.Rad(segments)
+
+	// first vertex is center
+	vertices = append(vertices, glm.Vec3f{})
+	normals = append(normals, glm.Vec3f{0, 0, 1})
+	uvs = append(uvs, glm.Vec2f{0.5, 0.5})
+
+	for i := range segments + 1 {
+		theta := startAngle + glm.Rad(i)*step
+		sin, cos := theta.SinCos()
+
+		x := cos * radius
+		y := sin * radius
+
+		vertices = append(vertices, glm.Vec3f{x, y})
+		normals = append(normals, glm.Vec3f{0, 0, 1})
+
+		uvs = append(uvs, glm.Vec2f{
+			0.5 * (cos + 1.0),
+			1.0 - 0.5*(sin+1.0),
+		})
+	}
+
+	// build triangles
+	for i := uint32(0); i < uint32(segments); i++ {
+		indices = append(indices, 0, i+1, i+2)
 	}
 
 	return MeshOf(indices, vertices).

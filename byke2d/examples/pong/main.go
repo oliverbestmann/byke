@@ -103,7 +103,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(0, 0, -0.8),
 		MeshInstance{Mesh: Rectangle(Vec2f{1000, 500})},
-		ColorMaterial{Tint: ColorSRGBA(0.1, 0.1, 0.1, 1.0)},
+		ColorMaterial{Color: ColorSRGBA(0.1, 0.1, 0.1, 1.0)},
 	)
 
 	// the ball
@@ -112,7 +112,7 @@ func setupSystem(commands *Commands) {
 		Ball{},
 		Velocity{Value: Vec2f{2, rand.Float32() * 0.01}.Normalize().Scale(BallSpeed)},
 		MeshInstance{Mesh: Circle(BallRadius, 32)},
-		ColorMaterial{Tint: ColorSRGBA(0, 5, 0, 1.0)},
+		ColorMaterial{Color: ColorSRGBA(0, 5, 0, 1.0)},
 	)
 
 	// left paddle
@@ -121,7 +121,7 @@ func setupSystem(commands *Commands) {
 		Paddle{IsLeft: true},
 		PlayerPaddle{},
 		MeshInstance{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
-		ColorMaterial{Tint: ColorSRGBA(10, 0, 5, 1.0)},
+		ColorMaterial{Color: ColorSRGBA(10, 0, 5, 1.0)},
 		Velocity{},
 	)
 
@@ -130,7 +130,7 @@ func setupSystem(commands *Commands) {
 		TransformFromXYZ(PaddleAbsX, 0, -0.1),
 		Paddle{},
 		MeshInstance{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
-		ColorMaterial{Tint: ColorSRGBA(5, 0, 10, 1.0)},
+		ColorMaterial{Color: ColorSRGBA(5, 0, 10, 1.0)},
 		Velocity{},
 	)
 }
@@ -222,9 +222,9 @@ func paddleGlowSystem(
 		for paddle := range paddlesQuery.Items() {
 			dist := max(50, ball.Transform.Translation.Sub(paddle.Transform.Translation).Length()-50)
 
-			nColor := paddle.Material.Tint.ToVec().Truncate().Normalize()
+			nColor := paddle.Material.Color.ToVec().Truncate().Normalize()
 			col := nColor.Scale(10).Add(nColor.Scale(5000 / dist))
-			paddle.Material.Tint = ColorOf(col.Extend(1.0))
+			paddle.Material.Color = ColorOf(col.Extend(1.0))
 		}
 	}
 }

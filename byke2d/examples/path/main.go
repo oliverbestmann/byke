@@ -52,7 +52,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		TransformFromXYZ(0, 0, 0.1),
 		MeshInstance{Mesh: path.ToMesh(0.1)},
 		ColorMaterial{
-			Tint: ColorSRGBA(1.0, 0.0, 0.5, 1.0),
+			Color: ColorSRGBA(1.0, 0.0, 0.5, 1.0),
 		},
 	)
 }

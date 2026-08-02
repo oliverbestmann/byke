@@ -14,8 +14,8 @@ var colorMaterialShaderCode string
 type ColorMaterial struct {
 	byke.Component[ColorMaterial]
 
-	// Tint tints the mesh color rendering
-	Tint Color
+	// Color tints the mesh color rendering
+	Color Color
 
 	// Texture is an optional texture to apply to the mesh. This requires the
 	// VertexAttributeUV to be set. Will be ignored if UVs are not set
@@ -82,7 +82,7 @@ func (m ColorMaterial) Bindings() []wgpu.BindGroupEntry {
 }
 
 func (m ColorMaterial) WriteUniforms(w *wgsl.StructWriter) {
-	w.AppendVec4f(m.Tint.ToVec())
+	w.AppendVec4f(m.Color.ToVec())
 	w.AppendFloat32(m.AlphaCutoff)
 }
 

@@ -30,9 +30,7 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
 
     let m = materials[vertex.material];
 
-    var fin: FragmentIn;
-
-    var out = default_mesh3d_fragment(vertex, fin);
+    var out = default_mesh3d_fragment(vertex);
 
 #ifdef MESH3D_MAT_HAS_TEXTURE
     let texcol = textureSample(texture, texture_sampler, vertex.uv);
