@@ -6,5 +6,5 @@ export GOEXPERIMENT=simd
 export BYKE_RUN_OFFSCREEN_TEST=true
 export WGPU_FORCE_FALLBACK_ADAPTER=1
 
-cd "$name"
+cd "$1"
 exec go run --tags fakeClock .
