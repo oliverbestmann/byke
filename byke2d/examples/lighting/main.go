@@ -4,18 +4,13 @@ import (
 	_ "image/png"
 	"log/slog"
 	"os"
-	"runtime"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
+	"github.com/oliverbestmann/byke/byke2d/examples/shared"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
-	"github.com/pkg/profile"
 )
-
-// //go:embed assets
-// var assets embed.FS
-var assets = os.DirFS(".")
 
 func init() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -29,20 +24,17 @@ func init() {
 func main() {
 	var app App
 
-	// configure assets before loading the plugin
-	app.InsertResource(MakeAssetFS(assets))
-
-	if runtime.GOOS != "js" {
-		defer profile.Start(profile.CPUProfile).Stop()
-	}
-
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
-	app.MustRun()
+
+	// no compare, just write snapshot for now
+	shared.WriteSnapshots = true
+
+	shared.RunAppInTest(app, shared.FramesToSnapshot{10})
 }
 
-func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
+func setupSystem(commands *Commands, assets *Assets) {
 	opts := &LoadTextureSettings{OverrideTextureViewDimension: wgpu.TextureViewDimensionCube}
 	specular := assets.TextureWithSettings("pisa_specular_rgb9e5_zstd.ktx2", opts)
 	diffuse := assets.TextureWithSettings("pisa_diffuse_rgb9e5_zstd.ktx2", opts)
@@ -56,7 +48,9 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	commands.Spawn(
 		Camera{},
 		Camera3d,
-		HDR{},
+
+		// HDR{},
+		// MSAA{},
 
 		FirstPersonViewController{},
 		DefaultPerspectiveProjection,
@@ -77,7 +71,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 
 		SceneRoot{
 			Handle:                model,
-			PreferAlphaToCoverage: true,
+			PreferAlphaToCoverage: false,
 		},
 	)
 }

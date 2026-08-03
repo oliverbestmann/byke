@@ -1,16 +1,12 @@
 package main
 
 import (
-	"embed"
 	"log/slog"
 	"os"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 )
-
-//go:embed assets
-var assets embed.FS
 
 func main() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -21,9 +17,6 @@ func main() {
 	slog.SetDefault(slog.New(handler))
 
 	var app App
-
-	// configure assets before loading the plugin
-	app.InsertResource(MakeAssetFS(assets))
 
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"log/slog"
 	"math/rand/v2"
 	"os"
@@ -13,9 +12,6 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-//go:embed assets
-var assets embed.FS
-
 func main() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
@@ -25,9 +21,6 @@ func main() {
 	slog.SetDefault(slog.New(handler))
 
 	var app App
-
-	// configure assets before loading the plugin
-	app.InsertResource(MakeAssetFS(assets))
 
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)

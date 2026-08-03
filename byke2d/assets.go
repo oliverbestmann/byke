@@ -23,9 +23,13 @@ type AssetFS struct {
 	fs.FS
 }
 
-func MakeAssetFS(root fs.FS) AssetFS {
+func MakeSubAssetFS(root fs.FS) AssetFS {
 	sub, _ := fs.Sub(root, "assets")
 	return AssetFS{FS: sub}
+}
+
+func MakeAssetFS(root fs.FS) AssetFS {
+	return AssetFS{FS: root}
 }
 
 type LoadAssetSettings interface {

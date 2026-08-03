@@ -1,8 +1,6 @@
 package main
 
 import (
-	"embed"
-
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/examples/shared"
@@ -10,14 +8,8 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/vyn"
 )
 
-//go:embed assets
-var assets embed.FS
-
 func main() {
 	var app App
-
-	// configure assets before loading the plugin
-	app.InsertResource(MakeAssetFS(assets))
 
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)

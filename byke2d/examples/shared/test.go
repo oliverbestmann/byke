@@ -9,10 +9,12 @@ import (
 	"log/slog"
 	"maps"
 	"os"
+	"runtime"
 	"slices"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d"
+	"github.com/pkg/profile"
 )
 
 var InTesting = os.Getenv("BYKE_RUN_OFFSCREEN_TEST") == "true"
@@ -24,6 +26,10 @@ type FramesToSnapshot []int
 
 func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 	if !InTesting {
+		if runtime.GOOS != "js" {
+			defer profile.Start(profile.CPUProfile).Stop()
+		}
+
 		app.MustRun()
 		return
 	}

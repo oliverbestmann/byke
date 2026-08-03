@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"log/slog"
 	"os"
 	"runtime"
@@ -11,9 +10,6 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/pkg/profile"
 )
-
-//go:embed assets
-var assets embed.FS
 
 func init() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -26,9 +22,6 @@ func init() {
 
 func main() {
 	var app App
-
-	// configure assets before loading the plugin
-	app.InsertResource(MakeAssetFS(assets))
 
 	if runtime.GOOS != "js" {
 		defer profile.Start(profile.CPUProfile).Stop()

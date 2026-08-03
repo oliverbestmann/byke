@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	_ "image/png"
 
 	. "github.com/oliverbestmann/byke"
@@ -11,13 +10,8 @@ import (
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-//go:embed assets
-var assets embed.FS
-
 func main() {
 	var app App
-
-	app.InsertResource(MakeAssetFS(assets))
 
 	app.AddPlugin(PluginRender)
 	app.AddPlugin(shared.PluginRotatable)

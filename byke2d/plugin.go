@@ -3,8 +3,8 @@ package byke2d
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
-	"os"
 	"reflect"
 	"runtime"
 	"time"
@@ -58,7 +58,8 @@ var (
 func PluginRender(app *byke.App) {
 	assetFs, ok := app.World().ResourceOf[AssetFS]()
 	if !ok {
-		assetFs = &AssetFS{FS: os.DirFS("assets")}
+		app.InsertResource(initializeAssetFS())
+		assetFs = app.World().RequireResourceOf[AssetFS]()
 	}
 
 	app.AddMakeSystemParam(makeViewQuery)
@@ -86,14 +87,7 @@ func PluginRender(app *byke.App) {
 	app.InsertResource(GlobalVolume{Volume: 1.0})
 	app.InsertResource(GlobalSpatialScale{Scale: glm.Vec3f{1, 1, 1}})
 
-	app.InsertResource(makeAssets(
-		app.World(), assetFs.FS,
-		ImageLoader{},
-		Ktx2Loader{},
-		TextureLoader{},
-		AudioLoader{},
-		GLTFLoader{},
-	))
+	app.InsertResource(MakeAssets(app.World(), assetFs.FS))
 
 	app.AddMessage[AppExit]()
 
@@ -178,6 +172,17 @@ func PluginRender(app *byke.App) {
 	app.RunWorld(runWorld)
 }
 
+func MakeAssets(world *byke.World, fs fs.FS) Assets {
+	return makeAssets(
+		world, fs,
+		ImageLoader{},
+		Ktx2Loader{},
+		TextureLoader{},
+		AudioLoader{},
+		GLTFLoader{},
+	)
+}
+
 func ChainSystemSets(first *byke.SystemSet, rest ...*byke.SystemSet) *byke.SystemSet {
 	curr := first
 
@@ -213,7 +218,7 @@ func DefaultWindowConfig() WindowConfig {
 
 func DefaultSurfaceConfig() SurfaceConfig {
 	return SurfaceConfig{
-		Format:      wgpu.TextureFormatBGRA8Unorm,
+		Format:      wgpu.TextureFormatRGBA8Unorm,
 		PresentMode: wgpu.PresentModeFifo,
 	}
 }
@@ -423,7 +428,8 @@ func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth
 		PresentMode: surfaceConfig.PresentMode,
 		AlphaMode:   wgpu.CompositeAlphaModeOpaque,
 		ViewFormats: []wgpu.TextureFormat{
-			wgpu.TextureFormatBGRA8UnormSrgb,
+			wgpu.TextureFormatRGBA8Unorm,
+			wgpu.TextureFormatRGBA8UnormSrgb,
 		},
 
 		DesiredMaximumFrameLatency: 1,
@@ -484,7 +490,7 @@ func renderMainSystem(
 	surfaceWidth := surface.GetWidth()
 	surfaceHeight := surface.GetHeight()
 
-	surfaceViewFormat := wgpu.TextureFormatBGRA8UnormSrgb
+	surfaceViewFormat := wgpu.TextureFormatRGBA8UnormSrgb
 
 	// create a view we can render to
 	surfaceTextureView := surface.CreateView(&wgpu.TextureViewDescriptor{

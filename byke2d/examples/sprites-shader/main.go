@@ -1,7 +1,7 @@
 package main
 
 import (
-	"embed"
+	_ "embed"
 	"log/slog"
 	"os"
 
@@ -10,9 +10,6 @@ import (
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
 )
-
-//go:embed assets
-var assets embed.FS
 
 //go:embed assets/noise.wgsl
 var noisyShaderCode string
@@ -31,9 +28,6 @@ func init() {
 
 func main() {
 	var app App
-
-	// configure assets before loading the plugin
-	app.InsertResource(MakeAssetFS(assets))
 
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
@@ -17,9 +16,6 @@ import (
 
 const SpriteCount = 100_000
 
-//go:embed assets
-var assets embed.FS
-
 func init() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
@@ -32,8 +28,6 @@ func init() {
 func main() {
 	var app App
 
-	// configure assets before loading the plugin
-	app.InsertResource(MakeAssetFS(assets))
 	app.InsertResource(fpsCounter{})
 
 	app.AddPlugin(PluginRender)
