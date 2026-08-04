@@ -27,6 +27,9 @@ type ExtractedMesh struct {
 	// Transform is the object-to-world matrix positioning and orienting the mesh.
 	Transform glm.Mat4f
 
+	// The AABB of the mesh (in local space)
+	AABB AABB
+
 	// Material defines the appearance of the mesh (colors, textures, shaders).
 	Material Material
 

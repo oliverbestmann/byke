@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
+	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/byke/internal/query"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -66,6 +67,7 @@ func extractMeshesWithMaterialSystem[M Material](
 		SkinnedMesh     byke.Option[SkinnedMesh]
 		HasMorphWeights byke.Has[meshMorphWeights]
 		Visibility      ComputedVisibility
+		MeshAABB        AABB
 	}],
 ) {
 	for item := range meshQuery.Items() {
@@ -84,6 +86,7 @@ func extractMeshesWithMaterialSystem[M Material](
 
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
 			Mesh:             mesh.Mesh,
+			AABB:             item.MeshAABB,
 			Transform:        item.Transform.Affine,
 			Material:         any(materials.Alloc(item.Material)).(Material),
 			RenderLayers:     item.RenderLayers.Or(renderLayerZero),
@@ -130,6 +133,7 @@ func queueMeshInstancesSystem(
 	viewsQuery byke.Query[struct {
 		_            byke.With[Camera]
 		Transform    GlobalTransform
+		Transform2   Transform
 		RenderLayers RenderLayers
 		RenderPhase  *BinnedRenderPhase[Opaque]
 		Transparent  *SortableRenderPhase[Transparent]
@@ -138,6 +142,15 @@ func queueMeshInstancesSystem(
 	meshKeyArea.Value.Tick()
 
 	for view := range viewsQuery.Items() {
+		// forward axis of camera, i.e. view direction
+		forwardCameraAxis := view.Transform.Affine.
+			Transform(glm.Vec4f{0, 0, -1, 0}).
+			Truncate().
+			Normalize()
+
+		// position of camera in world space
+		cameraPositionInWorld := view.Transform.Affine.Translation()
+
 		for idx := range meshes.Meshes {
 			sp := &meshes.Meshes[idx]
 			if !view.RenderLayers.Intersects(sp.RenderLayers) {
@@ -161,13 +174,24 @@ func queueMeshInstancesSystem(
 				view.RenderPhase.Append(renderItem, key)
 
 			} else {
-				distanceToCameraSq := sp.Transform.Translation().
-					Sub(view.Transform.Affine.Translation()).
-					LengthSqr()
+				// transform center of aabb from local space to world space
+				aabbCenterInLocal := sp.AABB.Center().Extend(1.0)
+				aabbCenterInWorld := sp.Transform.
+					Transform(aabbCenterInLocal).
+					Truncate()
+
+				distanceToCameraSq := forwardCameraAxis.Dot(
+					aabbCenterInWorld.Sub(cameraPositionInWorld),
+				)
+
+				// calculate distance squared between center of the aabb and camera
+				// distanceToCameraSq := aabbCenterInWorld.
+				// 	Sub(view.Transform.Affine.Translation()).
+				// 	LengthSqr()
 
 				// will be sorting ascending, but we want to draw the largest
 				// distance first
-				distanceToCameraSq = -distanceToCameraSq
+				distanceToCameraSq *= -1
 
 				view.Transparent.Append(renderItem, distanceToCameraSq)
 			}

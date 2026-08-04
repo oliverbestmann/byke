@@ -48,7 +48,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{},
 		Camera3d,
 
-		// HDR{},
+		HDR{},
 		// MSAA{},
 
 		FirstPersonViewController{},
