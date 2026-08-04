@@ -138,6 +138,13 @@ fn fs_main(param: VertexOutput, @builtin(front_facing) front_facing: bool) -> @l
     color.a = (color.a - 0.5) / max(fwidth(color.a), 0.0001) + 0.5;
 #endif
 
+// DEBUG: paint all alpha blended meshes with half opacity
+//  to make them visible
+//
+// #ifdef ALPHAMODE_BLEND
+//     color.a *= 0.5;
+// #endif
+
     return color;
 }
 
