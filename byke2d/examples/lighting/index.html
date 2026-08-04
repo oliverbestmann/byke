@@ -1,1 +1,37 @@
-../../index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no"/>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+    </style>
+    <script src="wasm_exec.js"></script>
+    <script>
+        /** @type {WebAssemblyInstantiatedSource} */
+        let wasm;
+
+        async function main() {
+            const go = new Go();
+
+            WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(async (result) => {
+                wasm = result;
+                await go.run(result.instance);
+            });
+        }
+
+        void main()
+    </script>
+</head>
+<body></body>
+</html>

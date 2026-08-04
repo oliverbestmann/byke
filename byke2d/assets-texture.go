@@ -3,13 +3,9 @@ package byke2d
 import (
 	"errors"
 	"fmt"
-	"image"
 	"io"
 	"path"
 	"reflect"
-
-	_ "image/jpeg"
-	_ "image/png"
 )
 
 type LoadTextureSettings struct {
@@ -42,7 +38,7 @@ func (i TextureLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 		return nil, errors.New("no RenderContext in world")
 	}
 
-	img, _, err := image.Decode(r)
+	img, err := decodeImage(r)
 	if err != nil {
 		return nil, fmt.Errorf("decode image: %w", err)
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "image/png"
 	"math"
 
 	. "github.com/oliverbestmann/byke"

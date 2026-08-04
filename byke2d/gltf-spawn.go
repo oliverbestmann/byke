@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"image"
 	"log/slog"
 
 	"github.com/chewxy/math32"
@@ -487,7 +486,7 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 		var err error
 
 		// load the texture data into memory
-		src, _, err := image.Decode(bytes.NewReader(buffer))
+		src, err := decodeImage(bytes.NewReader(buffer))
 		if err != nil {
 			panic(fmt.Errorf("decode image from memory: %w", err))
 		}

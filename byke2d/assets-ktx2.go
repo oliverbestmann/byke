@@ -7,9 +7,6 @@ import (
 	"path"
 	"reflect"
 
-	_ "image/jpeg"
-	_ "image/png"
-
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/ktx2"
 	"github.com/oliverbestmann/webgpu/wgpu"

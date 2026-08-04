@@ -5,9 +5,6 @@ import (
 	"image"
 	"io"
 	"reflect"
-
-	_ "image/jpeg"
-	_ "image/png"
 )
 
 type ImageLoader struct{}
@@ -19,7 +16,7 @@ func (i ImageLoader) Type() reflect.Type {
 func (i ImageLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	defer func() { _ = r.Close() }()
 
-	img, _, err := image.Decode(r)
+	img, err := decodeImage(r)
 	if err != nil {
 		return nil, fmt.Errorf("decode image: %w", err)
 	}

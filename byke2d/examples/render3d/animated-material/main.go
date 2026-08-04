@@ -1,8 +1,6 @@
 package main
 
 import (
-	_ "image/png"
-
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/examples/shared"

@@ -6,9 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	_ "image/jpeg"
-	_ "image/png"
-
 	"github.com/oliverbestmann/byke/byke2d/gltf"
 )
 
