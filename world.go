@@ -13,25 +13,21 @@ import (
 
 const NoEntityId = EntityId(0)
 
-type resourceValue struct {
-	// Value is of kind Pointer and points to the value of the resource.
-	Value reflect.Value
-}
-
 type AnyPtr = any
 
 // World holds all entities and resources, schedules, systems, etc.
 // While an empty World can be created using NewWorld, it is normally created and configured
 // by using the App api.
 type World struct {
+	resourceContainer
+
 	storage          *spoke.Storage
 	entityIdSeq      EntityId
-	resources        map[reflect.Type]resourceValue
 	schedules        map[ScheduleId]*schedule
 	systems          map[SystemId]*preparedSystem
 	makeSystemParams makeSystemParams
-	currentTick      spoke.Tick
 
+	currentTick   spoke.Tick
 	activeQueries atomic.Int32
 	flushes       []func()
 }
@@ -57,12 +53,12 @@ func NewWorld() *World {
 	}
 
 	return &World{
-		storage:          spoke.NewStorage(),
-		resources:        map[reflect.Type]resourceValue{},
-		schedules:        map[ScheduleId]*schedule{},
-		systems:          map[SystemId]*preparedSystem{},
-		makeSystemParams: defaultMakeSystemParams,
-		currentTick:      1,
+		resourceContainer: resourceContainer{},
+		storage:           spoke.NewStorage(),
+		schedules:         map[ScheduleId]*schedule{},
+		systems:           map[SystemId]*preparedSystem{},
+		makeSystemParams:  defaultMakeSystemParams,
+		currentTick:       1,
 	}
 }
 
@@ -389,69 +385,6 @@ func (w *World) relationshipTargetComponentOf(component ErasedComponent) (isRela
 
 	// there is no component in the parent
 	return nil, parentId, parentType, true
-}
-
-// InsertResource inserts a new resource into the world.
-// The resource should be provided as a non-pointer type.
-//
-// If the resource does not yet exist, a new value of the resources type will
-// be allocated on the heap and the value provided will be copied into that memory location.
-//
-// If the world already contains a resource of the same type, this value will
-// just be updated with the newly provided one.
-func (w *World) InsertResource(resource any) {
-	resType := reflect.PointerTo(reflect.TypeOf(resource))
-
-	if existing, ok := w.resources[resType]; ok {
-		// update existing value in place
-		existing.Value.Elem().Set(reflect.ValueOf(resource))
-		return
-	}
-
-	// allocate the resource on the heap and copy the provided value to it
-	ptr := reflect.New(resType.Elem())
-	ptr.Elem().Set(reflect.ValueOf(resource))
-
-	w.resources[ptr.Type()] = resourceValue{
-		Value: ptr,
-	}
-}
-
-// RemoveResource removes a resource previously added with InsertResource.
-func (w *World) RemoveResource(resourceType reflect.Type) {
-	resType := reflect.PointerTo(resourceType)
-	delete(w.resources, resType)
-}
-
-// Resource returns a pointer to the resource of the given reflect type.
-// The type must be the non-pointer type of the resource, i.e. the type of the resource
-// as it was passed to InsertResource.
-func (w *World) Resource(ty reflect.Type) (AnyPtr, bool) {
-	resValue, ok := w.resources[reflect.PointerTo(ty)]
-	if !ok {
-		return nil, false
-	}
-
-	return resValue.Value.Interface(), true
-}
-
-func (w *World) ResourceOf[T any]() (*T, bool) {
-	value, ok := w.Resource(reflect.TypeFor[T]())
-	if !ok {
-		return nil, false
-	}
-
-	return value.(*T), true
-}
-
-func (w *World) RequireResourceOf[T any]() *T {
-	res, ok := w.ResourceOf[T]()
-	if !ok {
-		var tZero T
-		panic(fmt.Errorf("resource of type %T not found", tZero))
-	}
-
-	return res
 }
 
 // Despawn recursively despawns the given entity following Children relations.

@@ -55,8 +55,8 @@ func (c *Commands) Add(command Command) *Commands {
 	return c
 }
 
-func (c *Commands) InsertResource(resource any) *Commands {
-	return c.Add(&insertResourceCommand{Resource: resource})
+func (c *Commands) InsertResource[T any](resource T) *Commands {
+	return c.Add(&insertResourceCommand[T]{Resource: resource})
 }
 
 func (c *Commands) Spawn(components ...ErasedComponent) EntityCommands {
@@ -159,11 +159,11 @@ type mergeableCommand interface {
 	MergeWith(next Command) bool
 }
 
-type insertResourceCommand struct {
-	Resource any
+type insertResourceCommand[T any] struct {
+	Resource T
 }
 
-func (c *insertResourceCommand) Apply(world *World) {
+func (c *insertResourceCommand[T]) Apply(world *World) {
 	world.InsertResource(c.Resource)
 }
 

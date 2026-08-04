@@ -52,7 +52,7 @@ func (a *App) ConfigureSystemSets(scheduleId ScheduleId, sets ...*SystemSet) {
 
 // InsertResource inserts a resource into the World.
 // See World.InsertResource.
-func (a *App) InsertResource(res any) {
+func (a *App) InsertResource[T any](res T) {
 	a.World().InsertResource(res)
 }
 
