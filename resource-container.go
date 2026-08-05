@@ -7,22 +7,17 @@ import (
 	"reflect"
 )
 
-type resourceValue[T any] struct {
+type resourceValue struct {
 	// Value holds a pointer to the actual resource value
-	Value   *T
+	Value   any
 	IsValid bool
 }
 
-func (r *resourceValue[T]) Get() (any, bool) {
+func (r *resourceValue) Get() (any, bool) {
 	return r.Value, r.IsValid
 }
 
-func (r *resourceValue[T]) Set(value T) {
-	*r.Value = value
-	r.IsValid = true
-}
-
-func (r *resourceValue[T]) Invalidate() {
+func (r *resourceValue) Invalidate() {
 	r.IsValid = false
 }
 
@@ -30,10 +25,7 @@ type ErasedResource interface {
 	Get() (any, bool)
 }
 
-type resourceContainer map[reflect.Type]interface {
-	ErasedResource
-	Invalidate()
-}
+type resourceContainer map[reflect.Type]*resourceValue
 
 // InsertResource inserts a new resource into the world.
 // The resource should be provided as a non-pointer type.
@@ -46,9 +38,10 @@ type resourceContainer map[reflect.Type]interface {
 func (rc *resourceContainer) InsertResource[T any](resource T) {
 	resType := reflect.TypeFor[T]()
 
+	// update existin value in place first
 	if existing, ok := (*rc)[resType]; ok {
-		// update existing value in place
-		existing.(*resourceValue[T]).Set(resource)
+		*existing.Value.(*T) = resource
+		existing.IsValid = true
 		return
 	}
 
@@ -58,7 +51,7 @@ func (rc *resourceContainer) InsertResource[T any](resource T) {
 
 	slog.Debug("Inserting new resource", slog.String("type", resType.String()))
 
-	(*rc)[resType] = &resourceValue[T]{
+	(*rc)[resType] = &resourceValue{
 		Value:   new(resource),
 		IsValid: true,
 	}
@@ -69,8 +62,6 @@ func (rc *resourceContainer) RemoveResource(resourceType reflect.Type) {
 	if existing, ok := (*rc)[resourceType]; ok {
 		existing.Invalidate()
 	}
-
-	// delete((*rc), resourceType)
 }
 
 // Resource returns a pointer to the resource of the given reflect type.
@@ -104,7 +95,15 @@ func (rc *resourceContainer) RequireResourceOf[T any]() *T {
 	return res
 }
 
-func (rc *resourceContainer) RefToResource(ty reflect.Type) (ErasedResource, bool) {
+func (rc *resourceContainer) referenceToResource(ty reflect.Type) ErasedResource {
 	resValue, ok := (*rc)[ty]
-	return resValue, ok
+	if !ok {
+		resValue = &resourceValue{
+			Value: reflect.New(ty).Interface(), // new(value)
+		}
+
+		(*rc)[ty] = resValue
+	}
+
+	return resValue
 }

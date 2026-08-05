@@ -6,8 +6,10 @@ import (
 )
 
 type resourceSystemParamState struct {
-	typ   reflect.Type
-	world *World
+	typ reflect.Type
+
+	// a (lazy) reference to the value
+	ref ErasedResource
 
 	// true if the system wants the pointer type
 	mutable bool
@@ -15,7 +17,6 @@ type resourceSystemParamState struct {
 
 func makeResourceSystemParamState(world *World, typ reflect.Type) SystemParamState {
 	r := resourceSystemParamState{
-		world:   world,
 		mutable: typ.Kind() == reflect.Pointer,
 		typ:     typ,
 	}
@@ -25,11 +26,13 @@ func makeResourceSystemParamState(world *World, typ reflect.Type) SystemParamSta
 		r.typ = r.typ.Elem()
 	}
 
+	r.ref = world.referenceToResource(r.typ)
+
 	return r
 }
 
 func (r resourceSystemParamState) GetValue(SystemContext) (reflect.Value, error) {
-	ptrToValue, ok := r.world.Resource(r.typ)
+	ptrToValue, ok := r.ref.Get()
 	if !ok {
 		err := fmt.Errorf("resource of type %s does not exist in world", r.typ)
 		return reflect.Value{}, err
