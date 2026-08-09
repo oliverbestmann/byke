@@ -1,4 +1,9 @@
-#module byke2d::view
+struct Globals {
+    time: f32,
+    time_delta: f32,
+    frame_index: u32,
+    random: u32,
+};
 
 struct View {
     // in pixels, x, y, w, h
@@ -22,3 +27,11 @@ struct View {
     // the cameras exposure, used for pbr rendering
     exposure: f32,
 };
+
+@group(0)
+@binding(0)
+var<uniform> view: View;
+
+@group(0)
+@binding(1)
+var<uniform> globals: Globals;

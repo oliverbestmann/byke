@@ -27,7 +27,7 @@ func (b BlitConfig) EqualTo(other PipelineConfig) bool {
 }
 
 func (b BlitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	shader := ctx.Shader("Blit", blitShader, nil)
+	shader := ctx.Shader("Blit", blitShader, ShaderValues{})
 
 	blend := wgpu.BlendStateReplace
 	if b.AlphaBlend {

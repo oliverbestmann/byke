@@ -1,7 +1,4 @@
-#module byke2d::sprite
-
-#import byke2d::view
-#import byke2d::view::bindings
+import package::byke::globals;
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
@@ -74,7 +71,7 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     let vertex_position = vec2f(x, y);
 
     // transform sprite
-    let position = view.world_to_screen * model_to_world * vec4f(vertex_position, 0.0, 1.0);
+    let position = globals::view.world_to_screen * model_to_world * vec4f(vertex_position, 0.0, 1.0);
 
     // move the vertex to the world
     var out: VertexOutput;

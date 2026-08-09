@@ -105,8 +105,8 @@ func (b bloomPipelineConfig) EqualTo(other PipelineConfig) bool {
 
 func (b bloomPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	values := ShaderValues{}
-	values.Define("UNIFORM_SCALE", b.UniformScale)
-	values.Define("FIRST_DOWNSAMPLE", b.FirstDownsample)
+	values.Set("UNIFORM_SCALE", b.UniformScale)
+	values.Set("FIRST_DOWNSAMPLE", b.FirstDownsample)
 
 	var entry string
 	switch {

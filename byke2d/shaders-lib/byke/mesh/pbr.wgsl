@@ -1,6 +1,4 @@
-#module byke2d::pbr
-
-#import byke2d::math
+import package::byke::math;
 
 const MIN_ROUGHNESS: f32 = 0.045;
 
@@ -9,32 +7,33 @@ struct EnvironmentMap {
     // specular_max_miplevel: u32,
 };
 
-#ifdef MESH_ENVMAP_LIGHT
-
+@if(MESH_ENVMAP_LIGHT)
 @group(0)
 @binding(40)
 var<uniform> pbr_env_options: EnvironmentMap;
 
+@if(MESH_ENVMAP_LIGHT)
 @group(0)
 @binding(41)
 var pbr_env_map_diffuse: texture_cube<f32>;
 
+@if(MESH_ENVMAP_LIGHT)
 @group(0)
 @binding(42)
 var pbr_env_map_specular: texture_cube<f32>;
 
+@if(MESH_ENVMAP_LIGHT)
 @group(0)
 @binding(43)
 var pbr_brdf_lookup: texture_2d<f32>;
 
+@if(MESH_ENVMAP_LIGHT)
 @group(0)
 @binding(44)
 var pbr_env_sampler: sampler;
 
-#endif
-
 fn fresnelSchlick(cosTheta: f32, F0: vec3<f32>) -> vec3<f32> {
-    return F0 + (vec3<f32>(1.0) - F0) * pow5(1.0 - cosTheta);
+    return F0 + (vec3<f32>(1.0) - F0) * math::pow5(1.0 - cosTheta);
 }
 
 fn distributionGGX(N: vec3<f32>, H: vec3<f32>, roughness: f32) -> f32 {
@@ -44,7 +43,7 @@ fn distributionGGX(N: vec3<f32>, H: vec3<f32>, roughness: f32) -> f32 {
     let NdotH2 = NdotH * NdotH;
 
     let denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    return a2 / max(PI * denom * denom, 0.000001);
+    return a2 / max(math::PI * denom * denom, 0.000001);
 }
 
 fn geometrySchlickGGX(NdotV: f32, roughness: f32) -> f32 {
@@ -76,7 +75,7 @@ fn directPBR(
     let NdotV = saturate(dot(N, V));
     let VdotH = saturate(dot(V, H));
 
-    if (NdotL <= 0.0 || NdotV <= 0.0) {
+    if NdotL <= 0.0 || NdotV <= 0.0 {
         return vec3<f32>(0.0);
     }
 
@@ -92,13 +91,12 @@ fn directPBR(
     let kS = F;
     let kD = (vec3<f32>(1.0) - kS) * (1.0 - metallic);
 
-    let diffuse = kD * baseColor / PI;
+    let diffuse = kD * baseColor / math::PI;
 
     return (diffuse + specular) * radiance * NdotL;
 }
 
-#ifdef MESH_ENVMAP_LIGHT
-
+@if(MESH_ENVMAP_LIGHT)
 fn sample_ibl(
     N: vec3<f32>,
     V: vec3<f32>,
@@ -130,8 +128,6 @@ fn sample_ibl(
     return (kD * diffuse_ibl + specular_ibl);
 }
 
-#endif
-
 fn pbr_ambient_light(
     N: vec3<f32>,
     V: vec3<f32>,
@@ -159,16 +155,16 @@ fn pbr_ambient_light(
 
 // Scale/bias approximation
 fn F_AB(perceptual_roughness: f32, NdotV: f32) -> vec2<f32> {
-#ifdef MESH_ENVMAP_LIGHT
+    @if(MESH_ENVMAP_LIGHT)
     return textureSampleLevel(pbr_brdf_lookup, pbr_env_sampler, vec2<f32>(NdotV, perceptual_roughness), 0.0).rg;
-#else
+
     // Polynomial approximation, see https://www.unrealengine.com/en-US/blog/physically-based-shading-on-mobile
     let c0 = vec4<f32>(-1.0, -0.0275, -0.572, 0.022);
     let c1 = vec4<f32>(1.0, 0.0425, 1.04, -0.04);
     let r = perceptual_roughness * c0 + c1;
     let a004 = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
+
     // Keep F_ab positive to avoid divide-by-zero in downstream BRDF terms.
     let f_ab_epsilon = 0.00005;
     return max(vec2<f32>(-1.04, 1.04) * a004 + r.zw, vec2<f32>(f_ab_epsilon));
-#endif
 }

@@ -26,13 +26,13 @@ type ColorMaterial struct {
 
 func (m ColorMaterial) Shader() *ShaderDef {
 	values := ShaderValues{}
-	values.Define("MESH3D_MAT_HAS_TEXTURE", m.Texture != nil)
+	values.Set("MESH3D_MAT_HAS_TEXTURE", m.Texture != nil)
 
-	values.Define("ALPHAMODE_OPAQUE", m.AlphaMode == AlphaModeOpaque)
-	values.Define("ALPHAMODE_MASK", m.AlphaMode == AlphaModeMask)
-	values.Define("ALPHAMODE_ALPHA_TO_COVERAGE", m.AlphaMode == AlphaModeAlphaToCoverage)
+	values.Set("ALPHAMODE_OPAQUE", m.AlphaMode == AlphaModeOpaque)
+	values.Set("ALPHAMODE_MASK", m.AlphaMode == AlphaModeMask)
+	values.Set("ALPHAMODE_ALPHA_TO_COVERAGE", m.AlphaMode == AlphaModeAlphaToCoverage)
 
-	values.Define("LIGHTING", false)
+	values.Set("LIGHTING", false)
 
 	return &ShaderDef{
 		Label:         "standard material shader",

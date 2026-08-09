@@ -5,11 +5,8 @@ import (
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/meh"
-	"github.com/oliverbestmann/byke/byke2d/pre"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
-
-type ShaderValues = pre.Values
 
 type PipelineContext interface {
 	// Shader compiles a shader to a *wgpu.ShaderModule.
@@ -34,10 +31,10 @@ type RenderPipelineDescriptor struct {
 
 // PipelineCache caches render pipelines & bind group layout
 type PipelineCache struct {
-	_           byke.NoCopy
-	ctx         *RenderContext
-	preCompiler *pre.Compiler
-	pipelines   meh.Map[PipelineConfig, Pipeline]
+	_         byke.NoCopy
+	ctx       *RenderContext
+	shaders   *Shaders
+	pipelines meh.Map[PipelineConfig, Pipeline]
 }
 
 func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
@@ -88,13 +85,13 @@ func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
 //goland:noinspection GoMixedReceiverTypes
 func PipelineCacheFromWorld(world *byke.World) PipelineCache {
 	return PipelineCache{
-		ctx:         world.RequireResourceOf[RenderContext](),
-		preCompiler: world.RequireResourceOf[pre.Compiler](),
+		ctx:     world.RequireResourceOf[RenderContext](),
+		shaders: world.RequireResourceOf[Shaders](),
 	}
 }
 
 func (p *PipelineCache) Shader(label, shaderCode string, values ShaderValues) *wgpu.ShaderModule {
-	shaderCode, err := p.preCompiler.PreCompile(shaderCode, values)
+	shaderCode, err := p.shaders.Compile(shaderCode, values)
 	if err != nil {
 		panic(fmt.Errorf("prepare shader %q: %w", label, err))
 	}

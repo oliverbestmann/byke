@@ -1,5 +1,3 @@
-#module byke2d::mesh::morph
-
 
 struct MorphDescriptor {
     // number of targets in the current mesh. This is equal

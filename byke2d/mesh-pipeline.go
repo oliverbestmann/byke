@@ -1,7 +1,6 @@
 package byke2d
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -85,8 +84,7 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 
 		// define the key for the shader to know about it
 		key := strings.ToUpper(attr.Name)
-		loc := strconv.Itoa(int(attr.Location))
-		values.Set("MESH3D_VERTEX_ATTRIBUTES_"+key, loc)
+		values.Set("MESH3D_VERTEX_ATTRIBUTES_"+key, true)
 	}
 
 	buffers := []wgpu.VertexBufferLayout{
@@ -94,9 +92,9 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		vblPerVertex,
 	}
 
-	values.Define("SKINNED", m.Skinned)
-	values.Define("MORPH", m.Morph)
-	values.Define("MESH_ENVMAP_LIGHT", m.MeshView.EnvironmentMapLight)
+	values.Set("SKINNED", m.Skinned)
+	values.Set("MORPH", m.Morph)
+	values.Set("MESH_ENVMAP_LIGHT", m.MeshView.EnvironmentMapLight)
 
 	mod := ctx.Shader(shader.Label, shader.Source, values)
 

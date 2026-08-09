@@ -1,6 +1,13 @@
 package byke2d
 
-import "github.com/oliverbestmann/webgpu/wgpu"
+import (
+	_ "embed"
+
+	"github.com/oliverbestmann/webgpu/wgpu"
+)
+
+//go:embed sprite.wgsl
+var spriteShader string
 
 type renderSpritePipelineConfig struct {
 	Shader      *ShaderDef
@@ -21,7 +28,7 @@ func (r renderSpritePipelineConfig) EqualTo(other PipelineConfig) bool {
 
 func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 	shaderLabel := "Sprite"
-	shaderSource := "#import byke2d::sprite"
+	shaderSource := spriteShader
 	entryVertex := "vs_main"
 	entryFragment := "fs_main"
 	var shaderValues ShaderValues

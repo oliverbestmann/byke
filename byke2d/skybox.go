@@ -56,7 +56,7 @@ func (s skyboxPipeline) EqualTo(other PipelineConfig) bool {
 }
 
 func (s skyboxPipeline) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	shader := ctx.Shader("Skybox", skyboxShader, nil)
+	shader := ctx.Shader("Skybox", skyboxShader, ShaderValues{})
 
 	return RenderPipelineDescriptor{
 		Label: "Skybox",

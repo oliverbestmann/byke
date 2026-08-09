@@ -56,20 +56,20 @@ type StandardMaterial struct {
 
 func (m StandardMaterial) Shader() *ShaderDef {
 	values := ShaderValues{}
-	values.Define("MESH3D_MAT_HAS_TEXTURE", m.Texture != nil)
-	values.Define("MESH3D_MAT_HAS_NORMAL", m.NormalTexture != nil)
-	values.Define("MESH3D_MAT_HAS_EMISSIVE", m.EmissiveTexture != nil)
-	values.Define("MESH3D_MAT_HAS_OCCLUSION", m.OcclusionTexture != nil)
-	values.Define("MESH3D_MAT_HAS_RMTEX", m.RoughnessMetallicTexture != nil)
+	values.Set("MESH3D_MAT_HAS_TEXTURE", m.Texture != nil)
+	values.Set("MESH3D_MAT_HAS_NORMAL", m.NormalTexture != nil)
+	values.Set("MESH3D_MAT_HAS_EMISSIVE", m.EmissiveTexture != nil)
+	values.Set("MESH3D_MAT_HAS_OCCLUSION", m.OcclusionTexture != nil)
+	values.Set("MESH3D_MAT_HAS_RMTEX", m.RoughnessMetallicTexture != nil)
 
-	values.Define("ALPHAMODE_OPAQUE", m.AlphaMode == AlphaModeOpaque)
-	values.Define("ALPHAMODE_MASK", m.AlphaMode == AlphaModeMask)
-	values.Define("ALPHAMODE_ALPHA_TO_COVERAGE", m.AlphaMode == AlphaModeAlphaToCoverage)
-	values.Define("ALPHAMODE_BLEND", m.AlphaMode == AlphaModeBlend)
+	values.Set("ALPHAMODE_OPAQUE", m.AlphaMode == AlphaModeOpaque)
+	values.Set("ALPHAMODE_MASK", m.AlphaMode == AlphaModeMask)
+	values.Set("ALPHAMODE_ALPHA_TO_COVERAGE", m.AlphaMode == AlphaModeAlphaToCoverage)
+	values.Set("ALPHAMODE_BLEND", m.AlphaMode == AlphaModeBlend)
 
-	values.Define("LIGHTING", true)
+	values.Set("LIGHTING", true)
 
-	values.Define("DEBUG_NORMALS", DebugNormals)
+	values.Set("DEBUG_NORMALS", DebugNormals)
 
 	return &ShaderDef{
 		Label:         "standard material shader",

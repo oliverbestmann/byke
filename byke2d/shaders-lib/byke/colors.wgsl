@@ -1,6 +1,4 @@
-#module byke2d::colors
-
-#import byke2d::math
+import package::byke::math;
 
 const HUE_GUARD: f32 = 0.0001;
 
@@ -134,8 +132,8 @@ fn hsv_to_linear_rgb(hsva: vec3<f32>) -> vec3<f32> {
 }
 
 fn oklch_to_linear_rgb(c: vec3<f32>) -> vec3<f32> {
-    let hue = c.z * PI_2;
-    return oklab_to_linear_rgb(vec3(c.x, c.y * cos(hue), c.y * sin(hue)));
+    let hue = c.z * math::PI_2;
+    return oklab_to_linear_rgb(vec3f(c.x, c.y * cos(hue), c.y * sin(hue)));
 }
 
 fn mix_oklch(a: vec3<f32>, b: vec3<f32>, t: f32) -> vec3<f32> {
@@ -292,7 +290,7 @@ fn mix_hsv_long(a: vec3<f32>, b: vec3<f32>, t: f32) -> vec3<f32> {
 // <https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB_alternative>
 fn hsv_to_rgb(hsv: vec3<f32>) -> vec3<f32> {
     let n = vec3(5.0, 3.0, 1.0);
-    let k = (n + hsv.x / FRAC_PI_3) % 6.0;
+    let k = (n + hsv.x / math::FRAC_PI_3) % 6.0;
     return hsv.z - hsv.z * hsv.y * max(vec3(0.0), min(k, min(4.0 - k, vec3(1.0))));
 }
 
@@ -308,19 +306,19 @@ fn rgb_to_hsv(rgb: vec3<f32>) -> vec3<f32> {
     let c = x_max - x_min;  // chroma
 
     var swizzle = vec3<f32>(0.0);
-    if (x_max == rgb.r) {
+    if x_max == rgb.r {
         swizzle = vec3(rgb.gb, 0.0);
-    } else if (x_max == rgb.g) {
+    } else if x_max == rgb.g {
         swizzle = vec3(rgb.br, 2.0);
     } else {
         swizzle = vec3(rgb.rg, 4.0);
     }
 
-    let h = FRAC_PI_3 * (((swizzle.x - swizzle.y) / c + swizzle.z) % 6.0);
+    let h = math::FRAC_PI_3 * (((swizzle.x - swizzle.y) / c + swizzle.z) % 6.0);
 
     // Avoid division by zero.
     var s = 0.0;
-    if (x_max > 0.0) {
+    if x_max > 0.0 {
         s = c / x_max;
     }
 

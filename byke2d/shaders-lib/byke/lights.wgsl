@@ -1,9 +1,6 @@
-#module byke2d::lights
-
 struct LightConfig {
     ambient: vec3f,
 }
-
 
 struct DirectionalLights {
     count: u32,
@@ -15,7 +12,6 @@ struct DirectionalLight {
     direction: vec3f,
 }
 
-
 struct PointLights {
     count: u32,
     lights: array<PointLight>,
@@ -26,7 +22,6 @@ struct PointLight {
     position: vec3f,
     range: f32,
 }
-
 
 struct SpotLights {
     count: u32,
@@ -41,3 +36,19 @@ struct SpotLight {
     outer_angle: f32,
     range: f32,
 }
+
+@group(0)
+@binding(10)
+var<uniform> light_config: LightConfig;
+
+@group(0)
+@binding(11)
+var<storage> directional_lights: DirectionalLights;
+
+@group(0)
+@binding(12)
+var<storage> point_lights: PointLights;
+
+@group(0)
+@binding(13)
+var<storage> spot_lights: SpotLights;

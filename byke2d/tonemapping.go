@@ -249,28 +249,28 @@ func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelin
 
 	switch c.Tonemapping {
 	case TonemappingSomewhatBoringDisplayTransform:
-		values.Define("TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM", true)
+		values.Set("TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM", true)
 	case TonemappingAcesFitted:
-		values.Define("TONEMAP_METHOD_ACES_FITTED", true)
+		values.Set("TONEMAP_METHOD_ACES_FITTED", true)
 	case TonemappingReinhard:
-		values.Define("TONEMAP_METHOD_REINHARD", true)
+		values.Set("TONEMAP_METHOD_REINHARD", true)
 	case TonemappingReinhardLuminance:
-		values.Define("TONEMAP_METHOD_REINHARD_LUMINANCE", true)
+		values.Set("TONEMAP_METHOD_REINHARD_LUMINANCE", true)
 	case TonemappingTonyMcMapface:
-		values.Define("TONEMAP_METHOD_TONY_MC_MAPFACE", true)
+		values.Set("TONEMAP_METHOD_TONY_MC_MAPFACE", true)
 	case TonemappingAgX:
-		values.Define("TONEMAP_METHOD_AGX", true)
+		values.Set("TONEMAP_METHOD_AGX", true)
 	case TonemappingBlenderFilmic:
-		values.Define("TONEMAP_METHOD_BLENDER_FILMIC", true)
+		values.Set("TONEMAP_METHOD_BLENDER_FILMIC", true)
 	default:
-		values.Define("TONEMAP_METHOD_NONE", true)
+		values.Set("TONEMAP_METHOD_NONE", true)
 	}
 
-	values.Define("DEBAND_DITHER", c.DebandDither.enable)
+	values.Set("DEBAND_DITHER", c.DebandDither.enable)
 
-	values.Define("HUE_ROTATE", c.HueRotate)
-	values.Define("WHITE_BALANCE", c.WhiteBalance)
-	values.Define("SECTIONAL_COLOR_GRADING", c.SectionalColorGrading)
+	values.Set("HUE_ROTATE", c.HueRotate)
+	values.Set("WHITE_BALANCE", c.WhiteBalance)
+	values.Set("SECTIONAL_COLOR_GRADING", c.SectionalColorGrading)
 
 	module := ctx.Shader("Tonemapping", tonemappingShader, values)
 

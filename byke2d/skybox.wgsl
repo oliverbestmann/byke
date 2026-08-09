@@ -1,5 +1,4 @@
-#import byke2d::view
-#import byke2d::view::bindings
+import package::byke::globals;
 
 struct SkyboxUniforms {
     intensity: vec3f,
@@ -22,7 +21,7 @@ fn coords_to_ray_direction(position: vec2<f32>, viewport: vec4<f32>) -> vec3<f32
     // fragment position.
     // Use the position on the near clipping plane to avoid -inf world position
     // because the far plane of an infinite reverse projection is at infinity.
-    let view_position_homogeneous = view.camera_to_screen_inv * vec4(
+    let view_position_homogeneous = globals::view.camera_to_screen_inv * vec4(
         coords_to_viewport_uv(position, viewport) * vec2(2.0, -2.0) + vec2(-1.0, 1.0),
         1.0,
         1.0,
@@ -31,7 +30,7 @@ fn coords_to_ray_direction(position: vec2<f32>, viewport: vec4<f32>) -> vec3<f32
     // Transforming the view space ray direction by the skybox transform matrix, it is
     // equivalent to rotating the skybox itself.
     var view_ray_direction = view_position_homogeneous.xyz / view_position_homogeneous.w;
-    view_ray_direction = (view.world_to_camera_inv * vec4(view_ray_direction, 0.0)).xyz;
+    view_ray_direction = (globals::view.world_to_camera_inv * vec4(view_ray_direction, 0.0)).xyz;
 
     let skybox_transform = mat4x4(
         1, 0, 0, 0,
@@ -76,7 +75,7 @@ fn skybox_vertex(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
 @fragment
 fn skybox_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let ray_direction = coords_to_ray_direction(in.position.xy, view.viewport);
+    let ray_direction = coords_to_ray_direction(in.position.xy, globals::view.viewport);
 
     // Cube maps are left-handed so we negate the z coordinate.
     let out = textureSample(skybox, skybox_sampler, ray_direction * vec3(1.0, 1.0, -1.0));
