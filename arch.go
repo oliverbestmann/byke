@@ -49,6 +49,9 @@ type ComparableComponent[T IsComparableComponent[T]] = spoke.ComparableComponent
 // even though the interface is actually implemented directly on the component type.
 type ErasedComponent = spoke.ErasedComponent
 
+// ComponentType describes the runtime type of Component values
+type ComponentType = spoke.ComponentType
+
 // Option is a query parameter that fetches a given Component of type T
 // if it exists on an entity.
 type Option[C IsComponent[C]] = query.Option[C]

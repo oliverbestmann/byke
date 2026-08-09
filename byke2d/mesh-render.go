@@ -561,7 +561,7 @@ func drawMeshesBatchSystem(
 	viewQuery ViewQuery[struct {
 		ViewId              byke.EntityId
 		ViewTarget          *ViewTarget
-		MeshBindGroup       MeshViewBindGroup
+		MeshBindGroup       *MeshViewBindGroup
 		ViewUniformsOffset  DynamicOffset[ViewUniforms]
 		EnvironmentMapLight byke.Option[DynamicOffset[EnvironmentMapLight]]
 	}],
@@ -606,6 +606,10 @@ func drawMeshesBatchSystem(
 	}
 
 	pass.SetPipeline(pipeline.Get())
+
+	if !view.MeshBindGroup.BindGroup.IsValid() {
+		panic("invalid")
+	}
 
 	pass.SetBindGroup(0, view.MeshBindGroup.BindGroup, dynamicOffsetsForViewGroup)
 	pass.SetBindGroup(1, meshBindGroup, nil)

@@ -169,7 +169,7 @@ func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurf
 	if hdr {
 		format = wgpu.TextureFormatRGBA16Float
 	} else {
-		format = wgpu.TextureFormatBGRA8Unorm
+		format = wgpu.TextureFormatRGBA8Unorm
 	}
 
 	var width, height uint32

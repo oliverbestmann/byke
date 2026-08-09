@@ -34,6 +34,7 @@ func (*Query[T]) newState(world *World, _ queryT) SystemParamState {
 		Query:   world.storage.OptimizeQuery(parsed.Builder.Build()),
 		Setters: parsed.Setters,
 		Storage: world.storage,
+		World:   world,
 	}
 
 	q.inner = inner
@@ -76,6 +77,8 @@ func (q *Query[T]) Count() int {
 
 	var count int
 	for {
+		// TODO once we have contiguous query iterators, we might want to
+		//  use those here to skip the iteration over each element
 		_, more := it.Next()
 		if !more {
 			return count
@@ -135,14 +138,12 @@ type queryParamState struct {
 }
 
 func (q *queryParamState) GetValue(sc SystemContext) (reflect.Value, error) {
-	q.world.activeQueries.Add(1)
 	q.inner.QueryContext.LastRun = sc.LastRun
 	return q.ptrToValue.Elem(), nil
 }
 
 func (q *queryParamState) CleanupValue() {
 	q.world.recheckComponents(q.inner.Query, q.mutable)
-	q.world.activeQueries.Add(-1)
 }
 
 func (q *queryParamState) ValueType() reflect.Type {
@@ -154,6 +155,7 @@ type innerQuery struct {
 	Query        *spoke.CachedQuery
 	Storage      *spoke.Storage
 	QueryContext spoke.QueryContext
+	World        *World
 }
 
 func iterValues[T any](inner *innerQuery, fn func(value T) bool) {
@@ -175,6 +177,10 @@ func iterValues[T any](inner *innerQuery, fn func(value T) bool) {
 
 func makeQueryIter[T any](inner *innerQuery) func(yield func(T) bool) {
 	return func(yield func(T) bool) {
+		// keep track of active queries
+		inner.World.activeQueries.Add(1)
+		defer inner.World.activeQueries.Add(-1)
+
 		iterValues[T](inner, yield)
 	}
 }

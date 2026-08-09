@@ -219,6 +219,7 @@ func DefaultWindowConfig() WindowConfig {
 func DefaultSurfaceConfig() SurfaceConfig {
 	return SurfaceConfig{
 		Format:      wgpu.TextureFormatRGBA8Unorm,
+		ViewFormat:  wgpu.TextureFormatRGBA8UnormSrgb,
 		PresentMode: wgpu.PresentModeFifo,
 	}
 }
@@ -342,6 +343,10 @@ type SurfaceConfig struct {
 	// Format is the wgpu.TextureFormat to use for the windows wgpu.Surface
 	Format wgpu.TextureFormat
 
+	// ViewFormat is an additional format, i.e. a srgb variant of Format, that
+	// is used
+	ViewFormat wgpu.TextureFormat
+
 	// PresentMode is the desired present mode for the windows wgpu.Surface.
 	PresentMode wgpu.PresentMode
 }
@@ -428,8 +433,8 @@ func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth
 		PresentMode: surfaceConfig.PresentMode,
 		AlphaMode:   wgpu.CompositeAlphaModeOpaque,
 		ViewFormats: []wgpu.TextureFormat{
-			wgpu.TextureFormatRGBA8Unorm,
-			wgpu.TextureFormatRGBA8UnormSrgb,
+			surfaceConfig.Format,
+			surfaceConfig.ViewFormat,
 		},
 
 		DesiredMaximumFrameLatency: 1,
@@ -468,6 +473,7 @@ func renderMainSystem(
 	world *byke.World,
 	ctx *RenderContext,
 	textureCache *TextureCache,
+	surfaceConfig SurfaceConfig,
 ) {
 	// get the surface texture (the actual screen)
 	surfaceTexture := func() wgpu.SurfaceTexture {
@@ -490,12 +496,10 @@ func renderMainSystem(
 	surfaceWidth := surface.GetWidth()
 	surfaceHeight := surface.GetHeight()
 
-	surfaceViewFormat := wgpu.TextureFormatRGBA8UnormSrgb
-
 	// create a view we can render to
 	surfaceTextureView := surface.CreateView(&wgpu.TextureViewDescriptor{
 		Label:           "Surface",
-		Format:          surfaceViewFormat,
+		Format:          surfaceConfig.ViewFormat,
 		MipLevelCount:   1,
 		ArrayLayerCount: 1,
 		Aspect:          wgpu.TextureAspectAll,
@@ -506,7 +510,7 @@ func renderMainSystem(
 	world.InsertResource(currentSurfaceValues{
 		Texture:     surface,
 		TextureView: surfaceTextureView,
-		Format:      surfaceViewFormat,
+		Format:      surfaceConfig.ViewFormat,
 		Size:        glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)},
 	})
 	defer world.RemoveResource(reflect.TypeFor[currentSurfaceValues]())

@@ -270,11 +270,11 @@ func (c *commandSystemParamState) GetValue(SystemContext) (reflect.Value, error)
 }
 
 func (c *commandSystemParamState) CleanupValue() {
-	if len(c.queue) > 0 {
-		c.world.flushes = append(c.world.flushes, func() {
-			(*Commands)(c).applyToWorld()
-		})
-	}
+	c.world.commands.AppendAll(c.queue)
+
+	// clear state, this instance will be re-used
+	clear(c.queue)
+	c.queue = c.queue[:0]
 }
 
 func (*commandSystemParamState) ValueType() reflect.Type {

@@ -110,7 +110,7 @@ func setupSystem(ctx *RenderContext, commands *Commands, assets *Assets) {
 		Label:      "PixelCamera",
 		Width:      360,
 		Height:     200,
-		Format:     wgpu.TextureFormatBGRA8UnormSrgb,
+		Format:     wgpu.TextureFormatRGBA8UnormSrgb,
 		FilterMode: wgpu.FilterModeNearest,
 	})
 	commands.Spawn(

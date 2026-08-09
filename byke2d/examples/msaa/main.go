@@ -38,7 +38,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	cameraTexture := NewTexture2d(ctx, NewTexture2dOptions{
 		FilterMode: wgpu.FilterModeNearest,
 
-		Format:       wgpu.TextureFormatBGRA8UnormSrgb,
+		Format:       wgpu.TextureFormatRGBA8UnormSrgb,
 		Width:        500,
 		Height:       300,
 		MipmapLevels: 1,

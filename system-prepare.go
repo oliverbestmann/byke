@@ -111,6 +111,7 @@ func (w *World) prepareSystemUncached(config systemConfig) *preparedSystem {
 	preparedSystem.RawSystem = func(sc SystemContext) any {
 		paramValues := valueSlices.Get()
 		defer valueSlices.Put(paramValues)
+		defer clear(*paramValues)
 
 		*paramValues = (*paramValues)[:0]
 

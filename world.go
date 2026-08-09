@@ -29,7 +29,8 @@ type World struct {
 
 	currentTick   spoke.Tick
 	activeQueries atomic.Int32
-	flushes       []func()
+
+	commands CommandQueue
 }
 
 // NewWorld creates a new empty world.
@@ -84,6 +85,10 @@ func (w *World) RunSystem(system AnySystem) {
 }
 
 func (w *World) RunSystemWithInValue(system AnySystem, inValue any) {
+	w.runSystemWithValue(system, inValue)
+}
+
+func (w *World) runSystemWithValue(system AnySystem, inValue any) {
 	systemConfig := asSystemConfig(system)
 	preparedSystem := w.prepareSystem(systemConfig)
 	w.runSystem(preparedSystem, SystemContext{InValue: inValue})
@@ -121,10 +126,30 @@ func (w *World) scheduleOf(scheduleId ScheduleId) *schedule {
 }
 
 func (w *World) runSystem(system *preparedSystem, ctx SystemContext) any {
+	checkpoint := w.commands.Checkpoint()
+
+	result := w.runSystemWithoutApplyingCommands(system, ctx)
+
+	// TODO do we need this? This should only be possible if we run
+	//  World.RunSchedule or World.RunSystem while iterating a query.
+	//  In bevy this can not happen due to needing &mut World to run a system
+	//  or a schedule, which forbids you from iterating a query at the same time.
+	//
+	if count := int(w.activeQueries.Load()); count != 0 {
+		// slog.Warn("Flushing commands delayed, active query exists", slog.Int("count", count))
+		panic(fmt.Errorf("queries are still active: %d", count))
+	}
+
+	w.applyCommands(checkpoint)
+
+	return result
+}
+
+func (w *World) runSystemWithoutApplyingCommands(system *preparedSystem, ctx SystemContext) any {
 	defer puffin.NewScopeWithValue("byke.RunSystem", system.Name).End()
 
 	for _, predicate := range system.Predicates {
-		result := w.runSystem(predicate, SystemContext{})
+		result := w.runSystemWithoutApplyingCommands(predicate, SystemContext{})
 		if result == nil || !result.(bool) {
 			// predicate evaluated to "do not run", stop execution here
 			return nil
@@ -143,11 +168,6 @@ func (w *World) runSystem(system *preparedSystem, ctx SystemContext) any {
 	// update last run so we can calculate changed components
 	// at the next run
 	system.LastRun = w.currentTick
-
-	if w.activeQueries.Load() == 0 {
-		w.flushCommands()
-	}
-
 	return result
 }
 
@@ -175,6 +195,10 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 
 	defer puffin.NewScopeWithValue("RunSchedule", scheduleId.String()).End()
 
+	// all added commands should be handled already
+	checkpoint := w.commands.Checkpoint()
+	defer assertIsEmpty(w.commands.DrainAt(checkpoint))
+
 	// remove the schedule while it is executed
 	delete(w.schedules, scheduleId)
 
@@ -196,11 +220,17 @@ func (w *World) RunSchedule(scheduleId ScheduleId) {
 	}
 }
 
+func assertIsEmpty(slice []Command) {
+	if len(slice) > 0 {
+		panic(fmt.Errorf("expected to have no pending commands, got %#v", slice))
+	}
+}
+
 // AddObserver adds a new observer.
 // Observers are entities containing the Observer component.
 func (w *World) AddObserver(observer Observer) EntityId {
 	// prepare system here. this will also panic if the systems parameters
-	// are not well formed.
+	// are not wellformed.
 	observer.system = w.prepareSystem(asSystemConfig(observer.callback))
 
 	return w.Spawn([]ErasedComponent{observer})
@@ -213,6 +243,9 @@ func (w *World) AddObserver(observer Observer) EntityId {
 func (w *World) TriggerObserver(eventValue Event) {
 	// get the event type first
 	eventType := reflect.TypeOf(eventValue)
+
+	checkpoint := w.commands.Checkpoint()
+	defer assertIsEmpty(w.commands.DrainAt(checkpoint))
 
 	w.RunSystemWithInValue(triggerObserverSystem, triggerObserverIn{
 		ObserverType: eventType,
@@ -444,24 +477,6 @@ func (w *World) PrintSystems() {
 	}
 }
 
-func (w *World) flushCommands() {
-	if w.activeQueries.Load() != 0 {
-		panic("can not flush, queries are still running")
-	}
-
-	if len(w.flushes) > 0 {
-		defer puffin.NewScope("byke.FlushCommands").End()
-	}
-
-	// TODO evaluate if this is save like this. maybe we can do better here?
-	for len(w.flushes) > 0 {
-		fn := w.flushes[0]
-		w.flushes = w.flushes[1:]
-
-		fn()
-	}
-}
-
 func (w *World) removeComponent(entityId EntityId, componentType *spoke.ComponentType) {
 	component, ok := w.storage.RemoveComponent(w.currentTick, entityId, componentType)
 	if !ok {
@@ -473,6 +488,41 @@ func (w *World) removeComponent(entityId EntityId, componentType *spoke.Componen
 
 func (w *World) recheckComponents(query *spoke.CachedQuery, componentTypes []*spoke.ComponentType) {
 	w.storage.CheckChanged(w.currentTick, query, componentTypes)
+}
+
+// RegisterComponentHooks returns a new RegisterComponentHooks instance that can be used
+// to register component hooks
+func (w *World) RegisterComponentHooks[T IsComponent[T]]() RegisterComponentHooks {
+	componentType := spoke.ComponentTypeOf[T]()
+
+	return RegisterComponentHooks{
+		world:    w,
+		delegate: w.storage.RegisterComponentHooks(componentType),
+	}
+}
+
+func (w *World) Commands() *CommandQueue {
+	return &w.commands
+}
+
+func (w *World) dispatchHookWithWorld(entity spoke.EntityRef, component *spoke.ComponentType, hook ComponentHook) {
+	var dw DeferredWorld = w
+	hook(dw, entity, component)
+}
+
+func (w *World) applyCommands(checkpoint Checkpoint) {
+	if w.activeQueries.Load() != 0 {
+		panic("cannot apply commands, queries are still running")
+	}
+
+	commands := w.commands.DrainAt(checkpoint)
+	if len(commands) > 0 {
+		defer puffin.NewScope("byke.FlushCommands").End()
+	}
+
+	for _, command := range commands {
+		command.Apply(w)
+	}
 }
 
 func copyComponent(value ErasedComponent) ErasedComponent {
@@ -498,6 +548,8 @@ func triggerObserverSystem(
 		}
 	}
 
+	checkpoint := w.commands.Checkpoint()
+
 	for observer := range observers.Items() {
 		if !observer.ObservesType(params.ObserverType) {
 			continue
@@ -512,10 +564,12 @@ func triggerObserverSystem(
 		}
 
 		// we found a match, trigger the observer
-		w.runSystem(observer.system, SystemContext{
+		w.runSystemWithoutApplyingCommands(observer.system, SystemContext{
 			Trigger: systemTrigger{
 				EventValue: params.EventValue,
 			},
 		})
 	}
+
+	w.applyCommands(checkpoint)
 }

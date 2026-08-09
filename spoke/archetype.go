@@ -189,6 +189,15 @@ func (a *Archetype) Get(entityId EntityId) (EntityRef, bool) {
 	return a.getAt(row), true
 }
 
+func (a *Archetype) mustGet(entityId EntityId) EntityRef {
+	entityRef, ok := a.Get(entityId)
+	if !ok {
+		panic(fmt.Errorf("entityId %d does not exist in archetype", entityId))
+	}
+
+	return entityRef
+}
+
 func (a *Archetype) componentAt(row Row, componentType *ComponentType) ErasedComponent {
 	column := a.getColumn(componentType)
 	if column == nil {
