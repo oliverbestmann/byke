@@ -82,6 +82,8 @@ github.com/oliverbestmann/wesl-go v0.0.0-20260809151003-845ac19f84e3 h1:IqgW4aBD
 github.com/oliverbestmann/wesl-go v0.0.0-20260809151003-845ac19f84e3/go.mod h1:YyA+zsFZG65oufIuiApuW3TDRAWPIeI8AC7Xy+XJXMM=
 github.com/oliverbestmann/wesl-go v0.0.0-20260809151323-baa647debcdb h1:xRxBxpRN6WwjNdMr6dpaHJw3LeZAMSi+LTpTGm2XnrI=
 github.com/oliverbestmann/wesl-go v0.0.0-20260809151323-baa647debcdb/go.mod h1:YyA+zsFZG65oufIuiApuW3TDRAWPIeI8AC7Xy+XJXMM=
+github.com/oliverbestmann/wesl-go v1.0.0 h1:fCEpq+T9BNAh4vlXQCriNvuz0XMND00cl1N4bnHxuqk=
+github.com/oliverbestmann/wesl-go v1.0.0/go.mod h1:YyA+zsFZG65oufIuiApuW3TDRAWPIeI8AC7Xy+XJXMM=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
 github.com/pkg/profile v1.7.0 h1:hnbDkaNWPCLMO9wGLdBFTIZvzDrDfBM2072E1S9gJkA=
 github.com/pkg/profile v1.7.0/go.mod h1:8Uer0jas47ZQMJ7VD+OHknK4YDY07LPUC6dEvqDjvNo=
