@@ -91,7 +91,7 @@ func PipelineCacheFromWorld(world *byke.World) PipelineCache {
 }
 
 func (p *PipelineCache) Shader(label, shaderCode string, values ShaderValues) *wgpu.ShaderModule {
-	shaderCode, err := p.shaders.Compile(shaderCode, values)
+	shaderCode, err := p.shaders.Compile(label, shaderCode, values)
 	if err != nil {
 		panic(fmt.Errorf("prepare shader %q: %w", label, err))
 	}

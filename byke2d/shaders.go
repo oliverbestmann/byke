@@ -23,8 +23,13 @@ func pluginShader(app *byke.App) {
 	shaders, _ := fs.Sub(fsShaders, "shaders-lib")
 	lib, _ := wesl.FilesOf(shaders)
 
+	timeStart := time.Now()
+	weslTranspiler := wesl.New()
+
+	slog.Debug("Initializing wesl shader compiler", slog.Duration("duration", time.Since(timeStart)))
+
 	app.InsertResource(Shaders{
-		transpiler: wesl.New(),
+		transpiler: weslTranspiler,
 		files:      lib,
 	})
 }
@@ -43,7 +48,7 @@ func (s *Shaders) Get() wesl.Files {
 	return s.files
 }
 
-func (s *Shaders) Compile(source string, values ShaderValues) (string, error) {
+func (s *Shaders) Compile(label, source string, values ShaderValues) (string, error) {
 	files := maps.Clone(s.files)
 	maps.Insert(files, maps.All(values.Files))
 	files["main.wesl"] = source
@@ -61,7 +66,9 @@ func (s *Shaders) Compile(source string, values ShaderValues) (string, error) {
 		return "", fmt.Errorf("transpile source to wgsl: %w", err)
 	}
 
-	slog.Debug("Compiled shader source to wgsl", slog.Duration("duration", time.Since(startTime)))
+	slog.Debug("Compiled shader source to wgsl",
+		slog.String("label", label),
+		slog.Duration("duration", time.Since(startTime)))
 
 	return wgsl, err
 }
