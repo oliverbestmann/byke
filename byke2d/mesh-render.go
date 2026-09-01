@@ -44,8 +44,8 @@ func pluginMesh3d(app *byke.App) {
 	// need to sync the Weights to the actual mesh node
 	app.AddSystems(PreRender, syncMeshMorphWeightsSystem)
 
-	app.AddPlugin(PluginMaterial[StandardMaterial])
-	app.AddPlugin(PluginMaterial[ColorMaterial])
+	app.AddPlugin(PluginMaterial[StandardMaterial, *StandardMaterial])
+	app.AddPlugin(PluginMaterial[ColorMaterial, *ColorMaterial])
 
 	app.AddPlugin(ComponentUniformsPlugin[EnvironmentMapLight])
 }
@@ -106,7 +106,7 @@ func clearExtractedMeshesSystem(
 
 type MeshKey struct {
 	MatType   reflect.Type
-	MatKey    MaterialBindGroupKey
+	MatKey    MaterialBindGroupId
 	LayoutKey VertexLayoutKey
 	Mesh      *Mesh
 }
@@ -120,7 +120,7 @@ func (m MeshKey) CompareTo(other any) int {
 	return cmp.Or(
 		compareType(m.MatType, o.MatType),
 		cmp.Compare(m.LayoutKey, o.LayoutKey),
-		cmp.Compare(m.MatKey.SortValue(), o.MatKey.SortValue()),
+		compareByType(m.MatKey, o.MatKey),
 		compareByAddress(m.Mesh, o.Mesh),
 	)
 }
@@ -164,13 +164,13 @@ func queueMeshInstancesSystem(
 			}
 
 			key := MeshKey{
-				MatKey:    sp.Material.BindGroupKey(),
 				MatType:   reflect.TypeOf(sp.Material),
+				MatKey:    sp.Material.BindGroup().Id,
 				LayoutKey: sp.Mesh.VertexLayout().Key(),
 				Mesh:      sp.Mesh,
 			}
 
-			if sp.Material.IsOrderIndependent() {
+			if sp.Material.BindGroup().OrderIndependent {
 				view.RenderPhase.Append(renderItem, key)
 
 			} else {
@@ -183,11 +183,6 @@ func queueMeshInstancesSystem(
 				distanceToCameraSq := forwardCameraAxis.Dot(
 					aabbCenterInWorld.Sub(cameraPositionInWorld),
 				)
-
-				// calculate distance squared between center of the aabb and camera
-				// distanceToCameraSq := aabbCenterInWorld.
-				// 	Sub(view.Transform.Affine.Translation()).
-				// 	LengthSqr()
 
 				// will be sorting ascending, but we want to draw the largest
 				// distance first
@@ -216,12 +211,17 @@ func prepareMeshPipelinesSystems(
 		ViewId              byke.EntityId
 		ViewTarget          ViewTarget
 		EnvironmentMapLight byke.Has[EnvironmentMapLight]
+		RenderLayers        RenderLayers
 	}],
 ) {
 	cache.Tick()
 
 	for view := range viewsQuery.Items() {
 		for _, mesh := range meshes.Meshes {
+			if !view.RenderLayers.Intersects(mesh.RenderLayers) {
+				continue
+			}
+
 			pipelineConfig := meshPipelineConfig{
 				Format:       view.ViewTarget.Format,
 				SampleCount:  view.ViewTarget.SampleCount,
@@ -309,18 +309,42 @@ func prepareMeshInstancesSystem(
 			}
 		}
 
+		// transparent phase needs explicit batching here
+
+		var current *RenderItem
+		var currentMaterialPipeline MaterialPipelineKey
+		var currentMaterialBindGroup *MaterialBindGroupHandle
+
 		for idx := range view.Transparent.Len() {
 			item := view.Transparent.Get(idx)
 
 			if _, isMesh := item.Type.(*meshRenderPhaseItem); !isMesh {
+				// not a mesh, stop current batch
+				current = nil
 				continue
 			}
 
-			item.BatchBegin = uint32(instances.InstanceCount())
-			item.BatchCount = uint32(1)
+			meshItem := &meshes.Meshes[item.ExtractedIndex]
 
-			mesh := &meshes.Meshes[item.ExtractedIndex]
-			appendInstance(mesh)
+			meshMaterialPipeline := meshItem.Material.BindGroup().PipelineKey
+			meshMaterialBindGroup := meshItem.Material.BindGroup()
+			if current == nil ||
+				currentMaterialPipeline != meshMaterialPipeline ||
+				currentMaterialBindGroup != meshMaterialBindGroup {
+
+				// we begin a new batch here
+				current = item
+				currentMaterialPipeline = meshMaterialPipeline
+				currentMaterialBindGroup = meshMaterialBindGroup
+
+				// record begin of batch
+				current.BatchBegin = uint32(instances.InstanceCount())
+				current.BatchCount = 0
+			}
+
+			current.BatchCount += 1
+
+			appendInstance(meshItem)
 		}
 	}
 

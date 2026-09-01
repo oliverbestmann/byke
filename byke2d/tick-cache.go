@@ -27,6 +27,12 @@ func (c *tickCache[K, V]) Tick() {
 func (c *tickCache[K, V]) Add(key K, value V) {
 	ensureMapIsInitialized(&c.entries)
 
+	if existing, ok := c.entries[key]; ok {
+		existing.Value = value
+		existing.InUse = true
+		return
+	}
+
 	c.entries[key] = &tickCacheEntry[V]{
 		Value: value,
 		InUse: true,

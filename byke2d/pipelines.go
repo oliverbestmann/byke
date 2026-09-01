@@ -37,7 +37,7 @@ type PipelineCache struct {
 	pipelines meh.Map[PipelineConfig, Pipeline]
 }
 
-func (p *PipelineCache) Specialize(config PipelineConfig) Pipeline {
+func (p *PipelineCache) Specialize[C PipelineConfig](config C) Pipeline {
 	cached, ok := p.pipelines.Get(config)
 	if ok {
 		return cached

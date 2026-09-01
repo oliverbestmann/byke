@@ -22,8 +22,7 @@ func (b meshPipelineConfig) Hash() uint32 {
 	h := HashFor[meshPipelineConfig]()
 	h.Int(b.Format)
 	h.Int(b.VertexLayout.Key())
-	h.Int(b.Material.PipelineKey())
-	h.Int(b.Material.BindGroupKey())
+	h.Int(b.Material.BindGroup().PipelineKey)
 	h.Int(b.SampleCount)
 	h.Bool(b.Skinned)
 	h.Bool(b.Morph)
@@ -38,12 +37,12 @@ func (m meshPipelineConfig) EqualTo(other PipelineConfig) bool {
 		m.Skinned == otherConfig.Skinned &&
 		m.Morph == otherConfig.Morph &&
 		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
-		m.Material.PipelineKey() == otherConfig.Material.PipelineKey() &&
+		m.Material.BindGroup().PipelineKey == otherConfig.Material.BindGroup().PipelineKey &&
 		m.MeshView == otherConfig.MeshView
 }
 
 func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	shader := m.Material.Shader()
+	shader := m.Material.BindGroup().BindGroup.Shader()
 	values := shader.Values.Clone()
 
 	var instanceAttrs, perVertexAttrs vertexAttributeOffsets
@@ -133,7 +132,7 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		},
 	}
 
-	m.Material.Specialize(&desc)
+	m.Material.BindGroup().BindGroup.Specialize(&desc)
 
 	return desc
 }

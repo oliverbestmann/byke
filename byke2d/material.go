@@ -6,6 +6,8 @@ import (
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
+	"github.com/oliverbestmann/byke/internal/query"
+	"github.com/oliverbestmann/byke/spoke"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -22,18 +24,43 @@ import (
 //   - A description how to render. This includes the Shader and its bind group layout,
 //     as well as the Bindings itself.
 type Material interface {
-	// Shader returns the shader for the material in its current configuration
-	Shader() *ShaderDef
-
-	// Bindings return the Bindings for the BindingsLayout above.
-	Bindings() []wgpu.BindGroupEntry
-
 	// WriteUniforms write the non bind group related material data to a struct.
 	// This might be the tint of a color material.
 	WriteUniforms(w *wgsl.StructWriter)
 
-	// BindGroupKey returns a key that is unique to this materials bind group.
-	BindGroupKey() MaterialBindGroupKey
+	// BindGroup returns the MaterialBindGroupHandle for this material. The returned value
+	// should be a cached handle from the MaterialBindGroupHandleCache.
+	BindGroup() *MaterialBindGroupHandle
+}
+
+// ResolvableMaterial must be implemented on a material with pointer receiver,
+// as it is supposed to set the material group handle.
+type ResolvableMaterial interface {
+	ResolveBindGroup(cache *MaterialBindGroupHandleCache)
+}
+
+type MaterialBindGroupId uint64
+
+type MaterialBindGroupHandle struct {
+	// monotonic, stable sort key
+	Id MaterialBindGroupId
+
+	// canonical MaterialBindGroup instance (a pointer)
+	BindGroup MaterialBindGroup
+
+	// PipelineKey is computed once at intern time
+	PipelineKey MaterialPipelineKey
+
+	// OrderIndependent can also be computed once at insert time
+	OrderIndependent bool
+}
+
+type MaterialBindGroup interface {
+	// Shader returns the shader for the material in its current configuration
+	Shader() *ShaderDef
+
+	// Bindings return the Bindings that are to be passed to the pipeline.
+	Bindings() []wgpu.BindGroupEntry
 
 	// PipelineKey returns key that indicates that the bind group layout or the pipeline
 	// specialization for this material is different.
@@ -50,10 +77,6 @@ type Material interface {
 type MaterialValues struct {
 	// FrontFace defaults to wgpu.FrontFaceCCW
 	FrontFace wgpu.FrontFace
-
-	// AlphaCutoff is used with AlphaModeMask to define the
-	// cutoff for the alpha value.
-	AlphaCutoff float32
 
 	// AlphaMode decides on the way this material handles alpha values.
 	AlphaMode AlphaMode
@@ -139,6 +162,7 @@ func (k MaterialPipelineKey) SortValue() uint64 {
 
 func pluginMaterialCommon(app *byke.App) {
 	app.InsertResource(MaterialBindGroups{})
+	app.InsertResource(MaterialBindGroupHandleCache{})
 	app.InsertResource(MaterialUniforms{})
 
 	app.AddSystems(PreRender, tickMaterialBindGroupsSystems)
@@ -157,15 +181,22 @@ func pluginMaterialCommon(app *byke.App) {
 		InSet(RenderPhasePrepareBindGroups))
 }
 
-func PluginMaterial[M Material](app *byke.App) {
+func PluginMaterial[M isMaterialComponent[M], PM interface {
+	*M
+	isMaterialComponent[M]
+}](app *byke.App) {
 	app.InitResource[Area[M]]()
 
 	app.AddSystems(PreRender, byke.
 		System(tickMaterialAreaSystem[M]))
 
+	app.AddSystems(PreRender, byke.
+		System(resolveMaterialBindGroupsSystem[M, PM]))
+
 	app.AddSystems(Render, byke.
 		System(extractMeshesWithMaterialSystem[M]).
 		InSet(RenderPhaseExtract))
+
 }
 
 type MaterialUniforms struct {
@@ -243,12 +274,71 @@ func prepareMaterialUniforms(
 	uniforms.Upload(ctx)
 }
 
+type MaterialBindGroupHandleCache struct {
+	handles map[any]*MaterialBindGroupHandle
+	prevId  MaterialBindGroupId
+}
+
+func (c *MaterialBindGroupHandleCache) ResolveBindGroup[B comparable, PB interface {
+	*B
+	MaterialBindGroup
+}](handle **MaterialBindGroupHandle, value B) {
+	if h := *handle; h != nil {
+		if canonical, ok := h.BindGroup.(PB); ok && *(*B)(canonical) == value {
+			// only non-bind-group fields changed — keep the existing handle
+			return
+		}
+	}
+
+	existing, ok := c.handles[value]
+	if ok {
+		*handle = existing
+		return
+	}
+
+	c.prevId += 1
+
+	pb := any(&value).(PB)
+
+	*handle = &MaterialBindGroupHandle{
+		Id:               c.prevId,
+		BindGroup:        pb,
+		PipelineKey:      pb.PipelineKey(),
+		OrderIndependent: pb.IsOrderIndependent(),
+	}
+
+	ensureMapIsInitialized(&c.handles)
+
+	c.handles[value] = *handle
+}
+
+type isMaterialComponent[M isMaterialComponent[M]] interface {
+	spoke.IsSupportsChangeDetectionComponent[M]
+	Material
+}
+
+func resolveMaterialBindGroupsSystem[M isMaterialComponent[M], PM interface {
+	*M
+	isMaterialComponent[M]
+}](
+	cache *MaterialBindGroupHandleCache,
+	query byke.Query[struct {
+		_        byke.Or[byke.Added[M], byke.Changed[M]]
+		Material query.Ref[M]
+	}],
+) {
+	for item := range query.Items() {
+		var m PM = item.Material.Value
+		any(m).(ResolvableMaterial).ResolveBindGroup(cache)
+	}
+}
+
 type MaterialBindGroups struct {
-	cache tickCache[MaterialBindGroupKey, *wgpu.BindGroup]
+	cache tickCache[MaterialBindGroupId, *wgpu.BindGroup]
 }
 
 func (m *MaterialBindGroups) MustLookup(mat Material) *wgpu.BindGroup {
-	bindGroup, ok := m.cache.Get(mat.BindGroupKey())
+	bindGroup, ok := m.cache.Get(mat.BindGroup().Id)
 	if !ok {
 		panic(fmt.Errorf("no BindGroup found for material type %T", mat))
 	}
@@ -284,16 +374,16 @@ func prepareMaterialBindGroupsSystem(
 		item := &meshes.Meshes[idx]
 
 		// we need to create one bind group per unique material key.
-		key := item.Material.BindGroupKey()
+		matBindGroup := item.Material.BindGroup()
 
-		if _, ok := bindGroups.cache.Get(key); !ok {
+		if _, ok := bindGroups.cache.Get(matBindGroup.Id); !ok {
 			label := reflect.TypeOf(item.Material).Name()
 
 			values := uniforms.Get(item.Material)
 
 			var bindings []wgpu.BindGroupEntry
 			bindings = append(bindings, BindingBuffer(values.Buffer))
-			bindings = append(bindings, item.Material.Bindings()...)
+			bindings = append(bindings, matBindGroup.BindGroup.Bindings()...)
 
 			pipeline, ok := pipelines.Get(meshPipelineCacheKey{viewId, item.EntityId})
 			if !ok {
@@ -306,7 +396,7 @@ func prepareMaterialBindGroupsSystem(
 				Entries: Sequential(bindings...),
 			})
 
-			bindGroups.cache.Add(key, bindGroup)
+			bindGroups.cache.Add(matBindGroup.Id, bindGroup)
 		}
 	}
 }

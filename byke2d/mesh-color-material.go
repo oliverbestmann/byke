@@ -11,20 +11,35 @@ import (
 //go:embed mesh-color-material.wgsl
 var colorMaterialShaderCode string
 
+var _ Material = ColorMaterial{}
+var _ ResolvableMaterial = &ColorMaterial{}
+
 type ColorMaterial struct {
-	byke.Component[ColorMaterial]
+	byke.ComparableComponent[ColorMaterial]
+
+	ColorMaterialBindGroup
 
 	// Color tints the mesh color rendering
 	Color Color
 
+	AlphaCutoff float32
+
+	resolved *MaterialBindGroupHandle
+}
+
+func (m *ColorMaterial) ResolveBindGroup(cache *MaterialBindGroupHandleCache) {
+	cache.ResolveBindGroup(&m.resolved, m.ColorMaterialBindGroup)
+}
+
+type ColorMaterialBindGroup struct {
+	MaterialValues
+
 	// Texture is an optional texture to apply to the mesh. This requires the
 	// VertexAttributeUV to be set. Will be ignored if UVs are not set
 	Texture *Texture
-
-	MaterialValues
 }
 
-func (m ColorMaterial) Shader() *ShaderDef {
+func (m *ColorMaterialBindGroup) Shader() *ShaderDef {
 	values := ShaderValues{}
 	values.Set("MESH3D_MAT_HAS_TEXTURE", m.Texture != nil)
 
@@ -43,7 +58,7 @@ func (m ColorMaterial) Shader() *ShaderDef {
 	}
 }
 
-func (m ColorMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
+func (m *ColorMaterialBindGroup) Specialize(pipeline *RenderPipelineDescriptor) {
 	m.MaterialValues.Specialize(pipeline)
 
 	var bindings []wgpu.BindGroupLayoutEntry
@@ -53,7 +68,7 @@ func (m ColorMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
 	pipeline.Layout = append(pipeline.Layout, SequentialLayoutWithLabel("StandardMaterial", bindings...))
 }
 
-func (m ColorMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
+func (m *ColorMaterialBindGroup) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 	var entries []wgpu.BindGroupLayoutEntry
 
 	if m.Texture != nil {
@@ -67,7 +82,7 @@ func (m ColorMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 	return entries
 }
 
-func (m ColorMaterial) Bindings() []wgpu.BindGroupEntry {
+func (m *ColorMaterialBindGroup) Bindings() []wgpu.BindGroupEntry {
 	var entries []wgpu.BindGroupEntry
 
 	if m.Texture != nil {
@@ -86,14 +101,11 @@ func (m ColorMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendFloat32(m.AlphaCutoff)
 }
 
-func (m ColorMaterial) BindGroupKey() MaterialBindGroupKey {
-	var hash Hash = 0xEA55D3ABE75DF54F
-	hash.Pointer(m.Texture)
-	hash.Int(m.MaterialValues.BindGroupKey())
-	return MaterialBindGroupKey(hash)
+func (m ColorMaterial) BindGroup() *MaterialBindGroupHandle {
+	return m.resolved
 }
 
-func (m ColorMaterial) PipelineKey() MaterialPipelineKey {
+func (m *ColorMaterialBindGroup) PipelineKey() MaterialPipelineKey {
 	var hash Hash = 0xC2ACE5D3D65CE2C6
 	hash.Bool(m.Texture != nil)
 	hash.Int(m.MaterialValues.BindGroupKey())

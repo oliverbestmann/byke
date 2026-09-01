@@ -15,10 +15,41 @@ var standardMaterialShaderCode string
 // DebugNormals can be set to true to output normals instead of colors
 var DebugNormals bool
 
-type StandardMaterial struct {
-	byke.Component[StandardMaterial]
+var _ Material = StandardMaterial{}
+var _ ResolvableMaterial = &StandardMaterial{}
 
-	// common material values
+type StandardMaterial struct {
+	byke.ComparableComponent[StandardMaterial]
+
+	StandardMaterialBindGroup
+
+	// BaseColor tints the mesh color rendering
+	BaseColor Color
+
+	// Optional emissive scale. This will be applied to the texture and added to the result,
+	// unaffected by lighting. If the material has an EmissiveTexture, it will multiply
+	// by the EmissiveTexture value
+	EmissiveScale glm.Vec3f
+
+	// Metallic value, zero to one.
+	Metallic float32
+
+	// PerceptualRoughness, zero to one.
+	// You should probably set this to a non-zero value.
+	// A good default is 1.0
+	PerceptualRoughness float32
+
+	// AlphaCutoff value for the material, only used with AlphaModeMask.
+	AlphaCutoff float32
+
+	resolved *MaterialBindGroupHandle
+}
+
+func (m *StandardMaterial) ResolveBindGroup(cache *MaterialBindGroupHandleCache) {
+	cache.ResolveBindGroup(&m.resolved, m.StandardMaterialBindGroup)
+}
+
+type StandardMaterialBindGroup struct {
 	MaterialValues
 
 	// Texture is an optional texture to apply to the mesh. This requires the
@@ -36,25 +67,9 @@ type StandardMaterial struct {
 
 	// Texture for roughness (green) & metallic (blue)
 	RoughnessMetallicTexture *Texture
-
-	// BaseColor tints the mesh color rendering
-	BaseColor Color
-
-	// Optional emissive scale. This will be applied to the texture and added to the result,
-	// unaffected by lighting. If the material has an EmissiveTexture, it will multiply
-	// by the EmissiveTexture value
-	EmissiveScale glm.Vec3f
-
-	// Metallic value, zero to one.
-	Metallic float32
-
-	// PerceptualRoughness, zero to one.
-	// You should probably set this to a non-zero value.
-	// A good default is 1.0
-	PerceptualRoughness float32
 }
 
-func (m StandardMaterial) Shader() *ShaderDef {
+func (m *StandardMaterialBindGroup) Shader() *ShaderDef {
 	values := ShaderValues{}
 	values.Set("MESH3D_MAT_HAS_TEXTURE", m.Texture != nil)
 	values.Set("MESH3D_MAT_HAS_NORMAL", m.NormalTexture != nil)
@@ -80,7 +95,7 @@ func (m StandardMaterial) Shader() *ShaderDef {
 	}
 }
 
-func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
+func (m *StandardMaterialBindGroup) Specialize(pipeline *RenderPipelineDescriptor) {
 	m.MaterialValues.Specialize(pipeline)
 
 	var bindings []wgpu.BindGroupLayoutEntry
@@ -90,7 +105,7 @@ func (m StandardMaterial) Specialize(pipeline *RenderPipelineDescriptor) {
 	pipeline.Layout = append(pipeline.Layout, SequentialLayoutWithLabel("StandardMaterial", bindings...))
 }
 
-func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
+func (m *StandardMaterialBindGroup) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 	var entries []wgpu.BindGroupLayoutEntry
 
 	if m.Texture != nil {
@@ -136,7 +151,7 @@ func (m StandardMaterial) BindingsLayout() []wgpu.BindGroupLayoutEntry {
 	return entries
 }
 
-func (m StandardMaterial) Bindings() []wgpu.BindGroupEntry {
+func (m *StandardMaterialBindGroup) Bindings() []wgpu.BindGroupEntry {
 	var entries []wgpu.BindGroupEntry
 
 	if m.Texture != nil {
@@ -191,18 +206,11 @@ func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendFloat32(m.PerceptualRoughness)
 }
 
-func (m StandardMaterial) BindGroupKey() MaterialBindGroupKey {
-	var hash Hash = 0xC2ACE5D3D65CE2C6
-	hash.Pointer(m.Texture)
-	hash.Pointer(m.EmissiveTexture)
-	hash.Pointer(m.NormalTexture)
-	hash.Pointer(m.OcclusionTexture)
-	hash.Pointer(m.RoughnessMetallicTexture)
-	hash.Int(m.MaterialValues.BindGroupKey())
-	return MaterialBindGroupKey(hash)
+func (m StandardMaterial) BindGroup() *MaterialBindGroupHandle {
+	return m.resolved
 }
 
-func (m StandardMaterial) PipelineKey() MaterialPipelineKey {
+func (m *StandardMaterialBindGroup) PipelineKey() MaterialPipelineKey {
 	var key uint64
 
 	key |= boolToUint64(m.Texture != nil) << 0

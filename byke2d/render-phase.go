@@ -81,11 +81,11 @@ func (r *SortableRenderPhase[M]) IsEmpty() bool {
 
 type BinnedRenderPhase[M any] struct {
 	byke.Component[BinnedRenderPhase[M]]
-	items map[CompareTo][]RenderItem
+	items map[MeshKey][]RenderItem
 
 	// a cache to re-use when re-creating keysSorted
-	keysCache  []CompareTo
-	keysSorted []CompareTo
+	keysCache  []MeshKey
+	keysSorted []MeshKey
 }
 
 func (r *BinnedRenderPhase[M]) Optimize() {
@@ -98,7 +98,7 @@ func (r *BinnedRenderPhase[M]) Optimize() {
 		keys = append(keys, key)
 	}
 
-	slices.SortFunc(keys, func(lhs, rhs CompareTo) int {
+	slices.SortFunc(keys, func(lhs, rhs MeshKey) int {
 		return lhs.CompareTo(rhs)
 	})
 
@@ -137,17 +137,17 @@ func (r *BinnedRenderPhase[M]) Reset() {
 	}
 }
 
-func (r *BinnedRenderPhase[M]) Append(item RenderItem, key CompareTo) {
+func (r *BinnedRenderPhase[M]) Append(item RenderItem, key MeshKey) {
 	if r.items == nil {
-		r.items = map[CompareTo][]RenderItem{}
+		r.items = map[MeshKey][]RenderItem{}
 	}
 
 	r.items[key] = append(r.items[key], item)
 	r.keysSorted = nil
 }
 
-func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[CompareTo, []RenderItem] {
-	return func(yield func(CompareTo, []RenderItem) bool) {
+func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[MeshKey, []RenderItem] {
+	return func(yield func(MeshKey, []RenderItem) bool) {
 		r.Optimize()
 
 		for _, key := range r.keysSorted {

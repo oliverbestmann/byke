@@ -6,22 +6,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLocal(t *testing.T) {
-	w := NewWorld()
+func TestLocalSystemParamStateValue(t *testing.T) {
+	world := NewWorld()
 
-	var countSeen int
+	var run int
+	system := func(l *Local[int]) {
+		switch run {
+		case 0:
+			require.Equal(t, 0, l.Value)
+			l.Value = 10
 
-	local := func(count *Local[int], other *Local[int]) {
-		count.Value += 1
-		countSeen = count.Value
+		case 1:
+			require.Equal(t, 10, l.Value)
+			l.Value = 20
 
-		require.Equal(t, 0, other.Value)
+		case 2:
+			require.Equal(t, 20, l.Value)
+		}
 	}
 
-	w.AddSystems(Update, local)
+	world.RunSystem(system)
 
-	w.RunSchedule(Update)
-	w.RunSchedule(Update)
+	run = 1
+	world.RunSystem(system)
 
-	require.Equal(t, 2, countSeen)
+	run = 2
+	world.RunSystem(system)
+}
+
+func BenchmarkSystemParamState_Local(b *testing.B) {
+	b.ReportAllocs()
+
+	world := NewWorld()
+
+	system := func(l *Local[int]) {}
+	cachedSystem := AsCachedSystem(system)
+
+	for b.Loop() {
+		world.RunSystem(cachedSystem)
+	}
 }

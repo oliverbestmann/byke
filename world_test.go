@@ -404,7 +404,7 @@ func TestRelationships(t *testing.T) {
 	})
 }
 
-func BenchmarkWorld_RunSystem(b *testing.B) {
+func BenchmarkWorld_RunSystemWithQuery(b *testing.B) {
 	type X struct {
 		ComparableComponent[X]
 		Value int
@@ -431,18 +431,15 @@ func BenchmarkWorld_RunSystem(b *testing.B) {
 		X    X
 	}
 
-	var schedule ScheduleId = &scheduleId{}
-	w.AddSystems(schedule, func(q Query[Values]) {
+	benchSystem(b, w, func(q Query[Values]) {
+		// q.IterItems(func(item Values) bool {
+		// 	_ = item
+		// 	return true
+		// })
+
 		for item := range q.Items() {
 			// do nothing
 			_ = item
 		}
 	})
-
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for b.Loop() {
-		w.RunSchedule(schedule)
-	}
 }

@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/chewxy/math32"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
@@ -29,6 +30,9 @@ type debugMetricsTextMaker struct {
 }
 
 func pluginDebug(app *byke.App) {
+	app.InitState(DebugStateOff)
+	app.InitResource[fpsCounter]()
+
 	app.AddSystems(byke.Update, byke.System(dumpTreeSystem).
 		RunIf(KeyIsJustPressed(vyn.KeyT)).
 		RunIf(KeyIsPressed(vyn.KeyShiftLeft)))
@@ -45,15 +49,14 @@ func pluginDebug(app *byke.App) {
 		RunIf(KeyIsJustPressed(vyn.KeyD)).
 		RunIf(KeyIsPressed(vyn.KeyShiftLeft)))
 
-	app.InitState(DebugStateOff)
-
-	app.AddSystems(byke.OnEnter(DebugStateOn), setupDebugCameraSystem)
-
 	app.AddSystems(byke.Update, byke.
 		System(renderDebugTextSystem).
 		RunIf(byke.InState(DebugStateOn)))
 
 	app.AddSystems(byke.PostUpdate, clearRenderContextMetricsSystem)
+
+	app.AddSystems(byke.OnEnter(DebugStateOn), setupDebugCameraSystem)
+
 }
 
 func setupDebugCameraSystem(commands *byke.Commands) {
@@ -110,6 +113,20 @@ func toggleDebugStateSystem(
 	}
 }
 
+type fpsCounter struct {
+	Value float32
+}
+
+func (f *fpsCounter) Update(dt float32) {
+	if f.Value == 0 {
+		f.Value = 1.0 / dt
+		return
+	}
+
+	alpha := 1.0 - math32.Exp(-dt/1.0)
+	f.Value += alpha * (1.0/dt - f.Value)
+}
+
 func renderDebugTextSystem(
 	ctx *RenderContext,
 	alloc *MeshAllocator,
@@ -117,7 +134,11 @@ func renderDebugTextSystem(
 		_    byke.With[debugMetricsTextMaker]
 		Text *Text
 	}],
+	vt byke.VirtualTime,
+	fps *fpsCounter,
 ) {
+	fps.Update(vt.DeltaSecs)
+
 	meshAllocatorStats := alloc.Stats()
 
 	for item := range query.Items() {
@@ -134,6 +155,9 @@ func renderDebugTextSystem(
 		writef("  Vertices:        %1.2fkb", float64(meshAllocatorStats.Vertices)/1024)
 		writef("  Indices:         %1.2fkb", float64(meshAllocatorStats.Indices)/1024)
 		writef("  MorphAttributes: %1.2fkb", float64(meshAllocatorStats.MorphAttributes)/1024)
+
+		writef("")
+		writef("FPS: %1.2f", fps.Value)
 
 		item.Text.Text = out.String()
 	}

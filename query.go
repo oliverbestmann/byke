@@ -92,6 +92,10 @@ func (q *Query[T]) Items() iter.Seq[T] {
 	return q.items
 }
 
+func (q *Query[T]) IterItems(consume func(item T) bool) {
+	iterValues(q.inner, consume)
+}
+
 func (q *Query[T]) AppendTo(values []T) []T {
 	iterValues(q.inner, func(value T) bool {
 		values = append(values, value)
@@ -105,7 +109,8 @@ func (q *Query[T]) Single() (T, bool) {
 	var result T
 	var count int
 
-	for value := range q.items {
+	// iterValues does not allocate in contrast to q.iter
+	iterValues(q.inner, func(value T) bool {
 		count += 1
 
 		switch count {
@@ -113,19 +118,30 @@ func (q *Query[T]) Single() (T, bool) {
 			result = value
 
 		case 2:
-			break
+			return false
 		}
-	}
+
+		return true
+	})
 
 	return result, count == 1
 }
 
 func (q *Query[T]) MustFirst() T {
-	for value := range q.items {
-		return value
+	var target T
+	var targetOk bool
+
+	// iterValues does not allocate in contrast to q.iter
+	iterValues(q.inner, func(value T) bool {
+		target = value
+		targetOk = true
+		return false
+	})
+
+	if targetOk {
+		return target
 	}
 
-	var target T
 	panic(fmt.Sprintf("no values in query for type %T", target))
 }
 
