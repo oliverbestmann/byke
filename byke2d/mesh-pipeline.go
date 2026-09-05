@@ -18,31 +18,31 @@ type meshPipelineConfig struct {
 	MeshView MeshViewBindGroupLayoutOptions
 }
 
-func (b meshPipelineConfig) Hash() uint32 {
+func (c meshPipelineConfig) Hash() uint32 {
 	h := HashFor[meshPipelineConfig]()
-	h.Int(b.Format)
-	h.Int(b.VertexLayout.Key())
-	h.Int(b.Material.BindGroup().PipelineKey)
-	h.Int(b.SampleCount)
-	h.Bool(b.Skinned)
-	h.Bool(b.Morph)
+	h.Int(c.Format)
+	h.Int(c.VertexLayout.Key())
+	h.Int(c.Material.BindGroup().PipelineKey)
+	h.Int(c.SampleCount)
+	h.Bool(c.Skinned)
+	h.Bool(c.Morph)
 	return uint32(h)
 }
 
-func (m meshPipelineConfig) EqualTo(other PipelineConfig) bool {
+func (c meshPipelineConfig) EqualTo(other PipelineConfig) bool {
 	otherConfig, ok := other.(meshPipelineConfig)
 	return ok &&
-		m.Format == otherConfig.Format &&
-		m.SampleCount == otherConfig.SampleCount &&
-		m.Skinned == otherConfig.Skinned &&
-		m.Morph == otherConfig.Morph &&
-		m.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
-		m.Material.BindGroup().PipelineKey == otherConfig.Material.BindGroup().PipelineKey &&
-		m.MeshView == otherConfig.MeshView
+		c.Format == otherConfig.Format &&
+		c.SampleCount == otherConfig.SampleCount &&
+		c.Skinned == otherConfig.Skinned &&
+		c.Morph == otherConfig.Morph &&
+		c.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
+		c.Material.BindGroup().PipelineKey == otherConfig.Material.BindGroup().PipelineKey &&
+		c.MeshView == otherConfig.MeshView
 }
 
-func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	shader := m.Material.BindGroup().BindGroup.Shader()
+func (c meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
+	shader := c.Material.BindGroup().BindGroup.Shader()
 	values := shader.Values.Clone()
 
 	var instanceAttrs, perVertexAttrs vertexAttributeOffsets
@@ -71,11 +71,11 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 
 	vblPerVertex := wgpu.VertexBufferLayout{
 		// per vertex: x, y, z
-		ArrayStride: uint64(m.VertexLayout.Size()),
+		ArrayStride: uint64(c.VertexLayout.Size()),
 		StepMode:    wgpu.VertexStepModeVertex,
 	}
 
-	for _, attr := range m.VertexLayout.Attributes {
+	for _, attr := range c.VertexLayout.Attributes {
 		vblPerVertex.Attributes = append(
 			vblPerVertex.Attributes,
 			perVertexAttrs.AtLoc(attr.Location, attr.Format),
@@ -91,16 +91,16 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		vblPerVertex,
 	}
 
-	values.Set("SKINNED", m.Skinned)
-	values.Set("MORPH", m.Morph)
-	values.Set("MESH_ENVMAP_LIGHT", m.MeshView.EnvironmentMapLight)
+	values.Set("SKINNED", c.Skinned)
+	values.Set("MORPH", c.Morph)
+	values.Set("MESH_ENVMAP_LIGHT", c.MeshView.EnvironmentMapLight)
 
 	mod := ctx.Shader(shader.Label, shader.Source, values)
 
 	desc := RenderPipelineDescriptor{
 		Label: "mesh3d pipeline",
 		Layout: []wgpu.BindGroupLayoutDescriptor{
-			MeshViewBindGroupLayout(m.MeshView),
+			MeshViewBindGroupLayout(c.MeshView),
 			MeshBindGroupLayout,
 		},
 		Vertex: wgpu.VertexState{
@@ -113,13 +113,13 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 			CullMode:  wgpu.CullModeBack,
 			FrontFace: wgpu.FrontFaceCW,
 		},
-		Multisample: multisampleState(m.SampleCount),
+		Multisample: multisampleState(c.SampleCount),
 		Fragment: &wgpu.FragmentState{
 			Module:     mod,
 			EntryPoint: shader.FragmentEntry,
 			Targets: []wgpu.ColorTargetState{
 				{
-					Format:    m.Format,
+					Format:    c.Format,
 					Blend:     &wgpu.BlendStateReplace,
 					WriteMask: wgpu.ColorWriteMaskAll,
 				},
@@ -132,7 +132,7 @@ func (m meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		},
 	}
 
-	m.Material.BindGroup().BindGroup.Specialize(&desc)
+	c.Material.BindGroup().BindGroup.Specialize(&desc)
 
 	return desc
 }

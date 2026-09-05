@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -203,11 +204,13 @@ func loadAsync[T any](load func() (T, error)) *asyncAsset[T] {
 		defer func() {
 			// we got a panic, propagate to the error
 			if p := recover(); p != nil {
+				stack := string(debug.Stack())
+
 				if err, ok := p.(error); ok {
-					err := new(fmt.Errorf("loading asset panicked: %w", err))
+					err := new(fmt.Errorf("loading asset panicked: %w\n%s", err, stack))
 					asset.error.Store(err)
 				} else {
-					err := new(fmt.Errorf("loading asset panicked: %v", p))
+					err := new(fmt.Errorf("loading asset panicked: %v\n%s", p, stack))
 					asset.error.Store(err)
 				}
 			}

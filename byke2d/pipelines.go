@@ -2,6 +2,7 @@ package byke2d
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/meh"
@@ -19,6 +20,11 @@ type PipelineConfig interface {
 	Hash() uint32
 }
 
+type runtimePipelineConfig struct {
+	Type reflect.Type
+	Hash uint32
+}
+
 type RenderPipelineDescriptor struct {
 	Label        string
 	Layout       []wgpu.BindGroupLayoutDescriptor
@@ -31,14 +37,26 @@ type RenderPipelineDescriptor struct {
 
 // PipelineCache caches render pipelines & bind group layout
 type PipelineCache struct {
-	_         byke.NoCopy
-	ctx       *RenderContext
-	shaders   *Shaders
-	pipelines meh.Map[PipelineConfig, Pipeline]
+	_       byke.NoCopy
+	ctx     *RenderContext
+	shaders *Shaders
+
+	pipelinesByHash map[runtimePipelineConfig]Pipeline
+	pipelines       meh.Map[PipelineConfig, Pipeline]
 }
 
 func (p *PipelineCache) Specialize[C PipelineConfig](config C) Pipeline {
-	cached, ok := p.pipelines.Get(config)
+	rpc := runtimePipelineConfig{
+		Type: reflect.TypeFor[C](),
+		Hash: config.Hash(),
+	}
+
+	cached, ok := p.pipelinesByHash[rpc]
+	if ok {
+		return cached
+	}
+
+	cached, ok = p.pipelines.Get(config)
 	if ok {
 		return cached
 	}
@@ -78,6 +96,9 @@ func (p *PipelineCache) Specialize[C PipelineConfig](config C) Pipeline {
 	}
 
 	p.pipelines.Insert(config, pipeline)
+
+	ensureMapIsInitialized(&p.pipelinesByHash)
+	p.pipelinesByHash[rpc] = pipeline
 
 	return pipeline
 }

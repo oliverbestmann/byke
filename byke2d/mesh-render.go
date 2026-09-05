@@ -312,6 +312,7 @@ func prepareMeshInstancesSystem(
 		// transparent phase needs explicit batching here
 
 		var current *RenderItem
+		var currentMesh *Mesh
 		var currentMaterialPipeline MaterialPipelineKey
 		var currentMaterialBindGroup *MaterialBindGroupHandle
 
@@ -329,11 +330,13 @@ func prepareMeshInstancesSystem(
 			meshMaterialPipeline := meshItem.Material.BindGroup().PipelineKey
 			meshMaterialBindGroup := meshItem.Material.BindGroup()
 			if current == nil ||
+				currentMesh != meshItem.Mesh ||
 				currentMaterialPipeline != meshMaterialPipeline ||
 				currentMaterialBindGroup != meshMaterialBindGroup {
 
 				// we begin a new batch here
 				current = item
+				currentMesh = meshItem.Mesh
 				currentMaterialPipeline = meshMaterialPipeline
 				currentMaterialBindGroup = meshMaterialBindGroup
 

@@ -5,11 +5,13 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"os"
+	"runtime"
 	"time"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/glm"
+	"github.com/pkg/profile"
 )
 
 const SpriteCount = 100_000
@@ -35,15 +37,15 @@ func main() {
 	app.AddSystems(Update, updateFpsCounterSystem)
 	app.AddSystems(FixedUpdate, moveSpritesSystem)
 
-	// app.AddSystems(Last, func(vt VirtualTime, w *MessageWriter[AppExit]) {
-	// 	if vt.Elapsed.Seconds() > 10 {
-	// 		w.Write(AppExitSuccess)
-	// 	}
-	// })
+	app.AddSystems(Last, func(vt VirtualTime, w *MessageWriter[AppExit]) {
+		if vt.Elapsed.Seconds() > 10 {
+			w.Write(AppExitSuccess)
+		}
+	})
 
-	// if runtime.GOOS != "js" {
-	// 	defer profile.Start(profile.CPUProfile).Stop()
-	// }
+	if runtime.GOOS != "js" {
+		defer profile.Start(profile.MemProfile).Stop()
+	}
 
 	app.MustRun()
 }
