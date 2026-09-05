@@ -6,7 +6,6 @@ import (
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
-	"github.com/oliverbestmann/byke/byke2d/examples/shared"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -27,10 +26,7 @@ func main() {
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
-	// no compare, just write snapshot for now
-	shared.WriteSnapshots = true
-
-	shared.RunAppInTest(app, shared.FramesToSnapshot{10})
+	app.MustRun()
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
