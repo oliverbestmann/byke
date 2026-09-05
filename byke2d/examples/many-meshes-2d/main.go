@@ -44,7 +44,7 @@ func main() {
 	})
 
 	if runtime.GOOS != "js" {
-		defer profile.Start(profile.MemProfile).Stop()
+		defer profile.Start(profile.CPUProfile).Stop()
 	}
 
 	app.MustRun()

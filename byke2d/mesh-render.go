@@ -216,6 +216,9 @@ func prepareMeshPipelinesSystems(
 ) {
 	cache.Tick()
 
+	var prevConfig meshPipelineConfig
+	var prevPipeline Pipeline
+
 	for view := range viewsQuery.Items() {
 		for _, mesh := range meshes.Meshes {
 			if !view.RenderLayers.Intersects(mesh.RenderLayers) {
@@ -239,8 +242,18 @@ func prepareMeshPipelinesSystems(
 				Entity: mesh.EntityId,
 			}
 
-			pipeline := pipelines.Specialize(pipelineConfig)
+			var pipeline Pipeline
+			if prevConfig.EqualTo(pipelineConfig) {
+				pipeline = prevPipeline
+			} else {
+				pipeline = pipelines.Specialize(pipelineConfig)
+
+				prevPipeline = pipeline
+				prevConfig = pipelineConfig
+			}
+
 			cache.Add(key, pipeline)
+
 		}
 	}
 }
