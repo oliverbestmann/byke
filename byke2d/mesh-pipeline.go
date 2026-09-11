@@ -8,8 +8,8 @@ import (
 
 type meshPipelineConfig struct {
 	Format       wgpu.TextureFormat
-	VertexLayout VertexLayout
-	Material     Material
+	VertexLayout *VertexLayout
+	BindGroup    *MaterialBindGroupHandle
 	SampleCount  uint32
 	Skinned      bool
 	Morph        bool
@@ -21,8 +21,8 @@ type meshPipelineConfig struct {
 func (c meshPipelineConfig) Hash() uint32 {
 	h := HashFor[meshPipelineConfig]()
 	h.Int(c.Format)
-	h.Int(c.VertexLayout.Key())
-	h.Int(c.Material.BindGroup().PipelineKey)
+	h.Pointer(c.VertexLayout)
+	h.Int(c.BindGroup.PipelineKey)
 	h.Int(c.SampleCount)
 	h.Bool(c.Skinned)
 	h.Bool(c.Morph)
@@ -36,13 +36,13 @@ func (c meshPipelineConfig) EqualTo(other PipelineConfig) bool {
 		c.SampleCount == otherConfig.SampleCount &&
 		c.Skinned == otherConfig.Skinned &&
 		c.Morph == otherConfig.Morph &&
-		c.VertexLayout.EqualTo(otherConfig.VertexLayout) &&
-		c.Material.BindGroup().PipelineKey == otherConfig.Material.BindGroup().PipelineKey &&
+		c.VertexLayout == otherConfig.VertexLayout &&
+		c.BindGroup.PipelineKey == otherConfig.BindGroup.PipelineKey &&
 		c.MeshView == otherConfig.MeshView
 }
 
 func (c meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
-	shader := c.Material.BindGroup().BindGroup.Shader()
+	shader := c.BindGroup.BindGroup.Shader()
 	values := shader.Values.Clone()
 
 	var instanceAttrs, perVertexAttrs vertexAttributeOffsets
@@ -75,7 +75,7 @@ func (c meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		StepMode:    wgpu.VertexStepModeVertex,
 	}
 
-	for _, attr := range c.VertexLayout.Attributes {
+	for _, attr := range c.VertexLayout.Attributes() {
 		vblPerVertex.Attributes = append(
 			vblPerVertex.Attributes,
 			perVertexAttrs.AtLoc(attr.Location, attr.Format),
@@ -132,7 +132,7 @@ func (c meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 		},
 	}
 
-	c.Material.BindGroup().BindGroup.Specialize(&desc)
+	c.BindGroup.BindGroup.Specialize(&desc)
 
 	return desc
 }

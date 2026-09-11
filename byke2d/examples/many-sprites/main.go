@@ -1,12 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"os"
 	"runtime"
-	"time"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
@@ -28,14 +26,17 @@ func init() {
 func main() {
 	var app App
 
-	app.InsertResource(fpsCounter{})
-
 	app.AddPlugin(PluginRender)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)
-	app.AddSystems(Update, updateFpsCounterSystem)
 	app.AddSystems(FixedUpdate, moveSpritesSystem)
+
+	app.AddSystems(Last, func(vt VirtualTime, w *MessageWriter[AppExit]) {
+		if vt.Elapsed.Seconds() > 10 {
+			w.Write(AppExitSuccess)
+		}
+	})
 
 	if runtime.GOOS != "js" {
 		defer profile.Start(profile.CPUProfile).Stop()
@@ -77,12 +78,6 @@ func setupSystem(commands *Commands, assets *Assets) {
 			Velocity{Vec2f: glm.Vec2f{rand.Float32() - 0.5, rand.Float32() - 0.5}.Scale(32)},
 		)
 	}
-
-	commands.Spawn(
-		AnchorBottomLeft,
-		TransformFromXYZ(32, 32, 2),
-		Text{Text: "Hello", Size: 16.0, Color: ColorSRGBA(1, 0, 1, 1)},
-	)
 }
 
 func moveSpritesSystem(t FixedTime, query Query[struct {
@@ -98,27 +93,4 @@ func moveSpritesSystem(t FixedTime, query Query[struct {
 		item.Transform.Translation[0] = posNew[0]
 		item.Transform.Translation[1] = posNew[1]
 	}
-}
-
-func updateFpsCounterSystem(
-	counter *fpsCounter,
-	text Single[*Text],
-) {
-	fps := counter.Update()
-	text.Value.Text = fmt.Sprintf("FPS: %1.2f", fps)
-}
-
-type fpsCounter struct {
-	timestamps []time.Time
-}
-
-func (c *fpsCounter) Update() float32 {
-	now := time.Now()
-	c.timestamps = append(c.timestamps, now)
-
-	if len(c.timestamps) > 120 {
-		c.timestamps = c.timestamps[1:]
-	}
-
-	return float32(len(c.timestamps)) / float32(now.Sub(c.timestamps[0]).Seconds())
 }

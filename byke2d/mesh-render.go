@@ -105,10 +105,10 @@ func clearExtractedMeshesSystem(
 }
 
 type MeshKey struct {
-	MatType   reflect.Type
-	MatKey    MaterialBindGroupId
-	LayoutKey VertexLayoutKey
-	Mesh      *Mesh
+	MatType reflect.Type
+	MatKey  MaterialBindGroupId
+	Layout  *VertexLayout
+	Mesh    *Mesh
 }
 
 func (m MeshKey) CompareTo(other any) int {
@@ -119,7 +119,7 @@ func (m MeshKey) CompareTo(other any) int {
 
 	return cmp.Or(
 		compareType(m.MatType, o.MatType),
-		cmp.Compare(m.LayoutKey, o.LayoutKey),
+		compareByAddress(m.Layout, o.Layout),
 		compareByType(m.MatKey, o.MatKey),
 		compareByAddress(m.Mesh, o.Mesh),
 	)
@@ -164,10 +164,10 @@ func queueMeshInstancesSystem(
 			}
 
 			key := MeshKey{
-				MatType:   reflect.TypeOf(sp.Material),
-				MatKey:    sp.Material.BindGroup().Id,
-				LayoutKey: sp.Mesh.VertexLayout().Key(),
-				Mesh:      sp.Mesh,
+				MatType: reflect.TypeOf(sp.Material),
+				MatKey:  sp.Material.BindGroup().Id,
+				Layout:  sp.Mesh.VertexLayout(),
+				Mesh:    sp.Mesh,
 			}
 
 			if sp.Material.BindGroup().OrderIndependent {
@@ -231,7 +231,7 @@ func prepareMeshPipelinesSystems(
 				Skinned:      mesh.Skin.IsSet(),
 				Morph:        mesh.HashMorphWeights,
 				VertexLayout: mesh.Mesh.VertexLayout(),
-				Material:     mesh.Material,
+				BindGroup:    mesh.Material.BindGroup(),
 				MeshView: MeshViewBindGroupLayoutOptions{
 					EnvironmentMapLight: view.EnvironmentMapLight.Exists(),
 				},

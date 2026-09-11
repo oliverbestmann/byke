@@ -2,8 +2,8 @@ package byke2d
 
 import (
 	"fmt"
-	"hash/maphash"
 	"slices"
+	"sync"
 
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -162,62 +162,53 @@ func (v *VertexAttributes) Has(name VertexAttribute) bool {
 	return false
 }
 
-var seed = maphash.MakeSeed()
+var vertexLayoutCache = sync.Map{}
 
-type VertexLayoutKey uint64
+const MaxVertexAttributes = 12
 
 // VertexLayout describes the complete structure of vertex data, including all attributes,
-// their order, and the total size of a single vertex. Layouts are cached by hash to enable
-// efficient deduplication and reuse.
+// their order, and the total size of a single vertex. Layouts are created and
+// cached by MakeVertexLayout and can be compared by pointer equivalence.
 type VertexLayout struct {
 	// Attributes are the vertex attributes in this layout, sorted by location.
-	Attributes []VertexAttribute
-
-	// key is a hash of the attributes for deduplication and comparison.
-	key VertexLayoutKey
+	attributes [MaxVertexAttributes]VertexAttribute
+	count      uint32
 }
 
-// Hash returns the lower 32bit of Key() to satisfy the meh.Key interface.
-func (v VertexLayout) Hash() uint32 {
-	return uint32(v.Key())
-}
-
-// NewVertexLayout creates a new vertex layout from a set of attributes.
+// MakeVertexLayout creates a new vertex layout from a set of attributes.
 // Attributes are automatically sorted by location for consistent GPU binding.
-func NewVertexLayout(attrs []VertexAttribute) VertexLayout {
+func MakeVertexLayout(attrs []VertexAttribute) *VertexLayout {
 	compare := func(lhs, rhs VertexAttribute) int {
 		return int(lhs.Location) - int(rhs.Location)
 	}
 
-	sortedAttributes := slices.SortedFunc(slices.Values(attrs), compare)
+	// create a layout and set the values
+	var layout VertexLayout
+	layout.count = uint32(len(attrs))
+	copy(layout.attributes[:], attrs)
 
-	var h maphash.Hash
-	h.SetSeed(seed)
-	for _, attr := range sortedAttributes {
-		maphash.WriteComparable(&h, attr)
+	// values need to be sorted
+	slices.SortFunc(layout.attributes[:len(attrs)], compare)
+
+	cached, ok := vertexLayoutCache.Load(layout)
+	if ok {
+		return cached.(*VertexLayout)
 	}
 
-	return VertexLayout{
-		Attributes: sortedAttributes,
-		key:        VertexLayoutKey(h.Sum64()),
-	}
-}
-
-// Key returns a unique hash key for this layout, used for efficient caching and comparison.
-func (v VertexLayout) Key() VertexLayoutKey {
-	return v.key
+	cached, _ = vertexLayoutCache.LoadOrStore(layout, new(layout))
+	return cached.(*VertexLayout)
 }
 
 // Size returns the total byte size of a single vertex in this layout.
-func (v VertexLayout) Size() (size uint32) {
-	for _, attr := range v.Attributes {
+func (v *VertexLayout) Size() (size uint32) {
+	for _, attr := range v.Attributes() {
 		size += attr.Format.ByteSize()
 	}
 
 	return
 }
 
-// EqualTo reports whether this layout is identical to another layout.
-func (v VertexLayout) EqualTo(other VertexLayout) bool {
-	return v.key == other.key && slices.Equal(v.Attributes, other.Attributes)
+// Attributes returns the VertexAttributes of this VertexLayout
+func (v *VertexLayout) Attributes() []VertexAttribute {
+	return v.attributes[:v.count]
 }

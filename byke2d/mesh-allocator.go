@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d/meh"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
@@ -13,7 +12,7 @@ import (
 // It contains the index and vertex buffers along with offsets and counts needed for rendering.
 type MeshSlab struct {
 	// VertexLayout describes the structure of vertex data in the buffer.
-	VertexLayout VertexLayout
+	VertexLayout *VertexLayout
 
 	// the allocated buffer ids
 	// Indices points to the GPU buffer containing index data (triangle definitions).
@@ -58,7 +57,7 @@ type MeshAllocator struct {
 	slabs map[*Mesh]meshSlab
 
 	// allocators manages separate vertex and index buffer allocations for each vertex layout
-	allocators meh.Map[VertexLayout, *BufferAllocator]
+	allocators map[*VertexLayout]*BufferAllocator
 
 	// allocator for index buffers
 	indices *BufferAllocator
@@ -117,7 +116,7 @@ func (m *MeshAllocator) Stats() MeshAllocatorStats {
 		stats.Indices = m.indices.InUse()
 	}
 
-	for alloc := range m.allocators.Values() {
+	for _, alloc := range m.allocators {
 		stats.Vertices += alloc.InUse()
 	}
 
@@ -237,11 +236,13 @@ func indicesToByteSlice(indices []uint32, format wgpu.IndexFormat) []byte {
 	}
 }
 
-func (m *MeshAllocator) getAllocator(layout VertexLayout) *BufferAllocator {
-	allocator, ok := m.allocators.Get(layout)
+func (m *MeshAllocator) getAllocator(layout *VertexLayout) *BufferAllocator {
+	allocator, ok := m.allocators[layout]
 	if !ok {
+		ensureMapIsInitialized(&m.allocators)
+
 		allocator = NewBufferAllocator(m.context, "VertexBuffer", wgpu.BufferUsageVertex, 512*1024)
-		m.allocators.Insert(layout, allocator)
+		m.allocators[layout] = allocator
 	}
 
 	return allocator
@@ -268,7 +269,7 @@ func (m *MeshAllocator) ensureAllocators() {
 }
 
 type meshSlab struct {
-	VertexLayout VertexLayout
+	VertexLayout *VertexLayout
 
 	// mesh version that is currently uploaded
 	Version uint32

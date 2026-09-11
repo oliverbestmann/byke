@@ -28,7 +28,7 @@ type Mesh struct {
 	attributes VertexAttributes
 
 	// The vertex layout
-	layout VertexLayout
+	layout *VertexLayout
 
 	// a mesh can contain multiple morph targets
 	morphTargets [][]MorphAttributes
@@ -316,25 +316,25 @@ func (m *Mesh) updateVertexLayout() {
 		attrs = append(attrs, attr.Attribute)
 	}
 
-	m.layout = NewVertexLayout(attrs)
+	m.layout = MakeVertexLayout(attrs)
 }
 
 // VertexLayout returns the layout descriptor for vertices in this mesh, which specifies
 // what attributes are present and their formats and offsets.
-func (m *Mesh) VertexLayout() VertexLayout {
+func (m *Mesh) VertexLayout() *VertexLayout {
 	return m.layout
 }
 
 // WriteVerticesTo serializes all vertices to the given buffer in GPU-friendly interleaved format
 // (position, normal, uv, etc.) and returns the extended buffer and vertex layout.
-func (m *Mesh) WriteVerticesTo(buf []byte) ([]byte, VertexLayout) {
+func (m *Mesh) WriteVerticesTo(buf []byte) ([]byte, *VertexLayout) {
 	layout := m.VertexLayout()
 
 	prevSize := len(buf)
 	expectedSize := m.VertexCount() * int(layout.Size())
 
 	for idx := range uint32(m.VertexCount()) {
-		for _, attr := range layout.Attributes {
+		for _, attr := range layout.Attributes() {
 			attrValue := m.attributes.Get(attr)
 			if attrValue == nil {
 				// should never happen
