@@ -241,6 +241,7 @@ func newContext(world *byke.World, sd *wgpu.SurfaceDescriptor) (st *wgpuContext,
 	st.Device, err = st.Adapter.RequestDevice(&wgpu.DeviceDescriptor{
 		RequiredFeatures: []wgpu.FeatureName{
 			wgpu.FeatureNameRG11B10UfloatRenderable,
+			wgpu.FeatureNameShaderF16,
 		},
 	})
 	if err != nil {

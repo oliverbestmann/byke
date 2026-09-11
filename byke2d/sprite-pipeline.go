@@ -56,7 +56,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 			EntryPoint: entryVertex,
 			Buffers: []wgpu.VertexBufferLayout{
 				{
-					ArrayStride: 84,
+					ArrayStride: 72,
 					StepMode:    wgpu.VertexStepModeInstance,
 					Attributes: []wgpu.VertexAttribute{
 						offset.Inc(wgpu.VertexFormatFloat32x3),
@@ -65,8 +65,7 @@ func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipeli
 						offset.Inc(wgpu.VertexFormatFloat32x3),
 						offset.Inc(wgpu.VertexFormatFloat32x2),
 						offset.Inc(wgpu.VertexFormatFloat32x2),
-						offset.Inc(wgpu.VertexFormatFloat32x4),
-						offset.Inc(wgpu.VertexFormatUint32),
+						offset.Inc(wgpu.VertexFormatFloat16x4),
 					},
 				},
 			},

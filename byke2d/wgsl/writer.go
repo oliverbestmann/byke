@@ -6,6 +6,7 @@ import (
 
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/webgpu/wgpu"
+	"github.com/x448/float16"
 )
 
 type RenderContext interface {
@@ -69,6 +70,10 @@ func (s *InstanceWriter) AppendVec3f(value glm.Vec3f) {
 }
 
 func (s *InstanceWriter) AppendVec4f(value glm.Vec4f) {
+	s.buf = rawAppendTo(s.buf, value)
+}
+
+func (s *InstanceWriter) AppendFloat16(value float16.Float16) {
 	s.buf = rawAppendTo(s.buf, value)
 }
 

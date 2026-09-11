@@ -4,6 +4,7 @@ import (
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
 	"github.com/oliverbestmann/webgpu/wgpu"
+	"github.com/x448/float16"
 )
 
 func valueOr[T comparable](first, fallback T) T {
@@ -130,7 +131,7 @@ func prepareSpriteBindGroupsSystem(
 
 func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSprite) {
 	// the size of one sprite instance in the wgpu instance buffer
-	const instanceSize = 84
+	const instanceSize = 72
 
 	textureSize := sp.Texture.Size()
 
@@ -157,10 +158,17 @@ func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSpri
 	transform.ScaleAssign(sp.Size.Extend(1.0).XYZ())
 	transform.TranslateAssign(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0)
 
-	var flags uint32
+	r, g, b, a := sp.Color.Components()
+
+	// encode the flag into the signs of the color to safe on 4 byte per instance.
 	if sp.Texture.Descriptor.Format == wgpu.TextureFormatR8Unorm {
-		flags |= 1
+		r = -r
 	}
+
+	r16 := float16.Fromfloat32(r)
+	g16 := float16.Fromfloat32(g)
+	b16 := float16.Fromfloat32(b)
+	a16 := float16.Fromfloat32(a)
 
 	instances.StartNew(instanceSize)
 
@@ -176,10 +184,14 @@ func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSpri
 	instances.AppendVec2f(uvOffset)
 	// @location(5) i_uv_scale: vec2<f32>,
 	instances.AppendVec2f(uvScale)
-	// @location(6) i_color: vec4<f32>,
-	instances.AppendVec4f(sp.Color.ToVec())
-	// @location(7) i_flags: u32,
-	instances.AppendUint(flags)
+	// @location(6) i_color: vec4<f16>,
+	instances.AppendFloat16(r16)
+	instances.AppendFloat16(g16)
+	instances.AppendFloat16(b16)
+	instances.AppendFloat16(a16)
+}
+
+func colorToFloat16x4(color Color) {
 }
 
 type RenderTask struct {

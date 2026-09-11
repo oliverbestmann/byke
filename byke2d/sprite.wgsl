@@ -1,5 +1,7 @@
 import package::byke::globals;
 
+enable f16;
+
 struct VertexInput {
     @builtin(vertex_index) index: u32,
 
@@ -9,8 +11,7 @@ struct VertexInput {
     @location(3) i_affine_3: vec3<f32>,
     @location(4) i_uv_offset: vec2<f32>,
     @location(5) i_uv_scale: vec2<f32>,
-    @location(6) i_color: vec4<f32>,
-    @location(7) i_flags: u32,
+    @location(6) i_color: vec4<f16>,
 }
 
 struct VertexOutput {
@@ -77,8 +78,10 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.position = vec4(position.xy, 0.0, 1.0);
     out.uv = vertex_position * in.i_uv_scale + in.i_uv_offset;
-    out.color = in.i_color;
-    out.flags = in.i_flags;
+    out.color = vec4<f32>(abs(in.i_color));
+
+    // extract flags from color sign bits
+    out.flags = u32(in.i_color[0] < 0);
 
     return out;
 }
