@@ -50,7 +50,7 @@ func (m *ColorMaterialBindGroup) Shader() *ShaderDef {
 	values.Set("LIGHTING", false)
 
 	return &ShaderDef{
-		Label:         "standard material shader",
+		Label:         "color material shader",
 		Source:        colorMaterialShaderCode,
 		VertexEntry:   "vs_main",
 		FragmentEntry: "fs_main",
@@ -65,7 +65,7 @@ func (m *ColorMaterialBindGroup) Specialize(pipeline *RenderPipelineDescriptor) 
 	bindings = append(bindings, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false))
 	bindings = append(bindings, m.BindingsLayout()...)
 
-	pipeline.Layout = append(pipeline.Layout, SequentialLayoutWithLabel("StandardMaterial", bindings...))
+	pipeline.Layout = append(pipeline.Layout, SequentialLayoutWithLabel("ColorMaterial", bindings...))
 }
 
 func (m *ColorMaterialBindGroup) BindingsLayout() []wgpu.BindGroupLayoutEntry {
@@ -108,6 +108,6 @@ func (m ColorMaterial) BindGroup() *MaterialBindGroupHandle {
 func (m *ColorMaterialBindGroup) PipelineKey() MaterialPipelineKey {
 	var hash Hash = 0xC2ACE5D3D65CE2C6
 	hash.Bool(m.Texture != nil)
-	hash.Int(m.MaterialValues.BindGroupKey())
+	hash.Int(m.MaterialValues.PipelineKey())
 	return MaterialPipelineKey(hash)
 }

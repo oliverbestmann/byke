@@ -133,25 +133,12 @@ func (m MaterialValues) Specialize(pipeline *RenderPipelineDescriptor) {
 	}
 }
 
-func (m MaterialValues) BindGroupKey() Hash {
-	var hash Hash = 0xdead
-	hash.Int(m.FrontFace)
-	hash.Int(m.AlphaMode)
-	return hash
-}
-
 func (m MaterialValues) PipelineKey() Hash {
 	var hash Hash = 0xdeadbeef
 	hash.Int(m.FrontFace)
 	hash.Int(m.AlphaMode)
 	hash.Bool(m.DoubleSided)
 	return hash
-}
-
-type MaterialBindGroupKey uint64
-
-func (k MaterialBindGroupKey) SortValue() uint64 {
-	return uint64(k)
 }
 
 type MaterialPipelineKey uint64
