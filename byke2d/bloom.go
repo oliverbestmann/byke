@@ -90,17 +90,13 @@ type bloomPipelineConfig struct {
 	UniformScale    bool
 }
 
-func (b bloomPipelineConfig) Hash() uint32 {
+func (b bloomPipelineConfig) Hash() Hash {
 	h := HashFor[bloomPipelineConfig]()
 	h.Int(b.TargetFormat)
 	h.Bool(b.FirstDownsample)
 	h.Bool(b.Upsample)
 	h.Bool(b.UniformScale)
-	return uint32(h)
-}
-
-func (b bloomPipelineConfig) EqualTo(other PipelineConfig) bool {
-	return b == other
+	return h
 }
 
 func (b bloomPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {

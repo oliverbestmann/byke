@@ -15,15 +15,12 @@ type renderSpritePipelineConfig struct {
 	SampleCount uint32
 }
 
-func (r renderSpritePipelineConfig) Hash() uint32 {
+func (r renderSpritePipelineConfig) Hash() Hash {
 	h := HashFor[renderSpritePipelineConfig]()
+	h.Pointer(r.Shader)
 	h.Int(r.Format)
 	h.Int(r.SampleCount)
-	return uint32(h)
-}
-
-func (r renderSpritePipelineConfig) EqualTo(other PipelineConfig) bool {
-	return r == other
+	return h
 }
 
 func (r renderSpritePipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {

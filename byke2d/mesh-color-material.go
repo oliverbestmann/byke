@@ -106,7 +106,7 @@ func (m ColorMaterial) BindGroup() *MaterialBindGroupHandle {
 }
 
 func (m *ColorMaterialBindGroup) PipelineKey() MaterialPipelineKey {
-	var hash Hash = 0xC2ACE5D3D65CE2C6
+	hash := HashFor[ColorMaterialBindGroup]()
 	hash.Bool(m.Texture != nil)
 	hash.Int(m.MaterialValues.PipelineKey())
 	return MaterialPipelineKey(hash)

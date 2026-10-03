@@ -234,14 +234,15 @@ type tonemappingPipelineConfig struct {
 	SectionalColorGrading bool
 }
 
-func (r tonemappingPipelineConfig) Hash() uint32 {
+func (r tonemappingPipelineConfig) Hash() Hash {
 	h := HashFor[tonemappingPipelineConfig]()
 	h.Int(r.TargetFormat)
-	return uint32(h)
-}
-
-func (c tonemappingPipelineConfig) EqualTo(other PipelineConfig) bool {
-	return c == other
+	h.Int(r.Tonemapping.value)
+	h.Bool(r.DebandDither.enable)
+	h.Bool(r.HueRotate)
+	h.Bool(r.WhiteBalance)
+	h.Bool(r.SectionalColorGrading)
+	return h
 }
 
 func (c tonemappingPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {

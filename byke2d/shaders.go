@@ -86,11 +86,6 @@ func (v *ShaderValues) Set(name string, enable bool) {
 	v.conditions[name] = enable
 }
 
-func (v *ShaderValues) EqualTo(other ShaderValues) bool {
-	return maps.Equal(v.conditions, other.conditions) &&
-		maps.Equal(v.constants, other.constants)
-}
-
 func (v *ShaderValues) Clone() ShaderValues {
 	return ShaderValues{
 		conditions: maps.Clone(v.conditions),
@@ -118,12 +113,4 @@ type ShaderDef struct {
 	VertexEntry   string
 	FragmentEntry string
 	Values        ShaderValues
-}
-
-func (s *ShaderDef) EqualTo(other *ShaderDef) bool {
-	return s == other || (s.Label == other.Label &&
-		s.Source == other.Source &&
-		s.VertexEntry == other.VertexEntry &&
-		s.FragmentEntry == other.FragmentEntry &&
-		s.Values.EqualTo(other.Values))
 }

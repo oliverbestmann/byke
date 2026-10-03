@@ -18,7 +18,7 @@ type meshPipelineConfig struct {
 	MeshView MeshViewBindGroupLayoutOptions
 }
 
-func (c meshPipelineConfig) Hash() uint32 {
+func (c meshPipelineConfig) Hash() Hash {
 	h := HashFor[meshPipelineConfig]()
 	h.Int(c.Format)
 	h.Pointer(c.VertexLayout)
@@ -26,19 +26,8 @@ func (c meshPipelineConfig) Hash() uint32 {
 	h.Int(c.SampleCount)
 	h.Bool(c.Skinned)
 	h.Bool(c.Morph)
-	return uint32(h)
-}
-
-func (c meshPipelineConfig) EqualTo(other PipelineConfig) bool {
-	otherConfig, ok := other.(meshPipelineConfig)
-	return ok &&
-		c.Format == otherConfig.Format &&
-		c.SampleCount == otherConfig.SampleCount &&
-		c.Skinned == otherConfig.Skinned &&
-		c.Morph == otherConfig.Morph &&
-		c.VertexLayout == otherConfig.VertexLayout &&
-		c.BindGroup.PipelineKey == otherConfig.BindGroup.PipelineKey &&
-		c.MeshView == otherConfig.MeshView
+	h.Int(c.MeshView.Hash())
+	return h
 }
 
 func (c meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {

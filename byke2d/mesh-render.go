@@ -216,7 +216,7 @@ func prepareMeshPipelinesSystems(
 ) {
 	cache.Tick()
 
-	var prevConfig meshPipelineConfig
+	var prevConfigHash Hash
 	var prevPipeline Pipeline
 
 	for view := range viewsQuery.Items() {
@@ -243,17 +243,17 @@ func prepareMeshPipelinesSystems(
 			}
 
 			var pipeline Pipeline
-			if prevConfig.EqualTo(pipelineConfig) {
-				pipeline = prevPipeline
-			} else {
+
+			if hash := pipelineConfig.Hash(); prevConfigHash != hash {
 				pipeline = pipelines.Specialize(pipelineConfig)
 
 				prevPipeline = pipeline
-				prevConfig = pipelineConfig
+				prevConfigHash = hash
+			} else {
+				pipeline = prevPipeline
 			}
 
 			cache.Add(key, pipeline)
-
 		}
 	}
 }
@@ -370,6 +370,12 @@ func prepareMeshInstancesSystem(
 
 type MeshViewBindGroupLayoutOptions struct {
 	EnvironmentMapLight bool
+}
+
+func (o MeshViewBindGroupLayoutOptions) Hash() Hash {
+	h := HashFor[MeshViewBindGroupLayoutOptions]()
+	h.Bool(o.EnvironmentMapLight)
+	return h
 }
 
 func MeshViewBindGroupLayout(opts MeshViewBindGroupLayoutOptions) wgpu.BindGroupLayoutDescriptor {

@@ -44,15 +44,12 @@ type skyboxPipeline struct {
 	SampleCount uint32
 }
 
-func (s skyboxPipeline) Hash() uint32 {
-	h := HashFor[bloomPipelineConfig]()
+func (s skyboxPipeline) Hash() Hash {
+	h := HashFor[skyboxPipeline]()
 	h.Int(s.ViewFormat)
 	h.Int(s.DepthFormat)
-	return uint32(h)
-}
-
-func (s skyboxPipeline) EqualTo(other PipelineConfig) bool {
-	return s == other
+	h.Int(s.SampleCount)
+	return h
 }
 
 func (s skyboxPipeline) Specialize(ctx PipelineContext) RenderPipelineDescriptor {

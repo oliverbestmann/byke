@@ -135,7 +135,7 @@ func (m MaterialValues) Specialize(pipeline *RenderPipelineDescriptor) {
 
 func (m MaterialValues) PipelineKey() Hash {
 	var hash Hash = 0xdeadbeef
-	hash.Int(m.FrontFace)
+	hash.Int(frontFaceOf(m.FrontFace))
 	hash.Int(m.AlphaMode)
 	hash.Bool(m.DoubleSided)
 	return hash

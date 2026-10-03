@@ -15,15 +15,11 @@ type BlitConfig struct {
 	AlphaBlend bool
 }
 
-func (b BlitConfig) Hash() uint32 {
+func (b BlitConfig) Hash() Hash {
 	h := HashFor[BlitConfig]()
 	h.Int(b.Format)
 	h.Bool(b.AlphaBlend)
-	return uint32(h)
-}
-
-func (b BlitConfig) EqualTo(other PipelineConfig) bool {
-	return b == other
+	return h
 }
 
 func (b BlitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {

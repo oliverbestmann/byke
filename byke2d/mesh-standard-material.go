@@ -12,7 +12,8 @@ import (
 //go:embed mesh-standard-material.wgsl
 var standardMaterialShaderCode string
 
-// DebugNormals can be set to true to output normals instead of colors
+// DebugNormals can be set to true to output normals instead of colors.
+// Must be set before materials are resolved.
 var DebugNormals bool
 
 var _ Material = StandardMaterial{}
@@ -218,8 +219,9 @@ func (m *StandardMaterialBindGroup) PipelineKey() MaterialPipelineKey {
 	key |= boolToUint64(m.NormalTexture != nil) << 2
 	key |= boolToUint64(m.OcclusionTexture != nil) << 3
 	key |= boolToUint64(m.RoughnessMetallicTexture != nil) << 4
+	key |= boolToUint64(DebugNormals) << 5
 
-	var hash Hash = 0xC2ACE5D3D65CE2C6
+	hash := HashFor[StandardMaterialBindGroup]()
 	hash.Int(key)
 	hash.Int(m.MaterialValues.PipelineKey())
 	return MaterialPipelineKey(hash)

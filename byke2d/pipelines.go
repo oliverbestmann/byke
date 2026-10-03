@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
-	"github.com/oliverbestmann/byke/byke2d/meh"
 	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
@@ -16,13 +15,12 @@ type PipelineContext interface {
 
 type PipelineConfig interface {
 	Specialize(ctx PipelineContext) RenderPipelineDescriptor
-	EqualTo(other PipelineConfig) bool
-	Hash() uint32
+	Hash() Hash
 }
 
 type runtimePipelineConfig struct {
 	Type reflect.Type
-	Hash uint32
+	Hash Hash
 }
 
 type RenderPipelineDescriptor struct {
@@ -42,7 +40,6 @@ type PipelineCache struct {
 	shaders *Shaders
 
 	pipelinesByHash map[runtimePipelineConfig]Pipeline
-	pipelines       meh.Map[PipelineConfig, Pipeline]
 }
 
 func (p *PipelineCache) Specialize[C PipelineConfig](config C) Pipeline {
@@ -52,11 +49,6 @@ func (p *PipelineCache) Specialize[C PipelineConfig](config C) Pipeline {
 	}
 
 	cached, ok := p.pipelinesByHash[rpc]
-	if ok {
-		return cached
-	}
-
-	cached, ok = p.pipelines.Get(config)
 	if ok {
 		return cached
 	}
@@ -93,9 +85,8 @@ func (p *PipelineCache) Specialize[C PipelineConfig](config C) Pipeline {
 	pipeline := Pipeline{
 		pipeline:         wgpu.Share(pipe),
 		bindGroupLayouts: bgls,
+		config:           config,
 	}
-
-	p.pipelines.Insert(config, pipeline)
 
 	ensureMapIsInitialized(&p.pipelinesByHash)
 	p.pipelinesByHash[rpc] = pipeline
@@ -126,6 +117,7 @@ func (p *PipelineCache) Shader(label, shaderCode string, values ShaderValues) *w
 type Pipeline struct {
 	pipeline         *wgpu.RenderPipeline
 	bindGroupLayouts []*wgpu.BindGroupLayout
+	config           PipelineConfig
 }
 
 // Get returns the actual WGPU pipeline.
