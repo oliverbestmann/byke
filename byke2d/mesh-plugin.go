@@ -42,6 +42,9 @@ type ExtractedMesh struct {
 	// RenderLayers specifies which render passes should include this mesh.
 	RenderLayers RenderLayers
 
+	// The lightmap for this mesh, or nil if none.
+	Lightmap *Texture
+
 	// HasMorphWeights indicates that the mesh has morph weights
 	HashMorphWeights bool
 }

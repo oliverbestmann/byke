@@ -65,6 +65,7 @@ func extractMeshesWithMaterialSystem[M Material](
 		RenderLayers    byke.Option[RenderLayers]
 		CustomShader    byke.Option[CustomShader]
 		SkinnedMesh     byke.Option[SkinnedMesh]
+		Lightmap        byke.Option[Lightmap]
 		HasMorphWeights byke.Has[meshMorphWeights]
 		Visibility      ComputedVisibility
 		MeshAABB        AABB
@@ -90,9 +91,10 @@ func extractMeshesWithMaterialSystem[M Material](
 			Transform:        item.Transform.Affine,
 			Material:         any(materials.Alloc(item.Material)).(Material),
 			RenderLayers:     item.RenderLayers.Or(renderLayerZero),
-			Skin:             skin,
+			Lightmap:         item.Lightmap.OrZero().Image,
 			HashMorphWeights: item.HasMorphWeights.Exists(),
 			EntityId:         item.EntityId,
+			Skin:             skin,
 		})
 	}
 }
@@ -230,6 +232,7 @@ func prepareMeshPipelinesSystems(
 				SampleCount:  view.ViewTarget.SampleCount,
 				Skinned:      mesh.Skin.IsSet(),
 				Morph:        mesh.HashMorphWeights,
+				HasLightmap:  mesh.Lightmap != nil,
 				VertexLayout: mesh.Mesh.VertexLayout(),
 				BindGroup:    mesh.Material.BindGroup(),
 				MeshView: MeshViewBindGroupLayoutOptions{
@@ -522,6 +525,8 @@ func setupBrdfLookupTableSystem(commands *byke.Commands, ctx *RenderContext) {
 type MeshBindGroups struct {
 	// has dynamic offset configured for the start of the joints array
 	groups         tickCache[*Mesh, *wgpu.BindGroup]
+	emptyTexture   *Texture
+	emptyBuf       *wgpu.Buffer
 	emptyBindGroup *wgpu.BindGroup
 }
 
@@ -533,6 +538,10 @@ var MeshBindGroupLayout = SequentialLayoutWithLabel(
 	"Mesh",
 	// morph attributes
 	BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false),
+
+	// lightmap if available
+	BindingLayoutTexture2D(wgpu.TextureSampleTypeFloat, false),
+	BindingLayoutSampler(wgpu.SamplerBindingTypeFiltering),
 )
 
 func prepareMeshBindGroupSystem(
@@ -542,44 +551,72 @@ func prepareMeshBindGroupSystem(
 	meshAllocator *MeshAllocator,
 ) {
 	if bindGroups.emptyBindGroup == nil {
-		emptyBuf := ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
+		bindGroups.emptyBuf = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
 			Label:    "empty",
 			Contents: []byte{0, 0, 0, 0},
 			Usage:    wgpu.BufferUsageStorage | wgpu.BufferUsageUniform,
 		})
 
+		bindGroups.emptyTexture = NewTexture2d(ctx, NewTexture2dOptions{
+			Width:  1,
+			Height: 1,
+			Format: wgpu.TextureFormatRGBA8Unorm,
+		})
+
 		bindGroups.emptyBindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-			Label:  "Mesh",
+			Label:  "Mesh.Fallback",
 			Layout: ctx.CreateBindGroupLayout(MeshBindGroupLayout),
 			Entries: Sequential(
-				BindingBuffer(emptyBuf),
+				BindingBuffer(bindGroups.emptyBuf),
+				BindingTextureView(bindGroups.emptyTexture.TextureView),
+				BindingSampler(bindGroups.emptyTexture.Sampler),
 			),
 		})
 	}
 
 	for _, mesh := range meshes.Meshes {
-		// TODO check for change in morph attributes buffer
-		if _, ok := bindGroups.groups.Get(mesh.Mesh); ok {
+		bindGroup, ok := bindGroups.groups.Get(mesh.Mesh)
+		if ok {
 			continue
 		}
+
+		// TODO check for change in values
+		bindGroup.Release()
 
 		buf, ok := meshAllocator.Get(mesh.Mesh)
 		if !ok {
 			continue
 		}
 
-		if buf.MorphAttributes == nil {
-			bindGroups.groups.Add(mesh.Mesh, bindGroups.emptyBindGroup)
-			continue
+		var bindings []wgpu.BindGroupEntry
+
+		if buf.MorphAttributes != nil {
+			bindings = append(bindings,
+				Indexed(0, BindingBuffer(buf.MorphAttributes)),
+			)
+		} else {
+			bindings = append(bindings,
+				Indexed(0, BindingBuffer(bindGroups.emptyBuf)),
+			)
+		}
+
+		if lm := mesh.Lightmap; lm != nil {
+			bindings = append(bindings,
+				Indexed(1, BindingTextureView(lm.TextureView)),
+				Indexed(2, BindingSampler(lm.Sampler)),
+			)
+		} else {
+			bindings = append(bindings,
+				Indexed(1, BindingTextureView(bindGroups.emptyTexture.TextureView)),
+				Indexed(2, BindingSampler(bindGroups.emptyTexture.Sampler)),
+			)
 		}
 
 		// create and cache new bind group for this mesh
 		bindGroups.groups.Add(mesh.Mesh, ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-			Label:  "Mesh",
-			Layout: ctx.CreateBindGroupLayout(MeshBindGroupLayout),
-			Entries: Sequential(
-				BindingBuffer(buf.MorphAttributes),
-			),
+			Label:   "Mesh",
+			Layout:  ctx.CreateBindGroupLayout(MeshBindGroupLayout),
+			Entries: Sequential(bindings...),
 		}))
 	}
 }

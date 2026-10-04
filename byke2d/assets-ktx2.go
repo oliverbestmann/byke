@@ -166,9 +166,10 @@ func (i Ktx2Loader) Extensions() []string {
 }
 
 var ktx2VkFormatToWGSL = map[ktx2.VkFormat]wgpu.TextureFormat{
-	ktx2.VK_FORMAT_E5B9G9R9_UFLOAT_PACK32: wgpu.TextureFormatRGB9E5Ufloat,
-	ktx2.VK_FORMAT_B8G8R8A8_SRGB:          wgpu.TextureFormatBGRA8UnormSrgb,
-	ktx2.VK_FORMAT_R8G8B8A8_SRGB:          wgpu.TextureFormatRGBA8UnormSrgb,
-	ktx2.VK_FORMAT_R16G16B16A16_SFLOAT:    wgpu.TextureFormatRGBA16Float,
-	ktx2.VK_FORMAT_R16G16_SFLOAT:          wgpu.TextureFormatRG16Float,
+	ktx2.VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:  wgpu.TextureFormatRGB9E5Ufloat,
+	ktx2.VK_FORMAT_B8G8R8A8_SRGB:           wgpu.TextureFormatBGRA8UnormSrgb,
+	ktx2.VK_FORMAT_R8G8B8A8_SRGB:           wgpu.TextureFormatRGBA8UnormSrgb,
+	ktx2.VK_FORMAT_R16G16B16A16_SFLOAT:     wgpu.TextureFormatRGBA16Float,
+	ktx2.VK_FORMAT_R16G16_SFLOAT:           wgpu.TextureFormatRG16Float,
+	ktx2.VK_FORMAT_B10G11R11_UFLOAT_PACK32: wgpu.TextureFormatRG11B10Ufloat,
 }

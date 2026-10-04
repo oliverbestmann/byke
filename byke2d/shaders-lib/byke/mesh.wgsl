@@ -4,6 +4,7 @@ import package::byke::globals::view;
 import package::byke::lights;
 
 import package::byke::mesh::morph;
+import package::byke::mesh::lightmap;
 
 struct VertexInput {
     @builtin(vertex_index)
@@ -41,6 +42,21 @@ struct VertexInput {
     v_color: vec4f,
 
     // vertex color from per-vertex buffer
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV)
+    @location(9)
+    v_uv: vec2f,
+
+    // vertex color from per-vertex buffer
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV1)
+    @location(10)
+    v_uv_1: vec2f,
+
+    // vertex color from per-vertex buffer
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV2)
+    @location(11)
+    v_uv_2: vec2f,
+
+    // vertex color from per-vertex buffer
     @if(MESH3D_VERTEX_ATTRIBUTES_NORMAL)
     @location(12)
     v_normal: vec3f,
@@ -49,11 +65,6 @@ struct VertexInput {
     @if(MESH3D_VERTEX_ATTRIBUTES_TANGENTSPACE)
     @location(13)
     v_tangent_space: vec4f,
-
-    // vertex color from per-vertex buffer
-    @if(MESH3D_VERTEX_ATTRIBUTES_UV)
-    @location(9)
-    v_uv: vec2f,
 
     // vertex color from per-vertex buffer
     @if(SKINNED)
@@ -78,11 +89,21 @@ struct VertexOutput {
     tangent: vec3f,
     @location(4) @interpolate(flat)
     tangent_sign: f32,
+
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV)
     @location(5)
     uv: vec2f,
 
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV1)
+    @location(6)
+    uv_1: vec2f,
+
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV2)
+    @location(7)
+    uv_2: vec2f,
+
     // index into materials array (if any)
-    @location(6) @interpolate(flat)
+    @location(7) @interpolate(flat)
     material: u32,
 };
 
@@ -190,6 +211,12 @@ fn process_vertex(in: VertexInput) -> VertexOutput {
 
     @if(MESH3D_VERTEX_ATTRIBUTES_UV)
     out.uv = in.v_uv;
+
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV1)
+    out.uv_1 = in.v_uv_1;
+
+    @if(MESH3D_VERTEX_ATTRIBUTES_UV2)
+    out.uv_2 = in.v_uv_2;
 
     return out;
 }

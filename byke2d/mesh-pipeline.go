@@ -13,6 +13,7 @@ type meshPipelineConfig struct {
 	SampleCount  uint32
 	Skinned      bool
 	Morph        bool
+	HasLightmap  bool
 
 	// options to pick the mesh view bind group layout
 	MeshView MeshViewBindGroupLayoutOptions
@@ -26,6 +27,7 @@ func (c meshPipelineConfig) Hash() Hash {
 	h.Int(c.SampleCount)
 	h.Bool(c.Skinned)
 	h.Bool(c.Morph)
+	h.Bool(c.HasLightmap)
 	h.Int(c.MeshView.Hash())
 	return h
 }
@@ -82,6 +84,7 @@ func (c meshPipelineConfig) Specialize(ctx PipelineContext) RenderPipelineDescri
 
 	values.Set("SKINNED", c.Skinned)
 	values.Set("MORPH", c.Morph)
+	values.Set("HAS_LIGHTMAP", c.HasLightmap)
 	values.Set("MESH_ENVMAP_LIGHT", c.MeshView.EnvironmentMapLight)
 
 	mod := ctx.Shader(shader.Label, shader.Source, values)

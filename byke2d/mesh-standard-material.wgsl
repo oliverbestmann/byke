@@ -1,6 +1,7 @@
 import package::byke::globals::view;
 import package::byke::mesh;
 import package::byke::mesh::pbr;
+import package::byke::mesh::lightmap;
 import package::byke::lights;
 
 struct StandardMaterial {
@@ -162,7 +163,6 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
         let V = normalize(view.camera_position - vertex.position_world);
         let N = normal;
 
-
         @if(!MESH3D_MAT_HAS_RMTEX)
         let metallic_scale: f32 = 1;
 
@@ -190,6 +190,10 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
         outcol += pbr::sample_ibl(N, V, base_color, metallic, roughness)
             * pbr::pbr_env_options.intensity
             * ambient_occlusion;
+
+        // lightmap
+        @if(HAS_LIGHTMAP)
+        outcol += base_color * lightmap::lightmap_sample(vertex.uv_1, 250.0);
 
         // apply point lights
         for (var i: u32 = 0; i < lights::point_lights.count; i++) {
