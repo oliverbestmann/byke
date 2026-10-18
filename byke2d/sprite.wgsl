@@ -18,7 +18,7 @@ struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) @interpolate(flat) color: vec4<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) flags: u32,
+    @interpolate(flat) @location(2) flags: u32,
 };
 
 fn mat3_scale(scale: vec2<f32>) -> mat3x3<f32> {

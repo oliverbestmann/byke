@@ -3,54 +3,56 @@ module github.com/oliverbestmann/byke
 go 1.27
 
 require (
-	github.com/ebitengine/oto/v3 v3.4.0
-	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.1.0.20260628091122-0bd588dc30cf
+	github.com/alecthomas/kong v1.16.1
+	github.com/chewxy/math32 v1.11.2
+	github.com/ebitengine/oto/v3 v3.5.1
+	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.2
 	github.com/go-text/render v0.2.1
-	github.com/go-text/typesetting v0.3.4
-	github.com/hajimehoshi/ebiten/v2 v2.9.9
+	github.com/go-text/typesetting v0.3.5
+	github.com/hajimehoshi/ebiten/v2 v2.10.5
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/klauspost/compress v1.20.3
 	github.com/oliverbestmann/earcut-go v1.0.0
 	github.com/oliverbestmann/mikktspace-go v0.0.0-20260628135113-36b1a30cb1e0
 	github.com/oliverbestmann/puffin-go v1.0.0
-	github.com/oliverbestmann/webgpu v1.34.3-0.20260725152525-b08796061ec2
+	github.com/oliverbestmann/webgpu v1.36.0
+	github.com/oliverbestmann/wesl-go v1.1.1
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
-	golang.org/x/image v0.40.0
-	golang.org/x/mobile v0.0.0-20260520154334-0e4426e1883d
+	github.com/x448/float16 v0.8.4
+	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e
+	golang.org/x/image v0.47.0
+	golang.org/x/mobile v0.0.0-20261011034528-197770444867
 )
 
 require (
-	github.com/chewxy/math32 v1.11.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dlclark/regexp2/v2 v2.7.2 // indirect
-	github.com/dop251/goja v0.0.0-20260903201622-f87b40ad7341 // indirect
-	github.com/ebitengine/purego v0.10.0 // indirect
+	github.com/dlclark/regexp2/v2 v2.9.1 // indirect
+	github.com/dop251/goja v0.0.0-20261018113103-d42f16bb6161 // indirect
+	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
-	github.com/google/pprof v0.0.0-20260903180319-d6c3cb2f37ec // indirect
+	github.com/google/pprof v0.0.0-20261016150608-1facf8f91b50 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
+	github.com/jfreymuth/pulse v0.1.3 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260628152806-6b27e30a172e // indirect
 	github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260628152755-66a5dfa57f8d // indirect
 	github.com/oliverbestmann/webgpu/libs-ios v0.0.0-20260628152757-fe2537e7ddac // indirect
 	github.com/oliverbestmann/webgpu/libs-linux v0.0.0-20260628152803-421b8a341d08 // indirect
 	github.com/oliverbestmann/webgpu/libs-windows v0.0.0-20260628152801-f47d1b682eb8 // indirect
-	github.com/oliverbestmann/wesl-go v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/timandy/routine v1.1.6 // indirect
-	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
-	golang.org/x/mod v0.38.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	golang.org/x/tools v0.48.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/tools/cmd/godoc v0.1.0-deprecated // indirect
 	golang.org/x/tools/godoc v0.1.0-deprecated // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

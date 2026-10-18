@@ -26,7 +26,8 @@ func (fm *fontmap) ResolveFace(r rune) *font.Face {
 		}
 	}
 
-	return nil
+	// fallback to the first face.
+	return fm.faces[0]
 }
 
 func (fm *fontmap) AddFont(fontFile font.Resource, fileID, family string) error {
