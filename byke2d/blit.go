@@ -27,7 +27,8 @@ func (b BlitConfig) Specialize(ctx PipelineContext) RenderPipelineDescriptor {
 
 	blend := wgpu.BlendStateReplace
 	if b.AlphaBlend {
-		blend = wgpu.BlendStateAlphaBlending
+		// straight alpha blending onto a transparent target leaves premultiplied colors
+		blend = wgpu.BlendStatePremultipliedAlphaBlending
 	}
 
 	return RenderPipelineDescriptor{
