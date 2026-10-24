@@ -15,6 +15,7 @@ func initializeAssetFS() AssetFS {
 		panic("failed to parse location.href")
 	}
 
-	assets := base.JoinPath("assets/")
+	// resolve like a relative link: drops the page name (index.html) and the query
+	assets := base.ResolveReference(&url.URL{Path: "assets/"})
 	return MakeAssetFS(httpfs.New(assets))
 }
