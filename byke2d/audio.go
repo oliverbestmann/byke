@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"runtime"
 	"time"
 	"unsafe"
 
@@ -32,11 +33,20 @@ const StereoSamplesPerSecond = 48000
 var audioContext *oto.Context
 
 func init() {
+	bufferSize := 64 * time.Millisecond
+
+	if runtime.GOOS == "js" {
+		// Without a secure context there is no AudioWorklet, and oto falls back to
+		// createScriptProcessor, which needs a power of two frames. The extra nanosecond
+		// keeps oto's integer division from rounding down to 4095 frames.
+		bufferSize = 4096*time.Second/StereoSamplesPerSecond + 1
+	}
+
 	ctx, readyCh, err := oto.NewContext(&oto.NewContextOptions{
 		SampleRate:   StereoSamplesPerSecond,
 		ChannelCount: 2,
 		Format:       oto.FormatFloat32LE,
-		BufferSize:   64 * time.Millisecond,
+		BufferSize:   bufferSize,
 	})
 	if err != nil {
 		panic(fmt.Errorf("initialize audio context: %w", err))
