@@ -12,10 +12,10 @@ require (
 	github.com/hajimehoshi/ebiten/v2 v2.10.5
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/klauspost/compress v1.20.3
-	github.com/oliverbestmann/earcut-go v1.0.0
-	github.com/oliverbestmann/mikktspace-go v0.0.0-20260628135113-36b1a30cb1e0
+	github.com/oliverbestmann/earcut-go v1.1.1
+	github.com/oliverbestmann/mikktspace-go v0.0.0-20261021165803-21f42ec57da7
 	github.com/oliverbestmann/puffin-go v1.0.0
-	github.com/oliverbestmann/webgpu v1.36.0
+	github.com/oliverbestmann/webgpu v1.37.0
 	github.com/oliverbestmann/wesl-go v1.1.1
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
@@ -28,7 +28,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2/v2 v2.9.1 // indirect
-	github.com/dop251/goja v0.0.0-20261018113103-d42f16bb6161 // indirect
+	github.com/dop251/goja v0.0.0-20261022125820-07c4b9d6265b // indirect
 	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect

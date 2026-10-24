@@ -110,12 +110,15 @@ fn sample_ibl(
     let F0 = mix(vec3<f32>(0.04), baseColor, vec3<f32>(metallic));
     let F = fresnelSchlick(NdotV, F0);
 
-    let irradiance = textureSampleLevel(pbr_env_map_diffuse, pbr_env_sampler, N, 0.0).rgb;
+    // cube maps are left-handed, flip z like the skybox does
+    let cube_flip = vec3<f32>(1.0, 1.0, -1.0);
+
+    let irradiance = textureSampleLevel(pbr_env_map_diffuse, pbr_env_sampler, N * cube_flip, 0.0).rgb;
     let diffuse_ibl = irradiance * baseColor;
 
     let max_mip_level = f32(textureNumLevels(pbr_env_map_specular) - 1);
     let mip_level = max_mip_level * roughness;
-    let prefiltered_color = textureSampleLevel(pbr_env_map_specular, pbr_env_sampler, R, mip_level).rgb;
+    let prefiltered_color = textureSampleLevel(pbr_env_map_specular, pbr_env_sampler, R * cube_flip, mip_level).rgb;
 
     let brdf = F_AB(roughness, NdotV);
 

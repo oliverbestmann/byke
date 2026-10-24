@@ -25,7 +25,7 @@ func (a *ArchetypeGraph) NextWith(current *Archetype, componentType *ComponentTy
 	types = append(types, tr.ComponentTypes[:typeCount]...)
 
 	// build the new archetype if needed
-	return a.insertTransition(tr, types), true
+	return a.insertTransition(tr, types)
 }
 
 func (a *ArchetypeGraph) NextWithout(current *Archetype, componentType *ComponentType) (*Archetype, bool) {
@@ -50,10 +50,11 @@ func (a *ArchetypeGraph) NextWithout(current *Archetype, componentType *Componen
 	}
 
 	// build the new archetype if needed
-	return a.insertTransition(tr, types), true
+	return a.insertTransition(tr, types)
 }
 
-func (a *ArchetypeGraph) insertTransition(tr ArchetypeTransition, types []*ComponentType) *Archetype {
+// insertTransition returns the target archetype and whether the archetype itself was newly created.
+func (a *ArchetypeGraph) insertTransition(tr ArchetypeTransition, types []*ComponentType) (*Archetype, bool) {
 	if _, exists := a.transitions[tr]; exists {
 		panic("archetype transition already exists")
 	}
@@ -62,10 +63,10 @@ func (a *ArchetypeGraph) insertTransition(tr ArchetypeTransition, types []*Compo
 		a.transitions = map[ArchetypeTransition]*Archetype{}
 	}
 
-	archetype, _ := a.Archetypes.Lookup(types)
+	archetype, created := a.Archetypes.Lookup(types)
 	a.transitions[tr] = archetype
 
-	return archetype
+	return archetype, created
 }
 
 type ArchetypeTransition struct {

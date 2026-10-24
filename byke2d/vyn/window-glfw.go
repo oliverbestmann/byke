@@ -56,6 +56,14 @@ func (g *glfwWindow) SurfaceDescriptor() *wgpu.SurfaceDescriptor {
 	return wgpuglfw.GetSurfaceDescriptor(g.win)
 }
 
+func (g *glfwWindow) SetCursorGrab(grab bool) {
+	if grab {
+		g.win.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
+	} else {
+		g.win.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
+	}
+}
+
 func (g *glfwWindow) Terminate() {
 	g.win.Destroy()
 	glfw.Terminate()

@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"cmp"
 	"log/slog"
 
 	"github.com/oliverbestmann/byke"
@@ -25,6 +26,8 @@ type rootTransformItems struct {
 
 	Transform       Transform
 	GlobalTransform *GlobalTransform
+
+	EntityId byke.EntityId
 }
 
 type transformItem struct {
@@ -42,15 +45,21 @@ func syncSimpleTransformSystem(query byke.Query[simpleTransformItems]) {
 func propagateTransformSystem(
 	rootItemsQuery byke.Query[rootTransformItems],
 	childItemsQuery byke.Query[transformItem],
+	nameQuery byke.Query[byke.Name],
 ) {
-	var recurse func(entityId byke.EntityId, parentTransform *GlobalTransform)
+	var recurse func(parentId, entityId byke.EntityId, parentTransform *GlobalTransform)
 
-	recurse = func(entityId byke.EntityId, parentTransform *GlobalTransform) {
+	recurse = func(parentId, entityId byke.EntityId, parentTransform *GlobalTransform) {
 		entity, ok := childItemsQuery.Get(entityId)
 		if !ok {
+			// try to get the name of the parent
+			parent, _ := nameQuery.Get(parentId)
+
 			slog.Warn(
 				"Transform hierarchy broken, missing entity",
 				slog.Int("entityId", int(entityId)),
+				slog.Int("parentId", int(parentId)),
+				slog.String("parent", cmp.Or(parent.Name, "Unknown")),
 			)
 
 			return
@@ -63,7 +72,7 @@ func propagateTransformSystem(
 		children, ok := entity.Children.Get()
 		if ok {
 			for _, child := range children.Children() {
-				recurse(child, entity.GlobalTransform)
+				recurse(entityId, child, entity.GlobalTransform)
 			}
 		}
 	}
@@ -74,7 +83,7 @@ func propagateTransformSystem(
 
 		// recurse into children
 		for _, child := range root.Children.Children() {
-			recurse(child, root.GlobalTransform)
+			recurse(root.EntityId, child, root.GlobalTransform)
 		}
 	}
 }

@@ -10,6 +10,9 @@ type Window interface {
 	// This can be used to initialize a wgpu context.
 	SurfaceDescriptor() *wgpu.SurfaceDescriptor
 
+	// SetCursorGrab locks the pointer, useful for shooter style input.
+	SetCursorGrab(grab bool)
+
 	// Run calls the given functions in an event loop.
 	Run(render func(inputState UpdateInputState) error) error
 

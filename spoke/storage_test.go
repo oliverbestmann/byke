@@ -193,3 +193,47 @@ func TestStorage_OptimizeQuery(t *testing.T) {
 	_, ok = iter.Next()
 	require.False(t, ok)
 }
+
+type Health struct {
+	ComparableComponent[Health]
+	X int
+}
+
+func TestStorage_InsertComponents(t *testing.T) {
+	prevDebug := debug
+	debug = true
+	t.Cleanup(func() { debug = prevDebug })
+
+	s := NewStorage()
+
+	q := s.OptimizeQuery(Query{
+		Fetch:   []FetchComponent{{ComponentType: ComponentTypeOf[Velocity]()}},
+		Filters: []Filter{{Without: ComponentTypeOf[Health]()}},
+	})
+
+	s.Spawn(Tick(0), EntityId(1), []ErasedComponent{&Position{X: 1}})
+
+	// updates Position and adds Velocity and Health, passing an intermediate archetype
+	s.InsertComponents(Tick(1), EntityId(1), []ErasedComponent{
+		&Position{X: 2}, &Velocity{X: 3}, &Health{X: 4},
+	})
+
+	entity, ok := s.Get(EntityId(1))
+	require.True(t, ok)
+	require.Equal(t, 2, entity.Get(ComponentTypeOf[Position]()).(*Position).X)
+	require.Equal(t, Tick(1), entity.Changed(ComponentTypeOf[Position]()))
+	require.Equal(t, 3, entity.Get(ComponentTypeOf[Velocity]()).(*Velocity).X)
+	require.Equal(t, 4, entity.Get(ComponentTypeOf[Health]()).(*Health).X)
+
+	// the second entity lands in the intermediate archetype {Position, Velocity}
+	s.Spawn(Tick(2), EntityId(2), []ErasedComponent{&Position{}})
+	s.InsertComponent(Tick(2), EntityId(2), &Velocity{X: 5})
+
+	iter := s.IterQuery(q, QueryContext{})
+	found, ok := iter.Next()
+	require.True(t, ok)
+	require.Equal(t, EntityId(2), found.EntityId())
+
+	_, ok = iter.Next()
+	require.False(t, ok)
+}

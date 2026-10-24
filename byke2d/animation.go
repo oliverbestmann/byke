@@ -6,6 +6,8 @@ import (
 	"maps"
 	"sort"
 
+	"github.com/chewxy/math32"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/spoke"
@@ -33,6 +35,17 @@ type EaseInQuad struct{}
 
 func (EaseInQuad) Eval(t float32) float32 {
 	return t * t
+}
+
+// Step is an easing function that holds the previous keyframe value until the next keyframe.
+type Step struct{}
+
+func (Step) Eval(t float32) float32 {
+	if t < 1 {
+		return 0
+	}
+
+	return 1
 }
 
 type Interpolator[T any] interface {
@@ -284,11 +297,23 @@ type ActiveAnimation struct {
 
 	// Animation is the animation clip being played.
 	Animation AnimationClip
+
+	// Repeat restarts the animation when Time passes the clip duration.
+	Repeat bool
+
+	// Paused stops advancing the time and applying values.
+	Paused bool
 }
 
 // AnimationClip is a collection of animation curves targeting different entities.
 type AnimationClip struct {
 	animations map[AnimationTargetId][]AnimationCurve
+	duration   float32
+}
+
+// Duration is the time of the last keyframe, if known.
+func (clip *AnimationClip) Duration() float32 {
+	return clip.duration
 }
 
 func (clip *AnimationClip) MergeWith(other AnimationClip) AnimationClip {
@@ -298,7 +323,7 @@ func (clip *AnimationClip) MergeWith(other AnimationClip) AnimationClip {
 	}
 
 	maps.Insert(cloned, maps.All(other.animations))
-	return AnimationClip{animations: cloned}
+	return AnimationClip{animations: cloned, duration: max(clip.duration, other.duration)}
 }
 
 func (clip *AnimationClip) IsEmpty() bool {
@@ -370,7 +395,16 @@ func animationAdvanceTimeSystem(vt byke.VirtualTime, animations byke.Query[struc
 }],
 ) {
 	for animation := range animations.Items() {
-		animation.Animation.Time += vt.DeltaSecs * 0.5
+		active := animation.Animation
+		if active.Paused {
+			continue
+		}
+
+		active.Time += vt.DeltaSecs
+
+		if duration := active.Animation.duration; active.Repeat && duration > 0 {
+			active.Time = math32.Mod(active.Time, duration)
+		}
 	}
 }
 
@@ -392,7 +426,7 @@ func applyAnimationValuesSystem(
 
 	for animated := range animatedQuery.Items() {
 		animation, ok := animations[animated.AnimatedBy.Animator]
-		if !ok {
+		if !ok || animation.Paused {
 			continue
 		}
 

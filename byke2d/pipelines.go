@@ -3,6 +3,7 @@ package byke2d
 import (
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/webgpu/wgpu"
@@ -38,6 +39,7 @@ type PipelineCache struct {
 	_       byke.NoCopy
 	ctx     *RenderContext
 	shaders *Shaders
+	mutex   sync.Mutex
 
 	pipelinesByHash map[runtimePipelineConfig]Pipeline
 }
@@ -47,6 +49,9 @@ func (p *PipelineCache) Specialize[C PipelineConfig](config C) Pipeline {
 		Type: reflect.TypeFor[C](),
 		Hash: config.Hash(),
 	}
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	cached, ok := p.pipelinesByHash[rpc]
 	if ok {

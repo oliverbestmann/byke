@@ -134,6 +134,10 @@ func (e EntityCommands) Observe(system AnySystem) EntityCommands {
 }
 
 func (e EntityCommands) Insert(components ...ErasedComponent) EntityCommands {
+	if len(components) == 0 {
+		return e
+	}
+
 	e.commands.Add(&insertComponentsCommand{
 		EntityId:   e.entityId,
 		Components: components,

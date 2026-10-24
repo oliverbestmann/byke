@@ -33,13 +33,25 @@ type SceneRoot struct {
 	// PreferAlphaToCoverage indicates that we prefer to use alpha to coverage in the material
 	// settings instead of alpha mode blend
 	PreferAlphaToCoverage bool
+
+	// PauseAnimations spawns the animations paused instead of playing them.
+	// Each animation is a child entity of the scene instance with a Name and an ActiveAnimation.
+	PauseAnimations bool
 }
 
 func (s SceneRoot) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
+		SpawnCustomComponents{},
 		NewTransform(),
 		InheritVisibility,
 	}
+}
+
+type SpawnCustomComponents struct {
+	byke.Component[SpawnCustomComponents]
+
+	// Applies a function to each node spawned
+	OnNode func(node gltf.Node) []spoke.ErasedComponent
 }
 
 func pluginGltf(app *byke.App) {
@@ -51,9 +63,10 @@ func spawnGltfSceneSystem(
 	ctx *RenderContext,
 	assets *Assets,
 	scenesQuery byke.Query[struct {
-		_         byke.Changed[SceneRoot]
-		EntityId  byke.EntityId
-		SceneRoot SceneRoot
+		_                byke.Changed[SceneRoot]
+		EntityId         byke.EntityId
+		SceneRoot        SceneRoot
+		CustomComponents SpawnCustomComponents
 	}],
 ) {
 	for item := range scenesQuery.Items() {
@@ -71,6 +84,8 @@ func spawnGltfSceneSystem(
 			nodeToMesh:            map[gltf.Ref][]byke.EntityId{},
 			meshes:                map[meshKey]*Mesh{},
 			preferAlphaToCoverage: item.SceneRoot.PreferAlphaToCoverage,
+			customComponents:      item.CustomComponents.OnNode,
+			pauseAnimations:       item.SceneRoot.PauseAnimations,
 		}
 
 		scene := sc.Handle.Scenes[item.SceneRoot.Scene]
@@ -127,13 +142,19 @@ type spawnContext struct {
 
 	// prefer alpha to coverage over blend
 	preferAlphaToCoverage bool
+
+	// custom component callback for each node that gets spawned
+	customComponents func(node gltf.Node) []spoke.ErasedComponent
+
+	// spawn animations paused
+	pauseAnimations bool
 }
 
 func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 	// spawn root entity
 	sc.root = sc.Commands.Spawn(
 		SceneInstance{},
-		NewTransform().WithScaleXYZ(1, 1, -1),
+		NewTransform(),
 		byke.ChildOf{Parent: parentId}).Id()
 
 	// first step, spawn nodes
@@ -161,34 +182,24 @@ func (sc *spawnContext) SpawnScene(parentId byke.EntityId, sceneId gltf.Ref) {
 		}
 	}
 
-	// for all animations, create animation targets and link to the root node
-	for _, animation := range sc.Handle.Animations {
-		sc.spawnAnimationTargets(sc.root, animation)
-	}
-
-	var mergedAnimation AnimationClip
+	// each animation gets its own animator entity, so animations can play independently.
+	// a node targeted by multiple animations is animated by the last one.
 	for _, anim := range sc.Handle.Animations {
 		slog.Debug("Animation", slog.String("name", anim.Name))
-		mergedAnimation = mergedAnimation.MergeWith(sc.buildAnimation(anim))
-	}
 
-	if !mergedAnimation.IsEmpty() {
-		// spawn the first animation on the root entity
-		sc.Commands.Entity(sc.root).Insert(
+		animator := sc.Commands.Spawn(
+			byke.ChildOf{Parent: sc.root},
+			// transform propagation expects a Transform on every child
+			NewTransform(),
+			byke.Named(anim.Name),
 			ActiveAnimation{
-				Animation: mergedAnimation,
+				Animation: sc.buildAnimation(anim),
+				Paused:    sc.pauseAnimations,
 			},
-		)
-	}
+		).Id()
 
-	// 	if len(sc.Handle.Animations) > 0 {
-	// 		// spawn the first animation on the root entity
-	// 		sc.Commands.Entity(sc.root).Insert(
-	// 			ActiveAnimation{
-	// 				Animation: sc.buildAnimation(sc.Handle.Animations[0]),
-	// 			},
-	// 		)
-	// 	}
+		sc.spawnAnimationTargets(animator, anim)
+	}
 
 	slog.Debug(
 		"Spawn scene summary",
@@ -203,9 +214,15 @@ func (sc *spawnContext) spawnNodeTree(parentId byke.EntityId, node gltf.Node, pa
 	// track the world transform
 	worldTransform := parentTransform.Mul(transform.Affine3())
 
+	var customComponents []byke.ErasedComponent
+	if sc.customComponents != nil {
+		customComponents = sc.customComponents(node)
+	}
+
 	// spawn a new entity for the node
 	entityId := sc.Commands.
 		Spawn(byke.ChildOf{Parent: parentId}, InheritVisibility, transform).
+		Insert(customComponents...).
 		Id()
 
 	// record it in the lookup table
@@ -236,12 +253,12 @@ func (sc *spawnContext) spawnMeshInNode(node gltf.Node) {
 			material = sc.materialAt(ma.Get())
 		}
 
-		material.FrontFace = wgpu.FrontFaceCW
+		material.FrontFace = wgpu.FrontFaceCCW
 
 		worldTransform := sc.nodeWorldTransform[node.Id]
 		flipWinding := worldTransform[0][0]*worldTransform[1][1]*worldTransform[2][2] < 0
 		if flipWinding {
-			material.FrontFace = wgpu.FrontFaceCCW
+			material.FrontFace = wgpu.FrontFaceCW
 		}
 
 		meshInst := sc.instantiateMesh(meshId, idx)
@@ -443,9 +460,9 @@ func (sc *spawnContext) textureAt(texId gltf.Ref, linearColors bool) *Texture {
 	// TODO translate sampler
 	texture.Sampler = sc.RenderContext.CreateSampler(wgpu.SamplerDescriptor{
 		Label:        "gltf: " + sampler.Name,
-		AddressModeU: wgpu.AddressModeClampToEdge,
-		AddressModeV: wgpu.AddressModeClampToEdge,
-		AddressModeW: wgpu.AddressModeClampToEdge,
+		AddressModeU: wgpu.AddressModeRepeat,
+		AddressModeV: wgpu.AddressModeRepeat,
+		AddressModeW: wgpu.AddressModeRepeat,
 		MagFilter:    wgpu.FilterModeLinear,
 		MinFilter:    wgpu.FilterModeLinear,
 		MipmapFilter: wgpu.MipmapFilterModeLinear,
@@ -530,6 +547,12 @@ func (sc *spawnContext) animationTargetOf(ch gltf.AnimationChannel) AnimationTar
 
 func (sc *spawnContext) buildAnimation(anim gltf.Animation) AnimationClip {
 	var clip AnimationClip
+
+	for _, sampler := range anim.Samplers {
+		if timestamps := sc.Handle.Resolve(sampler.Input).([]float32); len(timestamps) > 0 {
+			clip.duration = max(clip.duration, timestamps[len(timestamps)-1])
+		}
+	}
 
 	for _, ch := range anim.Channels {
 		curve := sc.animationCurveOf(anim, ch)

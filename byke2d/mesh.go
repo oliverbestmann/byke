@@ -94,6 +94,11 @@ func (m *Mesh) WithMorphTarget(target []MorphAttributes) *Mesh {
 
 // Vertices returns the vertex positions of this mesh. The returned slice is a view
 // into the mesh's internal data and must not be modified; use WithVertices instead.
+// Indices returns the triangle indices, three per triangle. Do not modify the slice.
+func (m *Mesh) Indices() []uint32 {
+	return m.indices
+}
+
 func (m *Mesh) Vertices() []glm.Vec3f {
 	data := m.attributes.Get(VertexAttributePosition)
 	return ByteSliceAsValues[glm.Vec3f](data.Value)

@@ -13,6 +13,8 @@ type jsWindow struct {
 	canvas js.Value
 	input  InputState
 	hidpi  bool
+
+	grab bool
 }
 
 func NewWindow(width, height int, title string, resizable bool) (Window, error) {
@@ -36,15 +38,39 @@ func NewWindow(width, height int, title string, resizable bool) (Window, error) 
 
 func configureInput(document js.Value, win *jsWindow) {
 	win.canvas.Call("addEventListener", "pointermove", js.FuncOf(func(this js.Value, args []js.Value) any {
+		event := args[0]
 		scale := win.deviceScale()
-		pageX := args[0].Get("pageX").Float() * scale
-		pageY := args[0].Get("pageY").Float() * scale
+
+		if document.Get("pointerLockElement").Equal(win.canvas) {
+			// pageX/pageY are frozen while locked, accumulate a virtual cursor like glfw does.
+			x := win.input.Mouse.CursorX + float32(event.Get("movementX").Float()*scale)
+			y := win.input.Mouse.CursorY + float32(event.Get("movementY").Float()*scale)
+			win.input.Mouse.position(x, y)
+			return nil
+		}
+
+		pageX := event.Get("pageX").Float() * scale
+		pageY := event.Get("pageY").Float() * scale
 		win.input.Mouse.position(float32(pageX), float32(pageY))
 		return nil
 	}))
 
 	win.canvas.Call("addEventListener", "pointerdown", js.FuncOf(func(this js.Value, args []js.Value) any {
+		// touches have no pointermove before pointerdown, move the cursor to where the touch starts
+		if !document.Get("pointerLockElement").Equal(win.canvas) {
+			event := args[0]
+			scale := win.deviceScale()
+			win.input.Mouse.position(float32(event.Get("pageX").Float()*scale), float32(event.Get("pageY").Float()*scale))
+		}
+
 		win.input.Mouse.press(MouseButton(0))
+
+		// the browser drops the lock on Escape, so request it again on every click
+		if win.grab && !document.Get("pointerLockElement").Equal(win.canvas) {
+			slog.Info("Requesting pointer lock")
+			win.canvas.Call("requestPointerLock")
+		}
+
 		return nil
 	}))
 
@@ -170,4 +196,12 @@ func (g *jsWindow) resizeCanvas() {
 
 	g.canvas.Set("width", viewWidth*ratio)
 	g.canvas.Set("height", viewHeight*ratio)
+}
+
+func (g *jsWindow) SetCursorGrab(grab bool) {
+	g.grab = grab
+
+	if !grab {
+		js.Global().Get("document").Call("exitPointerLock")
+	}
 }

@@ -53,17 +53,18 @@ type Asset struct {
 }
 
 type Node struct {
-	Id          Ref          `json:"-"`
-	Name        string       `json:"name"`
-	Mesh        OptionRef    `json:"mesh"`
-	Skin        OptionRef    `json:"skin"`
-	Camera      OptionRef    `json:"camera"`
-	Matrix      *[16]float32 `json:"matrix"`
-	Rotation    *[4]float32  `json:"rotation"`
-	Scale       *[3]float32  `json:"scale"`
-	Translation *[3]float32  `json:"translation"`
-	Children    []Ref        `json:"children"`
-	Extensions  Extensions   `json:"extensions"`
+	Id          Ref             `json:"-"`
+	Name        string          `json:"name"`
+	Mesh        OptionRef       `json:"mesh"`
+	Skin        OptionRef       `json:"skin"`
+	Camera      OptionRef       `json:"camera"`
+	Matrix      *[16]float32    `json:"matrix"`
+	Rotation    *[4]float32     `json:"rotation"`
+	Scale       *[3]float32     `json:"scale"`
+	Translation *[3]float32     `json:"translation"`
+	Children    []Ref           `json:"children"`
+	Extensions  Extensions      `json:"extensions"`
+	Extras      json.RawMessage `json:"extras"`
 }
 
 func (n *Node) TransformComponents() (translation, scale glm.Vec3f, rotation glm.Quat) {
@@ -91,7 +92,7 @@ func (n *Node) Transform() glm.Mat4f {
 			{m[0], m[1], m[2], m[3]},
 			{m[4], m[5], m[6], m[7]},
 			{m[8], m[9], m[10], m[11]},
-			{m[12], m[13], m[15], m[15]},
+			{m[12], m[13], m[14], m[15]},
 		}
 	}
 

@@ -85,27 +85,31 @@ func (s *Storage) InsertComponents(tick Tick, entityId EntityId, components []Er
 
 	newArchetype := prevArchetype
 
+	var addedComponents []ErasedComponent
+	var updatedComponents []ErasedComponent
+
 	var addedComponentTypes []*ComponentType
 	var updatedComponentTypes []*ComponentType
 
-	var created, anyCreated bool
 	for _, component := range components {
 		componentType := component.ComponentType()
 		if newArchetype.ContainsType(componentType) {
+			updatedComponents = append(updatedComponents, component)
 			updatedComponentTypes = append(updatedComponentTypes, componentType)
 			continue
 		}
 
 		// we need to move to a new archetype
+		var created bool
 		newArchetype, created = s.archetypes.NextWith(newArchetype, componentType)
-		anyCreated = anyCreated || created
+		if created {
+			// intermediate archetypes need to be registered too
+			s.handleNewArchetype(newArchetype)
+		}
 
 		// remember added types to call the correct hooks later
+		addedComponents = append(addedComponents, component)
 		addedComponentTypes = append(addedComponentTypes, componentType)
-	}
-
-	if anyCreated {
-		s.handleNewArchetype(newArchetype)
 	}
 
 	// before updating any values, we need to discard the previous values,
@@ -125,7 +129,12 @@ func (s *Storage) InsertComponents(tick Tick, entityId EntityId, components []Er
 	}
 
 	// transfer our entity
-	newArchetype.Import(tick, prevArchetype, entityId, components...)
+	newArchetype.Import(tick, prevArchetype, entityId, addedComponents...)
+
+	// existing components were copied by Import, now overwrite them with the new values
+	for _, component := range updatedComponents {
+		newArchetype.ReplaceComponentValue(tick, entityId, component)
+	}
 
 	// remove from the previous archetype
 	prevArchetype.Remove(entityId)

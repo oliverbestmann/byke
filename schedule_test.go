@@ -113,6 +113,69 @@ func TestSystemOrderWithSets(t *testing.T) {
 	}
 }
 
+// systems for the tests of one system function in two schedules
+var scheduleLog []string
+
+func logA() { scheduleLog = append(scheduleLog, "a") }
+func logB() { scheduleLog = append(scheduleLog, "b") }
+
+func never() bool { return false }
+
+func logLocal(local *Local[int]) {
+	local.Value++
+	scheduleLog = append(scheduleLog, fmt.Sprint(local.Value))
+}
+
+func TestSystemInTwoSchedulesUsesSetsOfEach(t *testing.T) {
+	// without an ordering, the order depends on map iteration. repeat to catch it.
+	for range 64 {
+		scheduleLog = nil
+
+		scheduleX, scheduleY := MakeScheduleId("X"), MakeScheduleId("Y")
+		setX := &SystemSet{Name: "X"}
+		setY1, setY2 := &SystemSet{Name: "Y1"}, &SystemSet{Name: "Y2"}
+		setY1.Before(setY2)
+
+		world := NewWorld()
+		world.AddSystems(scheduleX, System(logA).InSet(setX))
+		world.AddSystems(scheduleY, System(logB).InSet(setY2))
+		world.AddSystems(scheduleY, System(logA).InSet(setY1))
+
+		world.RunSchedule(scheduleY)
+		require.Equal(t, []string{"a", "b"}, scheduleLog)
+	}
+}
+
+func TestSystemInTwoSchedulesUsesPredicatesOfEach(t *testing.T) {
+	scheduleLog = nil
+
+	scheduleX, scheduleY := MakeScheduleId("X"), MakeScheduleId("Y")
+
+	world := NewWorld()
+	world.AddSystems(scheduleX, logA)
+	world.AddSystems(scheduleY, System(logA).RunIf(never))
+
+	world.RunSchedule(scheduleY)
+	require.Empty(t, scheduleLog, "the predicate of schedule Y must stop the system")
+
+	world.RunSchedule(scheduleX)
+	require.Equal(t, []string{"a"}, scheduleLog, "schedule X has no predicate")
+}
+
+func TestSystemInTwoSchedulesHasOwnLocal(t *testing.T) {
+	scheduleLog = nil
+
+	scheduleX, scheduleY := MakeScheduleId("X"), MakeScheduleId("Y")
+
+	world := NewWorld()
+	world.AddSystems(scheduleX, logLocal)
+	world.AddSystems(scheduleY, logLocal)
+
+	world.RunSchedule(scheduleX)
+	world.RunSchedule(scheduleY)
+	require.Equal(t, []string{"1", "1"}, scheduleLog)
+}
+
 func a() int {
 	return 1
 }

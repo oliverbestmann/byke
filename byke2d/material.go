@@ -353,10 +353,6 @@ func prepareMaterialBindGroupsSystem(
 		EntityId byke.EntityId
 	}],
 ) {
-	// TODO access layout for mesh without view. While the pipeline might depend on
-	//  the output format, the bind group layout should not.
-	viewId := viewsQuery.MustFirst().EntityId
-
 	for idx := range meshes.Meshes {
 		item := &meshes.Meshes[idx]
 
@@ -372,9 +368,20 @@ func prepareMaterialBindGroupsSystem(
 			bindings = append(bindings, BindingBuffer(values.Buffer))
 			bindings = append(bindings, matBindGroup.BindGroup.Bindings()...)
 
-			pipeline, ok := pipelines.Get(meshPipelineCacheKey{viewId, item.EntityId})
+			// TODO access layout for mesh without view. While the pipeline might depend on
+			//  the output format, the bind group layout should not.
+			//  Until then, take the pipeline of any view that renders this mesh.
+			var pipeline Pipeline
+			var ok bool
+			for view := range viewsQuery.Items() {
+				if pipeline, ok = pipelines.Get(meshPipelineCacheKey{view.EntityId, item.EntityId}); ok {
+					break
+				}
+			}
+
 			if !ok {
-				panic("mesh pipeline not found")
+				// no view renders this mesh, e.g. because of render layers
+				continue
 			}
 
 			bindGroup := ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{

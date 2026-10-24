@@ -116,9 +116,9 @@ fn fs_main(param: mesh::VertexOutput, @builtin(front_facing) front_facing: bool)
         color += vec4f(emissive, 0.0);
     }
 
-    // apply emissive scale to the base color itself
-    @if(!MESH3D_MAT_HAS_EMISSIVE && MESH3D_MAT_HAS_TEXTURE)
-    color += base_color * vec4f(m.emissive_scale, 0.0);
+    // no emissive texture: emit the emissive scale as is (glTF treats a missing texture as 1)
+    @if(!MESH3D_MAT_HAS_EMISSIVE)
+    color += vec4f(m.emissive_scale, 0.0);
 
     @if(ALPHAMODE_OPAQUE)
     color.a = 1.0;
@@ -222,7 +222,8 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
         for (var i: u32 = 0; i < lights::directional_lights.count; i++) {
             let light = lights::directional_lights.lights[i];
 
-            let L = light.direction;
+            // direction is where the light travels, L points towards the light
+            let L = -light.direction;
             let radiance = light.color;
             outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
         }

@@ -32,19 +32,7 @@ fn coords_to_ray_direction(position: vec2<f32>, viewport: vec4<f32>) -> vec3<f32
     var view_ray_direction = view_position_homogeneous.xyz / view_position_homogeneous.w;
     view_ray_direction = (globals::view.world_to_camera_inv * vec4(view_ray_direction, 0.0)).xyz;
 
-    let skybox_transform = mat4x4(
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, -1, 0, // flip z axis to match env map lighting^
-        0, 0, 0, 1,
-    );
-
-    // Transforming the view space ray direction by the view matrix, transforms the
-    // direction to world space. Note that the w element is set to 0.0, as this is a
-    // vector direction, not a position, That causes the matrix multiplication to ignore
-    // the translations from the view matrix.
-    let ray_direction = (skybox_transform * vec4(view_ray_direction, 0.0)).xyz;
-    return normalize(ray_direction);
+    return normalize(view_ray_direction);
 }
 
 struct VertexOutput {

@@ -73,7 +73,7 @@ func weightsCurve(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref, weights
 	return KeyframeCurve[[]float32]{
 		Keys:         keyframes,
 		Interpolator: &weightsInterpolator{},
-		Easing:       &Linear{},
+		Easing:       easingOf(sampler),
 	}
 }
 
@@ -107,7 +107,7 @@ func vec3AnimationSampler(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref)
 	return KeyframeCurve[glm.Vec3f]{
 		Keys:         keyframes,
 		Interpolator: &Vec3fInterpolator{},
-		Easing:       &Linear{},
+		Easing:       easingOf(sampler),
 	}
 }
 
@@ -128,6 +128,15 @@ func quatAnimationSampler(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref)
 	return KeyframeCurve[glm.Quat]{
 		Keys:         keyframes,
 		Interpolator: &QuatInterpolator{},
-		Easing:       &Linear{},
+		Easing:       easingOf(sampler),
 	}
+}
+
+func easingOf(sampler gltf.AnimationSampler) Easing {
+	// shortcut: CUBICSPLINE is played as linear and would misread its tangent data, add it when a scene needs it
+	if sampler.Interpolation == "STEP" {
+		return Step{}
+	}
+
+	return Linear{}
 }

@@ -27,9 +27,8 @@ type StandardMaterial struct {
 	// BaseColor tints the mesh color rendering
 	BaseColor Color
 
-	// Optional emissive scale. This will be applied to the texture and added to the result,
-	// unaffected by lighting. If the material has an EmissiveTexture, it will multiply
-	// by the EmissiveTexture value
+	// Optional emitted color, added to the result unaffected by lighting.
+	// If the material has an EmissiveTexture, it is multiplied by the texture value.
 	EmissiveScale glm.Vec3f
 
 	// Metallic value, zero to one.

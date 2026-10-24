@@ -199,6 +199,7 @@ type WindowConfig struct {
 	Width         int
 	Height        int
 	DisableResize bool
+	GrabCursor    bool
 
 	// do not create a primary window
 	Offscreen *OffscreenWindowConfig
@@ -281,6 +282,10 @@ func runWorld(world *byke.World) error {
 		}
 
 		defer win.Terminate()
+
+		if conf.GrabCursor {
+			win.SetCursorGrab(true)
+		}
 
 		pwin = win
 	} else {

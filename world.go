@@ -70,7 +70,9 @@ func (w *World) AddSystems(scheduleId ScheduleId, firstSystem AnySystem, systems
 	systems = append([]AnySystem{firstSystem}, systems...)
 
 	for _, system := range asSystemConfigs(systems...) {
-		preparedSystem := w.prepareSystem(system)
+		// each schedule gets its own instance: the cached one would keep the sets, ordering and
+		// predicates of the first schedule the function was added to, and share Local and LastRun
+		preparedSystem := w.prepareSystemUncached(*system)
 		schedule.AddSystem(preparedSystem)
 	}
 
