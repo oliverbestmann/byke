@@ -21,8 +21,8 @@ func AdaptAudioStream[S Sample](r ebitenAudioStream) Stream[S] {
 	st := &readerAudioStream[S]{
 		reader: r,
 		config: StreamConfig{
-			SampleRate: r.SampleRate(),
-			Channels:   2,
+			SampleRate:   r.SampleRate(),
+			ChannelCount: 2,
 		},
 	}
 
@@ -30,7 +30,7 @@ func AdaptAudioStream[S Sample](r ebitenAudioStream) Stream[S] {
 
 	byteCount := int(r.Length())
 	if byteCount > 0 {
-		st.config.ChannelSampleCount = byteCount / (sampleSize * st.config.Channels)
+		st.config.ChannelSampleCount = byteCount / (sampleSize * st.config.ChannelCount)
 	}
 
 	return st

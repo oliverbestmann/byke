@@ -453,6 +453,15 @@ func (e *EntityRef) Get(ty *ComponentType) ErasedComponent {
 	return e.archetype.componentAt(e.row, ty)
 }
 
+func (e *EntityRef) Component[T IsComponent[T]]() (*T, bool) {
+	value := e.Get(ComponentTypeOf[T]())
+	if value == nil {
+		return nil, false
+	}
+
+	return any(value).(*T), true
+}
+
 func (e *EntityRef) Changed(ty *ComponentType) Tick {
 	return e.archetype.changedAt(e.row, ty)
 }

@@ -20,7 +20,7 @@ func (c channelStream[S]) Read(samples []S) (int, error) {
 	if n > 0 {
 		for idx := range samples[:n] {
 			// clear all non selected channels
-			if idx%config.Channels != c.channel {
+			if idx%config.ChannelCount != c.channel {
 				samples[idx] = 0
 			}
 		}

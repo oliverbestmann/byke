@@ -29,8 +29,6 @@ type (
 
 const StereoSamplesPerSecond = 48000
 
-const stereoSampleSize = unsafe.Sizeof(StereoSample{})
-
 var audioContext *oto.Context
 
 func init() {
@@ -50,6 +48,22 @@ func init() {
 	}()
 
 	audioContext = ctx
+}
+
+func pluginAudio(app *byke.App) {
+	app.InsertResource(AudioContext{audioContext})
+	app.InsertResource(GlobalVolume{Volume: 1.0})
+	app.InsertResource(GlobalSpatialScale{Scale: glm.Vec3f{1, 1, 1}})
+
+	app.AddSystems(byke.PostUpdate, byke.
+		System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
+		Chain().
+		InSet(AudioSystems))
+
+	app.World().RegisterComponentHooks[AudioSink]().
+		OnRemove(audioPlayerOnRemoveHook)
+
+	app.ConfigureSystemSets(byke.PostUpdate, AudioSystems.After(TransformSystems))
 }
 
 type AudioContext struct {
@@ -94,6 +108,9 @@ type AudioSink struct {
 
 	// A second player. For spatial audio, this one is the right ear.
 	second *oto.Player
+
+	// Volume multiplier for the spatial audio.
+	spatialVolume [2]float64
 }
 
 func createAudioSink(source *AudioSource, ps PlaybackSettings) AudioSink {
@@ -116,8 +133,10 @@ func createAudioSink(source *AudioSource, ps PlaybackSettings) AudioSink {
 		}
 
 		if ps.StartAt > 0 {
-			sampleIdx := int64(float64(stream.Config().SampleRate) * ps.StartAt.Seconds())
-			_, _ = player.Seek(sampleIdx, io.SeekStart)
+			config := stream.Config()
+			sampleIdx := int64(float64(config.SampleRate) * ps.StartAt.Seconds())
+			offset := sampleIdx * int64(unsafe.Sizeof(float32(0))) * int64(config.ChannelCount)
+			_, _ = player.Seek(offset, io.SeekStart)
 		}
 
 		if !ps.Paused {
@@ -139,9 +158,17 @@ func createAudioSink(source *AudioSource, ps PlaybackSettings) AudioSink {
 	}
 
 	return AudioSink{
-		ps:     ps,
-		player: player,
-		second: second,
+		ps:            ps,
+		player:        player,
+		second:        second,
+		spatialVolume: [2]float64{1, 1},
+	}
+}
+
+func audioPlayerOnRemoveHook(_ byke.DeferredWorld, entity byke.EntityRef, _ *byke.ComponentType) {
+	sink, ok := entity.Component[AudioSink]()
+	if ok {
+		sink.Stop()
 	}
 }
 
@@ -198,12 +225,14 @@ func (as *AudioSink) Mute() {
 func (as *AudioSink) Unmute() {
 	as.ps.Muted = false
 
+	left, right := as.spatialVolume[0], as.spatialVolume[1]
+
 	if p := as.player; p != nil {
-		p.SetVolume(max(0, min(1, as.ps.Volume)))
+		p.SetVolume(max(0, min(1, as.ps.Volume)*left))
 	}
 
 	if p := as.second; p != nil {
-		p.SetVolume(max(0, min(1, as.ps.Volume)))
+		p.SetVolume(max(0, min(1, as.ps.Volume)*right))
 	}
 }
 
@@ -212,6 +241,8 @@ func (as *AudioSink) IsMuted() bool {
 }
 
 func (as *AudioSink) SpatialVolume(left, right float64) {
+	as.spatialVolume = [2]float64{left, right}
+
 	if as.IsMuted() {
 		return
 	}
@@ -248,10 +279,6 @@ type PlaybackSettings struct {
 	// StartAt indicates where to start the audio source
 	StartAt time.Duration
 
-	// Duration indicates the duration of the audio to play.
-	// If Duration is set to zero, the audio will be played to the end.
-	Duration time.Duration
-
 	Mode PlaybackMode
 
 	Paused  bool
@@ -261,11 +288,6 @@ type PlaybackSettings struct {
 
 func (p PlaybackSettings) WithStartAt(startAt time.Duration) PlaybackSettings {
 	p.StartAt = startAt
-	return p
-}
-
-func (p PlaybackSettings) WithDuration(duration time.Duration) PlaybackSettings {
-	p.Duration = duration
 	return p
 }
 

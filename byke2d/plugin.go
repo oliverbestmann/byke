@@ -83,10 +83,6 @@ func PluginRender(app *byke.App) {
 	app.InsertResource(MouseCursor{})
 	app.InsertResource(MouseCursorDelta{})
 
-	app.InsertResource(AudioContext{audioContext})
-	app.InsertResource(GlobalVolume{Volume: 1.0})
-	app.InsertResource(GlobalSpatialScale{Scale: glm.Vec3f{1, 1, 1}})
-
 	app.InsertResource(MakeAssets(app.World(), assetFs.FS))
 
 	app.AddMessage[AppExit]()
@@ -104,11 +100,6 @@ func PluginRender(app *byke.App) {
 		InSet(TransformSystems))
 
 	app.AddSystems(byke.RenderMain, renderMainSystem)
-
-	app.AddSystems(byke.PostUpdate, byke.
-		System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).
-		Chain().
-		InSet(AudioSystems))
 
 	app.AddSystems(Core2d, byke.
 		System(tonemappingSystem).
@@ -155,6 +146,8 @@ func PluginRender(app *byke.App) {
 	app.AddPlugin(pluginCamera)
 	app.AddPlugin(pluginSprite)
 	app.AddPlugin(pluginBloom)
+
+	app.AddPlugin(pluginAudio)
 
 	app.AddPlugin(pluginLights)
 

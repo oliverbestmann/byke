@@ -10,12 +10,12 @@ type Sample interface {
 
 type StreamConfig struct {
 	SampleRate         int
-	Channels           int
+	ChannelCount       int
 	ChannelSampleCount int
 }
 
 func (s StreamConfig) SampleCount() int {
-	return s.ChannelSampleCount * s.Channels
+	return s.ChannelSampleCount * s.ChannelCount
 }
 
 func (s StreamConfig) Duration() time.Duration {
