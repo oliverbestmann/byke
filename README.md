@@ -74,3 +74,15 @@ func moveObjectsSystem(vt VirtualTime, query Query[struct {
 Check out the [examples](https://github.com/oliverbestmann/byke/blob/main/byke2d/examples/) for a
 look at how everything comes together.
 
+### Profile-guided optimization
+
+Set `BYKE_CPUPROFILE` when running natively to write a CPU profile until the app exits:
+
+```sh
+BYKE_CPUPROFILE=cpu.pprof go run .
+cp cpu.pprof default.pgo
+```
+
+`go build` uses `default.pgo` in the main package directory, also when building for wasm.
+Wasm benefits more than native, because every inlined call skips the expensive Go wasm calling convention.
+Only code that runs in both builds gets profile data, not the `syscall/js` paths.

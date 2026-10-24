@@ -107,10 +107,11 @@ func clearExtractedMeshesSystem(
 }
 
 type MeshKey struct {
-	MatType reflect.Type
-	MatKey  MaterialBindGroupId
-	Layout  *VertexLayout
-	Mesh    *Mesh
+	MatType  reflect.Type
+	MatKey   MaterialBindGroupId
+	Layout   *VertexLayout
+	Mesh     *Mesh
+	Lightmap *Texture
 }
 
 func (m MeshKey) CompareTo(other any) int {
@@ -119,12 +120,23 @@ func (m MeshKey) CompareTo(other any) int {
 		return compareByType(m, other)
 	}
 
-	return cmp.Or(
-		compareType(m.MatType, o.MatType),
-		compareByAddress(m.Layout, o.Layout),
-		compareByType(m.MatKey, o.MatKey),
-		compareByAddress(m.Mesh, o.Mesh),
-	)
+	if rc := compareType(m.MatType, o.MatType); rc != 0 {
+		return rc
+	}
+
+	if rc := compareByAddress(m.Layout, o.Layout); rc != 0 {
+		return rc
+	}
+
+	if rc := cmp.Compare(m.MatKey, o.MatKey); rc != 0 {
+		return rc
+	}
+
+	if rc := compareByAddress(m.Mesh, o.Mesh); rc != 0 {
+		return rc
+	}
+
+	return compareByAddress(m.Lightmap, o.Lightmap)
 }
 
 type meshRenderPhaseItem struct{}
@@ -166,10 +178,11 @@ func queueMeshInstancesSystem(
 			}
 
 			key := MeshKey{
-				MatType: reflect.TypeOf(sp.Material),
-				MatKey:  sp.Material.BindGroup().Id,
-				Layout:  sp.Mesh.VertexLayout(),
-				Mesh:    sp.Mesh,
+				MatType:  reflect.TypeOf(sp.Material),
+				MatKey:   sp.Material.BindGroup().Id,
+				Layout:   sp.Mesh.VertexLayout(),
+				Mesh:     sp.Mesh,
+				Lightmap: sp.Lightmap,
 			}
 
 			if sp.Material.BindGroup().OrderIndependent {
@@ -329,6 +342,7 @@ func prepareMeshInstancesSystem(
 
 		var current *RenderItem
 		var currentMesh *Mesh
+		var currentLightmap *Texture
 		var currentMaterialPipeline MaterialPipelineKey
 		var currentMaterialBindGroup *MaterialBindGroupHandle
 
@@ -347,12 +361,14 @@ func prepareMeshInstancesSystem(
 			meshMaterialBindGroup := meshItem.Material.BindGroup()
 			if current == nil ||
 				currentMesh != meshItem.Mesh ||
+				currentLightmap != meshItem.Lightmap ||
 				currentMaterialPipeline != meshMaterialPipeline ||
 				currentMaterialBindGroup != meshMaterialBindGroup {
 
 				// we begin a new batch here
 				current = item
 				currentMesh = meshItem.Mesh
+				currentLightmap = meshItem.Lightmap
 				currentMaterialPipeline = meshMaterialPipeline
 				currentMaterialBindGroup = meshMaterialBindGroup
 
@@ -520,18 +536,28 @@ func setupBrdfLookupTableSystem(commands *byke.Commands, ctx *RenderContext) {
 	commands.InsertResource(brdfLookupTable{Texture: tex})
 }
 
-// MeshBindGroups holds the per mesh bind group containing mesh
-// specific data, such as the morph attribute data
-type MeshBindGroups struct {
-	// has dynamic offset configured for the start of the joints array
-	groups         tickCache[*Mesh, *wgpu.BindGroup]
-	emptyTexture   *Texture
-	emptyBuf       *wgpu.Buffer
-	emptyBindGroup *wgpu.BindGroup
+// meshBindGroupKey holds everything that goes into a mesh bind group.
+// Meshes without morph attributes and lightmap share one bind group.
+type meshBindGroupKey struct {
+	MorphAttributes *wgpu.Buffer
+	Lightmap        *Texture
 }
 
-func (m *MeshBindGroups) ByMesh(mesh *Mesh) (*wgpu.BindGroup, bool) {
-	return m.groups.Get(mesh)
+// MeshBindGroups holds the bind groups containing mesh
+// specific data, such as the morph attribute data and the lightmap
+type MeshBindGroups struct {
+	groups       tickCache[meshBindGroupKey, *wgpu.BindGroup]
+	emptyTexture *Texture
+	emptyBuf     *wgpu.Buffer
+}
+
+func (m *MeshBindGroups) Get(buf MeshSlab, lightmap *Texture) (*wgpu.BindGroup, bool) {
+	key := meshBindGroupKey{
+		MorphAttributes: buf.MorphAttributes,
+		Lightmap:        lightmap,
+	}
+
+	return m.groups.Get(key)
 }
 
 var MeshBindGroupLayout = SequentialLayoutWithLabel(
@@ -550,7 +576,7 @@ func prepareMeshBindGroupSystem(
 	meshes *ExtractedMeshes,
 	meshAllocator *MeshAllocator,
 ) {
-	if bindGroups.emptyBindGroup == nil {
+	if bindGroups.emptyBuf == nil {
 		bindGroups.emptyBuf = ctx.CreateBufferInit(&wgpu.BufferInitDescriptor{
 			Label:    "empty",
 			Contents: []byte{0, 0, 0, 0},
@@ -562,29 +588,19 @@ func prepareMeshBindGroupSystem(
 			Height: 1,
 			Format: wgpu.TextureFormatRGBA8Unorm,
 		})
-
-		bindGroups.emptyBindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
-			Label:  "Mesh.Fallback",
-			Layout: ctx.CreateBindGroupLayout(MeshBindGroupLayout),
-			Entries: Sequential(
-				BindingBuffer(bindGroups.emptyBuf),
-				BindingTextureView(bindGroups.emptyTexture.TextureView),
-				BindingSampler(bindGroups.emptyTexture.Sampler),
-			),
-		})
 	}
 
+	// release bind groups not used in the previous frame,
+	// e.g. of removed meshes or replaced morph buffers
+	bindGroups.groups.Tick()
+
 	for _, mesh := range meshes.Meshes {
-		bindGroup, ok := bindGroups.groups.Get(mesh.Mesh)
-		if ok {
+		buf, ok := meshAllocator.Get(mesh.Mesh)
+		if !ok {
 			continue
 		}
 
-		// TODO check for change in values
-		bindGroup.Release()
-
-		buf, ok := meshAllocator.Get(mesh.Mesh)
-		if !ok {
+		if _, ok := bindGroups.Get(buf, mesh.Lightmap); ok {
 			continue
 		}
 
@@ -612,8 +628,9 @@ func prepareMeshBindGroupSystem(
 			)
 		}
 
-		// create and cache new bind group for this mesh
-		bindGroups.groups.Add(mesh.Mesh, ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		// create and cache new bind group for this combination
+		key := meshBindGroupKey{MorphAttributes: buf.MorphAttributes, Lightmap: mesh.Lightmap}
+		bindGroups.groups.Add(key, ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 			Label:   "Mesh",
 			Layout:  ctx.CreateBindGroupLayout(MeshBindGroupLayout),
 			Entries: Sequential(bindings...),
@@ -674,7 +691,7 @@ func drawMeshesBatchSystem(
 
 	materialBindGroup := materialBindGroups.MustLookup(mesh.Material)
 
-	meshBindGroup, ok := meshBindGroups.ByMesh(mesh.Mesh)
+	meshBindGroup, ok := meshBindGroups.Get(buf, mesh.Lightmap)
 	if !ok {
 		panic("mesh bind group is missing")
 	}

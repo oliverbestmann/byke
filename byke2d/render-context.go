@@ -174,8 +174,8 @@ type CommandEncoder struct {
 // BeginRenderPass creates a render pass encoder with metrics tracking.
 func (c *CommandEncoder) BeginRenderPass(desc *wgpu.RenderPassDescriptor) *TrackedRenderPassEncoder {
 	return &TrackedRenderPassEncoder{
-		RenderPassEncoder: c.CommandEncoder.BeginRenderPass(desc),
-		Metrics:           c.metrics,
+		pass:    c.CommandEncoder.BeginRenderPass(desc),
+		Metrics: c.metrics,
 	}
 }
 

@@ -105,6 +105,13 @@ func (a *App) Run() error {
 
 	a.World().PrintSystems()
 
+	stopCPUProfile, err := startCPUProfile()
+	if err != nil {
+		return err
+	}
+
+	defer stopCPUProfile()
+
 	return a.run(a.World())
 }
 

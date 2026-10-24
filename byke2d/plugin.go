@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"os"
 	"reflect"
 	"runtime"
 	"time"
@@ -199,7 +200,11 @@ type WindowConfig struct {
 }
 
 type OffscreenWindowConfig struct {
+	// stop after this many frames, if positive
 	FrameCount int
+
+	// stop after this much wall clock time, if positive
+	Duration time.Duration
 }
 
 func DefaultWindowConfig() WindowConfig {
@@ -235,6 +240,7 @@ type offscreenWindow struct {
 	Width      uint32
 	Height     uint32
 	FrameCount int
+	Duration   time.Duration
 }
 
 func (o *offscreenWindow) SurfaceDescriptor() *wgpu.SurfaceDescriptor {
@@ -244,15 +250,25 @@ func (o *offscreenWindow) SurfaceDescriptor() *wgpu.SurfaceDescriptor {
 func (o *offscreenWindow) Run(fn func(state vyn.UpdateInputState) error) error {
 	noopInputState := func() vyn.InputState { return vyn.InputState{} }
 
-	for o.FrameCount > 0 {
-		o.FrameCount -= 1
+	if o.FrameCount <= 0 && o.Duration <= 0 {
+		return nil
+	}
+
+	deadline := time.Now().Add(o.Duration)
+
+	for frame := 0; ; frame++ {
+		if o.FrameCount > 0 && frame >= o.FrameCount {
+			return nil
+		}
+
+		if o.Duration > 0 && time.Now().After(deadline) {
+			return nil
+		}
 
 		if err := fn(noopInputState); err != nil {
 			return err
 		}
 	}
-
-	return nil
 }
 
 func (o *offscreenWindow) GetSize() (width uint32, height uint32) {
@@ -261,6 +277,18 @@ func (o *offscreenWindow) GetSize() (width uint32, height uint32) {
 
 func runWorld(world *byke.World) error {
 	conf, _ := world.ResourceOf[WindowConfig]()
+
+	// BYKE_OFFSCREEN_DURATION=30s runs the app silently without a window for that long,
+	// e.g. to record a profile for profile-guided optimization
+	if value := os.Getenv("BYKE_OFFSCREEN_DURATION"); value != "" {
+		duration, err := time.ParseDuration(value)
+		if err != nil {
+			return fmt.Errorf("parse BYKE_OFFSCREEN_DURATION: %w", err)
+		}
+
+		conf.Offscreen = &OffscreenWindowConfig{Duration: duration}
+		world.InsertResource(GlobalVolume{Volume: 0})
+	}
 
 	var pwin window
 
@@ -286,6 +314,7 @@ func runWorld(world *byke.World) error {
 			Width:      uint32(conf.Width),
 			Height:     uint32(conf.Height),
 			FrameCount: offscreen.FrameCount,
+			Duration:   offscreen.Duration,
 		}
 
 	}
