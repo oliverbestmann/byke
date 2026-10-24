@@ -1,7 +1,5 @@
 import package::byke::globals;
 
-enable f16;
-
 struct VertexInput {
     @builtin(vertex_index) index: u32,
 
@@ -11,7 +9,7 @@ struct VertexInput {
     @location(3) i_affine_3: vec3<f32>,
     @location(4) i_uv_offset: vec2<f32>,
     @location(5) i_uv_scale: vec2<f32>,
-    @location(6) i_color: vec4<f16>,
+    @location(6) i_color: vec4<f32>,
 }
 
 struct VertexOutput {

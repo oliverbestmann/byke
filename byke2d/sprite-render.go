@@ -184,7 +184,7 @@ func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSpri
 	instances.AppendVec2f(uvOffset)
 	// @location(5) i_uv_scale: vec2<f32>,
 	instances.AppendVec2f(uvScale)
-	// @location(6) i_color: vec4<f16>,
+	// @location(6) i_color: vec4<f32>,
 	instances.AppendFloat16(r16)
 	instances.AppendFloat16(g16)
 	instances.AppendFloat16(b16)
