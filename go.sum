@@ -28,6 +28,8 @@ github.com/dop251/goja v0.0.0-20261018113103-d42f16bb6161 h1:D9Bbwh0iJ8T/hHCDebe
 github.com/dop251/goja v0.0.0-20261018113103-d42f16bb6161/go.mod h1:Cp9NYOLrEKg/ypIRkUWYXWLuKAyyFGkDmGeJ95Sw0zI=
 github.com/dop251/goja v0.0.0-20261022125820-07c4b9d6265b h1:TFm3j5vQYAb+aRIs5fHjoBnUiKm9CPg1qDL83a+WhAs=
 github.com/dop251/goja v0.0.0-20261022125820-07c4b9d6265b/go.mod h1:Cp9NYOLrEKg/ypIRkUWYXWLuKAyyFGkDmGeJ95Sw0zI=
+github.com/dop251/goja v0.0.0-20261023133238-1622cea953df h1:ldUmgGjVsJuNgA14RtTooak1yTfNlEvXyhq8ibidEx8=
+github.com/dop251/goja v0.0.0-20261023133238-1622cea953df/go.mod h1:Cp9NYOLrEKg/ypIRkUWYXWLuKAyyFGkDmGeJ95Sw0zI=
 github.com/ebitengine/oto/v3 v3.4.0 h1:br0PgASsEWaoWn38b2Goe7m1GKFYfNgnsjSd5Gg+/bQ=
 github.com/ebitengine/oto/v3 v3.4.0/go.mod h1:IOleLVD0m+CMak3mRVwsYY8vTctQgOM0iiL6S7Ar7eI=
 github.com/ebitengine/oto/v3 v3.5.1 h1:7gL5DxxSQp8S1Me2jDSp+gSAyondYxpjM5RPBBqLT0c=
@@ -127,6 +129,8 @@ github.com/oliverbestmann/wesl-go v1.1.0 h1:OoWhl+wkM/M2jf/O/eugkxyZEkJVxQClG61z
 github.com/oliverbestmann/wesl-go v1.1.0/go.mod h1:YyA+zsFZG65oufIuiApuW3TDRAWPIeI8AC7Xy+XJXMM=
 github.com/oliverbestmann/wesl-go v1.1.1 h1:vnFHqyBwZcy1WCcd2JrS2Cd+9Lm7/kc0OUhZk/m6sJk=
 github.com/oliverbestmann/wesl-go v1.1.1/go.mod h1:YyA+zsFZG65oufIuiApuW3TDRAWPIeI8AC7Xy+XJXMM=
+github.com/oliverbestmann/wesl-go v1.2.0 h1:pvdAYSU+qMrpOLOwgRGMYMa3TxlYKVSrlJWh5uV4ens=
+github.com/oliverbestmann/wesl-go v1.2.0/go.mod h1:YyA+zsFZG65oufIuiApuW3TDRAWPIeI8AC7Xy+XJXMM=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
 github.com/pkg/profile v1.7.0 h1:hnbDkaNWPCLMO9wGLdBFTIZvzDrDfBM2072E1S9gJkA=
 github.com/pkg/profile v1.7.0/go.mod h1:8Uer0jas47ZQMJ7VD+OHknK4YDY07LPUC6dEvqDjvNo=
