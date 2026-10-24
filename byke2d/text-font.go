@@ -11,21 +11,18 @@ import (
 
 type Faces shaping.Fontmap
 
-//go:embed fonts/NotoSans-VariableFont_wdth,wght.ttf
-var notoSans []byte
+//go:embed fonts/AtkinsonHyperlegible-Regular.ttf
+var fontSans []byte
 
-//go:embed fonts/NotoSansJP-VariableFont_wght.ttf
-var notoSansJapanese []byte
-
-//go:embed fonts/NotoSansMono-Regular.ttf
-var notoSansMono []byte
+//go:embed fonts/SpaceMono-Regular.ttf
+var fontMonoSpace []byte
 
 var DefaultFontSans = sync.OnceValue(func() Font {
-	return Font{Faces: ParseFontFaces(notoSans, notoSansJapanese)}
+	return Font{Faces: ParseFontFaces(fontSans)}
 })
 
 var DefaultFontMono = sync.OnceValue(func() Font {
-	return Font{Faces: ParseFontFaces(notoSansMono)}
+	return Font{Faces: ParseFontFaces(fontMonoSpace)}
 })
 
 func TryParseFontFaces(bufs ...[]byte) (Faces, error) {

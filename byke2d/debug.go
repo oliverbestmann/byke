@@ -29,9 +29,19 @@ type debugMetricsTextMaker struct {
 	byke.ImmutableComponent[debugMetricsTextMaker]
 }
 
+type DebugOptions struct {
+	FontScale float32
+	FontColor Color
+}
+
 func pluginDebug(app *byke.App) {
 	app.InitState(DebugStateOff)
 	app.InitResource[fpsCounter]()
+
+	app.InsertResource(DebugOptions{
+		FontScale: 1,
+		FontColor: ColorSRGB(0.25, 1.0, 0.25),
+	})
 
 	app.AddSystems(byke.Update, byke.System(dumpTreeSystem).
 		RunIf(KeyIsJustPressed(vyn.KeyT)).
@@ -59,7 +69,7 @@ func pluginDebug(app *byke.App) {
 
 }
 
-func setupDebugCameraSystem(commands *byke.Commands) {
+func setupDebugCameraSystem(commands *byke.Commands, options DebugOptions) {
 	commands.Spawn(
 		byke.DespawnOnExitState(DebugStateOn),
 		Camera{Order: math.MaxInt},
@@ -68,8 +78,10 @@ func setupDebugCameraSystem(commands *byke.Commands) {
 		RenderLayersOf(31),
 		ClearColor{Color: ColorSRGBA(0, 0, 0, 0)},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0, 0},
-			ScalingMode:    ScalingModeFixedVertical{ViewportHeight: 600},
+			// origin at the top left, y points up
+			ViewportOrigin: glm.Vec2f{0, 1},
+			ScalingMode:    ScalingModeWindowSize{},
+			//  ScalingModeFixedVertical{ViewportHeight: 600},
 		},
 	)
 
@@ -79,11 +91,11 @@ func setupDebugCameraSystem(commands *byke.Commands) {
 		DefaultFontMono(),
 		RenderLayersOf(31),
 		AnchorTopLeft,
-		TransformFromXY(16, 600),
+		TransformFromXY(32, -32),
 		Text{
-			Text:  "Foo\nbar\nbla",
-			Color: ColorSRGB(1.0, 0.0, 0.5),
-			Size:  12.0,
+			Text:  "",
+			Color: options.FontColor,
+			Size:  options.FontScale * 16.0,
 		},
 	)
 }
