@@ -321,7 +321,14 @@ func resolveMaterialBindGroupsSystem[M isMaterialComponent[M], PM interface {
 }
 
 type MaterialBindGroups struct {
-	cache tickCache[MaterialBindGroupId, *wgpu.BindGroup]
+	cache tickCache[MaterialBindGroupId, materialBindGroup]
+}
+
+// materialBindGroup remembers the uniforms buffer the bind group was created with.
+// The buffer is replaced when it grows, and the bind group must be created again.
+type materialBindGroup struct {
+	*wgpu.BindGroup
+	uniforms *wgpu.Buffer
 }
 
 func (m *MaterialBindGroups) MustLookup(mat Material) *wgpu.BindGroup {
@@ -330,7 +337,7 @@ func (m *MaterialBindGroups) MustLookup(mat Material) *wgpu.BindGroup {
 		panic(fmt.Errorf("no BindGroup found for material type %T", mat))
 	}
 
-	return bindGroup
+	return bindGroup.BindGroup
 }
 
 func tickMaterialBindGroupsSystems(
@@ -359,10 +366,10 @@ func prepareMaterialBindGroupsSystem(
 		// we need to create one bind group per unique material key.
 		matBindGroup := item.Material.BindGroup()
 
-		if _, ok := bindGroups.cache.Get(matBindGroup.Id); !ok {
-			label := reflect.TypeOf(item.Material).Name()
+		values := uniforms.Get(item.Material)
 
-			values := uniforms.Get(item.Material)
+		if cached, found := bindGroups.cache.Get(matBindGroup.Id); !found || cached.uniforms != values.Buffer {
+			label := reflect.TypeOf(item.Material).Name()
 
 			var bindings []wgpu.BindGroupEntry
 			bindings = append(bindings, BindingBuffer(values.Buffer))
@@ -390,7 +397,11 @@ func prepareMaterialBindGroupsSystem(
 				Entries: Sequential(bindings...),
 			})
 
-			bindGroups.cache.Add(matBindGroup.Id, bindGroup)
+			if found {
+				cached.Release()
+			}
+
+			bindGroups.cache.Add(matBindGroup.Id, materialBindGroup{BindGroup: bindGroup, uniforms: values.Buffer})
 		}
 	}
 }
