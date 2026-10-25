@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"math/rand/v2"
-	"time"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
@@ -16,13 +14,11 @@ const SpriteCount = 100_000
 func main() {
 	var app App
 
-	app.InsertResource(fpsCounter{})
-
 	app.AddPlugin(PluginRender)
+	app.AddPlugin(shared.PluginFpsCounter)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)
-	app.AddSystems(Update, updateFpsCounterSystem)
 	app.AddSystems(FixedUpdate, moveSpritesSystem)
 
 	shared.RunAppInTest(app, shared.FramesToSnapshot{10, 50})
@@ -68,12 +64,6 @@ func setupSystem(commands *Commands, assets *Assets) {
 			Velocity{Vec2f: glm.Vec2f{rng.Float32() - 0.5, rng.Float32() - 0.5}.Scale(32)},
 		)
 	}
-
-	commands.Spawn(
-		AnchorBottomLeft,
-		TransformFromXYZ(32, 32, 1),
-		Text{Text: "Hello", Size: 16.0, Color: ColorSRGBA(1, 0, 1, 1)},
-	)
 }
 
 func moveSpritesSystem(t FixedTime, query Query[struct {
@@ -89,28 +79,4 @@ func moveSpritesSystem(t FixedTime, query Query[struct {
 		item.Transform.Translation[0] = posNew[0]
 		item.Transform.Translation[1] = posNew[1]
 	}
-}
-
-func updateFpsCounterSystem(
-	vt VirtualTime,
-	counter *fpsCounter,
-	text Single[*Text],
-) {
-	fps := counter.Update(vt.Elapsed)
-	text.Value.Text = fmt.Sprintf("FPS: %1.2f", fps)
-}
-
-type fpsCounter struct {
-	// virtual time, so the text is the same in every test run
-	timestamps []time.Duration
-}
-
-func (c *fpsCounter) Update(now time.Duration) float32 {
-	c.timestamps = append(c.timestamps, now)
-
-	if len(c.timestamps) > 120 {
-		c.timestamps = c.timestamps[1:]
-	}
-
-	return float32(len(c.timestamps)) / float32((now - c.timestamps[0]).Seconds())
 }

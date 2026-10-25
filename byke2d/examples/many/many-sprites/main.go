@@ -15,6 +15,7 @@ func main() {
 	var app App
 
 	app.AddPlugin(PluginRender)
+	app.AddPlugin(shared.PluginFpsCounter)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
 	app.AddSystems(Startup, setupSystem)
