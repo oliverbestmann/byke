@@ -42,12 +42,15 @@
 
             buildInputs = libraries pkgs;
             packages = [
-              pkgs.go
+              pkgs.go_1_27
               pkgs.pkg-config
             ];
 
             # fixes some compile issue with cgo
             hardeningDisable = [ "fortify" ];
+
+            # go1.27.0, which auto toolchain switching picks, fails to link generic methods
+            GOTOOLCHAIN = "local";
 
             LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (libraries pkgs);
           }
