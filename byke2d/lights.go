@@ -102,12 +102,30 @@ type PointLight struct {
 	// this light at all, so it's important to tune this together with `intensity` to prevent hard
 	// lighting cut-offs.
 	Range float32
+
+	// Whether this light casts shadows. Renders six shadow maps, one per cube face.
+	ShadowsEnabled bool
+
+	// Offset of the sampled position towards the light, in world units.
+	// Reduces shadow acne (dark speckles on lit surfaces). Too large values
+	// detach shadows from their casters.
+	ShadowDepthBias float32
+
+	// Offset of the sampled position along the surface normal, in shadow map texels.
+	ShadowNormalBias float32
+
+	// Distance of the near plane of the shadow maps. Objects closer to the light
+	// do not cast shadows. Defaults to 0.1 if zero.
+	ShadowMapNearZ float32
 }
 
 var DefaultPointLight = PointLight{
-	Color:     ColorWhite,
-	Intensity: 1_000_000,
-	Range:     20,
+	Color:            ColorWhite,
+	Intensity:        1_000_000,
+	Range:            20,
+	ShadowDepthBias:  0.08,
+	ShadowNormalBias: 0.6,
+	ShadowMapNearZ:   0.1,
 }
 
 func (PointLight) RequireComponents() []spoke.ErasedComponent {
@@ -156,7 +174,8 @@ var DefaultSpotLight = SpotLight{
 	ShadowMapNearZ:   0.1,
 }
 
-// ShadowMapConfig controls the resolution of all spot light shadow maps.
+// ShadowMapConfig controls the resolution of all shadow maps. For point lights,
+// this is the size of each cube face.
 type ShadowMapConfig struct {
 	// Width and height of each shadow map in pixels.
 	Size uint32

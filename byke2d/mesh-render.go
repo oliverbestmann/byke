@@ -478,6 +478,15 @@ func MeshViewBindGroupLayout(opts MeshViewBindGroupLayoutOptions) wgpu.BindGroup
 				},
 			}),
 			Indexed(15, BindingLayoutSampler(wgpu.SamplerBindingTypeComparison)),
+
+			// point light shadow maps
+			Indexed(16, wgpu.BindGroupLayoutEntry{
+				Visibility: wgpu.ShaderStageFragment,
+				Texture: wgpu.TextureBindingLayout{
+					SampleType:    wgpu.TextureSampleTypeDepth,
+					ViewDimension: wgpu.TextureViewDimensionCubeArray,
+				},
+			}),
 		)
 	}
 
@@ -516,7 +525,7 @@ func prepareMeshViewBindGroupSystem(
 	viewUniforms *ComponentUniforms[ViewUniforms],
 	environments *ComponentUniforms[EnvironmentMapLight],
 	brdfLookupTable brdfLookupTable,
-	shadowMaps *spotShadowMaps,
+	shadowMaps *shadowMaps,
 	cameraQuery byke.Query[struct {
 		_                   byke.With[ViewUniforms]
 		EntityId            byke.EntityId
@@ -549,8 +558,9 @@ func prepareMeshViewBindGroupSystem(
 			opts.Shadows = true
 
 			entries = append(entries,
-				Indexed(14, BindingTextureView(shadowMaps.ArrayView)),
+				Indexed(14, BindingTextureView(shadowMaps.Spot.SampleView)),
 				Indexed(15, BindingSampler(shadowMaps.Sampler)),
+				Indexed(16, BindingTextureView(shadowMaps.Point.SampleView)),
 			)
 		}
 

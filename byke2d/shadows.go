@@ -2,6 +2,7 @@ package byke2d
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
@@ -17,42 +18,77 @@ var (
 // Shadow is the render phase of meshes drawn into a shadow map.
 type Shadow struct{}
 
-// ShadowView is the view that renders the shadow map of one spot light.
-// Its ViewUniforms hold the view and projection of the light.
+// ShadowView is the view that renders one shadow map layer: the map of a spot
+// light, or one cube face of a point light. Its ViewUniforms hold the view
+// and projection of the light.
 type ShadowView struct {
 	byke.Component[ShadowView]
+
+	// Point is true if the layer is in the point light cube maps,
+	// false if it is in the spot light maps
+	Point bool
 
 	// Layer in the shadow map array texture
 	Layer uint32
 }
 
-// spotShadowMaps holds one depth layer per shadow casting spot light.
-type spotShadowMaps struct {
+// cubeMapFaces holds the look direction and up vector of each cube face, in the
+// layer order of a cube texture (+x, -x, +y, -y, +z, -z). Cube maps are left-handed,
+// so the z faces are swapped and the shader flips z when sampling. Same as Bevy.
+var cubeMapFaces = [6]struct{ Target, Up glm.Vec3f }{
+	{glm.Vec3f{1, 0, 0}, glm.Vec3f{0, 1, 0}},
+	{glm.Vec3f{-1, 0, 0}, glm.Vec3f{0, 1, 0}},
+	{glm.Vec3f{0, 1, 0}, glm.Vec3f{0, 0, 1}},
+	{glm.Vec3f{0, -1, 0}, glm.Vec3f{0, 0, -1}},
+	{glm.Vec3f{0, 0, -1}, glm.Vec3f{0, 1, 0}},
+	{glm.Vec3f{0, 0, 1}, glm.Vec3f{0, 1, 0}},
+}
+
+// shadowMaps holds the depth textures of all shadow casting lights.
+type shadowMaps struct {
+	// one layer per spot light, sampled as 2d array
+	Spot shadowMapTexture
+
+	// six layers per point light, sampled as cube array
+	Point shadowMapTexture
+
+	// comparison sampler, shared by both textures
+	Sampler *wgpu.Sampler
+}
+
+func (m *shadowMaps) texture(point bool) *shadowMapTexture {
+	if point {
+		return &m.Point
+	}
+
+	return &m.Spot
+}
+
+// shadowMapTexture is a depth array texture with one render view per layer.
+type shadowMapTexture struct {
 	Texture *wgpu.Texture
 	Size    uint32
 	Layers  uint32
 
 	// view of all layers, used for sampling in the main pass
-	ArrayView *wgpu.TextureView
+	SampleView *wgpu.TextureView
 
 	// one view per layer, used as depth attachment in the shadow pass
 	LayerViews []*wgpu.TextureView
-
-	// comparison sampler
-	Sampler *wgpu.Sampler
 }
 
 func pluginShadows(app *byke.App) {
-	app.InsertResource(spotShadowMaps{})
+	app.InsertResource(shadowMaps{})
 
-	app.AddSystems(Render, byke.System(prepareSpotShadowViewsSystem).InSet(RenderPhaseSetupView))
-	app.AddSystems(Render, byke.System(queueSpotShadowsSystem).InSet(RenderPhaseQueue))
-	app.AddSystems(Render, byke.System(renderSpotShadowsSystem).Before(driveCameraSchedules).InSet(RenderPhaseExecute))
+	app.AddSystems(Render, byke.System(prepareShadowViewsSystem).InSet(RenderPhaseSetupView))
+	app.AddSystems(Render, byke.System(queueShadowsSystem).InSet(RenderPhaseQueue))
+	app.AddSystems(Render, byke.System(renderShadowsSystem).Before(driveCameraSchedules).InSet(RenderPhaseExecute))
 	app.AddSystems(Render, byke.System(cleanupBinnedRenderPhaseSystem[Shadow]).InSet(RenderPhaseCleanup))
 }
 
 // ensure (re)creates the texture if size or layer count changed.
-func (m *spotShadowMaps) ensure(ctx *RenderContext, size, layers uint32) {
+// The sample view has the given dimension (2DArray or CubeArray).
+func (m *shadowMapTexture) ensure(ctx *RenderContext, label string, size, layers uint32, dimension wgpu.TextureViewDimension) {
 	if m.Texture != nil && m.Size == size && m.Layers == layers {
 		return
 	}
@@ -63,7 +99,7 @@ func (m *spotShadowMaps) ensure(ctx *RenderContext, size, layers uint32) {
 	m.Layers = layers
 
 	m.Texture = ctx.CreateTexture(&wgpu.TextureDescriptor{
-		Label:     "SpotShadowMaps",
+		Label:     label,
 		Usage:     wgpu.TextureUsageRenderAttachment | wgpu.TextureUsageTextureBinding,
 		Dimension: wgpu.TextureDimension2D,
 		Format:    wgpu.TextureFormatDepth32Float,
@@ -77,9 +113,9 @@ func (m *spotShadowMaps) ensure(ctx *RenderContext, size, layers uint32) {
 	})
 
 	// must be explicit: the default view of a single layer texture is 2D, not 2DArray
-	m.ArrayView = m.Texture.CreateView(&wgpu.TextureViewDescriptor{
-		Label:           "SpotShadowMaps",
-		Dimension:       wgpu.TextureViewDimension2DArray,
+	m.SampleView = m.Texture.CreateView(&wgpu.TextureViewDescriptor{
+		Label:           label,
+		Dimension:       dimension,
 		MipLevelCount:   1,
 		ArrayLayerCount: layers,
 		Aspect:          wgpu.TextureAspectAll,
@@ -87,7 +123,7 @@ func (m *spotShadowMaps) ensure(ctx *RenderContext, size, layers uint32) {
 
 	for layer := range layers {
 		m.LayerViews = append(m.LayerViews, m.Texture.CreateView(&wgpu.TextureViewDescriptor{
-			Label:           fmt.Sprintf("SpotShadowMap %d", layer),
+			Label:           fmt.Sprintf("%s %d", label, layer),
 			Dimension:       wgpu.TextureViewDimension2D,
 			MipLevelCount:   1,
 			BaseArrayLayer:  layer,
@@ -95,11 +131,88 @@ func (m *spotShadowMaps) ensure(ctx *RenderContext, size, layers uint32) {
 			Aspect:          wgpu.TextureAspectAll,
 		}))
 	}
+}
+
+func (m *shadowMapTexture) release() {
+	for _, view := range m.LayerViews {
+		view.Release()
+	}
+
+	m.LayerViews = m.LayerViews[:0]
+
+	if m.SampleView != nil {
+		m.SampleView.Release()
+		m.SampleView = nil
+	}
+
+	if m.Texture != nil {
+		m.Texture.Release()
+		m.Texture = nil
+	}
+}
+
+type shadowViewKey struct {
+	Point bool
+	Layer uint32
+}
+
+// prepareShadowViewsSystem keeps one ShadowView entity per spot light shadow map
+// and six per point light shadow map, and updates their view uniforms.
+func prepareShadowViewsSystem(
+	commands *byke.Commands,
+	ctx *RenderContext,
+	lights ExtractedLights,
+	maps *shadowMaps,
+	viewsQuery byke.Query[struct {
+		EntityId byke.EntityId
+		View     ShadowView
+		Uniforms *ViewUniforms
+	}],
+) {
+	size := lights.ShadowMapSize
+
+	// the view uniforms of every shadow view we need this frame
+	wanted := map[shadowViewKey]ViewUniforms{}
+
+	var spotCount uint32
+	for idx := range lights.SpotLights {
+		light := &lights.SpotLights[idx]
+		if light.ShadowLayer < 0 {
+			continue
+		}
+
+		key := shadowViewKey{Layer: uint32(light.ShadowLayer)}
+		wanted[key] = shadowViewUniforms(light.WorldToView, light.ViewToClip, light.Position, size)
+		spotCount++
+	}
+
+	var pointCount uint32
+	for idx := range lights.PointLights {
+		light := &lights.PointLights[idx]
+		if light.ShadowIndex < 0 {
+			continue
+		}
+
+		viewToClip := glm.Perspective(math.Pi/2, 1, light.ShadowMapNearZ, 0)
+
+		for face, dir := range cubeMapFaces {
+			worldToView := glm.LookAt(light.Position, light.Position.Add(dir.Target), dir.Up)
+			key := shadowViewKey{Point: true, Layer: uint32(light.ShadowIndex)*6 + uint32(face)}
+			wanted[key] = shadowViewUniforms(worldToView, viewToClip, light.Position, size)
+		}
+
+		pointCount++
+	}
+
+	// keep at least one layer (one cube), because the bind group always needs a texture
+	maps.Spot.ensure(ctx, "SpotShadowMaps", size, max(1, spotCount), wgpu.TextureViewDimension2DArray)
+	maps.Point.ensure(ctx, "PointShadowMaps", size, 6*max(1, pointCount), wgpu.TextureViewDimensionCubeArray)
 
 	// Linear filtering makes the hardware compare and blend 2x2 texels, which softens edges.
 	// Reverse-z (near is depth 1, far is depth 0): a fragment is lit if its depth is >= the stored depth.
-	m.Sampler = ctx.CreateSampler(wgpu.SamplerDescriptor{
-		Label:        "SpotShadowMaps",
+	// The sampler is owned by the sampler cache of the RenderContext, do not release it.
+	maps.Sampler = ctx.CreateSampler(wgpu.SamplerDescriptor{
+		Label:        "ShadowMaps",
 		AddressModeU: wgpu.AddressModeClampToEdge,
 		AddressModeV: wgpu.AddressModeClampToEdge,
 		AddressModeW: wgpu.AddressModeClampToEdge,
@@ -108,84 +221,33 @@ func (m *spotShadowMaps) ensure(ctx *RenderContext, size, layers uint32) {
 		MipmapFilter: wgpu.MipmapFilterModeNearest,
 		Compare:      wgpu.CompareFunctionGreaterEqual,
 	})
-}
-
-func (m *spotShadowMaps) release() {
-	for _, view := range m.LayerViews {
-		view.Release()
-	}
-
-	m.LayerViews = m.LayerViews[:0]
-
-	if m.ArrayView != nil {
-		m.ArrayView.Release()
-		m.ArrayView = nil
-	}
-
-	if m.Texture != nil {
-		m.Texture.Release()
-		m.Texture = nil
-	}
-
-	// the sampler is owned by the sampler cache of the RenderContext,
-	// we dont need to free it.
-}
-
-// prepareSpotShadowViewsSystem keeps one ShadowView entity per shadow
-// casting spot light and updates its view uniforms.
-func prepareSpotShadowViewsSystem(
-	commands *byke.Commands,
-	ctx *RenderContext,
-	lights ExtractedLights,
-	shadowMaps *spotShadowMaps,
-	viewsQuery byke.Query[struct {
-		EntityId byke.EntityId
-		View     ShadowView
-		Uniforms *ViewUniforms
-	}],
-) {
-	// shadow casting lights, indexed by their layer
-	var shadowLights []*ExtractedSpotLight
-	for idx := range lights.SpotLights {
-		if light := &lights.SpotLights[idx]; light.ShadowLayer >= 0 {
-			shadowLights = append(shadowLights, light)
-		}
-	}
-
-	// keep at least one layer, because the bind group always needs a texture
-	shadowMaps.ensure(ctx, lights.ShadowMapSize, max(1, uint32(len(shadowLights))))
-
-	hasView := make([]bool, len(shadowLights))
 
 	for view := range viewsQuery.Items() {
-		layer := view.View.Layer
-		if layer >= uint32(len(shadowLights)) || hasView[layer] {
+		key := shadowViewKey{Point: view.View.Point, Layer: view.View.Layer}
+
+		uniforms, ok := wanted[key]
+		if !ok {
+			// light is gone, or this is a duplicate of a view we already updated
 			commands.Entity(view.EntityId).Despawn()
 			continue
 		}
 
-		hasView[layer] = true
-		*view.Uniforms = shadowViewUniforms(shadowLights[layer], lights.ShadowMapSize)
+		*view.Uniforms = uniforms
+		delete(wanted, key)
 	}
 
-	for layer, light := range shadowLights {
-		if hasView[layer] {
-			continue
-		}
-
+	// spawn the views that do not exist yet
+	for key, uniforms := range wanted {
 		commands.Spawn(
-			ShadowView{Layer: uint32(layer)},
-			shadowViewUniforms(light, lights.ShadowMapSize),
+			ShadowView{Point: key.Point, Layer: key.Layer},
+			uniforms,
 			BinnedRenderPhase[Shadow]{},
 		)
 	}
 }
 
-func shadowViewUniforms(light *ExtractedSpotLight, size uint32) ViewUniforms {
-	cameraToScreen := light.ViewToClip
+func shadowViewUniforms(worldToCamera, cameraToScreen glm.Mat4f, position glm.Vec3f, size uint32) ViewUniforms {
 	cameraToScreenInv, _ := cameraToScreen.TryInverse()
-
-	worldToCamera := light.WorldToView
 	worldToCameraInv, _ := worldToCamera.TryInverse()
 
 	return ViewUniforms{
@@ -196,12 +258,12 @@ func shadowViewUniforms(light *ExtractedSpotLight, size uint32) ViewUniforms {
 		WorldToCameraInv:  worldToCameraInv,
 		WorldToScreen:     cameraToScreen.Mul(worldToCamera),
 		WorldToScreenInv:  worldToCameraInv.Mul(cameraToScreenInv),
-		CameraPosition:    light.Position,
+		CameraPosition:    position,
 		Exposure:          1,
 	}
 }
 
-func queueSpotShadowsSystem(
+func queueShadowsSystem(
 	meshes *ExtractedMeshes,
 	viewsQuery byke.Query[struct {
 		_     byke.With[ShadowView]
@@ -222,10 +284,10 @@ func queueSpotShadowsSystem(
 	}
 }
 
-func renderSpotShadowsSystem(
+func renderShadowsSystem(
 	world *byke.World,
 	ctx *RenderContext,
-	shadowMaps *spotShadowMaps,
+	maps *shadowMaps,
 	viewsQuery byke.Query[struct {
 		EntityId byke.EntityId
 		View     ShadowView
@@ -238,7 +300,8 @@ func renderSpotShadowsSystem(
 	views := viewsQuery.AppendTo(nil)
 
 	for _, view := range views {
-		if view.View.Layer >= uint32(len(shadowMaps.LayerViews)) {
+		layerViews := maps.texture(view.View.Point).LayerViews
+		if view.View.Layer >= uint32(len(layerViews)) {
 			// stale view whose despawn command has not been applied yet
 			continue
 		}
@@ -246,12 +309,12 @@ func renderSpotShadowsSystem(
 		// drawMeshesBatch looks up the view via the CurrentView
 		world.InsertResource(CurrentView(view.EntityId))
 
-		enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "SpotShadow"})
+		enc := ctx.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "Shadow"})
 
 		pass := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
-			Label: "SpotShadow",
+			Label: "Shadow",
 			DepthStencilAttachment: &wgpu.RenderPassDepthStencilAttachment{
-				View:            shadowMaps.LayerViews[view.View.Layer],
+				View:            layerViews[view.View.Layer],
 				DepthLoadOp:     wgpu.LoadOpClear,
 				DepthStoreOp:    wgpu.StoreOpStore,
 				DepthClearValue: 0,

@@ -21,6 +21,12 @@ struct PointLight {
     color: vec3f,
     position: vec3f,
     range: f32,
+    // cube in point_shadow_maps, -1 if the light casts no shadows
+    shadow_index: i32,
+    shadow_depth_bias: f32,
+    // already scaled to the texel size at a distance of one
+    shadow_normal_bias: f32,
+    shadow_near_z: f32,
 }
 
 struct SpotLights {
@@ -68,7 +74,42 @@ var spot_shadow_maps: texture_depth_2d_array;
 @if(MESH_SHADOWS)
 @group(0)
 @binding(15)
-var spot_shadow_sampler: sampler_comparison;
+var shadow_sampler: sampler_comparison;
+
+@if(MESH_SHADOWS)
+@group(0)
+@binding(16)
+var point_shadow_maps: texture_depth_cube_array;
+
+// Returns 0 if the position is in the shadow of the light and 1 if it is lit.
+@if(MESH_SHADOWS)
+fn point_shadow(light: PointLight, position: vec3f, normal: vec3f) -> f32 {
+    if light.shadow_index < 0 {
+        return 1.0;
+    }
+
+    // Each cube face has a 90 degree frustum aligned with the axes, so the view
+    // space depth on the face we sample is the largest absolute component.
+    let surface_to_light = light.position - position;
+    let abs_surface_to_light = abs(surface_to_light);
+    let distance_to_light = max(abs_surface_to_light.x, max(abs_surface_to_light.y, abs_surface_to_light.z));
+
+    // texels get larger with distance, so the normal bias grows with it
+    let offset_position = position
+        + normal * light.shadow_normal_bias * distance_to_light
+        + normalize(surface_to_light) * light.shadow_depth_bias;
+
+    let light_to_surface = offset_position - light.position;
+    let abs_light_to_surface = abs(light_to_surface);
+    let major_axis = max(abs_light_to_surface.x, max(abs_light_to_surface.y, abs_light_to_surface.z));
+
+    // the infinite reverse-z projection maps view depth z to near / z
+    let depth = light.shadow_near_z / major_axis;
+
+    // Cube maps are left-handed, flip z like the skybox does.
+    // Use the Level variant: this runs in non-uniform control flow, where implicit mip selection is not allowed.
+    return textureSampleCompareLevel(point_shadow_maps, shadow_sampler, light_to_surface * vec3f(1.0, 1.0, -1.0), light.shadow_index, depth);
+}
 
 // Returns 0 if the position is in the shadow of the light and 1 if it is lit.
 @if(MESH_SHADOWS)
@@ -99,5 +140,5 @@ fn spot_shadow(light: SpotLight, position: vec3f, normal: vec3f) -> f32 {
 
     // Reverse-z (near is depth 1, far is depth 0): lit if the fragment is at least as close as the stored depth.
     // Use the Level variant: this runs in non-uniform control flow, where implicit mip selection is not allowed.
-    return textureSampleCompareLevel(spot_shadow_maps, spot_shadow_sampler, uv, light.shadow_layer, ndc.z);
+    return textureSampleCompareLevel(spot_shadow_maps, shadow_sampler, uv, light.shadow_layer, ndc.z);
 }

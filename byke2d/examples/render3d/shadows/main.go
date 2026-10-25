@@ -21,6 +21,10 @@ var pointLight = PointLight{
 	Color:     ColorLinearRGB(1, 1, 1),
 	Intensity: 10000,
 	Range:     20,
+
+	ShadowsEnabled:   true,
+	ShadowDepthBias:  DefaultPointLight.ShadowDepthBias,
+	ShadowNormalBias: DefaultPointLight.ShadowNormalBias,
 }
 
 var spotLight = SpotLight{

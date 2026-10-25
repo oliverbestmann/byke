@@ -31,12 +31,22 @@ type ExtractedPointLight struct {
 	Position glm.Vec3f
 	Color    glm.Vec3f
 	Range    float32
+
+	// Cube in the point shadow map array, -1 if the light casts no shadows
+	ShadowIndex      int32
+	ShadowDepthBias  float32
+	ShadowNormalBias float32
+	ShadowMapNearZ   float32
 }
 
 func (l ExtractedPointLight) WriteTo(w *wgsl.StructWriter) {
 	w.AppendVec3f(l.Color)
 	w.AppendVec3f(l.Position)
 	w.AppendFloat32(l.Range)
+	w.AppendInt(l.ShadowIndex)
+	w.AppendFloat32(l.ShadowDepthBias)
+	w.AppendFloat32(l.ShadowNormalBias)
+	w.AppendFloat32(l.ShadowMapNearZ)
 	w.Sync()
 }
 
@@ -109,18 +119,37 @@ func extractLightsSystem(
 	lights.Ambient = ambient.Color.ToVec3f().Scale(ambient.Brightness)
 	lights.ShadowMapSize = shadowConfig.Size
 
-	var shadowLayer int32
+	var shadowLayer, shadowIndex int32
 
 	for item := range pointLights.Items() {
 		if item.Light.Color.IsBlack() {
 			continue
 		}
 
-		lights.PointLights = append(lights.PointLights, ExtractedPointLight{
-			Position: item.Transform.Affine.Translation(),
-			Color:    item.Light.Color.ToVec3f().Scale(item.Light.Intensity),
-			Range:    item.Light.Range,
-		})
+		extracted := ExtractedPointLight{
+			Position:    item.Transform.Affine.Translation(),
+			Color:       item.Light.Color.ToVec3f().Scale(item.Light.Intensity),
+			Range:       item.Light.Range,
+			ShadowIndex: -1,
+		}
+
+		if item.Light.ShadowsEnabled {
+			extracted.ShadowIndex = shadowIndex
+			shadowIndex++
+
+			extracted.ShadowMapNearZ = item.Light.ShadowMapNearZ
+			if extracted.ShadowMapNearZ == 0 {
+				extracted.ShadowMapNearZ = DefaultPointLight.ShadowMapNearZ
+			}
+
+			// a cube face covers 90 degrees, so a texel at distance 1 is 2/size wide.
+			// sqrt2 accounts for the worst case diagonal offset
+			texelSize := 2 / float32(shadowConfig.Size)
+			extracted.ShadowNormalBias = item.Light.ShadowNormalBias * texelSize * math32.Sqrt2
+			extracted.ShadowDepthBias = item.Light.ShadowDepthBias
+		}
+
+		lights.PointLights = append(lights.PointLights, extracted)
 	}
 
 	for item := range spotLights.Items() {

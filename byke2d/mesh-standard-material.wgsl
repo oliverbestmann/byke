@@ -213,6 +213,11 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
                     attenuation = attenuation * range_fade;
                 }
 
+                @if(MESH_SHADOWS)
+                {
+                    attenuation *= lights::point_shadow(light, vertex.position_world, N);
+                }
+
                 let radiance = light.color * attenuation;
                 outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
             }
