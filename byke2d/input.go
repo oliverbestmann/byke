@@ -39,5 +39,5 @@ func (b *MouseButtons) IsPressed(button vyn.MouseButton) bool {
 }
 
 func (b *MouseButtons) IsReleased(button vyn.MouseButton) bool {
-	return b.state.Pressed[button]
+	return !b.state.Pressed[button]
 }
