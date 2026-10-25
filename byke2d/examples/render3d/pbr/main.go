@@ -54,7 +54,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(-50, -50, -50).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(50, 50, 50).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
 		DirectionalLight{Illuminance: 1_500},
 	)
 
