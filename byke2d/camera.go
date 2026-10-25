@@ -101,18 +101,24 @@ type OrthographicProjection struct {
 	// Origin of the camera. Set this to (0.5, 0.5) to center the Camera.
 	ViewportOrigin glm.Vec2f
 
+	// ScalingMode defaults to ScalingModeWindowSize if nil.
 	ScalingMode ScalingMode
 
 	// Distance of the near and far plane in camera direction (-z).
 	// Depth is 1 at the near plane and 0 at the far plane (reverse z).
-	// If both values are zero, -1 and 0 is assumed: everything between the
-	// camera and one unit behind it is visible, higher z values are drawn on top.
+	// If both values are zero, -1000 and 1000 is assumed: everything up to 1000 units
+	// in front of and behind the camera is visible, higher z values are drawn on top.
 	// This is the setup used by 2d cameras.
 	Near, Far float32
 }
 
 func (o OrthographicProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
-	viewSize = o.ScalingMode.ViewportSize(viewSize.XY())
+	scalingMode := o.ScalingMode
+	if scalingMode == nil {
+		scalingMode = ScalingModeWindowSize{}
+	}
+
+	viewSize = scalingMode.ViewportSize(viewSize.XY())
 
 	offset := o.ViewportOrigin.Mul(viewSize)
 	left, right := -offset[0], -offset[0]+viewSize[0]
@@ -134,7 +140,7 @@ func (o OrthographicProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
 
 func (o OrthographicProjection) nearFar() (near float32, far float32) {
 	if o.Near == 0 && o.Far == 0 {
-		return -1, 0
+		return -1000, 1000
 	}
 
 	return o.Near, o.Far

@@ -27,7 +27,6 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		TransformFromXYZ(0, 0, -0.5),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 600},

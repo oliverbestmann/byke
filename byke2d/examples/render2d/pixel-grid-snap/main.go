@@ -43,11 +43,8 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		Camera{Order: -1},
 		Camera2d,
 		RenderTarget{Texture: AsRenderTexture(canvas)},
-		// the default 2d depth range ends at the camera, move it behind the meshes
-		TransformFromXYZ(0, 0, -0.5),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeWindowSize{},
 		},
 	)
 
@@ -71,7 +68,6 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		Camera{},
 		Camera2d,
 		RenderLayersOf(1),
-		TransformFromXYZ(0, 0, -0.5),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
 			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{canvasWidth, canvasHeight}},

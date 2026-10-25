@@ -25,7 +25,6 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		TransformFromXYZ(0, 0, -0.5),
 		// HDR enables bloom and tonemapping
 		HDR{},
 		ClearColor{Color: ColorBlack},

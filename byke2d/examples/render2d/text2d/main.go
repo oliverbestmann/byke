@@ -25,11 +25,8 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		// the default 2d depth range ends at the camera, move it behind the dot
-		TransformFromXYZ(0, 0, -0.5),
 		OrthographicProjection{
 			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeWindowSize{},
 		},
 	)
 
