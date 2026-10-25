@@ -129,14 +129,40 @@ type SpotLight struct {
 	Range      float32
 	InnerAngle glm.Rad
 	OuterAngle glm.Rad
+
+	// Whether this light casts shadows.
+	ShadowsEnabled bool
+
+	// Offset of the sampled position towards the light, in world units.
+	// Reduces shadow acne (dark speckles on lit surfaces). Too large values
+	// detach shadows from their casters.
+	ShadowDepthBias float32
+
+	// Offset of the sampled position along the surface normal, in shadow map texels.
+	ShadowNormalBias float32
+
+	// Distance of the near plane of the shadow map. Objects closer to the light
+	// do not cast shadows. Defaults to 0.1 if zero.
+	ShadowMapNearZ float32
 }
 
 var DefaultSpotLight = SpotLight{
-	Color:      ColorWhite,
-	Intensity:  1_000_000,
-	Range:      20,
-	OuterAngle: math.Pi / 4,
+	Color:            ColorWhite,
+	Intensity:        1_000_000,
+	Range:            20,
+	OuterAngle:       math.Pi / 4,
+	ShadowDepthBias:  0.02,
+	ShadowNormalBias: 1.8,
+	ShadowMapNearZ:   0.1,
 }
+
+// ShadowMapConfig controls the resolution of all spot light shadow maps.
+type ShadowMapConfig struct {
+	// Width and height of each shadow map in pixels.
+	Size uint32
+}
+
+var DefaultShadowMapConfig = ShadowMapConfig{Size: 512}
 
 func (SpotLight) RequireComponents() []spoke.ErasedComponent {
 	return []spoke.ErasedComponent{
@@ -146,8 +172,12 @@ func (SpotLight) RequireComponents() []spoke.ErasedComponent {
 
 func pluginLights(app *byke.App) {
 	app.InsertResource(DefaultGlobalAmbientLight)
+	app.InsertResource(DefaultShadowMapConfig)
+
 	app.InsertResource(ExtractedLights{})
 	app.InsertResource(lightsStorage{})
 	app.AddSystems(Render, byke.System(extractLightsSystem).InSet(RenderPhaseExtract))
 	app.AddSystems(Render, byke.System(prepareLightsStorageSystem).InSet(RenderPhasePrepareResources))
+
+	app.AddPlugin(pluginShadows)
 }

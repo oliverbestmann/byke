@@ -7,8 +7,8 @@ import (
 	"github.com/oliverbestmann/byke/internal/refl"
 )
 
-// CurrentView marks the current view. A ViewQuery will limit its result
-// to only the CurrentView.
+// CurrentView marks the current view, a camera or a shadow view.
+// A ViewQuery will limit its result to only the CurrentView.
 type CurrentView byke.EntityId
 
 type ViewQuery[T any] struct {
@@ -20,9 +20,8 @@ func (v ViewQuery[T]) Get() T {
 }
 
 func (v ViewQuery[T]) newState(world *byke.World, _ viewQueryT) byke.SystemParamState {
+	// no camera filter: CurrentView can also be a ShadowView
 	type QueryValues[T any] struct {
-		_ byke.With[Camera]
-
 		ViewValue T
 	}
 

@@ -29,6 +29,10 @@ var spotLight = SpotLight{
 	Range:      20,
 	InnerAngle: glm.DegToRad(15),
 	OuterAngle: glm.DegToRad(25),
+
+	ShadowsEnabled:   true,
+	ShadowDepthBias:  DefaultSpotLight.ShadowDepthBias,
+	ShadowNormalBias: DefaultSpotLight.ShadowNormalBias,
 }
 
 func main() {
@@ -73,7 +77,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(4, 4, 0),
 		OrbitingLight{},
-		pointLight,
+		spotLight,
 	)
 }
 

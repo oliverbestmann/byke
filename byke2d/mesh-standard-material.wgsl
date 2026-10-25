@@ -242,6 +242,11 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
                 let spot = saturate((cd - cos_outer) / max(cos_inner - cos_outer, 0.0001));
                 attenuation = attenuation * spot * spot;
 
+                @if(MESH_SHADOWS)
+                {
+                    attenuation *= lights::spot_shadow(light, vertex.position_world, N);
+                }
+
                 let radiance = light.color * attenuation;
                 outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
             }
@@ -257,7 +262,6 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
             outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
         }
 
-        // TODO spot lights
     }
 
     return outcol;

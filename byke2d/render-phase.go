@@ -158,7 +158,7 @@ func (r *BinnedRenderPhase[M]) Batches() iter.Seq2[MeshKey, []RenderItem] {
 			}
 
 			if !yield(key, items) {
-				continue
+				return
 			}
 		}
 	}

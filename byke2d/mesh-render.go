@@ -5,6 +5,7 @@ import (
 	"cmp"
 	_ "embed"
 	"fmt"
+	"iter"
 	"reflect"
 
 	"github.com/oliverbestmann/byke"
@@ -171,22 +172,10 @@ func queueMeshInstancesSystem(
 				continue
 			}
 
-			renderItem := RenderItem{
-				Type:           &meshRenderPhaseItem{},
-				Draw:           drawMeshesBatch,
-				ExtractedIndex: uint32(idx),
-			}
-
-			key := MeshKey{
-				MatType:  reflect.TypeOf(sp.Material),
-				MatKey:   sp.Material.BindGroup().Id,
-				Layout:   sp.Mesh.VertexLayout(),
-				Mesh:     sp.Mesh,
-				Lightmap: sp.Lightmap,
-			}
+			renderItem := meshRenderItem(idx)
 
 			if sp.Material.BindGroup().OrderIndependent {
-				view.RenderPhase.Append(renderItem, key)
+				view.RenderPhase.Append(renderItem, meshKeyOf(sp))
 
 			} else {
 				// transform center of aabb from local space to world space
@@ -209,6 +198,24 @@ func queueMeshInstancesSystem(
 	}
 }
 
+func meshRenderItem(extractedIndex int) RenderItem {
+	return RenderItem{
+		Type:           &meshRenderPhaseItem{},
+		Draw:           drawMeshesBatch,
+		ExtractedIndex: uint32(extractedIndex),
+	}
+}
+
+func meshKeyOf(mesh *ExtractedMesh) MeshKey {
+	return MeshKey{
+		MatType:  reflect.TypeOf(mesh.Material),
+		MatKey:   mesh.Material.BindGroup().Id,
+		Layout:   mesh.Mesh.VertexLayout(),
+		Mesh:     mesh.Mesh,
+		Lightmap: mesh.Lightmap,
+	}
+}
+
 type meshPipelineCacheKey struct {
 	View   byke.EntityId
 	Entity byke.EntityId
@@ -227,6 +234,10 @@ func prepareMeshPipelinesSystems(
 		ViewTarget          ViewTarget
 		EnvironmentMapLight byke.Has[EnvironmentMapLight]
 		RenderLayers        RenderLayers
+	}],
+	shadowViewsQuery byke.Query[struct {
+		_      byke.With[ShadowView]
+		ViewId byke.EntityId
 	}],
 ) {
 	cache.Tick()
@@ -250,6 +261,7 @@ func prepareMeshPipelinesSystems(
 				BindGroup:    mesh.Material.BindGroup(),
 				MeshView: MeshViewBindGroupLayoutOptions{
 					EnvironmentMapLight: view.EnvironmentMapLight.Exists(),
+					Shadows:             true,
 				},
 			}
 
@@ -270,6 +282,27 @@ func prepareMeshPipelinesSystems(
 			}
 
 			cache.Add(key, pipeline)
+		}
+	}
+
+	if shadowViewsQuery.Count() == 0 {
+		return
+	}
+
+	for _, mesh := range meshes.Meshes {
+		if !mesh.Material.BindGroup().OrderIndependent {
+			// transparent meshes do not cast shadows
+			continue
+		}
+
+		pipeline := pipelines.Specialize(shadowPipelineConfig{
+			VertexLayout: mesh.Mesh.VertexLayout(),
+			Skinned:      mesh.Skin.IsSet(),
+			Morph:        mesh.HashMorphWeights,
+		})
+
+		for view := range shadowViewsQuery.Items() {
+			cache.Add(meshPipelineCacheKey{View: view.ViewId, Entity: mesh.EntityId}, pipeline)
 		}
 	}
 }
@@ -293,6 +326,7 @@ func prepareMeshInstancesSystem(
 		Phase       *BinnedRenderPhase[Opaque]
 		Transparent *SortableRenderPhase[Transparent]
 	}],
+	shadowPhases byke.Query[*BinnedRenderPhase[Shadow]],
 ) {
 	instances := &meshInstances.Instances
 	instances.Clear()
@@ -323,8 +357,8 @@ func prepareMeshInstancesSystem(
 		instances.AppendUint(idx)
 	}
 
-	for view := range viewsQuery.Items() {
-		for _, batch := range view.Phase.Batches() {
+	appendBatches := func(batches iter.Seq2[MeshKey, []RenderItem]) {
+		for _, batch := range batches {
 			if len(batch) == 0 {
 				continue
 			}
@@ -337,6 +371,14 @@ func prepareMeshInstancesSystem(
 				appendInstance(item)
 			}
 		}
+	}
+
+	for phase := range shadowPhases.Items() {
+		appendBatches(phase.Batches())
+	}
+
+	for view := range viewsQuery.Items() {
+		appendBatches(view.Phase.Batches())
 
 		// transparent phase needs explicit batching here
 
@@ -389,11 +431,15 @@ func prepareMeshInstancesSystem(
 
 type MeshViewBindGroupLayoutOptions struct {
 	EnvironmentMapLight bool
+
+	// bind the spot light shadow maps
+	Shadows bool
 }
 
 func (o MeshViewBindGroupLayoutOptions) Hash() Hash {
 	h := HashFor[MeshViewBindGroupLayoutOptions]()
 	h.Bool(o.EnvironmentMapLight)
+	h.Bool(o.Shadows)
 	return h
 }
 
@@ -419,6 +465,20 @@ func MeshViewBindGroupLayout(opts MeshViewBindGroupLayoutOptions) wgpu.BindGroup
 
 		// All skin joint transforms, offset by entityId
 		Indexed(30, BindingLayoutBuffer(wgpu.BufferBindingTypeUniform, true)),
+	}
+
+	if opts.Shadows {
+		bindings = append(bindings,
+			// spot light shadow maps
+			Indexed(14, wgpu.BindGroupLayoutEntry{
+				Visibility: wgpu.ShaderStageFragment,
+				Texture: wgpu.TextureBindingLayout{
+					SampleType:    wgpu.TextureSampleTypeDepth,
+					ViewDimension: wgpu.TextureViewDimension2DArray,
+				},
+			}),
+			Indexed(15, BindingLayoutSampler(wgpu.SamplerBindingTypeComparison)),
+		)
 	}
 
 	if opts.EnvironmentMapLight {
@@ -456,11 +516,13 @@ func prepareMeshViewBindGroupSystem(
 	viewUniforms *ComponentUniforms[ViewUniforms],
 	environments *ComponentUniforms[EnvironmentMapLight],
 	brdfLookupTable brdfLookupTable,
+	shadowMaps *spotShadowMaps,
 	cameraQuery byke.Query[struct {
-		_                   byke.With[ViewTarget]
+		_                   byke.With[ViewUniforms]
 		EntityId            byke.EntityId
 		EnvironmentMapLight byke.Option[EnvironmentMapLight]
 		BindGroup           byke.OptionMut[MeshViewBindGroup]
+		IsShadowView        byke.Has[ShadowView]
 	}],
 ) {
 	for camera := range cameraQuery.Items() {
@@ -479,6 +541,17 @@ func prepareMeshViewBindGroupSystem(
 			Indexed(21, BindingBuffer(morphUniforms.BufWeights)),
 
 			Indexed(30, BindingBufferSize(skinUniforms.BufJoints, 0, 64*256)),
+		}
+
+		// a shadow view must not bind the shadow maps it renders into:
+		// wgpu rejects a texture used as attachment and binding in the same pass
+		if !camera.IsShadowView.Exists() {
+			opts.Shadows = true
+
+			entries = append(entries,
+				Indexed(14, BindingTextureView(shadowMaps.ArrayView)),
+				Indexed(15, BindingSampler(shadowMaps.Sampler)),
+			)
 		}
 
 		if env, ok := camera.EnvironmentMapLight.Get(); ok {
@@ -660,7 +733,6 @@ func drawMeshesBatchSystem(
 	skinUniforms *skinUniforms,
 	viewQuery ViewQuery[struct {
 		ViewId              byke.EntityId
-		ViewTarget          *ViewTarget
 		MeshBindGroup       *MeshViewBindGroup
 		ViewUniformsOffset  DynamicOffset[ViewUniforms]
 		EnvironmentMapLight byke.Option[DynamicOffset[EnvironmentMapLight]]

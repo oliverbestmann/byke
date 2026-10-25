@@ -1,6 +1,7 @@
 package byke2d
 
 import (
+	"github.com/chewxy/math32"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/wgsl"
@@ -14,6 +15,9 @@ type ExtractedLights struct {
 	DirectionalLights []ExtractedDirectionalLight
 	PointLights       []ExtractedPointLight
 	SpotLights        []ExtractedSpotLight
+
+	// Width and height of each spot light shadow map
+	ShadowMapSize uint32
 }
 
 func (l *ExtractedLights) Clear() {
@@ -43,6 +47,15 @@ type ExtractedSpotLight struct {
 	InnerAngle glm.Rad
 	OuterAngle glm.Rad
 	Range      float32
+
+	// Layer in the shadow map array, -1 if the light casts no shadows
+	ShadowLayer      int32
+	ShadowDepthBias  float32
+	ShadowNormalBias float32
+
+	// view and projection of the shadow map, only set if ShadowLayer >= 0
+	WorldToView glm.Mat4f
+	ViewToClip  glm.Mat4f
 }
 
 func (l ExtractedSpotLight) WriteTo(w *wgsl.StructWriter) {
@@ -52,6 +65,10 @@ func (l ExtractedSpotLight) WriteTo(w *wgsl.StructWriter) {
 	w.AppendFloat32(float32(l.InnerAngle))
 	w.AppendFloat32(float32(l.OuterAngle))
 	w.AppendFloat32(l.Range)
+	w.AppendMat4f(l.ViewToClip.Mul(l.WorldToView))
+	w.AppendInt(l.ShadowLayer)
+	w.AppendFloat32(l.ShadowDepthBias)
+	w.AppendFloat32(l.ShadowNormalBias)
 	w.Sync()
 }
 
@@ -70,6 +87,7 @@ func extractLightsSystem(
 	lights *ExtractedLights,
 
 	ambient GlobalAmbientLight,
+	shadowConfig ShadowMapConfig,
 
 	pointLights byke.Query[struct {
 		Transform GlobalTransform
@@ -89,6 +107,9 @@ func extractLightsSystem(
 	lights.Clear()
 
 	lights.Ambient = ambient.Color.ToVec3f().Scale(ambient.Brightness)
+	lights.ShadowMapSize = shadowConfig.Size
+
+	var shadowLayer int32
 
 	for item := range pointLights.Items() {
 		if item.Light.Color.IsBlack() {
@@ -113,14 +134,44 @@ func extractLightsSystem(
 			Truncate().
 			Normalize()
 
-		lights.SpotLights = append(lights.SpotLights, ExtractedSpotLight{
-			Color:      item.Light.Color.ToVec3f().Scale(item.Light.Intensity),
-			Position:   item.Transform.Affine.Translation(),
-			Range:      item.Light.Range,
-			Direction:  direction,
-			InnerAngle: item.Light.InnerAngle,
-			OuterAngle: item.Light.OuterAngle,
-		})
+		position := item.Transform.Affine.Translation()
+
+		extracted := ExtractedSpotLight{
+			Color:       item.Light.Color.ToVec3f().Scale(item.Light.Intensity),
+			Position:    position,
+			Range:       item.Light.Range,
+			Direction:   direction,
+			InnerAngle:  item.Light.InnerAngle,
+			OuterAngle:  item.Light.OuterAngle,
+			ShadowLayer: -1,
+		}
+
+		if item.Light.ShadowsEnabled {
+			extracted.ShadowLayer = shadowLayer
+			shadowLayer++
+
+			near := item.Light.ShadowMapNearZ
+			if near == 0 {
+				near = DefaultSpotLight.ShadowMapNearZ
+			}
+
+			// any up vector works for a round cone, as long as it is not parallel to the direction
+			up := glm.Vec3f{0, 1, 0}
+			if math32.Abs(direction[1]) > 0.99 {
+				up = glm.Vec3f{1, 0, 0}
+			}
+
+			extracted.WorldToView = glm.LookAt(position, position.Add(direction), up)
+			extracted.ViewToClip = glm.Perspective(2*item.Light.OuterAngle, 1, near, 0)
+
+			// the normal bias is given in texels, scale it to the texel size at a distance of 1.
+			// sqrt2 accounts for the worst case diagonal offset
+			texelSize := 2 * math32.Tan(float32(item.Light.OuterAngle)) / float32(shadowConfig.Size)
+			extracted.ShadowNormalBias = item.Light.ShadowNormalBias * texelSize * math32.Sqrt2
+			extracted.ShadowDepthBias = item.Light.ShadowDepthBias
+		}
+
+		lights.SpotLights = append(lights.SpotLights, extracted)
 	}
 
 	for item := range directionalLights.Items() {
@@ -169,8 +220,6 @@ func prepareLightsStorageSystem(
 
 	writeSliceToStructWriter(s, lights.SpotLights)
 	s.WriteTo(ctx, &uniforms.BufSpotLights, "SpotLights", wgpu.BufferUsageStorage)
-
-	uniforms.staging.AppendUint(uint32(len(lights.PointLights)))
 }
 
 func writeLightConfigToStructWriter(s *wgsl.StructWriter, lights ExtractedLights) {
