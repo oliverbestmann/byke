@@ -1,27 +1,15 @@
 package main
 
 import (
-	"log/slog"
 	"math/rand/v2"
-	"os"
-	"runtime"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
+	"github.com/oliverbestmann/byke/byke2d/examples/shared"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/pkg/profile"
 )
 
 const SpriteCount = 100_000
-
-func init() {
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-		Level:     slog.LevelDebug,
-	})
-
-	slog.SetDefault(slog.New(handler))
-}
 
 func main() {
 	var app App
@@ -32,17 +20,7 @@ func main() {
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(FixedUpdate, moveSpritesSystem)
 
-	app.AddSystems(Last, func(vt VirtualTime, w *MessageWriter[AppExit]) {
-		if vt.Elapsed.Seconds() > 10 {
-			w.Write(AppExitSuccess)
-		}
-	})
-
-	if runtime.GOOS != "js" {
-		defer profile.Start(profile.CPUProfile).Stop()
-	}
-
-	app.MustRun()
+	shared.RunAppInTest(app, shared.FramesToSnapshot{10, 50})
 }
 
 type Velocity struct {
@@ -61,13 +39,16 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	asset := assets.Texture("circle.png").Await()
 
+	// fixed seed, so every run spawns the same sprites
+	rng := rand.New(rand.NewPCG(1, 2))
+
 	for idx := range SpriteCount {
 		z := float32(idx) / SpriteCount
 
 		commands.Spawn(
-			TransformFromXYZ(rand.Float32()*1000, rand.Float32()*600, z).
-				WithRotationZ(glm.Rad(rand.Float32())).
-				WithScaleXY(rand.Float32()+0.1, rand.Float32()+0.1),
+			TransformFromXYZ(rng.Float32()*1000, rng.Float32()*600, z).
+				WithRotationZ(glm.Rad(rng.Float32())).
+				WithScaleXY(rng.Float32()+0.1, rng.Float32()+0.1),
 
 			Sprite{
 				Texture:    asset,
@@ -75,7 +56,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 				Color:      ColorSRGBA(1, 1, 1, 0.01),
 			},
 
-			Velocity{Vec2f: glm.Vec2f{rand.Float32() - 0.5, rand.Float32() - 0.5}.Scale(32)},
+			Velocity{Vec2f: glm.Vec2f{rng.Float32() - 0.5, rng.Float32() - 0.5}.Scale(32)},
 		)
 	}
 }

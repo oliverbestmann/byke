@@ -2,28 +2,16 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"math/rand/v2"
-	"os"
-	"runtime"
 	"time"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
+	"github.com/oliverbestmann/byke/byke2d/examples/shared"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/pkg/profile"
 )
 
 const SpriteCount = 100_000
-
-func init() {
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-		Level:     slog.LevelDebug,
-	})
-
-	slog.SetDefault(slog.New(handler))
-}
 
 func main() {
 	var app App
@@ -37,17 +25,7 @@ func main() {
 	app.AddSystems(Update, updateFpsCounterSystem)
 	app.AddSystems(FixedUpdate, moveSpritesSystem)
 
-	app.AddSystems(Last, func(vt VirtualTime, w *MessageWriter[AppExit]) {
-		if vt.Elapsed.Seconds() > 10 {
-			w.Write(AppExitSuccess)
-		}
-	})
-
-	if runtime.GOOS != "js" {
-		defer profile.Start(profile.CPUProfile).Stop()
-	}
-
-	app.MustRun()
+	shared.RunAppInTest(app, shared.FramesToSnapshot{10, 50})
 }
 
 type Velocity struct {
@@ -66,15 +44,18 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	asset := assets.Texture("circle.png").Await()
 
+	// fixed seed, so every run spawns the same sprites
+	rng := rand.New(rand.NewPCG(1, 2))
+
 	rect := Rectangle(glm.Vec2f{32, 32})
 
 	for idx := range SpriteCount {
 		z := float32(idx) / SpriteCount
 
 		commands.Spawn(
-			TransformFromXYZ(rand.Float32()*1000, rand.Float32()*600, z).
-				WithRotationZ(glm.Rad(rand.Float32())).
-				WithScaleXY(rand.Float32()+0.1, rand.Float32()+0.1),
+			TransformFromXYZ(rng.Float32()*1000, rng.Float32()*600, z).
+				WithRotationZ(glm.Rad(rng.Float32())).
+				WithScaleXY(rng.Float32()+0.1, rng.Float32()+0.1),
 
 			MeshInstance{Mesh: rect},
 
@@ -84,7 +65,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 				AlphaCutoff: 0.5,
 			},
 
-			Velocity{Vec2f: glm.Vec2f{rand.Float32() - 0.5, rand.Float32() - 0.5}.Scale(32)},
+			Velocity{Vec2f: glm.Vec2f{rng.Float32() - 0.5, rng.Float32() - 0.5}.Scale(32)},
 		)
 	}
 
@@ -111,24 +92,25 @@ func moveSpritesSystem(t FixedTime, query Query[struct {
 }
 
 func updateFpsCounterSystem(
+	vt VirtualTime,
 	counter *fpsCounter,
 	text Single[*Text],
 ) {
-	fps := counter.Update()
+	fps := counter.Update(vt.Elapsed)
 	text.Value.Text = fmt.Sprintf("FPS: %1.2f", fps)
 }
 
 type fpsCounter struct {
-	timestamps []time.Time
+	// virtual time, so the text is the same in every test run
+	timestamps []time.Duration
 }
 
-func (c *fpsCounter) Update() float32 {
-	now := time.Now()
+func (c *fpsCounter) Update(now time.Duration) float32 {
 	c.timestamps = append(c.timestamps, now)
 
 	if len(c.timestamps) > 120 {
 		c.timestamps = c.timestamps[1:]
 	}
 
-	return float32(len(c.timestamps)) / float32(now.Sub(c.timestamps[0]).Seconds())
+	return float32(len(c.timestamps)) / float32((now - c.timestamps[0]).Seconds())
 }
