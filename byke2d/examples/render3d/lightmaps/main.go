@@ -34,7 +34,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		SceneRoot{Handle: box},
-		NewTransform().WithScaleXYZ(1, 1, -1),
+		NewTransform(),
 	)
 }
 
