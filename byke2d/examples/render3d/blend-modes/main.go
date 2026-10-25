@@ -28,7 +28,7 @@ func setupSystem(commands *Commands) {
 		Camera{},
 		HDR{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(8.0, 2.5, 1.0).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0.0, 2.5, 10.0).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
 	)
 
 	commands.Spawn(
