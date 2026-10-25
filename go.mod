@@ -15,7 +15,7 @@ require (
 	github.com/oliverbestmann/earcut-go v1.1.1
 	github.com/oliverbestmann/mikktspace-go v0.0.0-20261021165803-21f42ec57da7
 	github.com/oliverbestmann/puffin-go v1.1.0
-	github.com/oliverbestmann/webgpu v1.37.0
+	github.com/oliverbestmann/webgpu v1.37.1
 	github.com/oliverbestmann/wesl-go v1.2.0
 	github.com/stretchr/testify v1.11.1
 	github.com/x448/float16 v0.8.4
@@ -27,8 +27,8 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dlclark/regexp2/v2 v2.9.1 // indirect
-	github.com/dop251/goja v0.0.0-20261023133238-1622cea953df // indirect
+	github.com/dlclark/regexp2/v2 v2.10.0 // indirect
+	github.com/dop251/goja v0.0.0-20261024144015-2a9269b6b6de // indirect
 	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20261016150608-1facf8f91b50 // indirect
