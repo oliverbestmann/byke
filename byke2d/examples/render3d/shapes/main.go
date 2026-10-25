@@ -43,6 +43,7 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 		Sphere(0.6, 8, 6),
 		Circle(0.6, 32),
 		RegularPolygon(0.6, 6),
+		Rectangle(glm.Vec2f{1.2, 0.8}),
 	}
 
 	const extent = 12
