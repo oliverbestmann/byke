@@ -14,7 +14,7 @@ require (
 	github.com/klauspost/compress v1.20.3
 	github.com/oliverbestmann/earcut-go v1.1.1
 	github.com/oliverbestmann/mikktspace-go v0.0.0-20261021165803-21f42ec57da7
-	github.com/oliverbestmann/puffin-go v1.0.0
+	github.com/oliverbestmann/puffin-go v1.0.1-0.20261025163945-a25d660adad5
 	github.com/oliverbestmann/webgpu v1.37.0
 	github.com/oliverbestmann/wesl-go v1.2.0
 	github.com/stretchr/testify v1.11.1

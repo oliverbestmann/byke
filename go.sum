@@ -45,8 +45,8 @@ github.com/oliverbestmann/earcut-go v1.1.1 h1:BQaBS071LHb955DG+3OYq2ttbxz1LC7T79
 github.com/oliverbestmann/earcut-go v1.1.1/go.mod h1:ilxChwLCGeq6BhhkMmpuh1vEN02KCla3bXentG4Kqp8=
 github.com/oliverbestmann/mikktspace-go v0.0.0-20261021165803-21f42ec57da7 h1:a4mryMgx4ocPzqjLUFvJut3xMF72tNjo97GQdcW3J3w=
 github.com/oliverbestmann/mikktspace-go v0.0.0-20261021165803-21f42ec57da7/go.mod h1:2JCNrTUFfCaGsn0tTR3vDplw3suj0TrXohK+IXxmIic=
-github.com/oliverbestmann/puffin-go v1.0.0 h1:8Aqa/u7SCot/yTMaVnMwzgWE6VEYgmWUdXG3Y991quA=
-github.com/oliverbestmann/puffin-go v1.0.0/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
+github.com/oliverbestmann/puffin-go v1.0.1-0.20261025163945-a25d660adad5 h1:+kqqdXnhehe3dEyj1c7XFUUjkVLxHlhnnFU22SljeGo=
+github.com/oliverbestmann/puffin-go v1.0.1-0.20261025163945-a25d660adad5/go.mod h1:QZ38v/KT+2Ywnvv0bzNhLGyCqK4VAkEjcROpERWeKrc=
 github.com/oliverbestmann/webgpu v1.37.0 h1:Oa5Hv+eRNDezixKVXcFj3WpHPU0WqkIXmmmJlfFbPdU=
 github.com/oliverbestmann/webgpu v1.37.0/go.mod h1:GQectz+JGhriyME9VEChIZvHupghM2Y/lj5sfo53brI=
 github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260628152806-6b27e30a172e h1:FX62Djj//RQiIrjnyo7oxhQJ4rdNlbzvLiICxTbE4z4=
