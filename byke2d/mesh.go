@@ -179,7 +179,7 @@ func (m *Mesh) ComputeNormals() {
 		b := vertices[iB]
 		c := vertices[iC]
 
-		normal := b.Sub(a).Cross(a.Sub(c)).Normalize()
+		normal := b.Sub(a).Cross(c.Sub(a)).Normalize()
 		normals[iA] = normals[iA].Add(normal)
 		normals[iB] = normals[iB].Add(normal)
 		normals[iC] = normals[iC].Add(normal)
