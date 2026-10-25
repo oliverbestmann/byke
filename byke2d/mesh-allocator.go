@@ -151,7 +151,10 @@ func (m *MeshAllocator) Alloc(mesh *Mesh) bool {
 	alloc := m.getAllocator(layout)
 
 	// allocate space for the vertices
-	verticesStart := alloc.Alloc(uint32(mesh.VertexCount()) * layout.Size())
+	// The allocator aligns to 16 bytes. Round up to a multiple of lcm(16, vertex size),
+	// so every allocation of this layout starts at a multiple of the vertex size.
+	block := lcm(16, layout.Size())
+	verticesStart := alloc.Alloc((uint32(mesh.VertexCount())*layout.Size() + block - 1) / block * block)
 
 	if verticesStart%Addr(layout.Size()) != 0 {
 		panic("vertex data not aligned")
@@ -303,4 +306,13 @@ func collectMorphAttributes(targets [][]MorphAttributes) []byte {
 	}
 
 	return attrs.Bytes()
+}
+
+func lcm(a, b uint32) uint32 {
+	x, y := a, b
+	for y != 0 {
+		x, y = y, x%y
+	}
+
+	return a / x * b
 }
