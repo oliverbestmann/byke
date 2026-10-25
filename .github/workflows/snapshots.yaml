@@ -10,7 +10,7 @@ jobs:
 
       matrix:
         config:
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             goexperiment: "simd"
 
     runs-on: "${{ matrix.config.runner }}"
@@ -22,22 +22,13 @@ jobs:
       - name: "Checkout repository"
         uses: actions/checkout@v7
 
-      - name: "Setup Go"
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - name: "Install nix"
+        uses: cachix/install-nix-action@v31
 
-      - name: "Install dependencies"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -f -y libegl1-mesa-dev mesa-vulkan-drivers \
-            libasound2-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev \
-            libxkbcommon-dev libwayland-dev
-
-
+      # the test shell pins go and mesa's lavapipe, so the snapshot hashes match local runs
       - name: "Run examples"
         run: |
-          ./run-example-test-all.sh
+          nix develop ./nix#test -c ./run-example-test-all.sh
 
       - name: "Upload images to github"
         if: always()
