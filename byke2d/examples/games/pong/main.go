@@ -1,26 +1,19 @@
 package main
 
 import (
-	"log/slog"
 	"math"
 	"math/rand/v2"
-	"os"
 	"time"
 
 	. "github.com/oliverbestmann/byke"
 	. "github.com/oliverbestmann/byke/byke2d"
+	"github.com/oliverbestmann/byke/byke2d/examples/shared"
 	. "github.com/oliverbestmann/byke/byke2d/glm"
 	"github.com/oliverbestmann/byke/byke2d/vyn"
 )
 
-func init() {
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-		Level:     slog.LevelInfo,
-	})
-
-	slog.SetDefault(slog.New(handler))
-}
+// fixed seed, so every run looks the same
+var rng = rand.New(rand.NewPCG(1, 2))
 
 const (
 	PaddleWidth  = 5
@@ -82,7 +75,7 @@ func main() {
 	// configure all movement systems to only run while the game is on
 	// MovementSystems.RunIf(InState(GameStatePlaying))
 
-	app.MustRun()
+	shared.RunAppInTest(app, shared.FramesToSnapshot{10, 200})
 }
 
 func setupSystem(commands *Commands) {
@@ -110,7 +103,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(0, 0, -0.2),
 		Ball{},
-		Velocity{Value: Vec2f{2, rand.Float32() * 0.01}.Normalize().Scale(BallSpeed)},
+		Velocity{Value: Vec2f{2, rng.Float32() * 0.01}.Normalize().Scale(BallSpeed)},
 		MeshInstance{Mesh: Circle(BallRadius, 32)},
 		ColorMaterial{Color: ColorSRGBA(0, 5, 0, 1.0)},
 	)
@@ -202,7 +195,7 @@ func paddleCollisionSystem(
 			}
 
 			ball.Velocity.Value[0] *= -1
-			ball.Velocity.Value[1] += paddle.Velocity.Value[1] * rand.Float32()
+			ball.Velocity.Value[1] += paddle.Velocity.Value[1] * rng.Float32()
 		}
 	}
 }
