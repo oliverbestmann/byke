@@ -10,16 +10,16 @@ jobs:
 
       matrix:
         config:
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             goexperiment: ""
 
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             goexperiment: "simd"
 
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             goexperiment: ""
 
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             goexperiment: "simd"
 
     runs-on: "${{ matrix.config.runner }}"
