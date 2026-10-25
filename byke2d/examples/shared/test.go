@@ -5,20 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/jpeg"
 	"image/png"
 	"log/slog"
 	"maps"
 	"os"
-	"runtime"
 	"slices"
 
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d"
-	"github.com/pkg/profile"
 )
 
 var InTesting = os.Getenv("BYKE_RUN_OFFSCREEN_TEST") == "true"
 var WriteSnapshots = os.Getenv("BYKE_WRITE_SNAPSHOTS") == "true"
+
+// Screenshot is a JPEG path. If set, the test only writes frame 10 to it,
+// for the examples gallery.
+var Screenshot = os.Getenv("BYKE_SCREENSHOT")
 
 type Snapshots map[int]byke2d.Hash
 
@@ -26,16 +29,16 @@ type FramesToSnapshot []int
 
 func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 	if !InTesting {
-		if runtime.GOOS != "js" {
-			defer profile.Start(profile.CPUProfile).Stop()
-		}
-
 		app.MustRun()
 		return
 	}
 
 	// load existing snapshots
 	expected := loadSnapshots()
+
+	if Screenshot != "" {
+		framesToSnapshot = FramesToSnapshot{10}
+	}
 
 	frameCount := slices.Max(framesToSnapshot) + 15
 
@@ -44,6 +47,10 @@ func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 	var callback byke2d.DebugFrameCallback = func(frameIndex int, image *image.NRGBA) error {
 		if !slices.Contains(framesToSnapshot, frameIndex) {
 			return nil
+		}
+
+		if Screenshot != "" {
+			return saveJPEG(Screenshot, image)
 		}
 
 		// record snapshot for this frame
@@ -66,6 +73,10 @@ func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 	_ = os.Setenv("WGPU_FORCE_FALLBACK_ADAPTER", "1")
 
 	app.MustRun()
+
+	if Screenshot != "" {
+		return
+	}
 
 	// if we had no snapshots, write them to the file
 	if len(expected) == 0 && len(actual) > 0 || WriteSnapshots {
@@ -129,6 +140,19 @@ func calculateSnapshot(im *image.NRGBA) byke2d.Hash {
 	}
 
 	return hash
+}
+
+func saveJPEG(path string, im *image.NRGBA) error {
+	slog.Info("Saving screenshot", slog.String("path", path))
+
+	fp, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	defer fp.Close()
+
+	return jpeg.Encode(fp, im, &jpeg.Options{Quality: 85})
 }
 
 func saveImage(frameIndex int, im *image.NRGBA) error {
