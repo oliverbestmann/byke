@@ -118,9 +118,12 @@ func renderTextSystem(
 		for _, line := range slices.Backward(layout.Lines) {
 
 			for _, output := range line.Outputs {
+				// the baseline sits above the bottom of the line by the descent
+				baseline := posY - floatOf(output.LineBounds.Descent)
+
 				for _, glyph := range output.Glyphs {
 					x := posX + floatOf(glyph.XOffset) + offset[0]
-					y := posY + floatOf(glyph.YOffset) + offset[1]
+					y := baseline + floatOf(glyph.YOffset) + offset[1]
 
 					// advance to the next glyph
 					posX += floatOf(glyph.Advance)
@@ -310,7 +313,7 @@ func cacheGlyphs(ctx *RenderContext, fontSize float32, input shaping.Input, outp
 
 		renderer.DrawShapedRunAt(output, img, startX, startY)
 
-		entry := glyphCache.Store(ctx, output.Face, fontSize, glyph.GlyphID, img)
+		entry := glyphCache.Store(ctx, output.Face, fontSize, glyph.GlyphID, img, startY)
 
 		slog.Debug(
 			"Cache glyph",
@@ -361,7 +364,8 @@ func (c *GlyphCache) Lookup(face *font.Face, fontSize float32, glyphId font.GID)
 	return GlyphTexture{}, false
 }
 
-func (c *GlyphCache) Store(ctx *RenderContext, face *font.Face, fontSize float32, glyphId font.GID, src *image.NRGBA) GlyphTexture {
+// Store uploads the glyph drawn into src with its baseline at row baseline.
+func (c *GlyphCache) Store(ctx *RenderContext, face *font.Face, fontSize float32, glyphId font.GID, src *image.NRGBA, baseline int) GlyphTexture {
 	rectGlyph := regionOfInterest(src)
 
 	padding := 1
@@ -401,10 +405,10 @@ func (c *GlyphCache) Store(ctx *RenderContext, face *font.Face, fontSize float32
 		Texture:   tex,
 		Rectangle: region,
 		Offset: glm.Vec2f{
-			// move the glyph origin back to the
-			// origin of the provided src image
-			float32(rectGlyph.Min.X) - float32(padding),
-			float32(rectGlyph.Max.Y) - float32(padding),
+			// left edge of the texture relative to the glyph origin
+			float32(rectGlyph.Min.X - padding),
+			// bottom edge of the texture below the baseline
+			float32(rectGlyph.Max.Y + padding - baseline),
 		},
 	}
 
