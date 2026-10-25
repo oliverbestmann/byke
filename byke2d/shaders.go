@@ -88,6 +88,7 @@ func (v *ShaderValues) Set(name string, enable bool) {
 
 func (v *ShaderValues) Clone() ShaderValues {
 	return ShaderValues{
+		Files:      maps.Clone(v.Files),
 		conditions: maps.Clone(v.conditions),
 		constants:  maps.Clone(v.constants),
 	}

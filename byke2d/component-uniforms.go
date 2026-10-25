@@ -48,7 +48,8 @@ func (c *ComponentUniforms[C]) Binding() wgpu.BindGroupEntry {
 		panic(fmt.Errorf("not initialized: %T", c))
 	}
 
-	return BindingBufferSize(c.buffer, 0, c.elementSize)
+	// zero sized binding is invalid
+	return BindingBufferSize(c.buffer, 0, max(c.elementSize, 256))
 }
 
 func (c *ComponentUniforms[C]) upload(ctx *RenderContext) {

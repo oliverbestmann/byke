@@ -103,7 +103,7 @@ struct VertexOutput {
     uv_2: vec2f,
 
     // index into materials array (if any)
-    @location(7) @interpolate(flat)
+    @location(8) @interpolate(flat)
     material: u32,
 };
 
