@@ -312,7 +312,9 @@ func (h *Handle) BytesForAccessor(acc *Accessor, expectedStride uint32) []byte {
 
 	buffer := h.buffers[bufferView.Buffer]
 	offset := bufferView.ByteOffset + acc.ByteOffset
-	return buffer[offset : offset+bufferView.ByteLength]
+
+	// accessors can share a buffer view, only take the elements of this accessor
+	return buffer[offset : offset+acc.Count*expectedStride]
 }
 
 func castToType[T any](buf []byte, count uint32) []T {
@@ -427,6 +429,9 @@ type fileContent struct {
 type Handle struct {
 	fileContent
 	buffers [][]byte
+
+	// Dir is the asset directory of a .gltf file. Image uris are relative to it.
+	Dir string
 }
 
 func GLTF(fileSystem fs.FS, r io.Reader) (*Handle, error) {

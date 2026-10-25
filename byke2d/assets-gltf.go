@@ -3,6 +3,8 @@ package byke2d
 import (
 	"fmt"
 	"io"
+	"io/fs"
+	"path"
 	"reflect"
 	"strings"
 
@@ -40,13 +42,23 @@ func (i GLTFLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 			return nil, fmt.Errorf("load glb: %w", err)
 		}
 
+		h.Dir = path.Dir(ctx.Path)
+
 		return h, nil
 
 	case strings.HasSuffix(strings.ToLower(ctx.Path), ".gltf"):
-		h, err := gltf.GLTF(assets, r)
+		// uris in the gltf file are relative to the file itself
+		dir, err := fs.Sub(assets, path.Dir(ctx.Path))
 		if err != nil {
 			return nil, fmt.Errorf("load gltf: %w", err)
 		}
+
+		h, err := gltf.GLTF(dir, r)
+		if err != nil {
+			return nil, fmt.Errorf("load gltf: %w", err)
+		}
+
+		h.Dir = path.Dir(ctx.Path)
 
 		return h, nil
 

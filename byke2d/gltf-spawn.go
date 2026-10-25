@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path"
 
 	"github.com/chewxy/math32"
 	"github.com/oliverbestmann/byke"
@@ -486,7 +487,7 @@ func (sc *spawnContext) imageOf(imageId gltf.Ref, linearColors bool) *Texture {
 	if img.Uri != "" {
 		// load from URL
 		settings := &LoadTextureSettings{Linear: linearColors}
-		texture = sc.Assets.TextureWithSettings(img.Uri, settings).Await()
+		texture = sc.Assets.TextureWithSettings(path.Join(sc.Handle.Dir, img.Uri), settings).Await()
 	} else {
 
 		// get the buffer
