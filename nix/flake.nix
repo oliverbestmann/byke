@@ -65,6 +65,10 @@
         # so snapshot hashes are the same locally and in CI
         test = shell pkgs {
           VK_DRIVER_FILES = "${pkgs.mesa}/share/vulkan/icd.d/lvp_icd.${pkgs.stdenv.hostPlatform.parsed.cpu.name}.json";
+
+          # with worker threads, the frame dump of gltf/animated-mesh sometimes reads back an empty
+          # buffer on 4 core CI runners, even though the queue reported the work as done
+          LP_NUM_THREADS = "0";
         };
       });
     };
