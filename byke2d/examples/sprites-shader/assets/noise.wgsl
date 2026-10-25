@@ -1,12 +1,17 @@
-#import byke2d::sprite
+import package::byke::sprite;
+
+@vertex
+fn vs_main(in: sprite::VertexInput) -> sprite::VertexOutput {
+    return sprite::default_sprite_vertex(in);
+}
 
 fn hash12(pos: vec2f) -> f32 {
     return fract(sin(dot(pos, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
 @fragment
-fn noisy_sprite(vo: VertexOutput) -> @location(0) vec4f {
-    let org = default_sprite_fragment(vo);
+fn noisy_sprite(vo: sprite::VertexOutput) -> @location(0) vec4f {
+    let org = sprite::default_sprite_fragment(vo);
 
     let h0 = hash12(vo.uv);
 

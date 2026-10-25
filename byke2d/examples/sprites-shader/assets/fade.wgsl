@@ -1,8 +1,13 @@
-#import byke2d::sprite
+import package::byke::sprite;
+
+@vertex
+fn vs_main(in: sprite::VertexInput) -> sprite::VertexOutput {
+    return sprite::default_sprite_vertex(in);
+}
 
 @fragment
-fn fade_sprite(vo: VertexOutput) -> @location(0) vec4f {
-    let org = default_sprite_fragment(vo);
+fn fade_sprite(vo: sprite::VertexOutput) -> @location(0) vec4f {
+    let org = sprite::default_sprite_fragment(vo);
 
     let uv0 = vo.uv * 2 - 1;
 
