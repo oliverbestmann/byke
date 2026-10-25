@@ -34,6 +34,9 @@ type source struct {
 	Path     string
 	Language string
 	Code     string
+
+	// HTML holds the highlighted Go code, otherwise highlight.js handles Code
+	HTML template.HTML
 }
 
 type category struct {
@@ -251,14 +254,17 @@ func readSources(dir string) ([]source, error) {
 			return nil, err
 		}
 
-		// shortcut: highlight.js has no wgsl, rust is close enough
-		language := "go"
-		if strings.HasSuffix(path, ".wgsl") {
-			language = "rust"
+		rel, _ := filepath.Rel(dir, path)
+		src := source{Path: filepath.ToSlash(rel), Code: string(code)}
+
+		if strings.HasSuffix(path, ".go") {
+			src.HTML = highlightGo(code)
+		} else {
+			// shortcut: highlight.js has no wgsl, rust is close enough
+			src.Language = "rust"
 		}
 
-		rel, _ := filepath.Rel(dir, path)
-		sources = append(sources, source{Path: filepath.ToSlash(rel), Language: language, Code: string(code)})
+		sources = append(sources, src)
 	}
 
 	return sources, nil
@@ -291,6 +297,7 @@ const style = `{{define "style"}}<style>
   .grid span { display: block; padding: 0.5rem; }
   iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: black; }
   pre code.hljs { border-radius: 4px; }
+  .hljs-type { color: #ffa657; }
 </style>{{end}}`
 
 var indexPage = template.Must(template.Must(template.New("index").Parse(style)).Parse(`<!DOCTYPE html>
@@ -325,7 +332,6 @@ var examplePage = template.Must(template.Must(template.New("example").Parse(styl
   {{template "style"}}
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/go.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/rust.min.js"></script>
 </head>
 <body>
@@ -334,9 +340,10 @@ var examplePage = template.Must(template.Must(template.New("example").Parse(styl
 <iframe src="wasm/" allowfullscreen></iframe>
 {{range .Sources}}
 <h2>{{.Path}}</h2>
-<pre><code class="language-{{.Language}}">{{.Code}}</code></pre>
+{{if .HTML}}<pre><code class="hljs">{{.HTML}}</code></pre>
+{{else}}<pre><code class="language-{{.Language}}">{{.Code}}</code></pre>{{end}}
 {{end}}
-<script>hljs.highlightAll()</script>
+<script>document.querySelectorAll("code[class^=language-]").forEach(el => hljs.highlightElement(el))</script>
 </body>
 </html>
 `))
