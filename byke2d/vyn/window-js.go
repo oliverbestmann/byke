@@ -37,9 +37,16 @@ func NewWindow(width, height int, title string, resizable bool) (Window, error) 
 }
 
 func configureInput(document js.Value, win *jsWindow) {
+	document.Call("addEventListener", "pointerlockchange", js.FuncOf(func(this js.Value, args []js.Value) any {
+		win.input.Mouse.Grabbed = document.Get("pointerLockElement").Equal(win.canvas)
+		return nil
+	}))
+
 	win.canvas.Call("addEventListener", "pointermove", js.FuncOf(func(this js.Value, args []js.Value) any {
 		event := args[0]
 		scale := win.deviceScale()
+
+		win.input.Mouse.Touch = event.Get("pointerType").String() == "touch"
 
 		if document.Get("pointerLockElement").Equal(win.canvas) {
 			// pageX/pageY are frozen while locked, accumulate a virtual cursor like glfw does.
@@ -56,9 +63,11 @@ func configureInput(document js.Value, win *jsWindow) {
 	}))
 
 	win.canvas.Call("addEventListener", "pointerdown", js.FuncOf(func(this js.Value, args []js.Value) any {
+		event := args[0]
+		win.input.Mouse.Touch = event.Get("pointerType").String() == "touch"
+
 		// touches have no pointermove before pointerdown, move the cursor to where the touch starts
 		if !document.Get("pointerLockElement").Equal(win.canvas) {
-			event := args[0]
 			scale := win.deviceScale()
 			win.input.Mouse.position(float32(event.Get("pageX").Float()*scale), float32(event.Get("pageY").Float()*scale))
 		}
@@ -199,6 +208,13 @@ func (g *jsWindow) resizeCanvas() {
 }
 
 func (g *jsWindow) SetCursorGrab(grab bool) {
+	// the browser only locks during a user activation, e.g. in the frame after a click.
+	// otherwise the next click locks, see the pointerdown handler.
+	activation := js.Global().Get("navigator").Get("userActivation")
+	if grab && !g.grab && activation.Truthy() && activation.Get("isActive").Bool() {
+		g.canvas.Call("requestPointerLock")
+	}
+
 	g.grab = grab
 
 	if !grab {

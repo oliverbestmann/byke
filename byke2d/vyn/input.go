@@ -58,6 +58,12 @@ type MouseState struct {
 	// mouse buttons that were just released after the last call to nextTick()
 	JustReleased map[MouseButton]bool
 
+	// Touch is true if the last pointer event came from a touch screen
+	Touch bool
+
+	// Grabbed is true while the cursor is locked to the window
+	Grabbed bool
+
 	// we keep this around to handle delta calculation
 	prevX, prevY float32
 	tick         int

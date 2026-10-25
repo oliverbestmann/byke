@@ -227,6 +227,12 @@ type PrimaryWindow struct {
 	window window
 }
 
+// SetCursorGrab locks the cursor to the window and hides it, for mouse look.
+// In the browser the lock needs a click, it happens on the next click if none was just made.
+func (w *PrimaryWindow) SetCursorGrab(grab bool) {
+	w.window.SetCursorGrab(grab)
+}
+
 type Window struct {
 	byke.Component[Window]
 	window window
@@ -270,6 +276,8 @@ func (o *offscreenWindow) Run(fn func(state vyn.UpdateInputState) error) error {
 		}
 	}
 }
+
+func (o *offscreenWindow) SetCursorGrab(bool) {}
 
 func (o *offscreenWindow) GetSize() (width uint32, height uint32) {
 	return o.Width, o.Height
@@ -353,6 +361,7 @@ type window interface {
 	SurfaceDescriptor() *wgpu.SurfaceDescriptor
 	Run(func(state vyn.UpdateInputState) error) error
 	GetSize() (width uint32, height uint32)
+	SetCursorGrab(grab bool)
 }
 
 func dumpContextInfo(ctx *wgpuContext) {

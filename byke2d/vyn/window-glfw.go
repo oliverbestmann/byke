@@ -57,6 +57,8 @@ func (g *glfwWindow) SurfaceDescriptor() *wgpu.SurfaceDescriptor {
 }
 
 func (g *glfwWindow) SetCursorGrab(grab bool) {
+	g.input.Mouse.Grabbed = grab
+
 	if grab {
 		g.win.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 	} else {
