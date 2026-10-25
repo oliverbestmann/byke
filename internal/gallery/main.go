@@ -28,6 +28,9 @@ type example struct {
 	Dir       string
 	Thumbnail string
 	Sources   []source
+
+	// NoWasm is set by a "//byke:no wasm" comment in a source file. The example is shown as source only.
+	NoWasm bool
 }
 
 type source struct {
@@ -85,24 +88,31 @@ func run(examplesDir, thumbsDir, outDir string) error {
 
 		slog.Info("Build example", slog.String("category", ex.Category), slog.String("name", ex.Name))
 
-		thumbnail, err := thumbnail(ex, thumbsDir, outDir)
+		sources, err := readSources(dir)
 		if err != nil {
-			// a missing thumbnail should not keep the gallery from deploying
-			slog.Warn("Render thumbnail", slog.String("dir", dir), slog.String("error", err.Error()))
+			return err
 		}
 
-		if thumbnail != "" {
-			usedThumbs[thumbnail] = true
-			ex.Thumbnail = "thumbs/" + thumbnail
-		}
+		ex.Sources = sources
+		ex.NoWasm = slices.ContainsFunc(sources, func(s source) bool { return strings.Contains(s.Code, "//byke:no wasm") })
 
 		pageDir := filepath.Join(outDir, ex.Category, ex.Name)
-		if err := buildWasm(dir, filepath.Join(pageDir, "wasm")); err != nil {
-			return fmt.Errorf("build wasm of %s: %w", dir, err)
-		}
 
-		if ex.Sources, err = readSources(dir); err != nil {
-			return err
+		if !ex.NoWasm {
+			thumbnail, err := thumbnail(ex, thumbsDir, outDir)
+			if err != nil {
+				// a missing thumbnail should not keep the gallery from deploying
+				slog.Warn("Render thumbnail", slog.String("dir", dir), slog.String("error", err.Error()))
+			}
+
+			if thumbnail != "" {
+				usedThumbs[thumbnail] = true
+				ex.Thumbnail = "thumbs/" + thumbnail
+			}
+
+			if err := buildWasm(dir, filepath.Join(pageDir, "wasm")); err != nil {
+				return fmt.Errorf("build wasm of %s: %w", dir, err)
+			}
 		}
 
 		if err := writeTemplate(filepath.Join(pageDir, "index.html"), examplePage, ex); err != nil {
@@ -337,7 +347,7 @@ var examplePage = template.Must(template.Must(template.New("example").Parse(styl
 <body>
 <p><a href="../../">All examples</a></p>
 <h1>{{.Category}} / {{.Name}}</h1>
-<iframe src="wasm/" allowfullscreen></iframe>
+{{if not .NoWasm}}<iframe src="wasm/" allowfullscreen></iframe>{{end}}
 {{range .Sources}}
 <h2>{{.Path}}</h2>
 {{if .HTML}}<pre><code class="hljs">{{.HTML}}</code></pre>
