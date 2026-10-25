@@ -319,6 +319,11 @@ var indexPage = template.Must(template.Must(template.New("index").Parse(style)).
 </head>
 <body>
 <h1>byke examples</h1>
+<p>
+  <a href="https://github.com/oliverbestmann/byke">byke</a> is an entity component system (ECS) for Go: a game holds its state as entities with data components, and systems are functions that query and update them. It is modeled on the
+  <a href="https://bevy.org/">Bevy</a> game engine. byke2d adds 2D and 3D rendering with WebGPU, audio, input, and asset loading.
+  Each example page shows the source code and runs the example in your browser. The ecs examples print to the console, so their pages show only the source.
+</p>
 {{range .}}
 <h2>{{.Name}}</h2>
 <div class="grid">
@@ -347,6 +352,7 @@ var examplePage = template.Must(template.Must(template.New("example").Parse(styl
 <body>
 <p><a href="../../">All examples</a></p>
 <h1>{{.Category}} / {{.Name}}</h1>
+<p><a href="https://github.com/oliverbestmann/byke/tree/main/byke2d/examples/{{.Category}}/{{.Name}}">Source on GitHub</a></p>
 {{if not .NoWasm}}<iframe src="wasm/" allowfullscreen></iframe>{{end}}
 {{range .Sources}}
 <h2>{{.Path}}</h2>
