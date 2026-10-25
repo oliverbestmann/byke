@@ -47,3 +47,30 @@ func TestTriggers(t *testing.T) {
 		require.False(t, exists)
 	})
 }
+
+func TestGlobalObserverSeesEntityEvent(t *testing.T) {
+	w := NewWorld()
+
+	var global, scoped []EntityId
+
+	w.AddObserver(NewObserver(func(trigger On[Explode]) {
+		global = append(global, trigger.Event.TargetEntityId())
+	}))
+
+	var first, second EntityId
+	w.RunSystem(func(commands *Commands) {
+		first = commands.Spawn(Object{}).Observe(func(trigger On[Explode]) {
+			scoped = append(scoped, trigger.Event.TargetEntityId())
+		}).Id()
+
+		second = commands.Spawn(Object{}).Id()
+	})
+
+	w.RunSystem(func(commands *Commands) {
+		commands.Trigger(Explode{EventTarget: EventTarget(first)})
+		commands.Trigger(Explode{EventTarget: EventTarget(second)})
+	})
+
+	require.Equal(t, []EntityId{first, second}, global)
+	require.Equal(t, []EntityId{first}, scoped)
+}

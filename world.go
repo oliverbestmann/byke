@@ -561,7 +561,8 @@ func triggerObserverSystem(
 			continue
 		}
 
-		if targetId != NoEntityId && !observer.Observes(targetId) {
+		// global observers also see targeted events, like in bevy
+		if targetId != NoEntityId && observer.IsScoped() && !observer.Observes(targetId) {
 			continue
 		}
 
