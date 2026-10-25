@@ -8,7 +8,6 @@ require (
 	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.2
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.5
-	github.com/hajimehoshi/ebiten/v2 v2.10.5
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jfreymuth/oggvorbis v1.0.5

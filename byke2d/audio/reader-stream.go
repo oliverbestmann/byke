@@ -6,34 +6,10 @@ import (
 	"unsafe"
 )
 
-type ebitenAudioStream interface {
-	io.ReadSeeker
-	Length() int64
-	SampleRate() int
-}
-
+// readerAudioStream reads raw samples from a byte reader.
 type readerAudioStream[S Sample] struct {
 	reader io.ReadSeeker
 	config StreamConfig
-}
-
-func AdaptAudioStream[S Sample](r ebitenAudioStream) Stream[S] {
-	st := &readerAudioStream[S]{
-		reader: r,
-		config: StreamConfig{
-			SampleRate:   r.SampleRate(),
-			ChannelCount: 2,
-		},
-	}
-
-	sampleSize := int(unsafe.Sizeof(S(0)))
-
-	byteCount := int(r.Length())
-	if byteCount > 0 {
-		st.config.ChannelSampleCount = byteCount / (sampleSize * st.config.ChannelCount)
-	}
-
-	return st
 }
 
 func (r *readerAudioStream[S]) Read(samples []S) (int, error) {

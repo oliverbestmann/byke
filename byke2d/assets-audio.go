@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"runtime"
 	"time"
 
 	"github.com/oliverbestmann/byke/byke2d/audio"
@@ -42,6 +43,11 @@ func (a AudioLoader) Load(ctx LoadContext, r io.ReadSeekCloser) (any, error) {
 	stream, err := audio.OpenStream(r)
 	if err != nil {
 		return nil, fmt.Errorf("create stream for: %w", err)
+	}
+
+	// the browser decodes the complete file, streaming would decode it again for every playback
+	if runtime.GOOS == "js" {
+		return a.openAsSamples(stream)
 	}
 
 	var settings LoadAudioSettings
