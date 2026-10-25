@@ -2,10 +2,6 @@
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // Mat3d is a 3x3 matrix.
 // The default value is filled with all zero values.
 type Mat3d [3][3]float64
@@ -63,9 +59,9 @@ func (m Mat3d) Transpose() Mat3d {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *Mat3d) Column(idx int) Vec3d {
-	return *(*Vec3d)(&m[idx])
+// Column returns a copy of the given column
+func (m Mat3d) Column(idx int) Vec3d {
+	return Vec3d(m[idx])
 }
 
 func TranslationMat3d(x, y float64) Mat3d {
@@ -93,7 +89,7 @@ func (m Mat3d) Scale(x, y float64) Mat3d {
 }
 
 func RotationMat3d(angle Rad) Mat3d {
-	s, c := fastSincos(angle)
+	s, c := angle.SinCos()
 
 	return Mat3d{
 		{float64(c), float64(s), 0},

@@ -2,8 +2,6 @@ package glm
 
 import "math"
 
-// done by chatgpt
-
 // TryInverse returns the inverse of m and true if the inverse exists.
 // Mat4f is assumed to be stored in column-major order: m[column][row].
 func (m Mat4f) TryInverse() (Mat4f, bool) {

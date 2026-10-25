@@ -2,10 +2,6 @@
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // Mat3u is a 3x3 matrix.
 // The default value is filled with all zero values.
 type Mat3u [3][3]uint32
@@ -63,9 +59,9 @@ func (m Mat3u) Transpose() Mat3u {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *Mat3u) Column(idx int) Vec3u {
-	return *(*Vec3u)(&m[idx])
+// Column returns a copy of the given column
+func (m Mat3u) Column(idx int) Vec3u {
+	return Vec3u(m[idx])
 }
 
 func TranslationMat3u(x, y uint32) Mat3u {

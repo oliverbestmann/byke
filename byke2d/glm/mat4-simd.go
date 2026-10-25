@@ -1,11 +1,11 @@
-//go:build !nosimd && wasm && goexperiment.simd
+//go:build !nosimd && goexperiment.simd && (amd64 || arm64 || wasm)
 
 package glm
 
 import "simd/archsimd"
 
-// Multiplies m by o in place and saves the result back to o
-func mat4fMulAssign(m, o *mat4f) {
+// mat4fMulAssignSimd multiplies m by o and stores the result in m.
+func mat4fMulAssignSimd(m, o *mat4f) {
 	// load all columns of m into memory
 	mc0 := archsimd.LoadFloat32x4Array(&m[0])
 	mc1 := archsimd.LoadFloat32x4Array(&m[1])
@@ -78,7 +78,7 @@ func mat4fMulAssign(m, o *mat4f) {
 }
 
 //goland:noinspection DuplicatedCode
-func mat4fTranslate(m *mat4f, x, y, z float32) {
+func mat4fTranslateSimd(m *mat4f, x, y, z float32) {
 	mc0 := archsimd.LoadFloat32x4Array(&m[0])
 	mc1 := archsimd.LoadFloat32x4Array(&m[1])
 	mc2 := archsimd.LoadFloat32x4Array(&m[2])
@@ -96,7 +96,7 @@ func mat4fTranslate(m *mat4f, x, y, z float32) {
 }
 
 //goland:noinspection DuplicatedCode
-func mat4fScale(m *mat4f, x, y, z float32) {
+func mat4fScaleSimd(m *mat4f, x, y, z float32) {
 	oX := archsimd.BroadcastFloat32x4(x)
 	oY := archsimd.BroadcastFloat32x4(y)
 	oZ := archsimd.BroadcastFloat32x4(z)

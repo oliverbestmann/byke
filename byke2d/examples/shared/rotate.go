@@ -39,9 +39,7 @@ func rotateXSystem(
 	}],
 ) {
 	for item := range items.Items() {
-		item.Transform.Rotation = item.Transform.Rotation.Mul(
-			glm.RotationXQuat(glm.Rad(vt.DeltaSecs * item.RotatableZ.Speed)),
-		)
+		item.Transform.Rotation = glm.RotationXQuat(glm.Rad(vt.DeltaSecs * item.RotatableZ.Speed)).Mul(item.Transform.Rotation)
 	}
 }
 
@@ -53,9 +51,7 @@ func rotateYSystem(
 	}],
 ) {
 	for item := range items.Items() {
-		item.Transform.Rotation = item.Transform.Rotation.Mul(
-			glm.RotationYQuat(glm.Rad(vt.DeltaSecs * item.RotatableZ.Speed)),
-		)
+		item.Transform.Rotation = glm.RotationYQuat(glm.Rad(vt.DeltaSecs * item.RotatableZ.Speed)).Mul(item.Transform.Rotation)
 	}
 }
 
@@ -67,8 +63,6 @@ func rotateZSystem(
 	}],
 ) {
 	for item := range items.Items() {
-		item.Transform.Rotation = item.Transform.Rotation.Mul(
-			glm.RotationZQuat(glm.Rad(vt.DeltaSecs * item.RotatableZ.Speed)),
-		)
+		item.Transform.Rotation = glm.RotationZQuat(glm.Rad(vt.DeltaSecs * item.RotatableZ.Speed)).Mul(item.Transform.Rotation)
 	}
 }

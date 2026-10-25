@@ -2,10 +2,6 @@
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // Mat2f is a 2x2 matrix.
 // The default value is filled with all zero values.
 type Mat2f [2][2]float32
@@ -48,7 +44,7 @@ func (m Mat2f) Transpose() Mat2f {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *Mat2f) Column(idx int) Vec2f {
-	return *(*Vec2f)(&m[idx])
+// Column returns a copy of the given column
+func (m Mat2f) Column(idx int) Vec2f {
+	return Vec2f(m[idx])
 }

@@ -2,10 +2,6 @@
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // Mat4f is a 4x4 matrix.
 // The default value is filled with all zero values.
 type Mat4f [4][4]float32
@@ -21,10 +17,7 @@ func IdentityMat4f() Mat4f {
 
 func (m Mat4f) Mul(o Mat4f) Mat4f {
 
-	mat4fMulAssign(
-		(*mat4f)(unsafe.Pointer(&m)),
-		(*mat4f)(unsafe.Pointer(&o)),
-	)
+	mat4fMulAssign((*mat4f)(&m), (*mat4f)(&o))
 
 	return m
 }
@@ -60,9 +53,9 @@ func (m Mat4f) Transpose() Mat4f {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *Mat4f) Column(idx int) Vec4f {
-	return *(*Vec4f)(&m[idx])
+// Column returns a copy of the given column
+func (m Mat4f) Column(idx int) Vec4f {
+	return Vec4f(m[idx])
 }
 
 func TranslationMat4f(x, y, z float32) Mat4f {
@@ -84,15 +77,17 @@ func ScaleMat4f(x, y, z float32) Mat4f {
 }
 
 func (m Mat4f) Translate(x, y, z float32) Mat4f {
-	return m.Mul(TranslationMat4f(x, y, z))
+	m.TranslateAssign(x, y, z)
+	return m
 }
 
 func (m Mat4f) Scale(x, y, z float32) Mat4f {
-	return m.Mul(ScaleMat4f(x, y, z))
+	m.ScaleAssign(x, y, z)
+	return m
 }
 
 func RotationZMat4f(angle Rad) Mat4f {
-	fs, fc := fastSincos(angle)
+	fs, fc := angle.SinCos()
 	s := float32(fs)
 	c := float32(fc)
 
@@ -105,7 +100,7 @@ func RotationZMat4f(angle Rad) Mat4f {
 }
 
 func RotationXMat4f(angle Rad) Mat4f {
-	fs, fc := fastSincos(angle)
+	fs, fc := angle.SinCos()
 	s := float32(fs)
 	c := float32(fc)
 
@@ -118,14 +113,14 @@ func RotationXMat4f(angle Rad) Mat4f {
 }
 
 func RotationYMat4f(angle Rad) Mat4f {
-	fs, fc := fastSincos(angle)
+	fs, fc := angle.SinCos()
 	s := float32(fs)
 	c := float32(fc)
 
 	return Mat4f{
-		{c, 0, s, 0},
+		{c, 0, -s, 0},
 		{0, 1, 0, 0},
-		{-s, 0, c, 0},
+		{s, 0, c, 0},
 		{0, 0, 0, 1},
 	}
 }

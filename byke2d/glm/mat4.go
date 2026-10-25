@@ -25,6 +25,12 @@ func mat4fMulGo(m, o, res *mat4f) {
 	res[3][3] = m[0][3]*o[3][0] + m[1][3]*o[3][1] + m[2][3]*o[3][2] + m[3][3]*o[3][3]
 }
 
+// mat4fMulAssignGo multiplies m by o and stores the result in m. m and o may alias.
+func mat4fMulAssignGo(m, o *mat4f) {
+	mCopy, oCopy := *m, *o
+	mat4fMulGo(&mCopy, &oCopy, m)
+}
+
 //goland:noinspection DuplicatedCode
 func mat4fTranslateGo(m *mat4f, x, y, z float32) {
 	m[3][0] = m[3][0] + m[0][0]*x + m[1][0]*y + m[2][0]*z

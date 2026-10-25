@@ -2,6 +2,8 @@ package glm
 
 import "math"
 
+// Perspective returns an infinite reverse-z perspective projection: near maps to
+// depth 1 and infinity to depth 0. far is ignored.
 func Perspective(fovY Rad, aspect, near, far float32) Mat4f {
 	f := float32(1 / math.Tan(float64(fovY*0.5)))
 

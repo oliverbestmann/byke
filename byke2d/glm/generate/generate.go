@@ -194,6 +194,10 @@ func (s modelVec) ComponentTypeSuffix() string {
 	return componentTypeToSuffix(s.ComponentType)
 }
 
+func (s modelVec) IsFloat() bool {
+	return strings.HasPrefix(s.ComponentType, "float")
+}
+
 func (s modelVec) Swizzles() []Swizzle {
 	return generateSwizzles(s.Len)
 }
@@ -297,7 +301,9 @@ var tmplVec = template.Must(template.New("").Funcs(funcs).Parse(`
 package glm
 
 import "fmt"
+{{- if .IsFloat }}
 import "math"
+{{- end }}
 
 // {{.Name}} is a vector of dimension {{.Len}}.
 type {{.Name}} [{{ .Len }}]{{.ComponentType}}
@@ -310,6 +316,7 @@ func (lhs {{.Type}}) LengthSqr() {{.ComponentType}} {
 	return lhs.Dot(lhs)
 }
 
+{{ if .IsFloat }}
 func (lhs {{.Type}}) Length() {{.ComponentType}} {
 	return {{.ComponentType}}(math.Sqrt(float64(lhs.Dot(lhs))))
 }
@@ -317,6 +324,7 @@ func (lhs {{.Type}}) Length() {{.ComponentType}} {
 func (lhs {{.Type}}) Normalize() {{.Type}} {
 	return lhs.Scale(1.0 / lhs.Length())
 }
+{{ end }}
 
 func (lhs {{.Type}}) Scale(s {{.ComponentType}}) {{.Type}} {
 	return {{.Type}}{
@@ -326,6 +334,7 @@ func (lhs {{.Type}}) Scale(s {{.ComponentType}}) {{.Type}} {
 	}
 }
 
+{{ if .IsFloat }}
 func (lhs {{.Type}}) Reciprocal() {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
@@ -333,6 +342,7 @@ func (lhs {{.Type}}) Reciprocal() {{.Type}} {
 		{{- end }}
 	}
 }
+{{ end }}
 
 func (lhs {{.Type}}) Add(rhs {{.Type}}) {{.Type}} {
 	return {{.Type}}{
@@ -458,10 +468,6 @@ var tmplMat = template.Must(template.New("").Funcs(funcs).Parse(`
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // {{.Name}} is a {{.Len}}x{{.Len}} matrix.
 // The default value is filled with all zero values.
 type {{.Name}} {{.ArrayType}}
@@ -477,10 +483,7 @@ func Identity{{.Name}}() {{.Type}} {
 func (m {{.Type}}) Mul(o {{.Type}}) {{.Type}} {
 	{{- if and (eq .ComponentType "float32") (eq .Len 4) }}
 
-	mat4fMulAssign(
-		(*mat4f)(unsafe.Pointer(&m)),
-		(*mat4f)(unsafe.Pointer(&o)),
-	)
+	mat4fMulAssign((*mat4f)(&m), (*mat4f)(&o))
 
 	return m
 
@@ -518,9 +521,9 @@ func (m {{.Type}}) Transpose() {{.Type}} {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *{{.Type}}) Column(idx int) {{.ColumnType}} {
-	return *(*{{.ColumnType}})(&m[idx])
+// Column returns a copy of the given column
+func (m {{.Type}}) Column(idx int) {{.ColumnType}} {
+	return {{.ColumnType}}(m[idx])
 }
 
 {{ if eq .Len 3 }} 
@@ -550,7 +553,7 @@ func (m *{{.Type}}) Column(idx int) {{.ColumnType}} {
 	
 	{{ if .IsFloat }}
 		func Rotation{{ .Name }}(angle Rad) {{.Type}} {
-			s, c := fastSincos(angle)
+			s, c := angle.SinCos()
 		
 			return {{ .Name }}{
 				{ {{.ComponentType}}(c), {{.ComponentType}}(s), 0},
@@ -660,6 +663,17 @@ func (m *{{.Type}}) Column(idx int) {{.ColumnType}} {
 		return res
 	}
 	
+	{{ if and (eq .ComponentType "float32") (eq .Len 4) }}
+	func (m {{.Type}}) Translate(x, y, z {{.ComponentType}}) {{.Type}} {
+		m.TranslateAssign(x, y, z)
+		return m
+	}
+
+	func (m {{.Type}}) Scale(x, y, z {{.ComponentType}}) {{.Type}} {
+		m.ScaleAssign(x, y, z)
+		return m
+	}
+	{{ else }}
 	func (m {{.Type}}) Translate(x, y, z {{.ComponentType}}) {{.Type}} {
 		return m.Mul(Translation{{.Name}}(x, y, z))
 	}
@@ -667,10 +681,11 @@ func (m *{{.Type}}) Column(idx int) {{.ColumnType}} {
 	func (m {{.Type}}) Scale(x, y, z {{.ComponentType}}) {{.Type}} {
 		return m.Mul(Scale{{.Name}}(x, y, z))
 	}
+	{{ end }}
 	
 	{{ if .IsFloat }}
 		func RotationZ{{.Name}}(angle Rad) {{.Type}} {
-			fs, fc := fastSincos(angle)
+			fs, fc := angle.SinCos()
 			s := {{.ComponentType}}(fs)
 			c := {{.ComponentType}}(fc)
 		
@@ -683,7 +698,7 @@ func (m *{{.Type}}) Column(idx int) {{.ColumnType}} {
 		}
 		
 		func RotationX{{.Name}}(angle Rad) {{.Type}} {
-			fs, fc := fastSincos(angle)
+			fs, fc := angle.SinCos()
 			s := {{.ComponentType}}(fs)
 			c := {{.ComponentType}}(fc) 
 		
@@ -696,14 +711,14 @@ func (m *{{.Type}}) Column(idx int) {{.ColumnType}} {
 		}
 		
 		func RotationY{{.Name}}(angle Rad) {{.Type}} {
-			fs, fc := fastSincos(angle)
+			fs, fc := angle.SinCos()
 			s := {{.ComponentType}}(fs)
 			c := {{.ComponentType}}(fc)
 		
 			return {{.Type}}{
-					{c, 0, s, 0},
+					{c, 0, -s, 0},
 					{0, 1, 0, 0},
-					{-s, 0, c, 0},
+					{s, 0, c, 0},
 					{0, 0, 0, 1},
 			}
 		}

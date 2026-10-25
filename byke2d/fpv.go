@@ -88,7 +88,7 @@ func fpvMoveSystem(
 		pitch := item.FPV.Pitch
 
 		// apply new rotation
-		item.Transform.Rotation = glm.RotationXQuat(pitch).Mul(glm.RotationYQuat(yaw))
+		item.Transform.Rotation = glm.RotationYQuat(yaw).Mul(glm.RotationXQuat(pitch))
 
 		// transform the movement offset
 		moveTransformed := item.Transform.

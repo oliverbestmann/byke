@@ -2,10 +2,6 @@
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // Mat4u is a 4x4 matrix.
 // The default value is filled with all zero values.
 type Mat4u [4][4]uint32
@@ -82,9 +78,9 @@ func (m Mat4u) Transpose() Mat4u {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *Mat4u) Column(idx int) Vec4u {
-	return *(*Vec4u)(&m[idx])
+// Column returns a copy of the given column
+func (m Mat4u) Column(idx int) Vec4u {
+	return Vec4u(m[idx])
 }
 
 func TranslationMat4u(x, y, z uint32) Mat4u {

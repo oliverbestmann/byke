@@ -3,7 +3,6 @@
 package glm
 
 import "fmt"
-import "math"
 
 // Vec2u is a vector of dimension 2.
 type Vec2u [2]uint32
@@ -16,25 +15,10 @@ func (lhs Vec2u) LengthSqr() uint32 {
 	return lhs.Dot(lhs)
 }
 
-func (lhs Vec2u) Length() uint32 {
-	return uint32(math.Sqrt(float64(lhs.Dot(lhs))))
-}
-
-func (lhs Vec2u) Normalize() Vec2u {
-	return lhs.Scale(1.0 / lhs.Length())
-}
-
 func (lhs Vec2u) Scale(s uint32) Vec2u {
 	return Vec2u{
 		lhs[0] * s,
 		lhs[1] * s,
-	}
-}
-
-func (lhs Vec2u) Reciprocal() Vec2u {
-	return Vec2u{
-		1.0 / lhs[0],
-		1.0 / lhs[1],
 	}
 }
 

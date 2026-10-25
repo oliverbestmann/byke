@@ -99,7 +99,7 @@ func (t Transform) RotateAround(point glm.Vec3f, rotation glm.Quat) Transform {
 }
 
 func (t Transform) Rotate(rotation glm.Quat) Transform {
-	t.Rotation = t.Rotation.Mul(rotation)
+	t.Rotation = rotation.Mul(t.Rotation)
 	return t
 }
 

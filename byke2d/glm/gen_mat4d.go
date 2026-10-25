@@ -2,10 +2,6 @@
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // Mat4d is a 4x4 matrix.
 // The default value is filled with all zero values.
 type Mat4d [4][4]float64
@@ -82,9 +78,9 @@ func (m Mat4d) Transpose() Mat4d {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *Mat4d) Column(idx int) Vec4d {
-	return *(*Vec4d)(&m[idx])
+// Column returns a copy of the given column
+func (m Mat4d) Column(idx int) Vec4d {
+	return Vec4d(m[idx])
 }
 
 func TranslationMat4d(x, y, z float64) Mat4d {
@@ -114,7 +110,7 @@ func (m Mat4d) Scale(x, y, z float64) Mat4d {
 }
 
 func RotationZMat4d(angle Rad) Mat4d {
-	fs, fc := fastSincos(angle)
+	fs, fc := angle.SinCos()
 	s := float64(fs)
 	c := float64(fc)
 
@@ -127,7 +123,7 @@ func RotationZMat4d(angle Rad) Mat4d {
 }
 
 func RotationXMat4d(angle Rad) Mat4d {
-	fs, fc := fastSincos(angle)
+	fs, fc := angle.SinCos()
 	s := float64(fs)
 	c := float64(fc)
 
@@ -140,14 +136,14 @@ func RotationXMat4d(angle Rad) Mat4d {
 }
 
 func RotationYMat4d(angle Rad) Mat4d {
-	fs, fc := fastSincos(angle)
+	fs, fc := angle.SinCos()
 	s := float64(fs)
 	c := float64(fc)
 
 	return Mat4d{
-		{c, 0, s, 0},
+		{c, 0, -s, 0},
 		{0, 1, 0, 0},
-		{-s, 0, c, 0},
+		{s, 0, c, 0},
 		{0, 0, 0, 1},
 	}
 }

@@ -3,7 +3,7 @@ package glm
 import (
 	"math"
 
-	"golang.org/x/mobile/exp/f32"
+	"github.com/chewxy/math32"
 )
 
 type Quat struct {
@@ -27,15 +27,13 @@ func (q Quat) Values() Vec4f {
 // QuatFromAxisAngle creates a quaternion for a normalized rotation `axis` and `angle` (in radians).
 // The axis must be a unit vector.
 func QuatFromAxisAngle(axis Vec3f, angleRad Rad) Quat {
-	// TODO validate
-
-	sin, cos := math.Sincos(float64(angleRad) * -0.5)
+	sin, cos := math.Sincos(float64(angleRad) * 0.5)
 	v := axis.Scale(float32(sin))
 	return QuatOf(v[0], v[1], v[2], float32(cos))
 }
 
 // QuatFromScaledAxis creates a quaternion that rotates `v.Len()` radians around `v.Normalize()`.
-// Results in the identity quaternion.
+// A zero vector results in the identity quaternion.
 func QuatFromScaledAxis(v Vec3f) Quat {
 	l := v.Length()
 	if l == 0 {
@@ -88,11 +86,10 @@ func QuatFromRotationArc(from, to Vec3f) Quat {
 // The columns of `mat` must be normalized and orthogonal to each other.
 func QuatFromMat3(mat Mat3f) Quat {
 	// Based on https://github.com/microsoft/DirectXMath `XMQuaternionRotationMatrix`.
-	// ToMat4 produces the transpose of the matrix the DirectXMath algorithm expects,
-	// so we index the transposed matrix here.
-	m00, m10, m20 := mat[0][0], mat[0][1], mat[0][2]
-	m01, m11, m21 := mat[1][0], mat[1][1], mat[1][2]
-	m02, m12, m22 := mat[2][0], mat[2][1], mat[2][2]
+	// DirectXMath uses row vectors, so its rows are our columns: mIJ is mat[I][J].
+	m00, m01, m02 := mat[0][0], mat[0][1], mat[0][2]
+	m10, m11, m12 := mat[1][0], mat[1][1], mat[1][2]
+	m20, m21, m22 := mat[2][0], mat[2][1], mat[2][2]
 
 	if m22 <= 0 {
 		// x^2 + y^2 >= z^2 + w^2
@@ -102,7 +99,7 @@ func QuatFromMat3(mat Mat3f) Quat {
 		if dif10 <= 0 {
 			// x^2 >= y^2
 			fourXSq := omm22 - dif10
-			inv4x := 0.5 / f32.Sqrt(fourXSq)
+			inv4x := 0.5 / math32.Sqrt(fourXSq)
 			return QuatOf(
 				fourXSq*inv4x,
 				(m01+m10)*inv4x,
@@ -113,7 +110,7 @@ func QuatFromMat3(mat Mat3f) Quat {
 
 		// y^2 >= x^2
 		fourYSq := omm22 + dif10
-		inv4y := 0.5 / f32.Sqrt(fourYSq)
+		inv4y := 0.5 / math32.Sqrt(fourYSq)
 		return QuatOf(
 			(m01+m10)*inv4y,
 			fourYSq*inv4y,
@@ -129,7 +126,7 @@ func QuatFromMat3(mat Mat3f) Quat {
 	if sum10 <= 0 {
 		// z^2 >= w^2
 		fourZSq := opm22 - sum10
-		inv4z := 0.5 / f32.Sqrt(fourZSq)
+		inv4z := 0.5 / math32.Sqrt(fourZSq)
 		return QuatOf(
 			(m02+m20)*inv4z,
 			(m12+m21)*inv4z,
@@ -140,7 +137,7 @@ func QuatFromMat3(mat Mat3f) Quat {
 
 	// w^2 >= z^2
 	fourWSq := opm22 + sum10
-	inv4w := 0.5 / f32.Sqrt(fourWSq)
+	inv4w := 0.5 / math32.Sqrt(fourWSq)
 	return QuatOf(
 		(m12-m21)*inv4w,
 		(m20-m02)*inv4w,
@@ -209,19 +206,19 @@ func (q Quat) ToMat4() Mat4f {
 	return Mat4f{
 		{
 			1 - 2*(yy+zz),
-			2 * (xy - zs),
-			2 * (xz + ys),
-			0,
-		},
-		{
 			2 * (xy + zs),
-			1 - 2*(xx+zz),
-			2 * (yz - xs),
+			2 * (xz - ys),
 			0,
 		},
 		{
-			2 * (xz - ys),
+			2 * (xy - zs),
+			1 - 2*(xx+zz),
 			2 * (yz + xs),
+			0,
+		},
+		{
+			2 * (xz + ys),
+			2 * (yz - xs),
 			1 - 2*(xx+yy),
 			0,
 		},

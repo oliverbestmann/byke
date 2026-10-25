@@ -121,7 +121,7 @@ func quatAnimationSampler(handle *gltfHandle, anim gltf.Animation, sid gltf.Ref)
 	for idx, timestamp := range timestamps {
 		keyframes = append(keyframes, Keyframe[glm.Quat]{
 			Time:  timestamp,
-			Value: glm.QuatOf(values[idx].XYZW()).Inverse(),
+			Value: glm.QuatOf(values[idx].XYZW()),
 		})
 	}
 

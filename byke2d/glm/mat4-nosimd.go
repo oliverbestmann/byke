@@ -1,10 +1,9 @@
-//go:build nosimd || (wasm && !goexperiment.simd)
+//go:build nosimd || !(amd64 || arm64 || (wasm && goexperiment.simd))
 
 package glm
 
 func mat4fMulAssign(m, o *mat4f) {
-	mCopy := *m
-	mat4fMulGo(&mCopy, o, m)
+	mat4fMulAssignGo(m, o)
 }
 
 func mat4fScale(m *mat4f, x, y, z float32) {

@@ -591,7 +591,7 @@ func gltfConvertTransform(node gltf.Node) Transform {
 	return Transform{
 		Translation: tr,
 		Scale:       scale,
-		Rotation:    rot.Inverse(),
+		Rotation:    rot,
 	}
 }
 

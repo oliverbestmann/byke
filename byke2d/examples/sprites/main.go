@@ -84,6 +84,6 @@ func rotateSpritesSystem(vt VirtualTime, query Query[struct {
 ) {
 	for item := range query.Items() {
 		rot := glm.RotationZQuat(glm.Rad(3 * vt.DeltaSecs))
-		item.Transform.Rotation = item.Transform.Rotation.Mul(rot)
+		item.Transform.Rotation = rot.Mul(item.Transform.Rotation)
 	}
 }

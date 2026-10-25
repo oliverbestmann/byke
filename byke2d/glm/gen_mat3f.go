@@ -2,10 +2,6 @@
 
 package glm
 
-import "unsafe"
-
-type _ = unsafe.Pointer
-
 // Mat3f is a 3x3 matrix.
 // The default value is filled with all zero values.
 type Mat3f [3][3]float32
@@ -63,9 +59,9 @@ func (m Mat3f) Transpose() Mat3f {
 	}
 }
 
-// Column returns a reference to the given column
-func (m *Mat3f) Column(idx int) Vec3f {
-	return *(*Vec3f)(&m[idx])
+// Column returns a copy of the given column
+func (m Mat3f) Column(idx int) Vec3f {
+	return Vec3f(m[idx])
 }
 
 func TranslationMat3f(x, y float32) Mat3f {
@@ -93,7 +89,7 @@ func (m Mat3f) Scale(x, y float32) Mat3f {
 }
 
 func RotationMat3f(angle Rad) Mat3f {
-	s, c := fastSincos(angle)
+	s, c := angle.SinCos()
 
 	return Mat3f{
 		{float32(c), float32(s), 0},
