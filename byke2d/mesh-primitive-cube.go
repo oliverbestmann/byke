@@ -55,19 +55,20 @@ func CubeWithSize(size glm.Vec3f) *Mesh {
 		20, 21, 23, 21, 22, 23, // forward (-z)
 	}
 
+	// each face maps the full texture, upright when looking at the face from outside
 	uvs := []glm.Vec2f{
-		// Assigning the UV coords for the top side.
-		{0.0, 0.2}, {0.0, 0.0}, {1.0, 0.0}, {1.0, 0.2},
-		// Assigning the UV coords for the bottom side.
-		{0.0, 0.45}, {0.0, 0.25}, {1.0, 0.25}, {1.0, 0.45},
-		// Assigning the UV coords for the right side.
-		{1.0, 0.45}, {0.0, 0.45}, {0.0, 0.2}, {1.0, 0.2},
-		// Assigning the UV coords for the left side.
-		{1.0, 0.45}, {0.0, 0.45}, {0.0, 0.2}, {1.0, 0.2},
-		// Assigning the UV coords for the back side.
-		{0.0, 0.45}, {0.0, 0.2}, {1.0, 0.2}, {1.0, 0.45},
-		// Assigning the UV coords for the forward side.
-		{0.0, 0.45}, {0.0, 0.2}, {1.0, 0.2}, {1.0, 0.45},
+		// top (+y)
+		{0, 0}, {1, 0}, {1, 1}, {0, 1},
+		// bottom (-y)
+		{0, 1}, {1, 1}, {1, 0}, {0, 0},
+		// right (+x)
+		{1, 1}, {0, 1}, {0, 0}, {1, 0},
+		// left (-x)
+		{0, 1}, {1, 1}, {1, 0}, {0, 0},
+		// back (+z)
+		{0, 1}, {0, 0}, {1, 0}, {1, 1},
+		// forward (-z)
+		{1, 1}, {1, 0}, {0, 0}, {0, 1},
 	}
 
 	normals := []glm.Vec3f{

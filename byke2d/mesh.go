@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"unsafe"
 
 	"github.com/oliverbestmann/byke/byke2d/glm"
@@ -480,7 +481,9 @@ func Rectangle(size glm.Vec2f) *Mesh {
 
 	indices := []uint32{0, 1, 2, 0, 2, 3}
 
-	return MeshOf(indices, vertices[:]).WithAttributes(VertexAttributeUV, uvs[:])
+	return MeshOf(indices, vertices[:]).
+		WithAttributes(VertexAttributeNormal, flatNormals(len(vertices))).
+		WithAttributes(VertexAttributeUV, uvs[:])
 }
 
 // ConvexPolygon creates a mesh from a convex polygon by triangulating from its first vertex.
@@ -495,7 +498,7 @@ func ConvexPolygon(vertices []glm.Vec3f) *Mesh {
 		indices = append(indices, 0, i, i+1)
 	}
 
-	return MeshOf(indices, vertices)
+	return MeshOf(indices, vertices).WithAttributes(VertexAttributeNormal, flatNormals(len(vertices)))
 }
 
 // Polygon creates a mesh from a 2D polygon using robust triangulation. The polygon can be
@@ -517,7 +520,12 @@ func Polygon(polygon []glm.Vec2f, holes ...[]glm.Vec2f) *Mesh {
 		vertices = append(vertices, glm.Vec3f{point.X, point.Y})
 	}
 
-	return MeshOf(indices, vertices)
+	return MeshOf(indices, vertices).WithAttributes(VertexAttributeNormal, flatNormals(len(vertices)))
+}
+
+// flatNormals returns count normals facing +z, for flat 2d shapes.
+func flatNormals(count int) []glm.Vec3f {
+	return slices.Repeat([]glm.Vec3f{{0, 0, 1}}, count)
 }
 
 func castVecsToEarcutPoints(vecs []glm.Vec2f) []earcut.Point[float32] {
