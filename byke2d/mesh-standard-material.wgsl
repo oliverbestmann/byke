@@ -218,6 +218,35 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
             }
         }
 
+        // apply spot lights
+        for (var i: u32 = 0; i < lights::spot_lights.count; i++) {
+            var light = lights::spot_lights.lights[i];
+
+            let to_light = light.position - vertex.position_world;
+            let dist = length(to_light);
+
+            if dist > 0.0001 {
+                let L = to_light / dist;
+
+                // Inverse-square falloff with a soft range fade.
+                var attenuation = 1.0 / max(dist * dist, 0.01);
+
+                if light.range > 0.0 {
+                    let range_fade = 1.0 - smoothstep(0.8 * light.range, light.range, dist);
+                    attenuation = attenuation * range_fade;
+                }
+
+                let cos_outer = cos(light.outer_angle);
+                let cos_inner = cos(light.inner_angle);
+                let cd = dot(-L, light.direction);
+                let spot = saturate((cd - cos_outer) / max(cos_inner - cos_outer, 0.0001));
+                attenuation = attenuation * spot * spot;
+
+                let radiance = light.color * attenuation;
+                outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
+            }
+        }
+
         // apply directional lights
         for (var i: u32 = 0; i < lights::directional_lights.count; i++) {
             let light = lights::directional_lights.lights[i];
