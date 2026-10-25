@@ -23,6 +23,7 @@ func dumpCameraViewToTextureSystem(
 	pipelines *PipelineCache,
 	textureCache *TextureCache,
 	frameCallback DebugFrameCallback,
+	surface currentSurfaceValues,
 	viewsQuery byke.Query[struct {
 		Target *ViewTarget
 	}],
@@ -40,6 +41,12 @@ func dumpCameraViewToTextureSystem(
 	defer enc.Release()
 
 	for view := range viewsQuery.Items() {
+		// cameras rendering into textures are not part of the final image.
+		// shortcut: with several cameras on the window, each one overwrites the dump of the previous one.
+		if view.Target.SurfaceTextureView != surface.TextureView {
+			continue
+		}
+
 		imageWidth := uint32(view.Target.Size[0])
 		imageHeight := uint32(view.Target.Size[1])
 
@@ -73,7 +80,9 @@ func dumpCameraViewToTextureSystem(
 
 		BlitTexture(ctx, enc, pipeline, sampler, sourceView, texture.TextureView)
 
-		bufferSize := uint64(imageWidth * imageHeight * 4)
+		// rows in the buffer must be aligned to 256 bytes
+		bytesPerRow := (4*imageWidth + 255) / 256 * 256
+		bufferSize := uint64(bytesPerRow * imageHeight)
 
 		buffer := ctx.CreateBuffer(&wgpu.BufferDescriptor{
 			Label: "DebugBuf",
@@ -89,7 +98,7 @@ func dumpCameraViewToTextureSystem(
 			},
 			&wgpu.TexelCopyBufferInfo{
 				Layout: wgpu.TexelCopyBufferLayout{
-					BytesPerRow:  4 * imageWidth,
+					BytesPerRow:  bytesPerRow,
 					RowsPerImage: imageHeight,
 				},
 				Buffer: buffer,
@@ -115,10 +124,11 @@ func dumpCameraViewToTextureSystem(
 					return
 				}
 
-				im := &image.NRGBA{
-					Pix:    buffer.GetMappedRange(0, uint(bufferSize)),
-					Stride: int(4 * imageWidth),
-					Rect:   image.Rect(0, 0, int(imageWidth), int(imageHeight)),
+				// copy the rows without their padding
+				mapped := buffer.GetMappedRange(0, uint(bufferSize))
+				im := image.NewNRGBA(image.Rect(0, 0, int(imageWidth), int(imageHeight)))
+				for y := range int(imageHeight) {
+					copy(im.Pix[y*im.Stride:(y+1)*im.Stride], mapped[y*int(bytesPerRow):])
 				}
 
 				if err := frameCallback(frame, im); err != nil {
