@@ -26,9 +26,8 @@ type RotatingZ struct {
 }
 
 func PluginRotatable(app *byke.App) {
-	app.AddSystems(byke.Update, rotateXSystem)
-	app.AddSystems(byke.Update, rotateYSystem)
-	app.AddSystems(byke.Update, rotateZSystem)
+	// rotations do not commute, keep the order fixed for entities with multiple rotators
+	app.AddSystems(byke.Update, byke.System(rotateXSystem, rotateYSystem, rotateZSystem).Chain())
 }
 
 func rotateXSystem(
