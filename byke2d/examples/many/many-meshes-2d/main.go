@@ -71,7 +71,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 	commands.Spawn(
 		AnchorBottomLeft,
-		TransformFromXYZ(32, 32, 2),
+		TransformFromXYZ(32, 32, 1),
 		Text{Text: "Hello", Size: 16.0, Color: ColorSRGBA(1, 0, 1, 1)},
 	)
 }

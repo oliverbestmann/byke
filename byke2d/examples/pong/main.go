@@ -290,7 +290,7 @@ func enterLostStateSystem(
 	commands *Commands,
 ) {
 	commands.Spawn(
-		TransformFromXYZ(0, 0, 0.5),
+		TransformFromXYZ(0, 0, -0.05),
 		Text{
 			Text:  "You lose!",
 			Color: ColorSRGBA(10, 0, 0, 1),

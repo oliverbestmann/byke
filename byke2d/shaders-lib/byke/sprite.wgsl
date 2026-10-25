@@ -72,9 +72,9 @@ fn default_sprite_vertex(in: VertexInput) -> VertexOutput {
     // transform sprite
     let position = globals::view.world_to_screen * model_to_world * vec4f(vertex_position, 0.0, 1.0);
 
-    // move the vertex to the world
+    // keep the depth, so sprites are sorted correctly against 2d meshes
     var out: VertexOutput;
-    out.position = vec4(position.xy, 0.0, 1.0);
+    out.position = position;
     out.uv = vertex_position * in.i_uv_scale + in.i_uv_offset;
     out.color = vec4<f32>(abs(in.i_color));
 
