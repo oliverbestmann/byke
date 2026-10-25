@@ -3,21 +3,21 @@ module github.com/oliverbestmann/byke
 go 1.27
 
 require (
-	github.com/alecthomas/kong v1.16.1
 	github.com/chewxy/math32 v1.11.2
 	github.com/ebitengine/oto/v3 v3.5.1
 	github.com/go-gl/glfw/v3.4/glfw v0.1.0-pre.2
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.5
 	github.com/hajimehoshi/ebiten/v2 v2.10.5
+	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/jfreymuth/oggvorbis v1.0.5
 	github.com/klauspost/compress v1.20.3
 	github.com/oliverbestmann/earcut-go v1.1.1
 	github.com/oliverbestmann/mikktspace-go v0.0.0-20261021165803-21f42ec57da7
 	github.com/oliverbestmann/puffin-go v1.0.0
 	github.com/oliverbestmann/webgpu v1.37.0
 	github.com/oliverbestmann/wesl-go v1.2.0
-	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.11.1
 	github.com/x448/float16 v0.8.4
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e
@@ -31,11 +31,8 @@ require (
 	github.com/dlclark/regexp2/v2 v2.9.1 // indirect
 	github.com/dop251/goja v0.0.0-20261023133238-1622cea953df // indirect
 	github.com/ebitengine/purego v0.11.2 // indirect
-	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20261016150608-1facf8f91b50 // indirect
-	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
-	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/pulse v0.1.3 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260628152806-6b27e30a172e // indirect
