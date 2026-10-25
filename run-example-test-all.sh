@@ -2,23 +2,23 @@
 
 set -e
 
-EXAMPLES=$(for F in $(grep --files-with-matches -R shared.RunAppInTest byke2d/examples/) ; do dirname $F ; done)
+EXAMPLES=$(for F in $(grep --files-with-matches -R --include=main.go shared.RunAppInTest byke2d/examples/) ; do dirname $F ; done)
 
 mkdir -p images
 
 FAILED=0
 for EXAMPLE in $EXAMPLES ; do
-  echo "Run example $EXAMPLE"
-
   rm -f /tmp/image-*.png || true
 
   if ! ./run-example-test.sh $EXAMPLE > $EXAMPLE/log 2>&1 ; then
     echo "::error::Example failed: $EXAMPLE"
     FAILED=1
 
+    echo "::group::Log of $EXAMPLE"
     cat $EXAMPLE/log
+    echo "::endgroup::"
   else
-    echo "::info::Example successful: $EXAMPLE"
+    echo "Example successful: $EXAMPLE"
   fi
 
   NAME=$(echo $EXAMPLE | tr '/' '_')
@@ -27,10 +27,6 @@ for EXAMPLE in $EXAMPLES ; do
   if [ -n "$IMAGE" ]; then
     cp "$IMAGE" "images/$NAME.png"
   fi
-
-  echo
-  echo
-  echo
 done
 
 exit $FAILED
