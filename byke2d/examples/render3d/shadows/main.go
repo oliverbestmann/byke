@@ -53,6 +53,7 @@ func main() {
 	var app App
 
 	app.AddPlugin(PluginRender)
+	app.AddPlugin(shared.PluginHint(shared.HintFirstPerson + ", space to switch the light"))
 	app.AddPlugin(shared.PluginRotatable)
 
 	app.AddSystems(Startup, setupSystem)

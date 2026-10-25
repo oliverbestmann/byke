@@ -12,6 +12,7 @@ func main() {
 	var app App
 
 	app.AddPlugin(PluginRender)
+	app.AddPlugin(shared.PluginHint(shared.HintFirstPerson))
 	app.AddPlugin(shared.PluginRotatable)
 
 	app.AddSystems(Startup, setupSystem)

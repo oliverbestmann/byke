@@ -10,6 +10,7 @@ func main() {
 	var app App
 
 	app.AddPlugin(PluginRender)
+	app.AddPlugin(shared.PluginHint(shared.HintFirstPerson))
 
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)

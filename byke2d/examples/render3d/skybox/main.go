@@ -15,6 +15,7 @@ func main() {
 	var app App
 
 	app.AddPlugin(PluginRender)
+	app.AddPlugin(shared.PluginHint(shared.HintFirstPerson))
 	app.InsertResource(GlobalAmbientLightNone)
 
 	app.AddSystems(Startup, setupSystem)

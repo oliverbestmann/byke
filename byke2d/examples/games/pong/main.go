@@ -54,6 +54,7 @@ func main() {
 	app.InitState(GameStatePlaying)
 
 	app.AddPlugin(PluginRender)
+	app.AddPlugin(shared.PluginHint("Arrow keys to move the paddle"))
 	app.AddSystems(Update, ExitOnEscapeSystem)
 	app.AddSystems(Startup, setupSystem)
 
