@@ -40,7 +40,8 @@ func RunAppInTest(app byke.App, framesToSnapshot FramesToSnapshot) {
 		framesToSnapshot = FramesToSnapshot{10}
 	}
 
-	frameCount := slices.Max(framesToSnapshot) + 15
+	// without frames to snapshot, the example still runs to catch crashes
+	frameCount := slices.Max(append(FramesToSnapshot{0}, framesToSnapshot...)) + 15
 
 	actual := Snapshots{}
 
