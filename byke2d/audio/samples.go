@@ -15,7 +15,7 @@ func ReadAll[S Sample](stream Stream[S]) ([]S, error) {
 	for {
 		n, err := stream.Read(buf[:])
 		if n > 0 {
-			samples = append(samples, buf[:]...)
+			samples = append(samples, buf[:n]...)
 		}
 
 		if err != nil && !errors.Is(err, io.EOF) {
