@@ -68,6 +68,7 @@ func extractMeshesWithMaterialSystem[M Material](
 		SkinnedMesh     byke.Option[SkinnedMesh]
 		Lightmap        byke.Option[Lightmap]
 		HasMorphWeights byke.Has[meshMorphWeights]
+		NotShadowCaster byke.Has[NotShadowCaster]
 		Visibility      ComputedVisibility
 		MeshAABB        AABB
 	}],
@@ -94,6 +95,7 @@ func extractMeshesWithMaterialSystem[M Material](
 			RenderLayers:     item.RenderLayers.Or(renderLayerZero),
 			Lightmap:         item.Lightmap.OrZero().Image,
 			HashMorphWeights: item.HasMorphWeights.Exists(),
+			NotShadowCaster:  item.NotShadowCaster.Exists(),
 			EntityId:         item.EntityId,
 			Skin:             skin,
 		})
@@ -289,9 +291,9 @@ func prepareMeshPipelinesSystems(
 		return
 	}
 
-	for _, mesh := range meshes.Meshes {
-		if !mesh.Material.BindGroup().OrderIndependent {
-			// transparent meshes do not cast shadows
+	for idx := range meshes.Meshes {
+		mesh := &meshes.Meshes[idx]
+		if !mesh.CastsShadows() {
 			continue
 		}
 
@@ -558,7 +560,7 @@ func prepareMeshViewBindGroupSystem(
 			opts.Shadows = true
 
 			entries = append(entries,
-				Indexed(14, BindingTextureView(shadowMaps.Spot.SampleView)),
+				Indexed(14, BindingTextureView(shadowMaps.Map2d.SampleView)),
 				Indexed(15, BindingSampler(shadowMaps.Sampler)),
 				Indexed(16, BindingTextureView(shadowMaps.Point.SampleView)),
 			)

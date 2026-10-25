@@ -85,11 +85,28 @@ func (l ExtractedSpotLight) WriteTo(w *wgsl.StructWriter) {
 type ExtractedDirectionalLight struct {
 	Color     glm.Vec3f
 	Direction glm.Vec3f
+
+	// center of the shadow map volume
+	Position glm.Vec3f
+
+	// Layer in the 2d shadow map array (shared with spot lights),
+	// -1 if the light casts no shadows
+	ShadowLayer      int32
+	ShadowDepthBias  float32
+	ShadowNormalBias float32
+
+	// view and projection of the shadow map, only set if ShadowLayer >= 0
+	WorldToView glm.Mat4f
+	ViewToClip  glm.Mat4f
 }
 
 func (l ExtractedDirectionalLight) WriteTo(w *wgsl.StructWriter) {
 	w.AppendVec3f(l.Color)
 	w.AppendVec3f(l.Direction)
+	w.AppendMat4f(l.ViewToClip.Mul(l.WorldToView))
+	w.AppendInt(l.ShadowLayer)
+	w.AppendFloat32(l.ShadowDepthBias)
+	w.AppendFloat32(l.ShadowNormalBias)
 	w.Sync()
 }
 
@@ -184,13 +201,7 @@ func extractLightsSystem(
 				near = DefaultSpotLight.ShadowMapNearZ
 			}
 
-			// any up vector works for a round cone, as long as it is not parallel to the direction
-			up := glm.Vec3f{0, 1, 0}
-			if math32.Abs(direction[1]) > 0.99 {
-				up = glm.Vec3f{1, 0, 0}
-			}
-
-			extracted.WorldToView = glm.LookAt(position, position.Add(direction), up)
+			extracted.WorldToView = lightWorldToView(position, direction)
 			extracted.ViewToClip = glm.Perspective(2*item.Light.OuterAngle, 1, near, 0)
 
 			// the normal bias is given in texels, scale it to the texel size at a distance of 1.
@@ -214,10 +225,61 @@ func extractLightsSystem(
 			Truncate().
 			Normalize()
 
-		lights.DirectionalLights = append(lights.DirectionalLights, ExtractedDirectionalLight{
-			Color:     item.Light.Color.ToVec3f().Scale(item.Light.Illuminance),
-			Direction: direction,
-		})
+		position := item.Transform.Affine.Translation()
+
+		extracted := ExtractedDirectionalLight{
+			Color:       item.Light.Color.ToVec3f().Scale(item.Light.Illuminance),
+			Direction:   direction,
+			Position:    position,
+			ShadowLayer: -1,
+		}
+
+		if item.Light.ShadowsEnabled {
+			// directional lights use the layers after the spot lights
+			extracted.ShadowLayer = shadowLayer
+			shadowLayer++
+
+			volume := item.Light.ShadowVolume
+			if volume == (glm.Vec3f{}) {
+				volume = DefaultDirectionalLight.ShadowVolume
+			}
+
+			extracted.WorldToView = lightWorldToView(position, direction)
+			extracted.ViewToClip = orthographicReverseZ(volume)
+
+			// the normal bias is given in texels, use the larger texel size if the map is not square.
+			// sqrt2 accounts for the worst case diagonal offset
+			texelSize := max(volume[0], volume[1]) / float32(shadowConfig.Size)
+			extracted.ShadowNormalBias = item.Light.ShadowNormalBias * texelSize * math32.Sqrt2
+			extracted.ShadowDepthBias = item.Light.ShadowDepthBias
+		}
+
+		lights.DirectionalLights = append(lights.DirectionalLights, extracted)
+	}
+}
+
+// lightWorldToView returns the view matrix of a light at position shining along direction.
+func lightWorldToView(position, direction glm.Vec3f) glm.Mat4f {
+	// lights are symmetric around their direction, so any up vector works,
+	// as long as it is not parallel to the direction
+	up := glm.Vec3f{0, 1, 0}
+	if math32.Abs(direction[1]) > 0.99 {
+		up = glm.Vec3f{1, 0, 0}
+	}
+
+	return glm.LookAt(position, position.Add(direction), up)
+}
+
+// orthographicReverseZ projects a box of the given width, height and length to clip
+// space. Width and height are centered on the view origin, the length extends from the
+// origin along the view direction (-z). Depth is reversed: the near plane at z = 0
+// maps to 1, the far plane at z = -length maps to 0.
+func orthographicReverseZ(volume glm.Vec3f) glm.Mat4f {
+	return glm.Mat4f{
+		{2 / volume[0], 0, 0, 0},
+		{0, 2 / volume[1], 0, 0},
+		{0, 0, 1 / volume[2], 0},
+		{0, 0, 1, 1},
 	}
 }
 

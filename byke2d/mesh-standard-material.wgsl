@@ -263,7 +263,13 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
 
             // direction is where the light travels, L points towards the light
             let L = -light.direction;
-            let radiance = light.color;
+            var radiance = light.color;
+
+            @if(MESH_SHADOWS)
+            {
+                radiance *= lights::directional_shadow(light, vertex.position_world, N);
+            }
+
             outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
         }
 

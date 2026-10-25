@@ -13,19 +13,32 @@ import (
 var (
 	_ = byke.ValidateComponent[ShadowView]()
 	_ = byke.ValidateComponent[BinnedRenderPhase[Shadow]]()
+	_ = byke.ValidateComponent[NotShadowCaster]()
 )
+
+// NotShadowCaster marks a mesh that is not drawn into shadow maps,
+// e.g. a mesh that visualizes a light source at its position.
+type NotShadowCaster struct {
+	byke.Component[NotShadowCaster]
+}
+
+// CastsShadows returns true if the mesh is drawn into shadow maps.
+// Transparent meshes do not cast shadows.
+func (m *ExtractedMesh) CastsShadows() bool {
+	return !m.NotShadowCaster && m.Material.BindGroup().OrderIndependent
+}
 
 // Shadow is the render phase of meshes drawn into a shadow map.
 type Shadow struct{}
 
 // ShadowView is the view that renders one shadow map layer: the map of a spot
-// light, or one cube face of a point light. Its ViewUniforms hold the view
+// or directional light, or one cube face of a point light. Its ViewUniforms hold the view
 // and projection of the light.
 type ShadowView struct {
 	byke.Component[ShadowView]
 
 	// Point is true if the layer is in the point light cube maps,
-	// false if it is in the spot light maps
+	// false if it is in the 2d maps of spot and directional lights
 	Point bool
 
 	// Layer in the shadow map array texture
@@ -46,8 +59,9 @@ var cubeMapFaces = [6]struct{ Target, Up glm.Vec3f }{
 
 // shadowMaps holds the depth textures of all shadow casting lights.
 type shadowMaps struct {
-	// one layer per spot light, sampled as 2d array
-	Spot shadowMapTexture
+	// one layer per spot and directional light, sampled as 2d array.
+	// Spot lights come first, directional lights use the layers after them.
+	Map2d shadowMapTexture
 
 	// six layers per point light, sampled as cube array
 	Point shadowMapTexture
@@ -61,7 +75,7 @@ func (m *shadowMaps) texture(point bool) *shadowMapTexture {
 		return &m.Point
 	}
 
-	return &m.Spot
+	return &m.Map2d
 }
 
 // shadowMapTexture is a depth array texture with one render view per layer.
@@ -156,8 +170,8 @@ type shadowViewKey struct {
 	Layer uint32
 }
 
-// prepareShadowViewsSystem keeps one ShadowView entity per spot light shadow map
-// and six per point light shadow map, and updates their view uniforms.
+// prepareShadowViewsSystem keeps one ShadowView entity per spot and directional
+// light shadow map and six per point light shadow map, and updates their view uniforms.
 func prepareShadowViewsSystem(
 	commands *byke.Commands,
 	ctx *RenderContext,
@@ -174,7 +188,9 @@ func prepareShadowViewsSystem(
 	// the view uniforms of every shadow view we need this frame
 	wanted := map[shadowViewKey]ViewUniforms{}
 
-	var spotCount uint32
+	// spot and directional lights share the 2d array texture
+	var layers2d uint32
+
 	for idx := range lights.SpotLights {
 		light := &lights.SpotLights[idx]
 		if light.ShadowLayer < 0 {
@@ -183,7 +199,18 @@ func prepareShadowViewsSystem(
 
 		key := shadowViewKey{Layer: uint32(light.ShadowLayer)}
 		wanted[key] = shadowViewUniforms(light.WorldToView, light.ViewToClip, light.Position, size)
-		spotCount++
+		layers2d++
+	}
+
+	for idx := range lights.DirectionalLights {
+		light := &lights.DirectionalLights[idx]
+		if light.ShadowLayer < 0 {
+			continue
+		}
+
+		key := shadowViewKey{Layer: uint32(light.ShadowLayer)}
+		wanted[key] = shadowViewUniforms(light.WorldToView, light.ViewToClip, light.Position, size)
+		layers2d++
 	}
 
 	var pointCount uint32
@@ -205,7 +232,7 @@ func prepareShadowViewsSystem(
 	}
 
 	// keep at least one layer (one cube), because the bind group always needs a texture
-	maps.Spot.ensure(ctx, "SpotShadowMaps", size, max(1, spotCount), wgpu.TextureViewDimension2DArray)
+	maps.Map2d.ensure(ctx, "ShadowMaps2d", size, max(1, layers2d), wgpu.TextureViewDimension2DArray)
 	maps.Point.ensure(ctx, "PointShadowMaps", size, 6*max(1, pointCount), wgpu.TextureViewDimensionCubeArray)
 
 	// Linear filtering makes the hardware compare and blend 2x2 texels, which softens edges.
@@ -273,9 +300,7 @@ func queueShadowsSystem(
 	for view := range viewsQuery.Items() {
 		for idx := range meshes.Meshes {
 			mesh := &meshes.Meshes[idx]
-
-			// transparent meshes do not cast shadows
-			if !mesh.Material.BindGroup().OrderIndependent {
+			if !mesh.CastsShadows() {
 				continue
 			}
 

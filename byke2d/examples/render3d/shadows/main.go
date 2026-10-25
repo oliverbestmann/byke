@@ -39,6 +39,16 @@ var spotLight = SpotLight{
 	ShadowNormalBias: DefaultSpotLight.ShadowNormalBias,
 }
 
+var directionalLight = DirectionalLight{
+	Color:       ColorLinearRGB(1, 1, 1),
+	Illuminance: 400,
+
+	ShadowsEnabled:   true,
+	ShadowVolume:     glm.Vec3f{10, 10, 1000},
+	ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
+	ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
+}
+
 func main() {
 	var app App
 
@@ -56,7 +66,7 @@ func setupSystem(commands *Commands) {
 		Camera3d,
 		Camera{},
 		HDR{},
-		FirstPersonViewController{Pitch: -0.5, Yaw: -0.25},
+		FirstPersonViewController{Pitch: -0.35, Yaw: -0.25},
 		PerspectiveProjection{Fov: glm.DegToRad(50), Near: 0.1},
 		TransformFromXYZ(-2.5, 4.5, 9.0),
 	)
@@ -82,6 +92,15 @@ func setupSystem(commands *Commands) {
 		TransformFromXYZ(4, 4, 0),
 		OrbitingLight{},
 		spotLight,
+
+		// a glowing sphere to show where the light is.
+		// It must not cast shadows, it would block the light it surrounds.
+		MeshInstance{Mesh: Sphere(0.15, 32, 16)},
+		StandardMaterial{
+			BaseColor:     ColorSRGB(1, 1, 1),
+			EmissiveScale: glm.Vec3f{4, 4, 4},
+		},
+		NotShadowCaster{},
 	)
 }
 
@@ -96,7 +115,7 @@ func orbitLightSystem(
 		pos := glm.RotationYQuat(glm.Rad(vt.Elapsed.Seconds())).Transform(glm.Vec3f{4, 4, 0})
 		item.Transform.Translation = pos
 
-		// lights shine along local -z, point it at the box (only matters for the spot light)
+		// lights shine along local -z, point it at the box (does not matter for the point light)
 		item.Transform.Rotation = glm.QuatFromRotationArc(glm.Vec3f{0, 0, -1}, boxCenter.Sub(pos).Normalize())
 	}
 }
@@ -108,20 +127,28 @@ func toggleLightSystem(
 		_        With[OrbitingLight]
 		EntityId EntityId
 		IsPoint  Has[PointLight]
+		IsSpot   Has[SpotLight]
 	}],
 ) {
 	if !keys.IsJustPressed(vyn.KeySpace) {
 		return
 	}
 
+	// cycle point -> spot -> directional -> point
 	for item := range query.Items() {
 		entity := commands.Entity(item.EntityId)
 
-		if item.IsPoint.Exists() {
+		switch {
+		case item.IsPoint.Exists():
 			entity.Remove[PointLight]()
 			entity.Insert(spotLight)
-		} else {
+
+		case item.IsSpot.Exists():
 			entity.Remove[SpotLight]()
+			entity.Insert(directionalLight)
+
+		default:
+			entity.Remove[DirectionalLight]()
 			entity.Insert(pointLight)
 		}
 	}

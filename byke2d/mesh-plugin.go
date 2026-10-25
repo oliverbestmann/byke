@@ -47,6 +47,9 @@ type ExtractedMesh struct {
 
 	// HasMorphWeights indicates that the mesh has morph weights
 	HashMorphWeights bool
+
+	// NotShadowCaster is true if the mesh is not drawn into shadow maps
+	NotShadowCaster bool
 }
 
 // ExtractedSkin contains skeletal animation data for a mesh.

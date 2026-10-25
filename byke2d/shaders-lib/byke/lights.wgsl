@@ -10,6 +10,13 @@ struct DirectionalLights {
 struct DirectionalLight {
     color: vec3f,
     direction: vec3f,
+    // projects from world space into the clip space of the shadow map
+    world_to_clip: mat4x4f,
+    // layer in shadow_maps_2d, -1 if the light casts no shadows
+    shadow_layer: i32,
+    shadow_depth_bias: f32,
+    // already scaled to the texel size
+    shadow_normal_bias: f32,
 }
 
 struct PointLights {
@@ -43,7 +50,7 @@ struct SpotLight {
     range: f32,
     // projects from world space into the clip space of the shadow map
     world_to_clip: mat4x4f,
-    // layer in spot_shadow_maps, -1 if the light casts no shadows
+    // layer in shadow_maps_2d, -1 if the light casts no shadows
     shadow_layer: i32,
     shadow_depth_bias: f32,
     // already scaled to the texel size at a distance of one
@@ -69,7 +76,7 @@ var<storage> spot_lights: SpotLights;
 @if(MESH_SHADOWS)
 @group(0)
 @binding(14)
-var spot_shadow_maps: texture_depth_2d_array;
+var shadow_maps_2d: texture_depth_2d_array;
 
 @if(MESH_SHADOWS)
 @group(0)
@@ -127,18 +134,40 @@ fn spot_shadow(light: SpotLight, position: vec3f, normal: vec3f) -> f32 {
         + normal * light.shadow_normal_bias * distance_along_axis
         + normalize(surface_to_light) * light.shadow_depth_bias;
 
-    let clip = light.world_to_clip * vec4f(offset_position, 1.0);
+    return sample_shadow_map_2d(light.world_to_clip, light.shadow_layer, offset_position);
+}
+
+// Returns 0 if the position is in the shadow of the light and 1 if it is lit.
+@if(MESH_SHADOWS)
+fn directional_shadow(light: DirectionalLight, position: vec3f, normal: vec3f) -> f32 {
+    if light.shadow_layer < 0 {
+        return 1.0;
+    }
+
+    // orthographic projection: texels have the same size everywhere
+    let offset_position = position
+        + normal * light.shadow_normal_bias
+        - light.direction * light.shadow_depth_bias;
+
+    return sample_shadow_map_2d(light.world_to_clip, light.shadow_layer, offset_position);
+}
+
+// Projects the position into the shadow map at the given layer of shadow_maps_2d.
+// Returns 0 if it is in shadow and 1 if it is lit or outside of the map.
+@if(MESH_SHADOWS)
+fn sample_shadow_map_2d(world_to_clip: mat4x4f, layer: i32, position: vec3f) -> f32 {
+    let clip = world_to_clip * vec4f(position, 1.0);
     if clip.w <= 0.0 {
         return 1.0;
     }
 
     let ndc = clip.xyz / clip.w;
     let uv = ndc.xy * vec2f(0.5, -0.5) + vec2f(0.5);
-    if any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) {
+    if any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || ndc.z < 0.0 || ndc.z > 1.0 {
         return 1.0;
     }
 
     // Reverse-z (near is depth 1, far is depth 0): lit if the fragment is at least as close as the stored depth.
     // Use the Level variant: this runs in non-uniform control flow, where implicit mip selection is not allowed.
-    return textureSampleCompareLevel(spot_shadow_maps, shadow_sampler, uv, light.shadow_layer, ndc.z);
+    return textureSampleCompareLevel(shadow_maps_2d, shadow_sampler, uv, layer, ndc.z);
 }
