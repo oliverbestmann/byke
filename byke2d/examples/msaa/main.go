@@ -65,7 +65,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 	// second camera:
 	// draw a scaled view of the first camera to show the antialiasing result
 	commands.Spawn(
-		NewTransform().WithScaleXY(8, 8),
+		NewTransform().WithScaleXY(0.25, 0.25),
 		Camera{Order: 1},
 		Camera2d,
 		RenderLayersOf(1),
