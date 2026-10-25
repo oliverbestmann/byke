@@ -103,8 +103,11 @@ type OrthographicProjection struct {
 
 	ScalingMode ScalingMode
 
-	// Distance of the near and far plane in camera direction.
-	// If both values are set to zero, 0 and 1 is assumed.
+	// Distance of the near and far plane in camera direction (-z).
+	// Depth is 1 at the near plane and 0 at the far plane (reverse z).
+	// If both values are zero, -1 and 0 is assumed: everything between the
+	// camera and one unit behind it is visible, higher z values are drawn on top.
+	// This is the setup used by 2d cameras.
 	Near, Far float32
 }
 
@@ -125,13 +128,13 @@ func (o OrthographicProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
 		{2 * rcpWidth, 0, 0, 0},
 		{0, 2 * rcpHeight, 0, 0},
 		{0, 0, r, 0},
-		{-(left + right) * rcpWidth, -(top + bottom) * rcpHeight, -r * near, 1.0},
+		{-(left + right) * rcpWidth, -(top + bottom) * rcpHeight, r * far, 1.0},
 	}
 }
 
 func (o OrthographicProjection) nearFar() (near float32, far float32) {
 	if o.Near == 0 && o.Far == 0 {
-		return 0, 1
+		return -1, 0
 	}
 
 	return o.Near, o.Far
