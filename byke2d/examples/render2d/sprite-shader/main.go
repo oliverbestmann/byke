@@ -7,27 +7,20 @@ import (
 	. "github.com/oliverbestmann/byke/byke2d"
 	"github.com/oliverbestmann/byke/byke2d/examples/shared"
 	"github.com/oliverbestmann/byke/byke2d/glm"
-	"github.com/oliverbestmann/webgpu/wgpu"
 )
 
-// Draws sprites with custom fragment shaders. The left sprite uses the default shader,
-// the middle one adds noise and the right one fades out towards the edges.
+// Draws sprites with custom, animated fragment shaders:
+// a procedural fire, a waving texture and a texture that dissolves and grows back.
+// The shaders read the time from the globals uniform.
 
-//go:embed assets/noise.wgsl
-var noisyShaderCode string
+//go:embed assets/effects.wgsl
+var effectsShaderCode string
 
-//go:embed assets/fade.wgsl
-var fadeShaderCode string
-
-var noisyShader = &ShaderDef{
-	Source:        noisyShaderCode,
-	FragmentEntry: "noisy_sprite",
-}
-
-var fadeShader = &ShaderDef{
-	Source:        fadeShaderCode,
-	FragmentEntry: "fade_sprite",
-}
+var (
+	fireShader     = &ShaderDef{Source: effectsShaderCode, FragmentEntry: "fire"}
+	waveShader     = &ShaderDef{Source: effectsShaderCode, FragmentEntry: "wave"}
+	dissolveShader = &ShaderDef{Source: effectsShaderCode, FragmentEntry: "dissolve"}
+)
 
 func main() {
 	var app App
@@ -37,19 +30,31 @@ func main() {
 	app.AddSystems(Startup, setupSystem)
 	app.AddSystems(Update, ExitOnEscapeSystem)
 
-	shared.RunAppInTest(app, shared.FramesToSnapshot{10})
+	shared.RunAppInTest(app, shared.FramesToSnapshot{10, 60})
 }
 
 func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(Camera{})
 
-	texture := assets.TextureWithSettings("marker.png", &LoadTextureSettings{
-		FilterMode: wgpu.FilterModeNearest,
-	}).Await()
+	marker := assets.Texture("marker.png").Await()
+	rocket := assets.Texture("rocket.png").Await()
 
-	sprite := Sprite{Texture: texture, CustomSize: Some(glm.Vec2f{160, 160})}
+	commands.Spawn(
+		TransformFromXY(-210, 0),
+		// the fire shader does not read the texture
+		Sprite{Texture: marker, CustomSize: Some(glm.Vec2f{160, 240})},
+		CustomShader{Shader: fireShader},
+	)
 
-	commands.Spawn(TransformFromXY(-200, 0), sprite)
-	commands.Spawn(TransformFromXY(0, 0), sprite, CustomShader{Shader: noisyShader})
-	commands.Spawn(TransformFromXY(200, 0), sprite, CustomShader{Shader: fadeShader})
+	commands.Spawn(
+		TransformFromXY(0, 0),
+		Sprite{Texture: marker, CustomSize: Some(glm.Vec2f{180, 180})},
+		CustomShader{Shader: waveShader},
+	)
+
+	commands.Spawn(
+		TransformFromXY(210, 0),
+		Sprite{Texture: rocket, CustomSize: Some(glm.Vec2f{180, 180})},
+		CustomShader{Shader: dissolveShader},
+	)
 }
