@@ -50,7 +50,12 @@ func setupSystem(commands *Commands) {
 		TransformFromXYZ(4, 8, 4),
 		PointLight{
 			Color:     ColorLinearRGB(1, 1, 1),
-			Intensity: 10000,
+			Intensity: 1_000_000,
+			Range:     20,
+
+			ShadowsEnabled:   true,
+			ShadowDepthBias:  DefaultPointLight.ShadowDepthBias,
+			ShadowNormalBias: DefaultPointLight.ShadowNormalBias,
 		},
 	)
 }
