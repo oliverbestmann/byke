@@ -2,10 +2,9 @@ package spoke
 
 import (
 	"bytes"
-	"math"
 )
 
-const noOffset = math.MaxUint64
+const noOffset = ^uintptr(0)
 
 // sliceCompare returns the offset of the first byte at or after offset where
 // lhs and rhs differ, or noOffset if they are equal from there on.
