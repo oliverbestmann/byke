@@ -95,6 +95,9 @@ type ExtractedDirectionalLight struct {
 	ShadowDepthBias  float32
 	ShadowNormalBias float32
 
+	// share of the shadow applied to the ambient and environment light
+	EnvironmentShadow float32
+
 	// view and projection of the shadow map, only set if ShadowLayer >= 0
 	WorldToView glm.Mat4f
 	ViewToClip  glm.Mat4f
@@ -107,6 +110,7 @@ func (l ExtractedDirectionalLight) WriteTo(w *wgsl.StructWriter) {
 	w.AppendInt(l.ShadowLayer)
 	w.AppendFloat32(l.ShadowDepthBias)
 	w.AppendFloat32(l.ShadowNormalBias)
+	w.AppendFloat32(l.EnvironmentShadow)
 	w.Sync()
 }
 
@@ -252,6 +256,7 @@ func extractLightsSystem(
 			texelSize := max(volume[0], volume[1]) / float32(shadowConfig.Size)
 			extracted.ShadowNormalBias = item.Light.ShadowNormalBias * texelSize * math32.Sqrt2
 			extracted.ShadowDepthBias = item.Light.ShadowDepthBias
+			extracted.EnvironmentShadow = min(max(item.Light.EnvironmentShadow, 0), 1)
 		}
 
 		lights.DirectionalLights = append(lights.DirectionalLights, extracted)

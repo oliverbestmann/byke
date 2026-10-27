@@ -94,6 +94,11 @@ type DirectionalLight struct {
 
 	// Offset of the sampled position along the surface normal, in shadow map texels.
 	ShadowNormalBias float32
+
+	// How much the shadow of this light darkens the ambient and environment light, from 0 to 1.
+	// With an Illuminance of 0, the light only casts shadows, e.g. to match the sun of an
+	// environment map.
+	EnvironmentShadow float32
 }
 
 var DefaultDirectionalLight = DirectionalLight{

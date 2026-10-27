@@ -17,6 +17,8 @@ struct DirectionalLight {
     shadow_depth_bias: f32,
     // already scaled to the texel size
     shadow_normal_bias: f32,
+    // how much the shadow darkens the ambient and environment light, 0 to 1
+    environment_shadow: f32,
 }
 
 struct PointLights {

@@ -182,14 +182,38 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
         let metallic = material.metallic * metallic_scale;
         let roughness = max(pbr::MIN_ROUGHNESS, material.perceptual_roughness * roughness_scale);
 
+        // shadows of directional lights may also darken the ambient and environment light
+        var environment_shadow = 1.0;
+
+        // apply directional lights
+        for (var i: u32 = 0; i < lights::directional_lights.count; i++) {
+            let light = lights::directional_lights.lights[i];
+
+            // direction is where the light travels, L points towards the light
+            let L = -light.direction;
+            var radiance = light.color;
+
+            @if(MESH_SHADOWS)
+            {
+                let shadow = lights::directional_shadow(light, vertex.position_world, N);
+                radiance *= shadow;
+                environment_shadow *= mix(1.0, shadow, light.environment_shadow);
+            }
+
+            outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
+        }
+
         // apply generic ambient light
-        outcol += pbr::pbr_ambient_light(N, V, lights::light_config.ambient, base_color, metallic, roughness) * ambient_occlusion;
+        outcol += pbr::pbr_ambient_light(N, V, lights::light_config.ambient, base_color, metallic, roughness)
+            * ambient_occlusion
+            * environment_shadow;
 
         // apply environment map to color
         @if(MESH_ENVMAP_LIGHT)
         outcol += pbr::sample_ibl(N, V, base_color, metallic, roughness)
             * pbr::pbr_env_options.intensity
-            * ambient_occlusion;
+            * ambient_occlusion
+            * environment_shadow;
 
         // lightmap
         @if(HAS_LIGHTMAP)
@@ -255,22 +279,6 @@ fn calculate_lighting(vertex: mesh::VertexOutput, base_color: vec3f) -> vec3f {
                 let radiance = light.color * attenuation;
                 outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
             }
-        }
-
-        // apply directional lights
-        for (var i: u32 = 0; i < lights::directional_lights.count; i++) {
-            let light = lights::directional_lights.lights[i];
-
-            // direction is where the light travels, L points towards the light
-            let L = -light.direction;
-            var radiance = light.color;
-
-            @if(MESH_SHADOWS)
-            {
-                radiance *= lights::directional_shadow(light, vertex.position_world, N);
-            }
-
-            outcol += pbr::directPBR(N, V, L, radiance, base_color, metallic, roughness);
         }
 
     }
