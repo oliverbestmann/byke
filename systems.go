@@ -96,7 +96,7 @@ func systemIdOf(systemFunc any) SystemId {
 	type eface struct{ typ, val unsafe.Pointer }
 	funcval := (*eface)(unsafe.Pointer(&systemFunc)).val
 
-	return SystemId(funcval)
+	return SystemId(funcvalOf(funcval))
 }
 
 type systemConfig struct {
