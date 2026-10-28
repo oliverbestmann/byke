@@ -51,15 +51,16 @@ func main() {
 	examplesDir := flag.String("examples", "byke2d/examples", "directory with <category>/<example>/main.go")
 	thumbsDir := flag.String("thumbs", "gallery-thumbs", "cache directory for thumbnails")
 	outDir := flag.String("out", "site", "output directory")
+	tinygo := flag.Bool("tinygo", false, "build the wasm with TinyGo (byke-cli build-web --tinygo)")
 	flag.Parse()
 
-	if err := run(*examplesDir, *thumbsDir, *outDir); err != nil {
+	if err := run(*examplesDir, *thumbsDir, *outDir, *tinygo); err != nil {
 		slog.Error("Build gallery", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 }
 
-func run(examplesDir, thumbsDir, outDir string) error {
+func run(examplesDir, thumbsDir, outDir string, tinygo bool) error {
 	mains, err := filepath.Glob(filepath.Join(examplesDir, "*", "*", "main.go"))
 	if err != nil {
 		return err
@@ -110,7 +111,7 @@ func run(examplesDir, thumbsDir, outDir string) error {
 				ex.Thumbnail = "thumbs/" + thumbnail
 			}
 
-			if err := buildWasm(dir, filepath.Join(pageDir, "wasm")); err != nil {
+			if err := buildWasm(dir, filepath.Join(pageDir, "wasm"), tinygo); err != nil {
 				return fmt.Errorf("build wasm of %s: %w", dir, err)
 			}
 		}
@@ -228,8 +229,13 @@ func hashDir(dir string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil))[:16], err
 }
 
-func buildWasm(dir, target string) error {
-	cmd := exec.Command("byke-cli", "build-web", "--clean")
+func buildWasm(dir, target string, tinygo bool) error {
+	args := []string{"build-web", "--clean"}
+	if tinygo {
+		args = append(args, "--tinygo")
+	}
+
+	cmd := exec.Command("byke-cli", args...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

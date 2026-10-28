@@ -34,7 +34,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -f -y libegl1-mesa-dev mesa-vulkan-drivers \
             libasound2-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev \
-            libxkbcommon-dev libwayland-dev binaryen
+            libxkbcommon-dev libwayland-dev
+
+      - name: "Install nix"
+        uses: cachix/install-nix-action@v31
+
+      # byke needs the tinygo fork, upstream tinygo cannot build it yet.
+      # binaryen from nix, ubuntu's 120 lacks --enable-bulk-memory-opt
+      - name: "Install tinygo and binaryen"
+        run: |
+          nix build --out-link "$RUNNER_TEMP/tinygo" github:oliverbestmann/tinygo/dev
+          nix build --out-link "$RUNNER_TEMP/binaryen" --inputs-from github:oliverbestmann/tinygo/dev nixpkgs#binaryen
+          echo "$RUNNER_TEMP/tinygo/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/binaryen/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/tinygo/bin/tinygo" version
 
       - name: "Install byke-cli"
         run: |
@@ -50,7 +63,7 @@ jobs:
 
       - name: "Build gallery"
         run: |
-          go run ./internal/gallery -examples byke2d/examples -thumbs gallery-thumbs -out site
+          go run ./internal/gallery -tinygo -examples byke2d/examples -thumbs gallery-thumbs -out site
 
       - name: "Upload pages artifact"
         uses: actions/upload-pages-artifact@v5
