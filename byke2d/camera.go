@@ -346,6 +346,9 @@ type ViewBindGroup struct {
 	BindGroup     *wgpu.BindGroup
 	BufferViews   *wgpu.Buffer
 	BufferGlobals *wgpu.Buffer
+
+	// the globals buffer in BindGroup, BufferGlobals might have been reallocated since
+	boundGlobals *wgpu.Buffer
 }
 
 var ViewBindGroupLayout = SequentialLayoutWithLabel(
@@ -369,9 +372,13 @@ func createViewUniformsBindGroup(
 	viewUniforms *ComponentUniforms[ViewUniforms],
 ) {
 	bindingView := viewUniforms.Binding()
-	if bindingView.Buffer != viewBindGroup.BufferViews {
-		viewBindGroup.BindGroup.Release()
+	if viewBindGroup.BindGroup != nil && bindingView.Buffer == viewBindGroup.BufferViews && viewBindGroup.BufferGlobals == viewBindGroup.boundGlobals {
+		return
 	}
+
+	viewBindGroup.BindGroup.Release()
+	viewBindGroup.BufferViews = bindingView.Buffer
+	viewBindGroup.boundGlobals = viewBindGroup.BufferGlobals
 
 	viewBindGroup.BindGroup = ctx.CreateBindGroup(&wgpu.BindGroupDescriptor{
 		Label:  "View Uniforms",
