@@ -11,6 +11,7 @@ struct StandardMaterial {
     alpha_cutoff: f32,
     metallic: f32,
     perceptual_roughness: f32,
+    emissive_exposure_weight: f32,
 }
 
 @group(2)
@@ -108,17 +109,16 @@ fn fs_main(param: mesh::VertexOutput, @builtin(front_facing) front_facing: bool)
         base_color.a,
     );
 
-    @if(MESH3D_MAT_HAS_EMISSIVE)
-    {
-        // apply emissive light to the color
-        let emissive_color = textureSample(emissive, emissive_sampler, vertex.uv).rgb;
-        let emissive = emissive_color * m.emissive_scale;
-        color += vec4f(emissive, 0.0);
-    }
-
     // no emissive texture: emit the emissive scale as is (glTF treats a missing texture as 1)
-    @if(!MESH3D_MAT_HAS_EMISSIVE)
-    color += vec4f(m.emissive_scale, 0.0);
+    var emissive_light = m.emissive_scale;
+
+    @if(MESH3D_MAT_HAS_EMISSIVE)
+    emissive_light *= textureSample(emissive, emissive_sampler, vertex.uv).rgb;
+
+    // like bevy, the camera exposure only applies to the emissive light by the given weight
+    emissive_light *= mix(1.0, view.exposure, m.emissive_exposure_weight);
+
+    color += vec4f(emissive_light, 0.0);
 
     @if(ALPHAMODE_OPAQUE)
     color.a = 1.0;

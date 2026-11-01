@@ -31,6 +31,11 @@ type StandardMaterial struct {
 	// If the material has an EmissiveTexture, it is multiplied by the texture value.
 	EmissiveScale glm.Vec3f
 
+	// EmissiveExposureWeight is how much the camera exposure affects the emitted color.
+	// Zero (the default) emits the color as is, one multiplies it by the exposure, like
+	// the lighting.
+	EmissiveExposureWeight float32
+
 	// Metallic value, zero to one.
 	Metallic float32
 
@@ -204,6 +209,7 @@ func (m StandardMaterial) WriteUniforms(w *wgsl.StructWriter) {
 	w.AppendFloat32(m.AlphaCutoff)
 	w.AppendFloat32(m.Metallic)
 	w.AppendFloat32(m.PerceptualRoughness)
+	w.AppendFloat32(m.EmissiveExposureWeight)
 }
 
 func (m StandardMaterial) BindGroup() *MaterialBindGroupHandle {
