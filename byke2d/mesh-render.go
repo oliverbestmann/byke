@@ -457,6 +457,9 @@ func MeshViewBindGroupLayout(opts MeshViewBindGroupLayoutOptions) wgpu.BindGroup
 		Indexed(12, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
 		Indexed(13, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
 
+		// shadow cascades of the directional lights
+		Indexed(17, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
+
 		// All morph descriptors
 		Indexed(20, BindingLayoutBuffer(wgpu.BufferBindingTypeReadOnlyStorage, false)),
 
@@ -545,6 +548,7 @@ func prepareMeshViewBindGroupSystem(
 			Indexed(11, BindingBuffer(lights.BufDirectionalLights)),
 			Indexed(12, BindingBuffer(lights.BufPointLights)),
 			Indexed(13, BindingBuffer(lights.BufSpotLights)),
+			Indexed(17, BindingBuffer(lights.BufShadowCascades)),
 
 			Indexed(20, BindingBuffer(morphUniforms.BufDescriptors)),
 			Indexed(21, BindingBuffer(morphUniforms.BufWeights)),

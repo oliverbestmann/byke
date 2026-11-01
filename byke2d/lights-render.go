@@ -1,6 +1,8 @@
 package byke2d
 
 import (
+	"slices"
+
 	"github.com/chewxy/math32"
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
@@ -16,6 +18,9 @@ type ExtractedLights struct {
 	PointLights       []ExtractedPointLight
 	SpotLights        []ExtractedSpotLight
 
+	// Shadow cascades of the directional lights, referenced by FirstCascade and CascadeCount
+	ShadowCascades []ExtractedShadowCascade
+
 	// Width and height of each spot light shadow map
 	ShadowMapSize uint32
 }
@@ -25,6 +30,7 @@ func (l *ExtractedLights) Clear() {
 	l.DirectionalLights = l.DirectionalLights[:0]
 	l.PointLights = l.PointLights[:0]
 	l.SpotLights = l.SpotLights[:0]
+	l.ShadowCascades = l.ShadowCascades[:0]
 }
 
 type ExtractedPointLight struct {
@@ -86,31 +92,44 @@ type ExtractedDirectionalLight struct {
 	Color     glm.Vec3f
 	Direction glm.Vec3f
 
-	// center of the shadow map volume
-	Position glm.Vec3f
-
-	// Layer in the 2d shadow map array (shared with spot lights),
-	// -1 if the light casts no shadows
-	ShadowLayer      int32
-	ShadowDepthBias  float32
-	ShadowNormalBias float32
-
 	// share of the shadow applied to the ambient and environment light
 	EnvironmentShadow float32
 
-	// view and projection of the shadow map, only set if ShadowLayer >= 0
-	WorldToView glm.Mat4f
-	ViewToClip  glm.Mat4f
+	// range in ExtractedLights.ShadowCascades, ordered from smallest to largest volume.
+	// CascadeCount is zero if the light casts no shadows
+	FirstCascade uint32
+	CascadeCount uint32
 }
 
 func (l ExtractedDirectionalLight) WriteTo(w *wgsl.StructWriter) {
 	w.AppendVec3f(l.Color)
 	w.AppendVec3f(l.Direction)
-	w.AppendMat4f(l.ViewToClip.Mul(l.WorldToView))
-	w.AppendInt(l.ShadowLayer)
-	w.AppendFloat32(l.ShadowDepthBias)
-	w.AppendFloat32(l.ShadowNormalBias)
 	w.AppendFloat32(l.EnvironmentShadow)
+	w.AppendUint(l.FirstCascade)
+	w.AppendUint(l.CascadeCount)
+	w.Sync()
+}
+
+// ExtractedShadowCascade is one shadow map of a directional light.
+type ExtractedShadowCascade struct {
+	// start of the shadow map volume
+	Position glm.Vec3f
+
+	// Layer in the 2d shadow map array (shared with spot lights)
+	ShadowLayer      int32
+	ShadowDepthBias  float32
+	ShadowNormalBias float32
+
+	// view and projection of the shadow map
+	WorldToView glm.Mat4f
+	ViewToClip  glm.Mat4f
+}
+
+func (c ExtractedShadowCascade) WriteTo(w *wgsl.StructWriter) {
+	w.AppendMat4f(c.ViewToClip.Mul(c.WorldToView))
+	w.AppendInt(c.ShadowLayer)
+	w.AppendFloat32(c.ShadowDepthBias)
+	w.AppendFloat32(c.ShadowNormalBias)
 	w.Sync()
 }
 
@@ -232,31 +251,43 @@ func extractLightsSystem(
 		position := item.Transform.Affine.Translation()
 
 		extracted := ExtractedDirectionalLight{
-			Color:       item.Light.Color.ToVec3f().Scale(item.Light.Illuminance),
-			Direction:   direction,
-			Position:    position,
-			ShadowLayer: -1,
+			Color:             item.Light.Color.ToVec3f().Scale(item.Light.Illuminance),
+			Direction:         direction,
+			EnvironmentShadow: min(max(item.Light.EnvironmentShadow, 0), 1),
+			FirstCascade:      uint32(len(lights.ShadowCascades)),
 		}
 
 		if item.Light.ShadowsEnabled {
-			// directional lights use the layers after the spot lights
-			extracted.ShadowLayer = shadowLayer
-			shadowLayer++
-
-			volume := item.Light.ShadowVolume
-			if volume == (glm.Vec3f{}) {
-				volume = DefaultDirectionalLight.ShadowVolume
+			volumes := item.Light.ShadowVolumes
+			if !slices.ContainsFunc(volumes, func(v glm.Vec3f) bool { return !v.IsZero() }) {
+				volumes = DefaultDirectionalLight.ShadowVolumes
 			}
 
-			extracted.WorldToView = lightWorldToView(position, direction)
-			extracted.ViewToClip = orthographicReverseZ(volume)
+			worldToView := lightWorldToView(position, direction)
 
-			// the normal bias is given in texels, use the larger texel size if the map is not square.
-			// sqrt2 accounts for the worst case diagonal offset
-			texelSize := max(volume[0], volume[1]) / float32(shadowConfig.Size)
-			extracted.ShadowNormalBias = item.Light.ShadowNormalBias * texelSize * math32.Sqrt2
-			extracted.ShadowDepthBias = item.Light.ShadowDepthBias
-			extracted.EnvironmentShadow = min(max(item.Light.EnvironmentShadow, 0), 1)
+			for _, volume := range volumes {
+				if volume.IsZero() {
+					continue
+				}
+
+				// the normal bias is given in texels, use the larger texel size if the map is not square.
+				// sqrt2 accounts for the worst case diagonal offset
+				texelSize := max(volume[0], volume[1]) / float32(shadowConfig.Size)
+
+				lights.ShadowCascades = append(lights.ShadowCascades, ExtractedShadowCascade{
+					Position: position,
+					// directional lights use the layers after the spot lights
+					ShadowLayer:      shadowLayer,
+					ShadowDepthBias:  item.Light.ShadowDepthBias,
+					ShadowNormalBias: item.Light.ShadowNormalBias * texelSize * math32.Sqrt2,
+					WorldToView:      worldToView,
+					ViewToClip:       orthographicReverseZ(volume),
+				})
+
+				shadowLayer++
+			}
+
+			extracted.CascadeCount = uint32(len(lights.ShadowCascades)) - extracted.FirstCascade
 		}
 
 		lights.DirectionalLights = append(lights.DirectionalLights, extracted)
@@ -293,6 +324,7 @@ type lightsStorage struct {
 	BufPointLights       *wgpu.Buffer
 	BufDirectionalLights *wgpu.Buffer
 	BufSpotLights        *wgpu.Buffer
+	BufShadowCascades    *wgpu.Buffer
 
 	// keep around to reuse the memory allocation
 	staging wgsl.StructWriter
@@ -316,6 +348,9 @@ func prepareLightsStorageSystem(
 
 	writeSliceToStructWriter(s, lights.SpotLights)
 	s.WriteTo(ctx, &uniforms.BufSpotLights, "SpotLights", wgpu.BufferUsageStorage)
+
+	writeSliceToStructWriter(s, lights.ShadowCascades)
+	s.WriteTo(ctx, &uniforms.BufShadowCascades, "ShadowCascades", wgpu.BufferUsageStorage)
 }
 
 func writeLightConfigToStructWriter(s *wgsl.StructWriter, lights ExtractedLights) {

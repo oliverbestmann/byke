@@ -90,8 +90,10 @@ func setupSystem(commands *Commands) {
 			Color:       ColorWhite,
 			Illuminance: 1000,
 
-			ShadowsEnabled:   true,
-			ShadowVolume:     glm.Vec3f{20, 20, 1000},
+			ShadowsEnabled: true,
+			ShadowVolumes: []glm.Vec3f{
+				{20, 20, 1000},
+			},
 			ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 			ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
 		},

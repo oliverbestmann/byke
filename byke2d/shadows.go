@@ -202,14 +202,10 @@ func prepareShadowViewsSystem(
 		layers2d++
 	}
 
-	for idx := range lights.DirectionalLights {
-		light := &lights.DirectionalLights[idx]
-		if light.ShadowLayer < 0 {
-			continue
-		}
-
-		key := shadowViewKey{Layer: uint32(light.ShadowLayer)}
-		wanted[key] = shadowViewUniforms(light.WorldToView, light.ViewToClip, light.Position, size)
+	for idx := range lights.ShadowCascades {
+		cascade := &lights.ShadowCascades[idx]
+		key := shadowViewKey{Layer: uint32(cascade.ShadowLayer)}
+		wanted[key] = shadowViewUniforms(cascade.WorldToView, cascade.ViewToClip, cascade.Position, size)
 		layers2d++
 	}
 

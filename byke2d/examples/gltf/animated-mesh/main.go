@@ -40,10 +40,12 @@ func setupSystem(commands *Commands, assets *Assets) {
 		// the shadow volume starts at the light, so place it above the scene
 		TransformFromXYZ(100, 200, 50).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
 		DirectionalLight{
-			Color:            ColorWhite,
-			Illuminance:      DefaultDirectionalLight.Illuminance,
-			ShadowsEnabled:   true,
-			ShadowVolume:     glm.Vec3f{400, 400, 400},
+			Color:          ColorWhite,
+			Illuminance:    DefaultDirectionalLight.Illuminance,
+			ShadowsEnabled: true,
+			ShadowVolumes: []glm.Vec3f{
+				{400, 400, 400},
+			},
 			ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 			ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
 		},

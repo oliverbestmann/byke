@@ -44,7 +44,7 @@ var directionalLight = DirectionalLight{
 	Illuminance: 400,
 
 	ShadowsEnabled:   true,
-	ShadowVolume:     glm.Vec3f{10, 10, 1000},
+	ShadowVolumes:    []glm.Vec3f{{10, 10, 1000}},
 	ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 	ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
 }

@@ -50,7 +50,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 			Color:            ColorWhite,
 			Illuminance:      DefaultDirectionalLight.Illuminance,
 			ShadowsEnabled:   true,
-			ShadowVolume:     glm.Vec3f{1.6, 1.6, 4},
+			ShadowVolumes:    []glm.Vec3f{{1.6, 1.6, 4}},
 			ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 			ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
 		},

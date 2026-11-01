@@ -10,15 +10,27 @@ struct DirectionalLights {
 struct DirectionalLight {
     color: vec3f,
     direction: vec3f,
+    // how much the shadow darkens the ambient and environment light, 0 to 1
+    environment_shadow: f32,
+    // range in shadow_cascades, ordered from smallest to largest volume.
+    // cascade_count is zero if the light casts no shadows
+    first_cascade: u32,
+    cascade_count: u32,
+}
+
+struct ShadowCascades {
+    count: u32,
+    cascades: array<ShadowCascade>,
+}
+
+struct ShadowCascade {
     // projects from world space into the clip space of the shadow map
     world_to_clip: mat4x4f,
-    // layer in shadow_maps_2d, -1 if the light casts no shadows
+    // layer in shadow_maps_2d
     shadow_layer: i32,
     shadow_depth_bias: f32,
     // already scaled to the texel size
     shadow_normal_bias: f32,
-    // how much the shadow darkens the ambient and environment light, 0 to 1
-    environment_shadow: f32,
 }
 
 struct PointLights {
@@ -74,6 +86,10 @@ var<storage> point_lights: PointLights;
 @group(0)
 @binding(13)
 var<storage> spot_lights: SpotLights;
+
+@group(0)
+@binding(17)
+var<storage> shadow_cascades: ShadowCascades;
 
 @if(MESH_SHADOWS)
 @group(0)
@@ -141,35 +157,60 @@ fn spot_shadow(light: SpotLight, position: vec3f, normal: vec3f) -> f32 {
 
 // Returns 0 if the position is in the shadow of the light and 1 if it is lit.
 @if(MESH_SHADOWS)
+// Uses the first (smallest) cascade of the light that contains the position.
+@if(MESH_SHADOWS)
 fn directional_shadow(light: DirectionalLight, position: vec3f, normal: vec3f) -> f32 {
-    if light.shadow_layer < 0 {
-        return 1.0;
+    for (var i = light.first_cascade; i < light.first_cascade + light.cascade_count; i++) {
+        let cascade = shadow_cascades.cascades[i];
+
+        // orthographic projection: texels have the same size everywhere
+        let offset_position = position
+            + normal * cascade.shadow_normal_bias
+            - light.direction * cascade.shadow_depth_bias;
+
+        let coords = shadow_map_2d_coords(cascade.world_to_clip, offset_position);
+        if coords.w > 0.0 {
+            return sample_shadow_map_2d_at(coords, cascade.shadow_layer);
+        }
     }
 
-    // orthographic projection: texels have the same size everywhere
-    let offset_position = position
-        + normal * light.shadow_normal_bias
-        - light.direction * light.shadow_depth_bias;
-
-    return sample_shadow_map_2d(light.world_to_clip, light.shadow_layer, offset_position);
+    return 1.0;
 }
 
 // Projects the position into the shadow map at the given layer of shadow_maps_2d.
 // Returns 0 if it is in shadow and 1 if it is lit or outside of the map.
 @if(MESH_SHADOWS)
 fn sample_shadow_map_2d(world_to_clip: mat4x4f, layer: i32, position: vec3f) -> f32 {
+    let coords = shadow_map_2d_coords(world_to_clip, position);
+    if coords.w == 0.0 {
+        return 1.0;
+    }
+
+    return sample_shadow_map_2d_at(coords, layer);
+}
+
+// Returns uv and depth of the position in a 2d shadow map,
+// w is 1 if the position is inside of the map and 0 otherwise.
+@if(MESH_SHADOWS)
+fn shadow_map_2d_coords(world_to_clip: mat4x4f, position: vec3f) -> vec4f {
     let clip = world_to_clip * vec4f(position, 1.0);
     if clip.w <= 0.0 {
-        return 1.0;
+        return vec4f(0.0);
     }
 
     let ndc = clip.xyz / clip.w;
     let uv = ndc.xy * vec2f(0.5, -0.5) + vec2f(0.5);
     if any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || ndc.z < 0.0 || ndc.z > 1.0 {
-        return 1.0;
+        return vec4f(0.0);
     }
 
+    return vec4f(uv, ndc.z, 1.0);
+}
+
+// Samples a 2d shadow map at coords from shadow_map_2d_coords.
+@if(MESH_SHADOWS)
+fn sample_shadow_map_2d_at(coords: vec4f, layer: i32) -> f32 {
     // Reverse-z (near is depth 1, far is depth 0): lit if the fragment is at least as close as the stored depth.
     // Use the Level variant: this runs in non-uniform control flow, where implicit mip selection is not allowed.
-    return textureSampleCompareLevel(shadow_maps_2d, shadow_sampler, uv, layer, ndc.z);
+    return textureSampleCompareLevel(shadow_maps_2d, shadow_sampler, coords.xy, layer, coords.z);
 }

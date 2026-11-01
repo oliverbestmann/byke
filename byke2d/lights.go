@@ -79,13 +79,14 @@ type DirectionalLight struct {
 	// Whether this light casts shadows.
 	ShadowsEnabled bool
 
-	// Size of the box the shadow map covers: width and height across the light
-	// direction, centered on the light's position, and length along the light
-	// direction, starting at the light's position. Only geometry inside this box
+	// Sizes of the boxes the shadow maps (cascades) cover, one shadow map each: width and
+	// height across the light direction, centered on the light's position, and length along
+	// the light direction, starting at the light's position. Only geometry inside a box
 	// casts shadows, and a larger width or height makes shadows blurrier.
 	// The length barely affects quality, so it can be large.
-	// Defaults to DefaultDirectionalLight.ShadowVolume if zero.
-	ShadowVolume glm.Vec3f
+	// Order the boxes from smallest to largest: each pixel uses the first box that contains it.
+	// Zero entries are skipped. Defaults to DefaultDirectionalLight.ShadowVolumes if empty.
+	ShadowVolumes []glm.Vec3f
 
 	// Offset of the sampled position towards the light, in world units.
 	// Reduces shadow acne (dark speckles on lit surfaces). Too large values
@@ -104,7 +105,7 @@ type DirectionalLight struct {
 var DefaultDirectionalLight = DirectionalLight{
 	Color:            ColorWhite,
 	Illuminance:      10_000,
-	ShadowVolume:     glm.Vec3f{40, 40, 1000},
+	ShadowVolumes:    []glm.Vec3f{{40, 40, 1000}},
 	ShadowDepthBias:  0.02,
 	ShadowNormalBias: 1.8,
 }
