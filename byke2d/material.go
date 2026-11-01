@@ -161,6 +161,7 @@ func pluginMaterialCommon(app *byke.App) {
 	app.AddSystems(Render, byke.
 		System(prepareMeshInstancesSystem).
 		After(prepareMaterialUniforms).
+		After(prepareMorphUniformsSystem).
 		InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.

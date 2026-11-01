@@ -13,7 +13,7 @@ func pluginMesh(app *byke.App) {
 
 	app.AddSystems(Render, byke.
 		System(allocateMeshesSystem).
-		InSet(RenderPhasePrepareResources))
+		InSet(RenderPhasePrepare))
 
 	app.AddSystems(byke.PostUpdate, updateAABBOfChangedMeshSystem)
 }

@@ -33,9 +33,7 @@ func pluginMesh3d(app *byke.App) {
 
 	app.AddSystems(Render, byke.System(prepareSkinsUniformsSystem).InSet(RenderPhasePrepareResources))
 
-	app.AddSystems(Render, byke.System(prepareMorphUniformsSystem).
-		After(allocateMeshesSystem).
-		InSet(RenderPhasePrepareResources))
+	app.AddSystems(Render, byke.System(prepareMorphUniformsSystem).InSet(RenderPhasePrepareResources))
 
 	app.AddSystems(Render, byke.System(prepareMeshViewBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
 	app.AddSystems(Render, byke.System(prepareMeshBindGroupSystem).InSet(RenderPhasePrepareBindGroups))
