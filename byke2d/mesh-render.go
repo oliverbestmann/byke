@@ -85,9 +85,13 @@ func extractMeshesWithMaterialSystem[M Material](
 			skin.InverseBind = sm.InverseBind
 		}
 
+		worldCenter, worldHalf := item.MeshAABB.Transformed(item.Transform.Affine)
+
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
 			Mesh:             mesh.Mesh,
 			AABB:             item.MeshAABB,
+			WorldCenter:      worldCenter,
+			WorldHalf:        worldHalf,
 			Transform:        item.Transform.Affine,
 			Material:         any(materials.Alloc(item.Material)).(Material),
 			RenderLayers:     item.RenderLayers.Or(renderLayerZero),
@@ -167,9 +171,11 @@ func queueMeshInstancesSystem(
 		// position of camera in world space
 		cameraPositionInWorld := view.Transform.Affine.Translation()
 
+		frustum := FrustumFromClip(view.Uniforms.WorldToScreen)
+
 		for idx := range meshes.Meshes {
 			sp := &meshes.Meshes[idx]
-			if !view.RenderLayers.Intersects(sp.RenderLayers) || sp.OutsideView(view.Uniforms.WorldToScreen) {
+			if !view.RenderLayers.Intersects(sp.RenderLayers) || sp.OutsideView(&frustum) {
 				continue
 			}
 

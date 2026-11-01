@@ -17,43 +17,53 @@ func (a AABB) Center() glm.Vec3f {
 	return a.Min.Add(a.Max).Scale(0.5)
 }
 
-// OutsideClip reports whether the box is completely outside the view, given the matrix from
-// the box's local space to clip space. Only the side planes and the camera plane count, not
-// near and far depth: this works with reversed depth and keeps shadow casters in front of the light.
-func (a AABB) OutsideClip(localToClip glm.Mat4f) bool {
-	var left, right, bottom, top, behind int
+func abs32(v float32) float32 {
+	return max(v, -v)
+}
 
-	for idx := range 8 {
-		corner := glm.Vec4f{a.Min[0], a.Min[1], a.Min[2], 1}
-		if idx&1 != 0 {
-			corner[0] = a.Max[0]
-		}
-		if idx&2 != 0 {
-			corner[1] = a.Max[1]
-		}
-		if idx&4 != 0 {
-			corner[2] = a.Max[2]
-		}
+// Transformed returns the center and half size of the axis aligned box in the space of m that
+// encloses this box. It is larger than the box itself if m rotates.
+func (a AABB) Transformed(m glm.Mat4f) (center, half glm.Vec3f) {
+	center = m.Transform3(a.Center())
+	localHalf := a.Max.Sub(a.Min).Scale(0.5)
 
-		c := localToClip.Transform(corner)
-		if c[0] < -c[3] {
-			left++
-		}
-		if c[0] > c[3] {
-			right++
-		}
-		if c[1] < -c[3] {
-			bottom++
-		}
-		if c[1] > c[3] {
-			top++
-		}
-		if c[3] <= 0 {
-			behind++
+	for row := range 3 {
+		for col := range 3 {
+			half[row] += abs32(m[col][row]) * localHalf[col]
 		}
 	}
 
-	return left == 8 || right == 8 || bottom == 8 || top == 8 || behind == 8
+	return center, half
+}
+
+// Frustum holds the planes of a view: left, right, bottom, top and the camera plane.
+// Points inside have a positive distance to every plane. Near and far depth do not count:
+// this works with reversed depth and keeps shadow casters in front of the light.
+type Frustum [5]glm.Vec4f
+
+// FrustumFromClip extracts the planes from the world to clip matrix (Gribb and Hartmann).
+func FrustumFromClip(m glm.Mat4f) Frustum {
+	row := func(idx int) glm.Vec4f {
+		return glm.Vec4f{m[0][idx], m[1][idx], m[2][idx], m[3][idx]}
+	}
+
+	x, y, w := row(0), row(1), row(3)
+	return Frustum{w.Add(x), w.Sub(x), w.Add(y), w.Sub(y), w}
+}
+
+// OutsideBox reports whether the box is completely outside of one of the planes.
+func (f *Frustum) OutsideBox(center, half glm.Vec3f) bool {
+	for _, p := range f {
+		// the distance of the box corner furthest along the plane normal
+		distance := p[0]*center[0] + p[1]*center[1] + p[2]*center[2] + p[3] +
+			abs32(p[0])*half[0] + abs32(p[1])*half[1] + abs32(p[2])*half[2]
+
+		if distance <= 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 func updateAABBOfChangedMeshSystem(

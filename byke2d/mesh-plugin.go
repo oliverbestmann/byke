@@ -30,6 +30,9 @@ type ExtractedMesh struct {
 	// The AABB of the mesh (in local space)
 	AABB AABB
 
+	// WorldCenter and WorldHalf are the box in world space around AABB, for culling.
+	WorldCenter, WorldHalf glm.Vec3f
+
 	// Material defines the appearance of the mesh (colors, textures, shaders).
 	Material Material
 
@@ -69,14 +72,14 @@ func (s *ExtractedSkin) IsSet() bool {
 	return s.EntityId != byke.NoEntityId
 }
 
-// OutsideView reports whether the mesh is completely outside the view with the given
-// world to clip matrix. Skinned and morphed meshes are never culled, their AABB is the rest pose.
-func (m *ExtractedMesh) OutsideView(worldToClip glm.Mat4f) bool {
+// OutsideView reports whether the mesh is completely outside the view frustum.
+// Skinned and morphed meshes are never culled, their AABB is the rest pose.
+func (m *ExtractedMesh) OutsideView(frustum *Frustum) bool {
 	if m.Skin.IsSet() || m.HashMorphWeights {
 		return false
 	}
 
-	return m.AABB.OutsideClip(worldToClip.Mul(m.Transform))
+	return frustum.OutsideBox(m.WorldCenter, m.WorldHalf)
 }
 
 func allocateMeshesSystem(

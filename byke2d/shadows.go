@@ -295,9 +295,11 @@ func queueShadowsSystem(
 	}],
 ) {
 	for view := range viewsQuery.Items() {
+		frustum := FrustumFromClip(view.Uniforms.WorldToScreen)
+
 		for idx := range meshes.Meshes {
 			mesh := &meshes.Meshes[idx]
-			if !mesh.CastsShadows() || mesh.OutsideView(view.Uniforms.WorldToScreen) {
+			if !mesh.CastsShadows() || mesh.OutsideView(&frustum) {
 				continue
 			}
 

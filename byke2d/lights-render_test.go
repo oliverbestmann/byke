@@ -30,7 +30,3 @@ func TestDirectionalShadowProjection(t *testing.T) {
 	require.InDelta(t, 1, abs32(corner[0]), 1e-5)
 	require.InDelta(t, 1, abs32(corner[1]), 1e-5)
 }
-
-func abs32(v float32) float32 {
-	return max(v, -v)
-}
