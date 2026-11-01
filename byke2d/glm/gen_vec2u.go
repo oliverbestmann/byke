@@ -114,6 +114,10 @@ func (lhs Vec2u) XY() (x, y uint32) {
 	return
 }
 
+func (lhs Vec2u) IsZero() bool {
+	return lhs == (Vec2u{})
+}
+
 func (lhs Vec2u) ToVec2f() Vec2f {
 	return Vec2f{
 		float32(lhs[0]),

@@ -436,6 +436,10 @@ func (lhs {{.Type}}) Max(rhs {{.Type}}) {{.Type}} {
 	{{ end }}
 {{ end }}
 
+func (lhs {{.Type}}) IsZero() bool {
+	return lhs == ({{.Type}}{})
+}
+
 func (lhs {{.Type}}) To{{ .NameWithSuffix "f" }}() {{ .NameWithSuffix "f" }} {
 	return {{ .NameWithSuffix "f" }}{
 		{{- range $idx := .Len }}

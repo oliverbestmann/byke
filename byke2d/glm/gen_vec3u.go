@@ -451,6 +451,10 @@ func (lhs Vec3u) XYZ() (x, y, z uint32) {
 	return
 }
 
+func (lhs Vec3u) IsZero() bool {
+	return lhs == (Vec3u{})
+}
+
 func (lhs Vec3u) ToVec3f() Vec3f {
 	return Vec3f{
 		float32(lhs[0]),

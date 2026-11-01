@@ -130,6 +130,10 @@ func (lhs Vec2d) XY() (x, y float64) {
 	return
 }
 
+func (lhs Vec2d) IsZero() bool {
+	return lhs == (Vec2d{})
+}
+
 func (lhs Vec2d) ToVec2f() Vec2f {
 	return Vec2f{
 		float32(lhs[0]),

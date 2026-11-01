@@ -468,6 +468,10 @@ func (lhs Vec3f) XYZ() (x, y, z float32) {
 	return
 }
 
+func (lhs Vec3f) IsZero() bool {
+	return lhs == (Vec3f{})
+}
+
 func (lhs Vec3f) ToVec3f() Vec3f {
 	return Vec3f{
 		float32(lhs[0]),

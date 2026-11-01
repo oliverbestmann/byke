@@ -3707,6 +3707,10 @@ func (lhs Vec4u) XYZW() (x, y, z, w uint32) {
 	return
 }
 
+func (lhs Vec4u) IsZero() bool {
+	return lhs == (Vec4u{})
+}
+
 func (lhs Vec4u) ToVec4f() Vec4f {
 	return Vec4f{
 		float32(lhs[0]),
