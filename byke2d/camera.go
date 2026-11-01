@@ -29,7 +29,7 @@ func pluginCamera(app *byke.App) {
 
 	app.AddSystems(Render, byke.
 		System(prepareViewUniformsSystem).
-		InSet(RenderPhasePrepareResources))
+		InSet(RenderPhasePrepare))
 
 	app.AddSystems(Render, byke.
 		System(prepareGlobals).

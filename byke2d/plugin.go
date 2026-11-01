@@ -32,12 +32,19 @@ var (
 )
 
 var (
-	RenderPhaseExtract           = &byke.SystemSet{Name: "RenderPhaseExtract"}
-	RenderPhaseSetupView         = &byke.SystemSet{Name: "RenderPhaseSetupView"}
-	RenderPhaseQueue             = &byke.SystemSet{Name: "RenderPhaseQueue"}
-	RenderPhaseSort              = &byke.SystemSet{Name: "RenderPhaseSort"}
-	RenderPhasePrepare           = &byke.SystemSet{Name: "RenderPhasePrepare"}
-	RenderPhasePrepareResources  = &byke.SystemSet{Name: "RenderPhasePrepareResources"}
+	RenderPhaseExtract   = &byke.SystemSet{Name: "RenderPhaseExtract"}
+	RenderPhaseSetupView = &byke.SystemSet{Name: "RenderPhaseSetupView"}
+	RenderPhaseQueue     = &byke.SystemSet{Name: "RenderPhaseQueue"}
+	RenderPhaseSort      = &byke.SystemSet{Name: "RenderPhaseSort"}
+
+	// RenderPhasePrepare computes the values that RenderPhasePrepareResources uploads,
+	// like ViewUniforms. Systems in one set run in no fixed order.
+	RenderPhasePrepare = &byke.SystemSet{Name: "RenderPhasePrepare"}
+
+	// RenderPhasePrepareResources uploads to the gpu. A system here that reads what another
+	// system of this set writes needs an explicit After.
+	RenderPhasePrepareResources = &byke.SystemSet{Name: "RenderPhasePrepareResources"}
+
 	RenderPhasePrepareBindGroups = &byke.SystemSet{Name: "RenderPhasePrepareBindGroups"}
 	RenderPhaseExecute           = &byke.SystemSet{Name: "RenderPhaseExecute"}
 	RenderPhaseCleanup           = &byke.SystemSet{Name: "RenderPhaseCleanup"}
