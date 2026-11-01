@@ -289,14 +289,15 @@ func shadowViewUniforms(worldToCamera, cameraToScreen glm.Mat4f, position glm.Ve
 func queueShadowsSystem(
 	meshes *ExtractedMeshes,
 	viewsQuery byke.Query[struct {
-		_     byke.With[ShadowView]
-		Phase *BinnedRenderPhase[Shadow]
+		_        byke.With[ShadowView]
+		Uniforms ViewUniforms
+		Phase    *BinnedRenderPhase[Shadow]
 	}],
 ) {
 	for view := range viewsQuery.Items() {
 		for idx := range meshes.Meshes {
 			mesh := &meshes.Meshes[idx]
-			if !mesh.CastsShadows() {
+			if !mesh.CastsShadows() || mesh.OutsideView(view.Uniforms.WorldToScreen) {
 				continue
 			}
 

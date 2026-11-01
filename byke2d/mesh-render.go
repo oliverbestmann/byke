@@ -150,6 +150,7 @@ func queueMeshInstancesSystem(
 		Transform    GlobalTransform
 		Transform2   Transform
 		RenderLayers RenderLayers
+		Uniforms     ViewUniforms
 		RenderPhase  *BinnedRenderPhase[Opaque]
 		Transparent  *SortableRenderPhase[Transparent]
 	}],
@@ -168,7 +169,7 @@ func queueMeshInstancesSystem(
 
 		for idx := range meshes.Meshes {
 			sp := &meshes.Meshes[idx]
-			if !view.RenderLayers.Intersects(sp.RenderLayers) {
+			if !view.RenderLayers.Intersects(sp.RenderLayers) || sp.OutsideView(view.Uniforms.WorldToScreen) {
 				continue
 			}
 

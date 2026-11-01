@@ -29,7 +29,9 @@ func pluginCamera(app *byke.App) {
 
 	app.AddSystems(Render, byke.
 		System(prepareViewUniformsSystem).
-		InSet(RenderPhasePrepare))
+		// before the queue, it culls meshes with the view matrices
+		After(updateCameraViewTargetSystem).
+		InSet(RenderPhaseSetupView))
 
 	app.AddSystems(Render, byke.
 		System(prepareGlobals).

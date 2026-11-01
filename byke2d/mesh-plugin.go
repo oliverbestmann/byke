@@ -69,6 +69,16 @@ func (s *ExtractedSkin) IsSet() bool {
 	return s.EntityId != byke.NoEntityId
 }
 
+// OutsideView reports whether the mesh is completely outside the view with the given
+// world to clip matrix. Skinned and morphed meshes are never culled, their AABB is the rest pose.
+func (m *ExtractedMesh) OutsideView(worldToClip glm.Mat4f) bool {
+	if m.Skin.IsSet() || m.HashMorphWeights {
+		return false
+	}
+
+	return m.AABB.OutsideClip(worldToClip.Mul(m.Transform))
+}
+
 func allocateMeshesSystem(
 	meshes byke.Query[struct {
 		Mesh query.Ref[MeshInstance]
