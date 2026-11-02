@@ -756,6 +756,7 @@ func drawMeshesBatchSystem(
 		MeshBindGroup       *MeshViewBindGroup
 		ViewUniformsOffset  DynamicOffset[ViewUniforms]
 		EnvironmentMapLight byke.Option[DynamicOffset[EnvironmentMapLight]]
+		ShadowView          byke.Has[ShadowView]
 	}],
 ) {
 	view := viewQuery.Get()
@@ -781,8 +782,6 @@ func drawMeshesBatchSystem(
 		panic("mesh pipeline not found")
 	}
 
-	materialBindGroup := materialBindGroups.MustLookup(mesh.Material)
-
 	meshBindGroup, ok := meshBindGroups.Get(buf, mesh.Lightmap)
 	if !ok {
 		panic("mesh bind group is missing")
@@ -805,7 +804,11 @@ func drawMeshesBatchSystem(
 
 	pass.SetBindGroup(0, view.MeshBindGroup.BindGroup, dynamicOffsetsForViewGroup)
 	pass.SetBindGroup(1, meshBindGroup, nil)
-	pass.SetBindGroup(2, materialBindGroup, nil)
+
+	// the shadow pipeline has no material group. Meshes culled from all cameras have no material bind group.
+	if !view.ShadowView.Exists() {
+		pass.SetBindGroup(2, materialBindGroups.MustLookup(mesh.Material), nil)
+	}
 
 	// per instance data, like transformation, indices in global buffers, etc
 	pass.SetVertexBuffer(0, meshInstances.Buffer, 0, wgpu.WholeSize)
