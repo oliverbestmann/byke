@@ -1,5 +1,7 @@
 package glm
 
+import "math"
+
 type mat4f = [4][4]float32
 
 //goland:noinspection DuplicatedCode
@@ -63,4 +65,33 @@ func (m Mat4f) Translation() Vec3f {
 		m[3][1],
 		m[3][2],
 	}
+}
+
+// TransformBox transforms the axis aligned box given by its center and half size by m.
+// It returns the axis aligned box that encloses the result, which is larger than the
+// box itself if m rotates.
+func (m *Mat4f) TransformBox(center, half Vec3f) (Vec3f, Vec3f) {
+	return mat4fTransformBox((*mat4f)(m), center, half)
+}
+
+func absf32(v float32) float32 {
+	// compiles to a single FABS/ANDPS, unlike the float32 bit mask
+	return float32(math.Abs(float64(v)))
+}
+
+//goland:noinspection DuplicatedCode
+func mat4fTransformBoxGo(m *mat4f, c, h Vec3f) (Vec3f, Vec3f) {
+	center := Vec3f{
+		m[0][0]*c.X + m[1][0]*c.Y + m[2][0]*c.Z + m[3][0],
+		m[0][1]*c.X + m[1][1]*c.Y + m[2][1]*c.Z + m[3][1],
+		m[0][2]*c.X + m[1][2]*c.Y + m[2][2]*c.Z + m[3][2],
+	}
+
+	half := Vec3f{
+		absf32(m[0][0])*h.X + absf32(m[1][0])*h.Y + absf32(m[2][0])*h.Z,
+		absf32(m[0][1])*h.X + absf32(m[1][1])*h.Y + absf32(m[2][1])*h.Z,
+		absf32(m[0][2])*h.X + absf32(m[1][2])*h.Y + absf32(m[2][2])*h.Z,
+	}
+
+	return center, half
 }

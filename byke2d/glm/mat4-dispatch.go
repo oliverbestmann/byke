@@ -31,3 +31,11 @@ func mat4fTranslate(m *mat4f, x, y, z float32) {
 
 	mat4fTranslateSimd(m, x, y, z)
 }
+
+func mat4fTransformBox(m *mat4f, center, half Vec3f) (Vec3f, Vec3f) {
+	if !useSimd {
+		return mat4fTransformBoxGo(m, center, half)
+	}
+
+	return mat4fTransformBoxSimd(m, center, half)
+}

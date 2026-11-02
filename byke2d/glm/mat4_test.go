@@ -1,6 +1,7 @@
 package glm
 
 import (
+	"math"
 	"math/rand/v2"
 	"testing"
 
@@ -159,5 +160,68 @@ func Benchmark_Mat4fTranslateGo(b *testing.B) {
 	for range b.N {
 		mCopy := m
 		mat4fTranslateGo(&mCopy, x, y, z)
+	}
+}
+
+func TestTransformBox(t *testing.T) {
+	// rotating by 90° around z swaps the x and y extent
+	m := TranslationMat4f(1, 2, 3).RotateZ(Rad(math.Pi / 2))
+	center, half := m.TransformBox(V3f(0, 0, 0), V3f(2, 1, 0.5))
+	require.InDeltaSlice(t, []float32{1, 2, 3}, toSlice(center), 1e-5)
+	require.InDeltaSlice(t, []float32{1, 2, 0.5}, toSlice(half), 1e-5)
+
+	r := rand.New(rand.NewPCG(1, 1))
+	for range 10_000 {
+		m := randMat4f(r)
+		for i := range 4 {
+			for j := range 4 {
+				m[i][j] -= 0.5
+			}
+		}
+
+		c := V3f(r.Float32()-0.5, r.Float32()-0.5, r.Float32()-0.5)
+		h := V3f(r.Float32(), r.Float32(), r.Float32())
+
+		expCenter, expHalf := mat4fTransformBoxGo(&m, c, h)
+		center, half := mat4fTransformBox(&m, c, h)
+		require.InDeltaSlice(t, toSlice(expCenter), toSlice(center), 1e-5)
+		require.InDeltaSlice(t, toSlice(expHalf), toSlice(half), 1e-5)
+	}
+}
+
+func toSlice(v Vec3f) []float32 {
+	return []float32{v.X, v.Y, v.Z}
+}
+
+func boxInputs() ([]Mat4f, []Vec3f) {
+	r := rand.New(rand.NewPCG(1, 1))
+	ms := make([]Mat4f, 1024)
+	vs := make([]Vec3f, 1024)
+	for i := range ms {
+		ms[i] = randMat4f(r)
+		vs[i] = V3f(r.Float32(), r.Float32(), r.Float32())
+	}
+	return ms, vs
+}
+
+var sinkVec3f Vec3f
+
+func Benchmark_Mat4fTransformBox(b *testing.B) {
+	ms, vs := boxInputs()
+	for b.Loop() {
+		for i := range ms {
+			c, h := ms[i].TransformBox(vs[i], vs[i])
+			sinkVec3f = c.Add(h)
+		}
+	}
+}
+
+func Benchmark_Mat4fTransformBoxGo(b *testing.B) {
+	ms, vs := boxInputs()
+	for b.Loop() {
+		for i := range ms {
+			c, h := mat4fTransformBoxGo((*mat4f)(&ms[i]), vs[i], vs[i])
+			sinkVec3f = c.Add(h)
+		}
 	}
 }

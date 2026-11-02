@@ -109,3 +109,21 @@ func mat4fScaleSimd(m *mat4f, x, y, z float32) {
 	mc1.StoreArray(&m[1])
 	mc2.StoreArray(&m[2])
 }
+
+func mat4fTransformBoxSimd(m *mat4f, c, h Vec3f) (Vec3f, Vec3f) {
+	mc0 := archsimd.LoadFloat32x4Array(&m[0])
+	mc1 := archsimd.LoadFloat32x4Array(&m[1])
+	mc2 := archsimd.LoadFloat32x4Array(&m[2])
+	mc3 := archsimd.LoadFloat32x4Array(&m[3])
+
+	center := mc0.MulAdd(archsimd.BroadcastFloat32x4(c.X), mc3)
+	center = mc1.MulAdd(archsimd.BroadcastFloat32x4(c.Y), center)
+	center = mc2.MulAdd(archsimd.BroadcastFloat32x4(c.Z), center)
+
+	half := mc0.Abs().Mul(archsimd.BroadcastFloat32x4(h.X))
+	half = mc1.Abs().MulAdd(archsimd.BroadcastFloat32x4(h.Y), half)
+	half = mc2.Abs().MulAdd(archsimd.BroadcastFloat32x4(h.Z), half)
+
+	return Vec3f{center.GetElem(0), center.GetElem(1), center.GetElem(2)},
+		Vec3f{half.GetElem(0), half.GetElem(1), half.GetElem(2)}
+}

@@ -12,3 +12,8 @@ func mat4fScaleSimd(m *mat4f, x, y, z float32)
 
 //go:noescape
 func mat4fTranslateSimd(m *mat4f, x, y, z float32)
+
+// There is no assembly version of this one.
+func mat4fTransformBoxSimd(m *mat4f, center, half Vec3f) (Vec3f, Vec3f) {
+	return mat4fTransformBoxGo(m, center, half)
+}
