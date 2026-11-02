@@ -232,6 +232,8 @@ type meshPipelineCache struct {
 	tickCache[meshPipelineCacheKey, Pipeline]
 }
 
+// prepareMeshPipelinesSystems specializes the pipelines of the queued meshes. The draw of
+// a binned batch uses the pipeline of its first item, so only those need one.
 func prepareMeshPipelinesSystems(
 	meshes ExtractedMeshes,
 	pipelines *PipelineCache,
@@ -240,25 +242,20 @@ func prepareMeshPipelinesSystems(
 		ViewId              byke.EntityId
 		ViewTarget          ViewTarget
 		EnvironmentMapLight byke.Has[EnvironmentMapLight]
-		RenderLayers        RenderLayers
+		Phase               *BinnedRenderPhase[Opaque]
+		Transparent         *SortableRenderPhase[Transparent]
 	}],
 	shadowViewsQuery byke.Query[struct {
 		_      byke.With[ShadowView]
 		ViewId byke.EntityId
+		Phase  *BinnedRenderPhase[Shadow]
 	}],
 ) {
 	cache.Tick()
 
-	var prevConfigHash Hash
-	var prevPipeline Pipeline
-
 	for view := range viewsQuery.Items() {
-		for _, mesh := range meshes.Meshes {
-			if !view.RenderLayers.Intersects(mesh.RenderLayers) {
-				continue
-			}
-
-			pipelineConfig := meshPipelineConfig{
+		configFor := func(mesh *ExtractedMesh) meshPipelineConfig {
+			return meshPipelineConfig{
 				Format:       view.ViewTarget.Format,
 				SampleCount:  view.ViewTarget.SampleCount,
 				Skinned:      mesh.Skin.IsSet(),
@@ -271,44 +268,46 @@ func prepareMeshPipelinesSystems(
 					Shadows:             true,
 				},
 			}
+		}
 
-			key := meshPipelineCacheKey{
-				View:   view.ViewId,
-				Entity: mesh.EntityId,
+		for _, batch := range view.Phase.Batches() {
+			mesh := &meshes.Meshes[batch[0].ExtractedIndex]
+			cache.Add(meshPipelineCacheKey{View: view.ViewId, Entity: mesh.EntityId}, pipelines.Specialize(configFor(mesh)))
+		}
+
+		// transparent batches are formed later, when the instances are written, so every
+		// mesh item gets its pipeline. Neighbors often share the config.
+		var prevConfigHash Hash
+		var prevPipeline Pipeline
+
+		for idx := range view.Transparent.Len() {
+			item := view.Transparent.Get(idx)
+			if _, isMesh := item.Type.(*meshRenderPhaseItem); !isMesh {
+				continue
 			}
 
-			var pipeline Pipeline
+			mesh := &meshes.Meshes[item.ExtractedIndex]
 
-			if hash := pipelineConfig.Hash(); prevConfigHash != hash {
-				pipeline = pipelines.Specialize(pipelineConfig)
-
-				prevPipeline = pipeline
+			config := configFor(mesh)
+			if hash := config.Hash(); hash != prevConfigHash || idx == 0 {
+				prevPipeline = pipelines.Specialize(config)
 				prevConfigHash = hash
-			} else {
-				pipeline = prevPipeline
 			}
 
-			cache.Add(key, pipeline)
+			cache.Add(meshPipelineCacheKey{View: view.ViewId, Entity: mesh.EntityId}, prevPipeline)
 		}
 	}
 
-	if shadowViewsQuery.Count() == 0 {
-		return
-	}
+	for view := range shadowViewsQuery.Items() {
+		for _, batch := range view.Phase.Batches() {
+			mesh := &meshes.Meshes[batch[0].ExtractedIndex]
 
-	for idx := range meshes.Meshes {
-		mesh := &meshes.Meshes[idx]
-		if !mesh.CastsShadows() {
-			continue
-		}
+			pipeline := pipelines.Specialize(shadowPipelineConfig{
+				VertexLayout: mesh.Mesh.VertexLayout(),
+				Skinned:      mesh.Skin.IsSet(),
+				Morph:        mesh.HashMorphWeights,
+			})
 
-		pipeline := pipelines.Specialize(shadowPipelineConfig{
-			VertexLayout: mesh.Mesh.VertexLayout(),
-			Skinned:      mesh.Skin.IsSet(),
-			Morph:        mesh.HashMorphWeights,
-		})
-
-		for view := range shadowViewsQuery.Items() {
 			cache.Add(meshPipelineCacheKey{View: view.ViewId, Entity: mesh.EntityId}, pipeline)
 		}
 	}

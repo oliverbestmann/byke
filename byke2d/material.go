@@ -388,7 +388,8 @@ func prepareMaterialBindGroupsSystem(
 			}
 
 			if !ok {
-				// no view renders this mesh, e.g. because of render layers
+				// no pipeline for this mesh: it is culled, not the first of its batch, or no view
+				// renders it. The first mesh of a batch shares the material and creates the bind group.
 				continue
 			}
 
