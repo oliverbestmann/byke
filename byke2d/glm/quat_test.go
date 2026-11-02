@@ -11,14 +11,14 @@ func TestQuatRotate(t *testing.T) {
 	q := RotationZQuat(math.Pi / 2)
 
 	res := q.Transform(Vec3f{1, 0, 0})
-	require.InDelta(t, 0, res[0], 1e-5)
-	require.InDelta(t, 1, res[1], 1e-5)
-	require.InDelta(t, 0, res[2], 1e-5)
+	require.InDelta(t, 0, res.X, 1e-5)
+	require.InDelta(t, 1, res.Y, 1e-5)
+	require.InDelta(t, 0, res.Z, 1e-5)
 
 	res = q.Transform(Vec3f{0, 1, 0})
-	require.InDelta(t, -1, res[0], 1e-5)
-	require.InDelta(t, 0, res[1], 1e-5)
-	require.InDelta(t, 0, res[2], 1e-5)
+	require.InDelta(t, -1, res.X, 1e-5)
+	require.InDelta(t, 0, res.Y, 1e-5)
+	require.InDelta(t, 0, res.Z, 1e-5)
 }
 
 func TestQuatFromRotationArc(t *testing.T) {
@@ -51,10 +51,10 @@ func TestQuatMulMatchesMat4Mul(t *testing.T) {
 func TestQuatValuesStandardLayout(t *testing.T) {
 	// 90° around z: (0, 0, sin(45°), cos(45°))
 	v := RotationZQuat(math.Pi / 2).Values()
-	require.InDelta(t, 0, v[0], 1e-6)
-	require.InDelta(t, 0, v[1], 1e-6)
-	require.InDelta(t, math.Sqrt2/2, v[2], 1e-6)
-	require.InDelta(t, math.Sqrt2/2, v[3], 1e-6)
+	require.InDelta(t, 0, v.X, 1e-6)
+	require.InDelta(t, 0, v.Y, 1e-6)
+	require.InDelta(t, math.Sqrt2/2, v.Z, 1e-6)
+	require.InDelta(t, math.Sqrt2/2, v.W, 1e-6)
 }
 
 func TestQuatFromMat3RoundTrip(t *testing.T) {

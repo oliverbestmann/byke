@@ -123,13 +123,13 @@ func (o OrthographicProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
 	viewSize = scalingMode.ViewportSize(viewSize.XY())
 
 	offset := o.ViewportOrigin.Mul(viewSize)
-	left, right := -offset[0], -offset[0]+viewSize[0]
-	top, bottom := -offset[1], -offset[1]+viewSize[1]
+	left, right := -offset.X, -offset.X+viewSize.X
+	top, bottom := -offset.Y, -offset.Y+viewSize.Y
 
 	near, far := o.nearFar()
 
-	rcpWidth := 1.0 / viewSize[0]
-	rcpHeight := 1.0 / viewSize[1]
+	rcpWidth := 1.0 / viewSize.X
+	rcpHeight := 1.0 / viewSize.Y
 	r := 1.0 / (far - near)
 
 	return glm.Mat4f{
@@ -157,7 +157,7 @@ type PerspectiveProjection struct {
 }
 
 func (p PerspectiveProjection) ToMat4f(viewSize glm.Vec2f) glm.Mat4f {
-	aspect := viewSize[0] / viewSize[1]
+	aspect := viewSize.X / viewSize.Y
 	return glm.Perspective(p.Fov, aspect, p.Near, p.Far)
 }
 
@@ -326,7 +326,7 @@ func prepareViewUniformsSystem(
 
 		if view.TAAA.Exists() {
 			offset := taaaOffsets[vt.Frames%4]
-			vv.WorldToClip.TranslateAssign(offset[0], offset[1], 0)
+			vv.WorldToClip.TranslateAssign(offset.X, offset.Y, 0)
 		}
 
 		*view.ViewUniforms = ViewUniforms{
@@ -421,7 +421,7 @@ func updateCameraViewTargetSystem(
 
 		commands.Entity(camera.EntityId).Insert(viewTarget)
 
-		width, height := uint32(viewTarget.Size[0]), uint32(viewTarget.Size[1])
+		width, height := uint32(viewTarget.Size.X), uint32(viewTarget.Size.Y)
 		depthTexture := buildCameraViewDepthTexture(textureCache, glm.V2u(width, height), camera.MSAA.Exists())
 		commands.Entity(camera.EntityId).Insert(depthTexture)
 	}
@@ -525,12 +525,12 @@ func inverseAffine(m glm.Mat4f) (glm.Mat4f, bool) {
 	t := m[3]
 
 	// tInv = -(inv * t)
-	inv[3] = glm.V4f(
+	inv[3] = [4]float32{
 		-(inv[0][0]*t[0] + inv[1][0]*t[1] + inv[2][0]*t[2]),
 		-(inv[0][1]*t[0] + inv[1][1]*t[1] + inv[2][1]*t[2]),
 		-(inv[0][2]*t[0] + inv[1][2]*t[1] + inv[2][2]*t[2]),
 		1,
-	)
+	}
 
 	return inv, true
 }

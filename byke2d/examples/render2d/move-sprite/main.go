@@ -52,12 +52,12 @@ func spriteMovementSystem(
 			step = -step
 		}
 
-		item.Transform.Translation[1] += step
+		item.Transform.Translation.Y += step
 
 		switch {
-		case item.Transform.Translation[1] > 200:
+		case item.Transform.Translation.Y > 200:
 			item.Direction.Up = false
-		case item.Transform.Translation[1] < -200:
+		case item.Transform.Translation.Y < -200:
 			item.Direction.Up = true
 		}
 	}

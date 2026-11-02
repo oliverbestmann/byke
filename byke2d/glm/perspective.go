@@ -21,9 +21,9 @@ func LookAt(eye, center, up Vec3f) Mat4f {
 	u := s.Cross(f)
 
 	return Mat4f{
-		{s[0], u[0], -f[0], 0},
-		{s[1], u[1], -f[1], 0},
-		{s[2], u[2], -f[2], 0},
+		{s.X, u.X, -f.X, 0},
+		{s.Y, u.Y, -f.Y, 0},
+		{s.Z, u.Z, -f.Z, 0},
 		{-eye.Dot(s), -eye.Dot(u), eye.Dot(f), 1},
 	}
 }

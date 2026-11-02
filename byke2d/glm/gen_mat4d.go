@@ -80,7 +80,7 @@ func (m Mat4d) Transpose() Mat4d {
 
 // Column returns a copy of the given column
 func (m Mat4d) Column(idx int) Vec4d {
-	return Vec4d(m[idx])
+	return Vec4d{m[idx][0], m[idx][1], m[idx][2], m[idx][3]}
 }
 
 func TranslationMat4d(x, y, z float64) Mat4d {
@@ -162,25 +162,25 @@ func (m Mat4d) RotateZ(angle Rad) Mat4d {
 
 func (m Mat4d) Transform(vec Vec4d) Vec4d {
 	return Vec4d{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2] + (m[3][0])*vec[3],
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2] + (m[3][1])*vec[3],
-		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2] + (m[3][2])*vec[3],
-		(m[0][3])*vec[0] + (m[1][3])*vec[1] + (m[2][3])*vec[2] + (m[3][3])*vec[3],
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0])*vec.Z + (m[3][0])*vec.W,
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1])*vec.Z + (m[3][1])*vec.W,
+		(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2])*vec.Z + (m[3][2])*vec.W,
+		(m[0][3])*vec.X + (m[1][3])*vec.Y + (m[2][3])*vec.Z + (m[3][3])*vec.W,
 	}
 }
 
 func (m Mat4d) Transform3(vec Vec3d) Vec3d {
 	return Vec3d{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0] * vec[2]) + m[3][0],
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1] * vec[2]) + m[3][1],
-		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2] * vec[2]) + m[3][2],
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0] * vec.Z) + m[3][0],
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1] * vec.Z) + m[3][1],
+		(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2] * vec.Z) + m[3][2],
 	}
 }
 
 func (m Mat4d) Transform2(vec Vec2d) Vec2d {
 	return Vec2d{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + m[3][0],
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + m[3][1],
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + m[3][0],
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + m[3][1],
 	}
 }
 

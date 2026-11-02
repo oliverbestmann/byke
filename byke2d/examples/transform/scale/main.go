@@ -13,10 +13,6 @@ import (
 
 var _ = ValidateComponent[Scaling]()
 
-const X = 0
-const Y = 1
-const Z = 2
-
 // Define a component to keep information for the scaled object.
 type Scaling struct {
 	Component[Scaling]
@@ -87,20 +83,20 @@ func changeScaleDirectionSystem(
 		// Additionally, to ensure the condition does not trigger again we floor the elements to
 		// their next full value, which should be max_element_size at max.
 		scale := item.Transform.Scale
-		maxElement := scale[X]
-		if scale[Y] > maxElement {
-			maxElement = scale[Y]
+		maxElement := scale.X
+		if scale.Y > maxElement {
+			maxElement = scale.Y
 		}
-		if scale[Z] > maxElement {
-			maxElement = scale[Z]
+		if scale.Z > maxElement {
+			maxElement = scale.Z
 		}
 
 		if maxElement > item.Scaling.maxElementSize {
 			item.Scaling.scaleDirection = item.Scaling.scaleDirection.Scale(-1)
 			item.Transform.Scale = glm.Vec3f{
-				X: float32(math.Floor(float64(scale[X]))),
-				Y: float32(math.Floor(float64(scale[Y]))),
-				Z: float32(math.Floor(float64(scale[Z]))),
+				X: float32(math.Floor(float64(scale.X))),
+				Y: float32(math.Floor(float64(scale.Y))),
+				Z: float32(math.Floor(float64(scale.Z))),
 			}
 		}
 
@@ -110,26 +106,26 @@ func changeScaleDirectionSystem(
 		// and the scale direction is flipped.
 		// This way the entity will change the dimension in which it is scaled any time it
 		// reaches its min_element_size.
-		minElement := scale[X]
-		if scale[Y] < minElement {
-			minElement = scale[Y]
+		minElement := scale.X
+		if scale.Y < minElement {
+			minElement = scale.Y
 		}
-		if scale[Z] < minElement {
-			minElement = scale[Z]
+		if scale.Z < minElement {
+			minElement = scale.Z
 		}
 
 		if minElement < item.Scaling.minElementSize {
 			item.Scaling.scaleDirection = item.Scaling.scaleDirection.Scale(-1)
 			item.Transform.Scale = glm.Vec3f{
-				X: float32(math.Ceil(float64(scale[X]))),
-				Y: float32(math.Ceil(float64(scale[Y]))),
-				Z: float32(math.Ceil(float64(scale[Z]))),
+				X: float32(math.Ceil(float64(scale.X))),
+				Y: float32(math.Ceil(float64(scale.Y))),
+				Z: float32(math.Ceil(float64(scale.Z))),
 			}
 			// Rotate the scale direction (x, y, z) -> (z, x, y)
 			item.Scaling.scaleDirection = glm.Vec3f{
-				X: item.Scaling.scaleDirection[Z],
-				Y: item.Scaling.scaleDirection[X],
-				Z: item.Scaling.scaleDirection[Y],
+				X: item.Scaling.scaleDirection.Z,
+				Y: item.Scaling.scaleDirection.X,
+				Z: item.Scaling.scaleDirection.Y,
 			}
 		}
 	}

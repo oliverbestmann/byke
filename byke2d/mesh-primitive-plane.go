@@ -9,8 +9,8 @@ func Plane() *Mesh {
 }
 
 func PlaneWithSize(size glm.Vec2f) *Mesh {
-	hx := size[0] / 2
-	hz := size[1] / 2
+	hx := size.X / 2
+	hz := size.Y / 2
 
 	vertices := []glm.Vec3f{
 		glm.V3f(-hx, 0, -hz),

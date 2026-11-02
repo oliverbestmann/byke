@@ -47,8 +47,8 @@ func dumpCameraViewToTextureSystem(
 			continue
 		}
 
-		imageWidth := uint32(view.Target.Size[0])
-		imageHeight := uint32(view.Target.Size[1])
+		imageWidth := uint32(view.Target.Size.X)
+		imageHeight := uint32(view.Target.Size.Y)
 
 		texture := textureCache.Allocate(&wgpu.TextureDescriptor{
 			Label:     "DebugCameraTex",

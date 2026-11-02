@@ -27,10 +27,8 @@ func (a AABB) Transformed(m glm.Mat4f) (center, half glm.Vec3f) {
 	center = m.Transform3(a.Center())
 	localHalf := a.Max.Sub(a.Min).Scale(0.5)
 
-	for row := range 3 {
-		for col := range 3 {
-			half[row] += abs32(m[col][row]) * localHalf[col]
-		}
+	for col, l := range [3]float32{localHalf.X, localHalf.Y, localHalf.Z} {
+		half = half.Add(glm.V3f(abs32(m[col][0]), abs32(m[col][1]), abs32(m[col][2])).Scale(l))
 	}
 
 	return center, half
@@ -55,8 +53,8 @@ func FrustumFromClip(m glm.Mat4f) Frustum {
 func (f *Frustum) OutsideBox(center, half glm.Vec3f) bool {
 	for _, p := range f {
 		// the distance of the box corner furthest along the plane normal
-		distance := p[0]*center[0] + p[1]*center[1] + p[2]*center[2] + p[3] +
-			abs32(p[0])*half[0] + abs32(p[1])*half[1] + abs32(p[2])*half[2]
+		distance := p.X*center.X + p.Y*center.Y + p.Z*center.Z + p.W +
+			abs32(p.X)*half.X + abs32(p.Y)*half.Y + abs32(p.Z)*half.Z
 
 		if distance <= 0 {
 			return true

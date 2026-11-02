@@ -2,11 +2,16 @@
 
 package glm
 
-import "fmt"
-import "math"
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+)
 
 // Vec4d is a vector of dimension 4.
-type Vec4d [4]float64
+type Vec4d struct {
+	X, Y, Z, W float64
+}
 
 // V4d creates a Vec4d.
 func V4d(x, y, z, w float64) Vec4d {
@@ -14,7 +19,7 @@ func V4d(x, y, z, w float64) Vec4d {
 }
 
 func (lhs Vec4d) Dot(rhs Vec4d) float64 {
-	return lhs[0]*rhs[0] + lhs[1]*rhs[1] + lhs[2]*rhs[2] + lhs[3]*rhs[3]
+	return lhs.X*rhs.X + lhs.Y*rhs.Y + lhs.Z*rhs.Z + lhs.W*rhs.W
 }
 
 func (lhs Vec4d) LengthSqr() float64 {
@@ -31,81 +36,81 @@ func (lhs Vec4d) Normalize() Vec4d {
 
 func (lhs Vec4d) Scale(s float64) Vec4d {
 	return Vec4d{
-		lhs[0] * s,
-		lhs[1] * s,
-		lhs[2] * s,
-		lhs[3] * s,
+		lhs.X * s,
+		lhs.Y * s,
+		lhs.Z * s,
+		lhs.W * s,
 	}
 }
 
 func (lhs Vec4d) Reciprocal() Vec4d {
 	return Vec4d{
-		1.0 / lhs[0],
-		1.0 / lhs[1],
-		1.0 / lhs[2],
-		1.0 / lhs[3],
+		1.0 / lhs.X,
+		1.0 / lhs.Y,
+		1.0 / lhs.Z,
+		1.0 / lhs.W,
 	}
 }
 
 func (lhs Vec4d) Add(rhs Vec4d) Vec4d {
 	return Vec4d{
-		lhs[0] + rhs[0],
-		lhs[1] + rhs[1],
-		lhs[2] + rhs[2],
-		lhs[3] + rhs[3],
+		lhs.X + rhs.X,
+		lhs.Y + rhs.Y,
+		lhs.Z + rhs.Z,
+		lhs.W + rhs.W,
 	}
 }
 
 func (lhs Vec4d) Sub(rhs Vec4d) Vec4d {
 	return Vec4d{
-		lhs[0] - rhs[0],
-		lhs[1] - rhs[1],
-		lhs[2] - rhs[2],
-		lhs[3] - rhs[3],
+		lhs.X - rhs.X,
+		lhs.Y - rhs.Y,
+		lhs.Z - rhs.Z,
+		lhs.W - rhs.W,
 	}
 }
 
 func (lhs Vec4d) Mul(rhs Vec4d) Vec4d {
 	return Vec4d{
-		lhs[0] * rhs[0],
-		lhs[1] * rhs[1],
-		lhs[2] * rhs[2],
-		lhs[3] * rhs[3],
+		lhs.X * rhs.X,
+		lhs.Y * rhs.Y,
+		lhs.Z * rhs.Z,
+		lhs.W * rhs.W,
 	}
 }
 
 func (lhs Vec4d) Div(rhs Vec4d) Vec4d {
 	return Vec4d{
-		lhs[0] / rhs[0],
-		lhs[1] / rhs[1],
-		lhs[2] / rhs[2],
-		lhs[3] / rhs[3],
+		lhs.X / rhs.X,
+		lhs.Y / rhs.Y,
+		lhs.Z / rhs.Z,
+		lhs.W / rhs.W,
 	}
 }
 
 func (lhs Vec4d) Min(rhs Vec4d) Vec4d {
 	return Vec4d{
-		min(lhs[0], rhs[0]),
-		min(lhs[1], rhs[1]),
-		min(lhs[2], rhs[2]),
-		min(lhs[3], rhs[3]),
+		min(lhs.X, rhs.X),
+		min(lhs.Y, rhs.Y),
+		min(lhs.Z, rhs.Z),
+		min(lhs.W, rhs.W),
 	}
 }
 
 func (lhs Vec4d) Max(rhs Vec4d) Vec4d {
 	return Vec4d{
-		max(lhs[0], rhs[0]),
-		max(lhs[1], rhs[1]),
-		max(lhs[2], rhs[2]),
-		max(lhs[3], rhs[3]),
+		max(lhs.X, rhs.X),
+		max(lhs.Y, rhs.Y),
+		max(lhs.Z, rhs.Z),
+		max(lhs.W, rhs.W),
 	}
 }
 
 func (lhs Vec4d) Truncate() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -113,8 +118,8 @@ func (lhs Vec4d) Truncate() Vec3d {
 // vector in the order of XX.
 func (lhs Vec4d) SwizzleXX() Vec2d {
 	return Vec2d{
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -122,8 +127,8 @@ func (lhs Vec4d) SwizzleXX() Vec2d {
 // vector in the order of XY.
 func (lhs Vec4d) SwizzleXY() Vec2d {
 	return Vec2d{
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -131,8 +136,8 @@ func (lhs Vec4d) SwizzleXY() Vec2d {
 // vector in the order of XZ.
 func (lhs Vec4d) SwizzleXZ() Vec2d {
 	return Vec2d{
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -140,8 +145,8 @@ func (lhs Vec4d) SwizzleXZ() Vec2d {
 // vector in the order of XW.
 func (lhs Vec4d) SwizzleXW() Vec2d {
 	return Vec2d{
-		lhs[0],
-		lhs[3],
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -149,8 +154,8 @@ func (lhs Vec4d) SwizzleXW() Vec2d {
 // vector in the order of YX.
 func (lhs Vec4d) SwizzleYX() Vec2d {
 	return Vec2d{
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -158,8 +163,8 @@ func (lhs Vec4d) SwizzleYX() Vec2d {
 // vector in the order of YY.
 func (lhs Vec4d) SwizzleYY() Vec2d {
 	return Vec2d{
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -167,8 +172,8 @@ func (lhs Vec4d) SwizzleYY() Vec2d {
 // vector in the order of YZ.
 func (lhs Vec4d) SwizzleYZ() Vec2d {
 	return Vec2d{
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -176,8 +181,8 @@ func (lhs Vec4d) SwizzleYZ() Vec2d {
 // vector in the order of YW.
 func (lhs Vec4d) SwizzleYW() Vec2d {
 	return Vec2d{
-		lhs[1],
-		lhs[3],
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -185,8 +190,8 @@ func (lhs Vec4d) SwizzleYW() Vec2d {
 // vector in the order of ZX.
 func (lhs Vec4d) SwizzleZX() Vec2d {
 	return Vec2d{
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -194,8 +199,8 @@ func (lhs Vec4d) SwizzleZX() Vec2d {
 // vector in the order of ZY.
 func (lhs Vec4d) SwizzleZY() Vec2d {
 	return Vec2d{
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -203,8 +208,8 @@ func (lhs Vec4d) SwizzleZY() Vec2d {
 // vector in the order of ZZ.
 func (lhs Vec4d) SwizzleZZ() Vec2d {
 	return Vec2d{
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -212,8 +217,8 @@ func (lhs Vec4d) SwizzleZZ() Vec2d {
 // vector in the order of ZW.
 func (lhs Vec4d) SwizzleZW() Vec2d {
 	return Vec2d{
-		lhs[2],
-		lhs[3],
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -221,8 +226,8 @@ func (lhs Vec4d) SwizzleZW() Vec2d {
 // vector in the order of WX.
 func (lhs Vec4d) SwizzleWX() Vec2d {
 	return Vec2d{
-		lhs[3],
-		lhs[0],
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -230,8 +235,8 @@ func (lhs Vec4d) SwizzleWX() Vec2d {
 // vector in the order of WY.
 func (lhs Vec4d) SwizzleWY() Vec2d {
 	return Vec2d{
-		lhs[3],
-		lhs[1],
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -239,8 +244,8 @@ func (lhs Vec4d) SwizzleWY() Vec2d {
 // vector in the order of WZ.
 func (lhs Vec4d) SwizzleWZ() Vec2d {
 	return Vec2d{
-		lhs[3],
-		lhs[2],
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -248,8 +253,8 @@ func (lhs Vec4d) SwizzleWZ() Vec2d {
 // vector in the order of WW.
 func (lhs Vec4d) SwizzleWW() Vec2d {
 	return Vec2d{
-		lhs[3],
-		lhs[3],
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -257,9 +262,9 @@ func (lhs Vec4d) SwizzleWW() Vec2d {
 // vector in the order of XXX.
 func (lhs Vec4d) SwizzleXXX() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -267,9 +272,9 @@ func (lhs Vec4d) SwizzleXXX() Vec3d {
 // vector in the order of XXY.
 func (lhs Vec4d) SwizzleXXY() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -277,9 +282,9 @@ func (lhs Vec4d) SwizzleXXY() Vec3d {
 // vector in the order of XXZ.
 func (lhs Vec4d) SwizzleXXZ() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -287,9 +292,9 @@ func (lhs Vec4d) SwizzleXXZ() Vec3d {
 // vector in the order of XXW.
 func (lhs Vec4d) SwizzleXXW() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[0],
-		lhs[3],
+		lhs.X,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -297,9 +302,9 @@ func (lhs Vec4d) SwizzleXXW() Vec3d {
 // vector in the order of XYX.
 func (lhs Vec4d) SwizzleXYX() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[1],
-		lhs[0],
+		lhs.X,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -307,9 +312,9 @@ func (lhs Vec4d) SwizzleXYX() Vec3d {
 // vector in the order of XYY.
 func (lhs Vec4d) SwizzleXYY() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[1],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -317,9 +322,9 @@ func (lhs Vec4d) SwizzleXYY() Vec3d {
 // vector in the order of XYZ.
 func (lhs Vec4d) SwizzleXYZ() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -327,9 +332,9 @@ func (lhs Vec4d) SwizzleXYZ() Vec3d {
 // vector in the order of XYW.
 func (lhs Vec4d) SwizzleXYW() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[1],
-		lhs[3],
+		lhs.X,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -337,9 +342,9 @@ func (lhs Vec4d) SwizzleXYW() Vec3d {
 // vector in the order of XZX.
 func (lhs Vec4d) SwizzleXZX() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[2],
-		lhs[0],
+		lhs.X,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -347,9 +352,9 @@ func (lhs Vec4d) SwizzleXZX() Vec3d {
 // vector in the order of XZY.
 func (lhs Vec4d) SwizzleXZY() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[2],
-		lhs[1],
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -357,9 +362,9 @@ func (lhs Vec4d) SwizzleXZY() Vec3d {
 // vector in the order of XZZ.
 func (lhs Vec4d) SwizzleXZZ() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[2],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -367,9 +372,9 @@ func (lhs Vec4d) SwizzleXZZ() Vec3d {
 // vector in the order of XZW.
 func (lhs Vec4d) SwizzleXZW() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[2],
-		lhs[3],
+		lhs.X,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -377,9 +382,9 @@ func (lhs Vec4d) SwizzleXZW() Vec3d {
 // vector in the order of XWX.
 func (lhs Vec4d) SwizzleXWX() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[3],
-		lhs[0],
+		lhs.X,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -387,9 +392,9 @@ func (lhs Vec4d) SwizzleXWX() Vec3d {
 // vector in the order of XWY.
 func (lhs Vec4d) SwizzleXWY() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[3],
-		lhs[1],
+		lhs.X,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -397,9 +402,9 @@ func (lhs Vec4d) SwizzleXWY() Vec3d {
 // vector in the order of XWZ.
 func (lhs Vec4d) SwizzleXWZ() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[3],
-		lhs[2],
+		lhs.X,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -407,9 +412,9 @@ func (lhs Vec4d) SwizzleXWZ() Vec3d {
 // vector in the order of XWW.
 func (lhs Vec4d) SwizzleXWW() Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[3],
-		lhs[3],
+		lhs.X,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -417,9 +422,9 @@ func (lhs Vec4d) SwizzleXWW() Vec3d {
 // vector in the order of YXX.
 func (lhs Vec4d) SwizzleYXX() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[0],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -427,9 +432,9 @@ func (lhs Vec4d) SwizzleYXX() Vec3d {
 // vector in the order of YXY.
 func (lhs Vec4d) SwizzleYXY() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[0],
-		lhs[1],
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -437,9 +442,9 @@ func (lhs Vec4d) SwizzleYXY() Vec3d {
 // vector in the order of YXZ.
 func (lhs Vec4d) SwizzleYXZ() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[0],
-		lhs[2],
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -447,9 +452,9 @@ func (lhs Vec4d) SwizzleYXZ() Vec3d {
 // vector in the order of YXW.
 func (lhs Vec4d) SwizzleYXW() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[0],
-		lhs[3],
+		lhs.Y,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -457,9 +462,9 @@ func (lhs Vec4d) SwizzleYXW() Vec3d {
 // vector in the order of YYX.
 func (lhs Vec4d) SwizzleYYX() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -467,9 +472,9 @@ func (lhs Vec4d) SwizzleYYX() Vec3d {
 // vector in the order of YYY.
 func (lhs Vec4d) SwizzleYYY() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -477,9 +482,9 @@ func (lhs Vec4d) SwizzleYYY() Vec3d {
 // vector in the order of YYZ.
 func (lhs Vec4d) SwizzleYYZ() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -487,9 +492,9 @@ func (lhs Vec4d) SwizzleYYZ() Vec3d {
 // vector in the order of YYW.
 func (lhs Vec4d) SwizzleYYW() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[1],
-		lhs[3],
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -497,9 +502,9 @@ func (lhs Vec4d) SwizzleYYW() Vec3d {
 // vector in the order of YZX.
 func (lhs Vec4d) SwizzleYZX() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[2],
-		lhs[0],
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -507,9 +512,9 @@ func (lhs Vec4d) SwizzleYZX() Vec3d {
 // vector in the order of YZY.
 func (lhs Vec4d) SwizzleYZY() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[2],
-		lhs[1],
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -517,9 +522,9 @@ func (lhs Vec4d) SwizzleYZY() Vec3d {
 // vector in the order of YZZ.
 func (lhs Vec4d) SwizzleYZZ() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[2],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -527,9 +532,9 @@ func (lhs Vec4d) SwizzleYZZ() Vec3d {
 // vector in the order of YZW.
 func (lhs Vec4d) SwizzleYZW() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[2],
-		lhs[3],
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -537,9 +542,9 @@ func (lhs Vec4d) SwizzleYZW() Vec3d {
 // vector in the order of YWX.
 func (lhs Vec4d) SwizzleYWX() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[3],
-		lhs[0],
+		lhs.Y,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -547,9 +552,9 @@ func (lhs Vec4d) SwizzleYWX() Vec3d {
 // vector in the order of YWY.
 func (lhs Vec4d) SwizzleYWY() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[3],
-		lhs[1],
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -557,9 +562,9 @@ func (lhs Vec4d) SwizzleYWY() Vec3d {
 // vector in the order of YWZ.
 func (lhs Vec4d) SwizzleYWZ() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[3],
-		lhs[2],
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -567,9 +572,9 @@ func (lhs Vec4d) SwizzleYWZ() Vec3d {
 // vector in the order of YWW.
 func (lhs Vec4d) SwizzleYWW() Vec3d {
 	return Vec3d{
-		lhs[1],
-		lhs[3],
-		lhs[3],
+		lhs.Y,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -577,9 +582,9 @@ func (lhs Vec4d) SwizzleYWW() Vec3d {
 // vector in the order of ZXX.
 func (lhs Vec4d) SwizzleZXX() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[0],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -587,9 +592,9 @@ func (lhs Vec4d) SwizzleZXX() Vec3d {
 // vector in the order of ZXY.
 func (lhs Vec4d) SwizzleZXY() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[0],
-		lhs[1],
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -597,9 +602,9 @@ func (lhs Vec4d) SwizzleZXY() Vec3d {
 // vector in the order of ZXZ.
 func (lhs Vec4d) SwizzleZXZ() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[0],
-		lhs[2],
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -607,9 +612,9 @@ func (lhs Vec4d) SwizzleZXZ() Vec3d {
 // vector in the order of ZXW.
 func (lhs Vec4d) SwizzleZXW() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[0],
-		lhs[3],
+		lhs.Z,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -617,9 +622,9 @@ func (lhs Vec4d) SwizzleZXW() Vec3d {
 // vector in the order of ZYX.
 func (lhs Vec4d) SwizzleZYX() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[1],
-		lhs[0],
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -627,9 +632,9 @@ func (lhs Vec4d) SwizzleZYX() Vec3d {
 // vector in the order of ZYY.
 func (lhs Vec4d) SwizzleZYY() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[1],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -637,9 +642,9 @@ func (lhs Vec4d) SwizzleZYY() Vec3d {
 // vector in the order of ZYZ.
 func (lhs Vec4d) SwizzleZYZ() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[1],
-		lhs[2],
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -647,9 +652,9 @@ func (lhs Vec4d) SwizzleZYZ() Vec3d {
 // vector in the order of ZYW.
 func (lhs Vec4d) SwizzleZYW() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[1],
-		lhs[3],
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -657,9 +662,9 @@ func (lhs Vec4d) SwizzleZYW() Vec3d {
 // vector in the order of ZZX.
 func (lhs Vec4d) SwizzleZZX() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -667,9 +672,9 @@ func (lhs Vec4d) SwizzleZZX() Vec3d {
 // vector in the order of ZZY.
 func (lhs Vec4d) SwizzleZZY() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -677,9 +682,9 @@ func (lhs Vec4d) SwizzleZZY() Vec3d {
 // vector in the order of ZZZ.
 func (lhs Vec4d) SwizzleZZZ() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -687,9 +692,9 @@ func (lhs Vec4d) SwizzleZZZ() Vec3d {
 // vector in the order of ZZW.
 func (lhs Vec4d) SwizzleZZW() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[2],
-		lhs[3],
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -697,9 +702,9 @@ func (lhs Vec4d) SwizzleZZW() Vec3d {
 // vector in the order of ZWX.
 func (lhs Vec4d) SwizzleZWX() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[3],
-		lhs[0],
+		lhs.Z,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -707,9 +712,9 @@ func (lhs Vec4d) SwizzleZWX() Vec3d {
 // vector in the order of ZWY.
 func (lhs Vec4d) SwizzleZWY() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[3],
-		lhs[1],
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -717,9 +722,9 @@ func (lhs Vec4d) SwizzleZWY() Vec3d {
 // vector in the order of ZWZ.
 func (lhs Vec4d) SwizzleZWZ() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[3],
-		lhs[2],
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -727,9 +732,9 @@ func (lhs Vec4d) SwizzleZWZ() Vec3d {
 // vector in the order of ZWW.
 func (lhs Vec4d) SwizzleZWW() Vec3d {
 	return Vec3d{
-		lhs[2],
-		lhs[3],
-		lhs[3],
+		lhs.Z,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -737,9 +742,9 @@ func (lhs Vec4d) SwizzleZWW() Vec3d {
 // vector in the order of WXX.
 func (lhs Vec4d) SwizzleWXX() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[0],
-		lhs[0],
+		lhs.W,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -747,9 +752,9 @@ func (lhs Vec4d) SwizzleWXX() Vec3d {
 // vector in the order of WXY.
 func (lhs Vec4d) SwizzleWXY() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[0],
-		lhs[1],
+		lhs.W,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -757,9 +762,9 @@ func (lhs Vec4d) SwizzleWXY() Vec3d {
 // vector in the order of WXZ.
 func (lhs Vec4d) SwizzleWXZ() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[0],
-		lhs[2],
+		lhs.W,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -767,9 +772,9 @@ func (lhs Vec4d) SwizzleWXZ() Vec3d {
 // vector in the order of WXW.
 func (lhs Vec4d) SwizzleWXW() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[0],
-		lhs[3],
+		lhs.W,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -777,9 +782,9 @@ func (lhs Vec4d) SwizzleWXW() Vec3d {
 // vector in the order of WYX.
 func (lhs Vec4d) SwizzleWYX() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[1],
-		lhs[0],
+		lhs.W,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -787,9 +792,9 @@ func (lhs Vec4d) SwizzleWYX() Vec3d {
 // vector in the order of WYY.
 func (lhs Vec4d) SwizzleWYY() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[1],
-		lhs[1],
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -797,9 +802,9 @@ func (lhs Vec4d) SwizzleWYY() Vec3d {
 // vector in the order of WYZ.
 func (lhs Vec4d) SwizzleWYZ() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[1],
-		lhs[2],
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -807,9 +812,9 @@ func (lhs Vec4d) SwizzleWYZ() Vec3d {
 // vector in the order of WYW.
 func (lhs Vec4d) SwizzleWYW() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[1],
-		lhs[3],
+		lhs.W,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -817,9 +822,9 @@ func (lhs Vec4d) SwizzleWYW() Vec3d {
 // vector in the order of WZX.
 func (lhs Vec4d) SwizzleWZX() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[2],
-		lhs[0],
+		lhs.W,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -827,9 +832,9 @@ func (lhs Vec4d) SwizzleWZX() Vec3d {
 // vector in the order of WZY.
 func (lhs Vec4d) SwizzleWZY() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[2],
-		lhs[1],
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -837,9 +842,9 @@ func (lhs Vec4d) SwizzleWZY() Vec3d {
 // vector in the order of WZZ.
 func (lhs Vec4d) SwizzleWZZ() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[2],
-		lhs[2],
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -847,9 +852,9 @@ func (lhs Vec4d) SwizzleWZZ() Vec3d {
 // vector in the order of WZW.
 func (lhs Vec4d) SwizzleWZW() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[2],
-		lhs[3],
+		lhs.W,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -857,9 +862,9 @@ func (lhs Vec4d) SwizzleWZW() Vec3d {
 // vector in the order of WWX.
 func (lhs Vec4d) SwizzleWWX() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[3],
-		lhs[0],
+		lhs.W,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -867,9 +872,9 @@ func (lhs Vec4d) SwizzleWWX() Vec3d {
 // vector in the order of WWY.
 func (lhs Vec4d) SwizzleWWY() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[3],
-		lhs[1],
+		lhs.W,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -877,9 +882,9 @@ func (lhs Vec4d) SwizzleWWY() Vec3d {
 // vector in the order of WWZ.
 func (lhs Vec4d) SwizzleWWZ() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[3],
-		lhs[2],
+		lhs.W,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -887,9 +892,9 @@ func (lhs Vec4d) SwizzleWWZ() Vec3d {
 // vector in the order of WWW.
 func (lhs Vec4d) SwizzleWWW() Vec3d {
 	return Vec3d{
-		lhs[3],
-		lhs[3],
-		lhs[3],
+		lhs.W,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -897,10 +902,10 @@ func (lhs Vec4d) SwizzleWWW() Vec3d {
 // vector in the order of XXXX.
 func (lhs Vec4d) SwizzleXXXX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.X,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -908,10 +913,10 @@ func (lhs Vec4d) SwizzleXXXX() Vec4d {
 // vector in the order of XXXY.
 func (lhs Vec4d) SwizzleXXXY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.X,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -919,10 +924,10 @@ func (lhs Vec4d) SwizzleXXXY() Vec4d {
 // vector in the order of XXXZ.
 func (lhs Vec4d) SwizzleXXXZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.X,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -930,10 +935,10 @@ func (lhs Vec4d) SwizzleXXXZ() Vec4d {
 // vector in the order of XXXW.
 func (lhs Vec4d) SwizzleXXXW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[0],
-		lhs[3],
+		lhs.X,
+		lhs.X,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -941,10 +946,10 @@ func (lhs Vec4d) SwizzleXXXW() Vec4d {
 // vector in the order of XXYX.
 func (lhs Vec4d) SwizzleXXYX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[1],
-		lhs[0],
+		lhs.X,
+		lhs.X,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -952,10 +957,10 @@ func (lhs Vec4d) SwizzleXXYX() Vec4d {
 // vector in the order of XXYY.
 func (lhs Vec4d) SwizzleXXYY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[1],
-		lhs[1],
+		lhs.X,
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -963,10 +968,10 @@ func (lhs Vec4d) SwizzleXXYY() Vec4d {
 // vector in the order of XXYZ.
 func (lhs Vec4d) SwizzleXXYZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -974,10 +979,10 @@ func (lhs Vec4d) SwizzleXXYZ() Vec4d {
 // vector in the order of XXYW.
 func (lhs Vec4d) SwizzleXXYW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[1],
-		lhs[3],
+		lhs.X,
+		lhs.X,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -985,10 +990,10 @@ func (lhs Vec4d) SwizzleXXYW() Vec4d {
 // vector in the order of XXZX.
 func (lhs Vec4d) SwizzleXXZX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[2],
-		lhs[0],
+		lhs.X,
+		lhs.X,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -996,10 +1001,10 @@ func (lhs Vec4d) SwizzleXXZX() Vec4d {
 // vector in the order of XXZY.
 func (lhs Vec4d) SwizzleXXZY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[2],
-		lhs[1],
+		lhs.X,
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -1007,10 +1012,10 @@ func (lhs Vec4d) SwizzleXXZY() Vec4d {
 // vector in the order of XXZZ.
 func (lhs Vec4d) SwizzleXXZZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[2],
-		lhs[2],
+		lhs.X,
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -1018,10 +1023,10 @@ func (lhs Vec4d) SwizzleXXZZ() Vec4d {
 // vector in the order of XXZW.
 func (lhs Vec4d) SwizzleXXZW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[2],
-		lhs[3],
+		lhs.X,
+		lhs.X,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -1029,10 +1034,10 @@ func (lhs Vec4d) SwizzleXXZW() Vec4d {
 // vector in the order of XXWX.
 func (lhs Vec4d) SwizzleXXWX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[3],
-		lhs[0],
+		lhs.X,
+		lhs.X,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -1040,10 +1045,10 @@ func (lhs Vec4d) SwizzleXXWX() Vec4d {
 // vector in the order of XXWY.
 func (lhs Vec4d) SwizzleXXWY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[3],
-		lhs[1],
+		lhs.X,
+		lhs.X,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -1051,10 +1056,10 @@ func (lhs Vec4d) SwizzleXXWY() Vec4d {
 // vector in the order of XXWZ.
 func (lhs Vec4d) SwizzleXXWZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[3],
-		lhs[2],
+		lhs.X,
+		lhs.X,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -1062,10 +1067,10 @@ func (lhs Vec4d) SwizzleXXWZ() Vec4d {
 // vector in the order of XXWW.
 func (lhs Vec4d) SwizzleXXWW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[0],
-		lhs[3],
-		lhs[3],
+		lhs.X,
+		lhs.X,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -1073,10 +1078,10 @@ func (lhs Vec4d) SwizzleXXWW() Vec4d {
 // vector in the order of XYXX.
 func (lhs Vec4d) SwizzleXYXX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.Y,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -1084,10 +1089,10 @@ func (lhs Vec4d) SwizzleXYXX() Vec4d {
 // vector in the order of XYXY.
 func (lhs Vec4d) SwizzleXYXY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -1095,10 +1100,10 @@ func (lhs Vec4d) SwizzleXYXY() Vec4d {
 // vector in the order of XYXZ.
 func (lhs Vec4d) SwizzleXYXZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -1106,10 +1111,10 @@ func (lhs Vec4d) SwizzleXYXZ() Vec4d {
 // vector in the order of XYXW.
 func (lhs Vec4d) SwizzleXYXW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[0],
-		lhs[3],
+		lhs.X,
+		lhs.Y,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -1117,10 +1122,10 @@ func (lhs Vec4d) SwizzleXYXW() Vec4d {
 // vector in the order of XYYX.
 func (lhs Vec4d) SwizzleXYYX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[1],
-		lhs[0],
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -1128,10 +1133,10 @@ func (lhs Vec4d) SwizzleXYYX() Vec4d {
 // vector in the order of XYYY.
 func (lhs Vec4d) SwizzleXYYY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[1],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -1139,10 +1144,10 @@ func (lhs Vec4d) SwizzleXYYY() Vec4d {
 // vector in the order of XYYZ.
 func (lhs Vec4d) SwizzleXYYZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -1150,10 +1155,10 @@ func (lhs Vec4d) SwizzleXYYZ() Vec4d {
 // vector in the order of XYYW.
 func (lhs Vec4d) SwizzleXYYW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[1],
-		lhs[3],
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -1161,10 +1166,10 @@ func (lhs Vec4d) SwizzleXYYW() Vec4d {
 // vector in the order of XYZX.
 func (lhs Vec4d) SwizzleXYZX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[2],
-		lhs[0],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -1172,10 +1177,10 @@ func (lhs Vec4d) SwizzleXYZX() Vec4d {
 // vector in the order of XYZY.
 func (lhs Vec4d) SwizzleXYZY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[2],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -1183,10 +1188,10 @@ func (lhs Vec4d) SwizzleXYZY() Vec4d {
 // vector in the order of XYZZ.
 func (lhs Vec4d) SwizzleXYZZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[2],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -1194,10 +1199,10 @@ func (lhs Vec4d) SwizzleXYZZ() Vec4d {
 // vector in the order of XYZW.
 func (lhs Vec4d) SwizzleXYZW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[2],
-		lhs[3],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -1205,10 +1210,10 @@ func (lhs Vec4d) SwizzleXYZW() Vec4d {
 // vector in the order of XYWX.
 func (lhs Vec4d) SwizzleXYWX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[3],
-		lhs[0],
+		lhs.X,
+		lhs.Y,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -1216,10 +1221,10 @@ func (lhs Vec4d) SwizzleXYWX() Vec4d {
 // vector in the order of XYWY.
 func (lhs Vec4d) SwizzleXYWY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[3],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -1227,10 +1232,10 @@ func (lhs Vec4d) SwizzleXYWY() Vec4d {
 // vector in the order of XYWZ.
 func (lhs Vec4d) SwizzleXYWZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[3],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -1238,10 +1243,10 @@ func (lhs Vec4d) SwizzleXYWZ() Vec4d {
 // vector in the order of XYWW.
 func (lhs Vec4d) SwizzleXYWW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[1],
-		lhs[3],
-		lhs[3],
+		lhs.X,
+		lhs.Y,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -1249,10 +1254,10 @@ func (lhs Vec4d) SwizzleXYWW() Vec4d {
 // vector in the order of XZXX.
 func (lhs Vec4d) SwizzleXZXX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.Z,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -1260,10 +1265,10 @@ func (lhs Vec4d) SwizzleXZXX() Vec4d {
 // vector in the order of XZXY.
 func (lhs Vec4d) SwizzleXZXY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -1271,10 +1276,10 @@ func (lhs Vec4d) SwizzleXZXY() Vec4d {
 // vector in the order of XZXZ.
 func (lhs Vec4d) SwizzleXZXZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -1282,10 +1287,10 @@ func (lhs Vec4d) SwizzleXZXZ() Vec4d {
 // vector in the order of XZXW.
 func (lhs Vec4d) SwizzleXZXW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[0],
-		lhs[3],
+		lhs.X,
+		lhs.Z,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -1293,10 +1298,10 @@ func (lhs Vec4d) SwizzleXZXW() Vec4d {
 // vector in the order of XZYX.
 func (lhs Vec4d) SwizzleXZYX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[1],
-		lhs[0],
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -1304,10 +1309,10 @@ func (lhs Vec4d) SwizzleXZYX() Vec4d {
 // vector in the order of XZYY.
 func (lhs Vec4d) SwizzleXZYY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[1],
-		lhs[1],
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -1315,10 +1320,10 @@ func (lhs Vec4d) SwizzleXZYY() Vec4d {
 // vector in the order of XZYZ.
 func (lhs Vec4d) SwizzleXZYZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -1326,10 +1331,10 @@ func (lhs Vec4d) SwizzleXZYZ() Vec4d {
 // vector in the order of XZYW.
 func (lhs Vec4d) SwizzleXZYW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[1],
-		lhs[3],
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -1337,10 +1342,10 @@ func (lhs Vec4d) SwizzleXZYW() Vec4d {
 // vector in the order of XZZX.
 func (lhs Vec4d) SwizzleXZZX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[2],
-		lhs[0],
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -1348,10 +1353,10 @@ func (lhs Vec4d) SwizzleXZZX() Vec4d {
 // vector in the order of XZZY.
 func (lhs Vec4d) SwizzleXZZY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[2],
-		lhs[1],
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -1359,10 +1364,10 @@ func (lhs Vec4d) SwizzleXZZY() Vec4d {
 // vector in the order of XZZZ.
 func (lhs Vec4d) SwizzleXZZZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[2],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -1370,10 +1375,10 @@ func (lhs Vec4d) SwizzleXZZZ() Vec4d {
 // vector in the order of XZZW.
 func (lhs Vec4d) SwizzleXZZW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[2],
-		lhs[3],
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -1381,10 +1386,10 @@ func (lhs Vec4d) SwizzleXZZW() Vec4d {
 // vector in the order of XZWX.
 func (lhs Vec4d) SwizzleXZWX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[3],
-		lhs[0],
+		lhs.X,
+		lhs.Z,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -1392,10 +1397,10 @@ func (lhs Vec4d) SwizzleXZWX() Vec4d {
 // vector in the order of XZWY.
 func (lhs Vec4d) SwizzleXZWY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[3],
-		lhs[1],
+		lhs.X,
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -1403,10 +1408,10 @@ func (lhs Vec4d) SwizzleXZWY() Vec4d {
 // vector in the order of XZWZ.
 func (lhs Vec4d) SwizzleXZWZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[3],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -1414,10 +1419,10 @@ func (lhs Vec4d) SwizzleXZWZ() Vec4d {
 // vector in the order of XZWW.
 func (lhs Vec4d) SwizzleXZWW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[2],
-		lhs[3],
-		lhs[3],
+		lhs.X,
+		lhs.Z,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -1425,10 +1430,10 @@ func (lhs Vec4d) SwizzleXZWW() Vec4d {
 // vector in the order of XWXX.
 func (lhs Vec4d) SwizzleXWXX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.W,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -1436,10 +1441,10 @@ func (lhs Vec4d) SwizzleXWXX() Vec4d {
 // vector in the order of XWXY.
 func (lhs Vec4d) SwizzleXWXY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.W,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -1447,10 +1452,10 @@ func (lhs Vec4d) SwizzleXWXY() Vec4d {
 // vector in the order of XWXZ.
 func (lhs Vec4d) SwizzleXWXZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.W,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -1458,10 +1463,10 @@ func (lhs Vec4d) SwizzleXWXZ() Vec4d {
 // vector in the order of XWXW.
 func (lhs Vec4d) SwizzleXWXW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[0],
-		lhs[3],
+		lhs.X,
+		lhs.W,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -1469,10 +1474,10 @@ func (lhs Vec4d) SwizzleXWXW() Vec4d {
 // vector in the order of XWYX.
 func (lhs Vec4d) SwizzleXWYX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[1],
-		lhs[0],
+		lhs.X,
+		lhs.W,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -1480,10 +1485,10 @@ func (lhs Vec4d) SwizzleXWYX() Vec4d {
 // vector in the order of XWYY.
 func (lhs Vec4d) SwizzleXWYY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[1],
-		lhs[1],
+		lhs.X,
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -1491,10 +1496,10 @@ func (lhs Vec4d) SwizzleXWYY() Vec4d {
 // vector in the order of XWYZ.
 func (lhs Vec4d) SwizzleXWYZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -1502,10 +1507,10 @@ func (lhs Vec4d) SwizzleXWYZ() Vec4d {
 // vector in the order of XWYW.
 func (lhs Vec4d) SwizzleXWYW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[1],
-		lhs[3],
+		lhs.X,
+		lhs.W,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -1513,10 +1518,10 @@ func (lhs Vec4d) SwizzleXWYW() Vec4d {
 // vector in the order of XWZX.
 func (lhs Vec4d) SwizzleXWZX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[2],
-		lhs[0],
+		lhs.X,
+		lhs.W,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -1524,10 +1529,10 @@ func (lhs Vec4d) SwizzleXWZX() Vec4d {
 // vector in the order of XWZY.
 func (lhs Vec4d) SwizzleXWZY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[2],
-		lhs[1],
+		lhs.X,
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -1535,10 +1540,10 @@ func (lhs Vec4d) SwizzleXWZY() Vec4d {
 // vector in the order of XWZZ.
 func (lhs Vec4d) SwizzleXWZZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[2],
-		lhs[2],
+		lhs.X,
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -1546,10 +1551,10 @@ func (lhs Vec4d) SwizzleXWZZ() Vec4d {
 // vector in the order of XWZW.
 func (lhs Vec4d) SwizzleXWZW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[2],
-		lhs[3],
+		lhs.X,
+		lhs.W,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -1557,10 +1562,10 @@ func (lhs Vec4d) SwizzleXWZW() Vec4d {
 // vector in the order of XWWX.
 func (lhs Vec4d) SwizzleXWWX() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[3],
-		lhs[0],
+		lhs.X,
+		lhs.W,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -1568,10 +1573,10 @@ func (lhs Vec4d) SwizzleXWWX() Vec4d {
 // vector in the order of XWWY.
 func (lhs Vec4d) SwizzleXWWY() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[3],
-		lhs[1],
+		lhs.X,
+		lhs.W,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -1579,10 +1584,10 @@ func (lhs Vec4d) SwizzleXWWY() Vec4d {
 // vector in the order of XWWZ.
 func (lhs Vec4d) SwizzleXWWZ() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[3],
-		lhs[2],
+		lhs.X,
+		lhs.W,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -1590,10 +1595,10 @@ func (lhs Vec4d) SwizzleXWWZ() Vec4d {
 // vector in the order of XWWW.
 func (lhs Vec4d) SwizzleXWWW() Vec4d {
 	return Vec4d{
-		lhs[0],
-		lhs[3],
-		lhs[3],
-		lhs[3],
+		lhs.X,
+		lhs.W,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -1601,10 +1606,10 @@ func (lhs Vec4d) SwizzleXWWW() Vec4d {
 // vector in the order of YXXX.
 func (lhs Vec4d) SwizzleYXXX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[0],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -1612,10 +1617,10 @@ func (lhs Vec4d) SwizzleYXXX() Vec4d {
 // vector in the order of YXXY.
 func (lhs Vec4d) SwizzleYXXY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[0],
-		lhs[1],
+		lhs.Y,
+		lhs.X,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -1623,10 +1628,10 @@ func (lhs Vec4d) SwizzleYXXY() Vec4d {
 // vector in the order of YXXZ.
 func (lhs Vec4d) SwizzleYXXZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[0],
-		lhs[2],
+		lhs.Y,
+		lhs.X,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -1634,10 +1639,10 @@ func (lhs Vec4d) SwizzleYXXZ() Vec4d {
 // vector in the order of YXXW.
 func (lhs Vec4d) SwizzleYXXW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[0],
-		lhs[3],
+		lhs.Y,
+		lhs.X,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -1645,10 +1650,10 @@ func (lhs Vec4d) SwizzleYXXW() Vec4d {
 // vector in the order of YXYX.
 func (lhs Vec4d) SwizzleYXYX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -1656,10 +1661,10 @@ func (lhs Vec4d) SwizzleYXYX() Vec4d {
 // vector in the order of YXYY.
 func (lhs Vec4d) SwizzleYXYY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -1667,10 +1672,10 @@ func (lhs Vec4d) SwizzleYXYY() Vec4d {
 // vector in the order of YXYZ.
 func (lhs Vec4d) SwizzleYXYZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -1678,10 +1683,10 @@ func (lhs Vec4d) SwizzleYXYZ() Vec4d {
 // vector in the order of YXYW.
 func (lhs Vec4d) SwizzleYXYW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[1],
-		lhs[3],
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -1689,10 +1694,10 @@ func (lhs Vec4d) SwizzleYXYW() Vec4d {
 // vector in the order of YXZX.
 func (lhs Vec4d) SwizzleYXZX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[2],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -1700,10 +1705,10 @@ func (lhs Vec4d) SwizzleYXZX() Vec4d {
 // vector in the order of YXZY.
 func (lhs Vec4d) SwizzleYXZY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[2],
-		lhs[1],
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -1711,10 +1716,10 @@ func (lhs Vec4d) SwizzleYXZY() Vec4d {
 // vector in the order of YXZZ.
 func (lhs Vec4d) SwizzleYXZZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[2],
-		lhs[2],
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -1722,10 +1727,10 @@ func (lhs Vec4d) SwizzleYXZZ() Vec4d {
 // vector in the order of YXZW.
 func (lhs Vec4d) SwizzleYXZW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[2],
-		lhs[3],
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -1733,10 +1738,10 @@ func (lhs Vec4d) SwizzleYXZW() Vec4d {
 // vector in the order of YXWX.
 func (lhs Vec4d) SwizzleYXWX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[3],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -1744,10 +1749,10 @@ func (lhs Vec4d) SwizzleYXWX() Vec4d {
 // vector in the order of YXWY.
 func (lhs Vec4d) SwizzleYXWY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[3],
-		lhs[1],
+		lhs.Y,
+		lhs.X,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -1755,10 +1760,10 @@ func (lhs Vec4d) SwizzleYXWY() Vec4d {
 // vector in the order of YXWZ.
 func (lhs Vec4d) SwizzleYXWZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[3],
-		lhs[2],
+		lhs.Y,
+		lhs.X,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -1766,10 +1771,10 @@ func (lhs Vec4d) SwizzleYXWZ() Vec4d {
 // vector in the order of YXWW.
 func (lhs Vec4d) SwizzleYXWW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[0],
-		lhs[3],
-		lhs[3],
+		lhs.Y,
+		lhs.X,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -1777,10 +1782,10 @@ func (lhs Vec4d) SwizzleYXWW() Vec4d {
 // vector in the order of YYXX.
 func (lhs Vec4d) SwizzleYYXX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[0],
-		lhs[0],
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -1788,10 +1793,10 @@ func (lhs Vec4d) SwizzleYYXX() Vec4d {
 // vector in the order of YYXY.
 func (lhs Vec4d) SwizzleYYXY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[0],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -1799,10 +1804,10 @@ func (lhs Vec4d) SwizzleYYXY() Vec4d {
 // vector in the order of YYXZ.
 func (lhs Vec4d) SwizzleYYXZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[0],
-		lhs[2],
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -1810,10 +1815,10 @@ func (lhs Vec4d) SwizzleYYXZ() Vec4d {
 // vector in the order of YYXW.
 func (lhs Vec4d) SwizzleYYXW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[0],
-		lhs[3],
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -1821,10 +1826,10 @@ func (lhs Vec4d) SwizzleYYXW() Vec4d {
 // vector in the order of YYYX.
 func (lhs Vec4d) SwizzleYYYX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -1832,10 +1837,10 @@ func (lhs Vec4d) SwizzleYYYX() Vec4d {
 // vector in the order of YYYY.
 func (lhs Vec4d) SwizzleYYYY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -1843,10 +1848,10 @@ func (lhs Vec4d) SwizzleYYYY() Vec4d {
 // vector in the order of YYYZ.
 func (lhs Vec4d) SwizzleYYYZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -1854,10 +1859,10 @@ func (lhs Vec4d) SwizzleYYYZ() Vec4d {
 // vector in the order of YYYW.
 func (lhs Vec4d) SwizzleYYYW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[1],
-		lhs[3],
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -1865,10 +1870,10 @@ func (lhs Vec4d) SwizzleYYYW() Vec4d {
 // vector in the order of YYZX.
 func (lhs Vec4d) SwizzleYYZX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[2],
-		lhs[0],
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -1876,10 +1881,10 @@ func (lhs Vec4d) SwizzleYYZX() Vec4d {
 // vector in the order of YYZY.
 func (lhs Vec4d) SwizzleYYZY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[2],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -1887,10 +1892,10 @@ func (lhs Vec4d) SwizzleYYZY() Vec4d {
 // vector in the order of YYZZ.
 func (lhs Vec4d) SwizzleYYZZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[2],
-		lhs[2],
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -1898,10 +1903,10 @@ func (lhs Vec4d) SwizzleYYZZ() Vec4d {
 // vector in the order of YYZW.
 func (lhs Vec4d) SwizzleYYZW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[2],
-		lhs[3],
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -1909,10 +1914,10 @@ func (lhs Vec4d) SwizzleYYZW() Vec4d {
 // vector in the order of YYWX.
 func (lhs Vec4d) SwizzleYYWX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[3],
-		lhs[0],
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -1920,10 +1925,10 @@ func (lhs Vec4d) SwizzleYYWX() Vec4d {
 // vector in the order of YYWY.
 func (lhs Vec4d) SwizzleYYWY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[3],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -1931,10 +1936,10 @@ func (lhs Vec4d) SwizzleYYWY() Vec4d {
 // vector in the order of YYWZ.
 func (lhs Vec4d) SwizzleYYWZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[3],
-		lhs[2],
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -1942,10 +1947,10 @@ func (lhs Vec4d) SwizzleYYWZ() Vec4d {
 // vector in the order of YYWW.
 func (lhs Vec4d) SwizzleYYWW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[1],
-		lhs[3],
-		lhs[3],
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -1953,10 +1958,10 @@ func (lhs Vec4d) SwizzleYYWW() Vec4d {
 // vector in the order of YZXX.
 func (lhs Vec4d) SwizzleYZXX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[0],
-		lhs[0],
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -1964,10 +1969,10 @@ func (lhs Vec4d) SwizzleYZXX() Vec4d {
 // vector in the order of YZXY.
 func (lhs Vec4d) SwizzleYZXY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[0],
-		lhs[1],
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -1975,10 +1980,10 @@ func (lhs Vec4d) SwizzleYZXY() Vec4d {
 // vector in the order of YZXZ.
 func (lhs Vec4d) SwizzleYZXZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[0],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -1986,10 +1991,10 @@ func (lhs Vec4d) SwizzleYZXZ() Vec4d {
 // vector in the order of YZXW.
 func (lhs Vec4d) SwizzleYZXW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[0],
-		lhs[3],
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -1997,10 +2002,10 @@ func (lhs Vec4d) SwizzleYZXW() Vec4d {
 // vector in the order of YZYX.
 func (lhs Vec4d) SwizzleYZYX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -2008,10 +2013,10 @@ func (lhs Vec4d) SwizzleYZYX() Vec4d {
 // vector in the order of YZYY.
 func (lhs Vec4d) SwizzleYZYY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -2019,10 +2024,10 @@ func (lhs Vec4d) SwizzleYZYY() Vec4d {
 // vector in the order of YZYZ.
 func (lhs Vec4d) SwizzleYZYZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -2030,10 +2035,10 @@ func (lhs Vec4d) SwizzleYZYZ() Vec4d {
 // vector in the order of YZYW.
 func (lhs Vec4d) SwizzleYZYW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[1],
-		lhs[3],
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -2041,10 +2046,10 @@ func (lhs Vec4d) SwizzleYZYW() Vec4d {
 // vector in the order of YZZX.
 func (lhs Vec4d) SwizzleYZZX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[2],
-		lhs[0],
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -2052,10 +2057,10 @@ func (lhs Vec4d) SwizzleYZZX() Vec4d {
 // vector in the order of YZZY.
 func (lhs Vec4d) SwizzleYZZY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[2],
-		lhs[1],
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -2063,10 +2068,10 @@ func (lhs Vec4d) SwizzleYZZY() Vec4d {
 // vector in the order of YZZZ.
 func (lhs Vec4d) SwizzleYZZZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[2],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -2074,10 +2079,10 @@ func (lhs Vec4d) SwizzleYZZZ() Vec4d {
 // vector in the order of YZZW.
 func (lhs Vec4d) SwizzleYZZW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[2],
-		lhs[3],
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -2085,10 +2090,10 @@ func (lhs Vec4d) SwizzleYZZW() Vec4d {
 // vector in the order of YZWX.
 func (lhs Vec4d) SwizzleYZWX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[3],
-		lhs[0],
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -2096,10 +2101,10 @@ func (lhs Vec4d) SwizzleYZWX() Vec4d {
 // vector in the order of YZWY.
 func (lhs Vec4d) SwizzleYZWY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[3],
-		lhs[1],
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -2107,10 +2112,10 @@ func (lhs Vec4d) SwizzleYZWY() Vec4d {
 // vector in the order of YZWZ.
 func (lhs Vec4d) SwizzleYZWZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[3],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -2118,10 +2123,10 @@ func (lhs Vec4d) SwizzleYZWZ() Vec4d {
 // vector in the order of YZWW.
 func (lhs Vec4d) SwizzleYZWW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[2],
-		lhs[3],
-		lhs[3],
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -2129,10 +2134,10 @@ func (lhs Vec4d) SwizzleYZWW() Vec4d {
 // vector in the order of YWXX.
 func (lhs Vec4d) SwizzleYWXX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[0],
-		lhs[0],
+		lhs.Y,
+		lhs.W,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -2140,10 +2145,10 @@ func (lhs Vec4d) SwizzleYWXX() Vec4d {
 // vector in the order of YWXY.
 func (lhs Vec4d) SwizzleYWXY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[0],
-		lhs[1],
+		lhs.Y,
+		lhs.W,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -2151,10 +2156,10 @@ func (lhs Vec4d) SwizzleYWXY() Vec4d {
 // vector in the order of YWXZ.
 func (lhs Vec4d) SwizzleYWXZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[0],
-		lhs[2],
+		lhs.Y,
+		lhs.W,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -2162,10 +2167,10 @@ func (lhs Vec4d) SwizzleYWXZ() Vec4d {
 // vector in the order of YWXW.
 func (lhs Vec4d) SwizzleYWXW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[0],
-		lhs[3],
+		lhs.Y,
+		lhs.W,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -2173,10 +2178,10 @@ func (lhs Vec4d) SwizzleYWXW() Vec4d {
 // vector in the order of YWYX.
 func (lhs Vec4d) SwizzleYWYX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -2184,10 +2189,10 @@ func (lhs Vec4d) SwizzleYWYX() Vec4d {
 // vector in the order of YWYY.
 func (lhs Vec4d) SwizzleYWYY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -2195,10 +2200,10 @@ func (lhs Vec4d) SwizzleYWYY() Vec4d {
 // vector in the order of YWYZ.
 func (lhs Vec4d) SwizzleYWYZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -2206,10 +2211,10 @@ func (lhs Vec4d) SwizzleYWYZ() Vec4d {
 // vector in the order of YWYW.
 func (lhs Vec4d) SwizzleYWYW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[1],
-		lhs[3],
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -2217,10 +2222,10 @@ func (lhs Vec4d) SwizzleYWYW() Vec4d {
 // vector in the order of YWZX.
 func (lhs Vec4d) SwizzleYWZX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[2],
-		lhs[0],
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -2228,10 +2233,10 @@ func (lhs Vec4d) SwizzleYWZX() Vec4d {
 // vector in the order of YWZY.
 func (lhs Vec4d) SwizzleYWZY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[2],
-		lhs[1],
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -2239,10 +2244,10 @@ func (lhs Vec4d) SwizzleYWZY() Vec4d {
 // vector in the order of YWZZ.
 func (lhs Vec4d) SwizzleYWZZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[2],
-		lhs[2],
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -2250,10 +2255,10 @@ func (lhs Vec4d) SwizzleYWZZ() Vec4d {
 // vector in the order of YWZW.
 func (lhs Vec4d) SwizzleYWZW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[2],
-		lhs[3],
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -2261,10 +2266,10 @@ func (lhs Vec4d) SwizzleYWZW() Vec4d {
 // vector in the order of YWWX.
 func (lhs Vec4d) SwizzleYWWX() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[3],
-		lhs[0],
+		lhs.Y,
+		lhs.W,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -2272,10 +2277,10 @@ func (lhs Vec4d) SwizzleYWWX() Vec4d {
 // vector in the order of YWWY.
 func (lhs Vec4d) SwizzleYWWY() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[3],
-		lhs[1],
+		lhs.Y,
+		lhs.W,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -2283,10 +2288,10 @@ func (lhs Vec4d) SwizzleYWWY() Vec4d {
 // vector in the order of YWWZ.
 func (lhs Vec4d) SwizzleYWWZ() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[3],
-		lhs[2],
+		lhs.Y,
+		lhs.W,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -2294,10 +2299,10 @@ func (lhs Vec4d) SwizzleYWWZ() Vec4d {
 // vector in the order of YWWW.
 func (lhs Vec4d) SwizzleYWWW() Vec4d {
 	return Vec4d{
-		lhs[1],
-		lhs[3],
-		lhs[3],
-		lhs[3],
+		lhs.Y,
+		lhs.W,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -2305,10 +2310,10 @@ func (lhs Vec4d) SwizzleYWWW() Vec4d {
 // vector in the order of ZXXX.
 func (lhs Vec4d) SwizzleZXXX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[0],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -2316,10 +2321,10 @@ func (lhs Vec4d) SwizzleZXXX() Vec4d {
 // vector in the order of ZXXY.
 func (lhs Vec4d) SwizzleZXXY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[0],
-		lhs[1],
+		lhs.Z,
+		lhs.X,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -2327,10 +2332,10 @@ func (lhs Vec4d) SwizzleZXXY() Vec4d {
 // vector in the order of ZXXZ.
 func (lhs Vec4d) SwizzleZXXZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[0],
-		lhs[2],
+		lhs.Z,
+		lhs.X,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -2338,10 +2343,10 @@ func (lhs Vec4d) SwizzleZXXZ() Vec4d {
 // vector in the order of ZXXW.
 func (lhs Vec4d) SwizzleZXXW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[0],
-		lhs[3],
+		lhs.Z,
+		lhs.X,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -2349,10 +2354,10 @@ func (lhs Vec4d) SwizzleZXXW() Vec4d {
 // vector in the order of ZXYX.
 func (lhs Vec4d) SwizzleZXYX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[1],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -2360,10 +2365,10 @@ func (lhs Vec4d) SwizzleZXYX() Vec4d {
 // vector in the order of ZXYY.
 func (lhs Vec4d) SwizzleZXYY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[1],
-		lhs[1],
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -2371,10 +2376,10 @@ func (lhs Vec4d) SwizzleZXYY() Vec4d {
 // vector in the order of ZXYZ.
 func (lhs Vec4d) SwizzleZXYZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -2382,10 +2387,10 @@ func (lhs Vec4d) SwizzleZXYZ() Vec4d {
 // vector in the order of ZXYW.
 func (lhs Vec4d) SwizzleZXYW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[1],
-		lhs[3],
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -2393,10 +2398,10 @@ func (lhs Vec4d) SwizzleZXYW() Vec4d {
 // vector in the order of ZXZX.
 func (lhs Vec4d) SwizzleZXZX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -2404,10 +2409,10 @@ func (lhs Vec4d) SwizzleZXZX() Vec4d {
 // vector in the order of ZXZY.
 func (lhs Vec4d) SwizzleZXZY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -2415,10 +2420,10 @@ func (lhs Vec4d) SwizzleZXZY() Vec4d {
 // vector in the order of ZXZZ.
 func (lhs Vec4d) SwizzleZXZZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -2426,10 +2431,10 @@ func (lhs Vec4d) SwizzleZXZZ() Vec4d {
 // vector in the order of ZXZW.
 func (lhs Vec4d) SwizzleZXZW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[2],
-		lhs[3],
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -2437,10 +2442,10 @@ func (lhs Vec4d) SwizzleZXZW() Vec4d {
 // vector in the order of ZXWX.
 func (lhs Vec4d) SwizzleZXWX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[3],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -2448,10 +2453,10 @@ func (lhs Vec4d) SwizzleZXWX() Vec4d {
 // vector in the order of ZXWY.
 func (lhs Vec4d) SwizzleZXWY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[3],
-		lhs[1],
+		lhs.Z,
+		lhs.X,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -2459,10 +2464,10 @@ func (lhs Vec4d) SwizzleZXWY() Vec4d {
 // vector in the order of ZXWZ.
 func (lhs Vec4d) SwizzleZXWZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[3],
-		lhs[2],
+		lhs.Z,
+		lhs.X,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -2470,10 +2475,10 @@ func (lhs Vec4d) SwizzleZXWZ() Vec4d {
 // vector in the order of ZXWW.
 func (lhs Vec4d) SwizzleZXWW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[0],
-		lhs[3],
-		lhs[3],
+		lhs.Z,
+		lhs.X,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -2481,10 +2486,10 @@ func (lhs Vec4d) SwizzleZXWW() Vec4d {
 // vector in the order of ZYXX.
 func (lhs Vec4d) SwizzleZYXX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[0],
-		lhs[0],
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -2492,10 +2497,10 @@ func (lhs Vec4d) SwizzleZYXX() Vec4d {
 // vector in the order of ZYXY.
 func (lhs Vec4d) SwizzleZYXY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[0],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -2503,10 +2508,10 @@ func (lhs Vec4d) SwizzleZYXY() Vec4d {
 // vector in the order of ZYXZ.
 func (lhs Vec4d) SwizzleZYXZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[0],
-		lhs[2],
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -2514,10 +2519,10 @@ func (lhs Vec4d) SwizzleZYXZ() Vec4d {
 // vector in the order of ZYXW.
 func (lhs Vec4d) SwizzleZYXW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[0],
-		lhs[3],
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -2525,10 +2530,10 @@ func (lhs Vec4d) SwizzleZYXW() Vec4d {
 // vector in the order of ZYYX.
 func (lhs Vec4d) SwizzleZYYX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[1],
-		lhs[0],
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -2536,10 +2541,10 @@ func (lhs Vec4d) SwizzleZYYX() Vec4d {
 // vector in the order of ZYYY.
 func (lhs Vec4d) SwizzleZYYY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[1],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -2547,10 +2552,10 @@ func (lhs Vec4d) SwizzleZYYY() Vec4d {
 // vector in the order of ZYYZ.
 func (lhs Vec4d) SwizzleZYYZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[1],
-		lhs[2],
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -2558,10 +2563,10 @@ func (lhs Vec4d) SwizzleZYYZ() Vec4d {
 // vector in the order of ZYYW.
 func (lhs Vec4d) SwizzleZYYW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[1],
-		lhs[3],
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -2569,10 +2574,10 @@ func (lhs Vec4d) SwizzleZYYW() Vec4d {
 // vector in the order of ZYZX.
 func (lhs Vec4d) SwizzleZYZX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -2580,10 +2585,10 @@ func (lhs Vec4d) SwizzleZYZX() Vec4d {
 // vector in the order of ZYZY.
 func (lhs Vec4d) SwizzleZYZY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -2591,10 +2596,10 @@ func (lhs Vec4d) SwizzleZYZY() Vec4d {
 // vector in the order of ZYZZ.
 func (lhs Vec4d) SwizzleZYZZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -2602,10 +2607,10 @@ func (lhs Vec4d) SwizzleZYZZ() Vec4d {
 // vector in the order of ZYZW.
 func (lhs Vec4d) SwizzleZYZW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[2],
-		lhs[3],
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -2613,10 +2618,10 @@ func (lhs Vec4d) SwizzleZYZW() Vec4d {
 // vector in the order of ZYWX.
 func (lhs Vec4d) SwizzleZYWX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[3],
-		lhs[0],
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -2624,10 +2629,10 @@ func (lhs Vec4d) SwizzleZYWX() Vec4d {
 // vector in the order of ZYWY.
 func (lhs Vec4d) SwizzleZYWY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[3],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -2635,10 +2640,10 @@ func (lhs Vec4d) SwizzleZYWY() Vec4d {
 // vector in the order of ZYWZ.
 func (lhs Vec4d) SwizzleZYWZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[3],
-		lhs[2],
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -2646,10 +2651,10 @@ func (lhs Vec4d) SwizzleZYWZ() Vec4d {
 // vector in the order of ZYWW.
 func (lhs Vec4d) SwizzleZYWW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[1],
-		lhs[3],
-		lhs[3],
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -2657,10 +2662,10 @@ func (lhs Vec4d) SwizzleZYWW() Vec4d {
 // vector in the order of ZZXX.
 func (lhs Vec4d) SwizzleZZXX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[0],
-		lhs[0],
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -2668,10 +2673,10 @@ func (lhs Vec4d) SwizzleZZXX() Vec4d {
 // vector in the order of ZZXY.
 func (lhs Vec4d) SwizzleZZXY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[0],
-		lhs[1],
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -2679,10 +2684,10 @@ func (lhs Vec4d) SwizzleZZXY() Vec4d {
 // vector in the order of ZZXZ.
 func (lhs Vec4d) SwizzleZZXZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[0],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -2690,10 +2695,10 @@ func (lhs Vec4d) SwizzleZZXZ() Vec4d {
 // vector in the order of ZZXW.
 func (lhs Vec4d) SwizzleZZXW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[0],
-		lhs[3],
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -2701,10 +2706,10 @@ func (lhs Vec4d) SwizzleZZXW() Vec4d {
 // vector in the order of ZZYX.
 func (lhs Vec4d) SwizzleZZYX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[1],
-		lhs[0],
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -2712,10 +2717,10 @@ func (lhs Vec4d) SwizzleZZYX() Vec4d {
 // vector in the order of ZZYY.
 func (lhs Vec4d) SwizzleZZYY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[1],
-		lhs[1],
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -2723,10 +2728,10 @@ func (lhs Vec4d) SwizzleZZYY() Vec4d {
 // vector in the order of ZZYZ.
 func (lhs Vec4d) SwizzleZZYZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[1],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -2734,10 +2739,10 @@ func (lhs Vec4d) SwizzleZZYZ() Vec4d {
 // vector in the order of ZZYW.
 func (lhs Vec4d) SwizzleZZYW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[1],
-		lhs[3],
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -2745,10 +2750,10 @@ func (lhs Vec4d) SwizzleZZYW() Vec4d {
 // vector in the order of ZZZX.
 func (lhs Vec4d) SwizzleZZZX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -2756,10 +2761,10 @@ func (lhs Vec4d) SwizzleZZZX() Vec4d {
 // vector in the order of ZZZY.
 func (lhs Vec4d) SwizzleZZZY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -2767,10 +2772,10 @@ func (lhs Vec4d) SwizzleZZZY() Vec4d {
 // vector in the order of ZZZZ.
 func (lhs Vec4d) SwizzleZZZZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -2778,10 +2783,10 @@ func (lhs Vec4d) SwizzleZZZZ() Vec4d {
 // vector in the order of ZZZW.
 func (lhs Vec4d) SwizzleZZZW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[2],
-		lhs[3],
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -2789,10 +2794,10 @@ func (lhs Vec4d) SwizzleZZZW() Vec4d {
 // vector in the order of ZZWX.
 func (lhs Vec4d) SwizzleZZWX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[3],
-		lhs[0],
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -2800,10 +2805,10 @@ func (lhs Vec4d) SwizzleZZWX() Vec4d {
 // vector in the order of ZZWY.
 func (lhs Vec4d) SwizzleZZWY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[3],
-		lhs[1],
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -2811,10 +2816,10 @@ func (lhs Vec4d) SwizzleZZWY() Vec4d {
 // vector in the order of ZZWZ.
 func (lhs Vec4d) SwizzleZZWZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[3],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -2822,10 +2827,10 @@ func (lhs Vec4d) SwizzleZZWZ() Vec4d {
 // vector in the order of ZZWW.
 func (lhs Vec4d) SwizzleZZWW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[2],
-		lhs[3],
-		lhs[3],
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -2833,10 +2838,10 @@ func (lhs Vec4d) SwizzleZZWW() Vec4d {
 // vector in the order of ZWXX.
 func (lhs Vec4d) SwizzleZWXX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[0],
-		lhs[0],
+		lhs.Z,
+		lhs.W,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -2844,10 +2849,10 @@ func (lhs Vec4d) SwizzleZWXX() Vec4d {
 // vector in the order of ZWXY.
 func (lhs Vec4d) SwizzleZWXY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[0],
-		lhs[1],
+		lhs.Z,
+		lhs.W,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -2855,10 +2860,10 @@ func (lhs Vec4d) SwizzleZWXY() Vec4d {
 // vector in the order of ZWXZ.
 func (lhs Vec4d) SwizzleZWXZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[0],
-		lhs[2],
+		lhs.Z,
+		lhs.W,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -2866,10 +2871,10 @@ func (lhs Vec4d) SwizzleZWXZ() Vec4d {
 // vector in the order of ZWXW.
 func (lhs Vec4d) SwizzleZWXW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[0],
-		lhs[3],
+		lhs.Z,
+		lhs.W,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -2877,10 +2882,10 @@ func (lhs Vec4d) SwizzleZWXW() Vec4d {
 // vector in the order of ZWYX.
 func (lhs Vec4d) SwizzleZWYX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[1],
-		lhs[0],
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -2888,10 +2893,10 @@ func (lhs Vec4d) SwizzleZWYX() Vec4d {
 // vector in the order of ZWYY.
 func (lhs Vec4d) SwizzleZWYY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[1],
-		lhs[1],
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -2899,10 +2904,10 @@ func (lhs Vec4d) SwizzleZWYY() Vec4d {
 // vector in the order of ZWYZ.
 func (lhs Vec4d) SwizzleZWYZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[1],
-		lhs[2],
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -2910,10 +2915,10 @@ func (lhs Vec4d) SwizzleZWYZ() Vec4d {
 // vector in the order of ZWYW.
 func (lhs Vec4d) SwizzleZWYW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[1],
-		lhs[3],
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -2921,10 +2926,10 @@ func (lhs Vec4d) SwizzleZWYW() Vec4d {
 // vector in the order of ZWZX.
 func (lhs Vec4d) SwizzleZWZX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -2932,10 +2937,10 @@ func (lhs Vec4d) SwizzleZWZX() Vec4d {
 // vector in the order of ZWZY.
 func (lhs Vec4d) SwizzleZWZY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -2943,10 +2948,10 @@ func (lhs Vec4d) SwizzleZWZY() Vec4d {
 // vector in the order of ZWZZ.
 func (lhs Vec4d) SwizzleZWZZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -2954,10 +2959,10 @@ func (lhs Vec4d) SwizzleZWZZ() Vec4d {
 // vector in the order of ZWZW.
 func (lhs Vec4d) SwizzleZWZW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[2],
-		lhs[3],
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -2965,10 +2970,10 @@ func (lhs Vec4d) SwizzleZWZW() Vec4d {
 // vector in the order of ZWWX.
 func (lhs Vec4d) SwizzleZWWX() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[3],
-		lhs[0],
+		lhs.Z,
+		lhs.W,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -2976,10 +2981,10 @@ func (lhs Vec4d) SwizzleZWWX() Vec4d {
 // vector in the order of ZWWY.
 func (lhs Vec4d) SwizzleZWWY() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[3],
-		lhs[1],
+		lhs.Z,
+		lhs.W,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -2987,10 +2992,10 @@ func (lhs Vec4d) SwizzleZWWY() Vec4d {
 // vector in the order of ZWWZ.
 func (lhs Vec4d) SwizzleZWWZ() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[3],
-		lhs[2],
+		lhs.Z,
+		lhs.W,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -2998,10 +3003,10 @@ func (lhs Vec4d) SwizzleZWWZ() Vec4d {
 // vector in the order of ZWWW.
 func (lhs Vec4d) SwizzleZWWW() Vec4d {
 	return Vec4d{
-		lhs[2],
-		lhs[3],
-		lhs[3],
-		lhs[3],
+		lhs.Z,
+		lhs.W,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -3009,10 +3014,10 @@ func (lhs Vec4d) SwizzleZWWW() Vec4d {
 // vector in the order of WXXX.
 func (lhs Vec4d) SwizzleWXXX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[0],
-		lhs[0],
+		lhs.W,
+		lhs.X,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -3020,10 +3025,10 @@ func (lhs Vec4d) SwizzleWXXX() Vec4d {
 // vector in the order of WXXY.
 func (lhs Vec4d) SwizzleWXXY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[0],
-		lhs[1],
+		lhs.W,
+		lhs.X,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -3031,10 +3036,10 @@ func (lhs Vec4d) SwizzleWXXY() Vec4d {
 // vector in the order of WXXZ.
 func (lhs Vec4d) SwizzleWXXZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[0],
-		lhs[2],
+		lhs.W,
+		lhs.X,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -3042,10 +3047,10 @@ func (lhs Vec4d) SwizzleWXXZ() Vec4d {
 // vector in the order of WXXW.
 func (lhs Vec4d) SwizzleWXXW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[0],
-		lhs[3],
+		lhs.W,
+		lhs.X,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -3053,10 +3058,10 @@ func (lhs Vec4d) SwizzleWXXW() Vec4d {
 // vector in the order of WXYX.
 func (lhs Vec4d) SwizzleWXYX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[1],
-		lhs[0],
+		lhs.W,
+		lhs.X,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -3064,10 +3069,10 @@ func (lhs Vec4d) SwizzleWXYX() Vec4d {
 // vector in the order of WXYY.
 func (lhs Vec4d) SwizzleWXYY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[1],
-		lhs[1],
+		lhs.W,
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -3075,10 +3080,10 @@ func (lhs Vec4d) SwizzleWXYY() Vec4d {
 // vector in the order of WXYZ.
 func (lhs Vec4d) SwizzleWXYZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.W,
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -3086,10 +3091,10 @@ func (lhs Vec4d) SwizzleWXYZ() Vec4d {
 // vector in the order of WXYW.
 func (lhs Vec4d) SwizzleWXYW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[1],
-		lhs[3],
+		lhs.W,
+		lhs.X,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -3097,10 +3102,10 @@ func (lhs Vec4d) SwizzleWXYW() Vec4d {
 // vector in the order of WXZX.
 func (lhs Vec4d) SwizzleWXZX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[2],
-		lhs[0],
+		lhs.W,
+		lhs.X,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -3108,10 +3113,10 @@ func (lhs Vec4d) SwizzleWXZX() Vec4d {
 // vector in the order of WXZY.
 func (lhs Vec4d) SwizzleWXZY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[2],
-		lhs[1],
+		lhs.W,
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -3119,10 +3124,10 @@ func (lhs Vec4d) SwizzleWXZY() Vec4d {
 // vector in the order of WXZZ.
 func (lhs Vec4d) SwizzleWXZZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[2],
-		lhs[2],
+		lhs.W,
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -3130,10 +3135,10 @@ func (lhs Vec4d) SwizzleWXZZ() Vec4d {
 // vector in the order of WXZW.
 func (lhs Vec4d) SwizzleWXZW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[2],
-		lhs[3],
+		lhs.W,
+		lhs.X,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -3141,10 +3146,10 @@ func (lhs Vec4d) SwizzleWXZW() Vec4d {
 // vector in the order of WXWX.
 func (lhs Vec4d) SwizzleWXWX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[3],
-		lhs[0],
+		lhs.W,
+		lhs.X,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -3152,10 +3157,10 @@ func (lhs Vec4d) SwizzleWXWX() Vec4d {
 // vector in the order of WXWY.
 func (lhs Vec4d) SwizzleWXWY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[3],
-		lhs[1],
+		lhs.W,
+		lhs.X,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -3163,10 +3168,10 @@ func (lhs Vec4d) SwizzleWXWY() Vec4d {
 // vector in the order of WXWZ.
 func (lhs Vec4d) SwizzleWXWZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[3],
-		lhs[2],
+		lhs.W,
+		lhs.X,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -3174,10 +3179,10 @@ func (lhs Vec4d) SwizzleWXWZ() Vec4d {
 // vector in the order of WXWW.
 func (lhs Vec4d) SwizzleWXWW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[0],
-		lhs[3],
-		lhs[3],
+		lhs.W,
+		lhs.X,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -3185,10 +3190,10 @@ func (lhs Vec4d) SwizzleWXWW() Vec4d {
 // vector in the order of WYXX.
 func (lhs Vec4d) SwizzleWYXX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[0],
-		lhs[0],
+		lhs.W,
+		lhs.Y,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -3196,10 +3201,10 @@ func (lhs Vec4d) SwizzleWYXX() Vec4d {
 // vector in the order of WYXY.
 func (lhs Vec4d) SwizzleWYXY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[0],
-		lhs[1],
+		lhs.W,
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -3207,10 +3212,10 @@ func (lhs Vec4d) SwizzleWYXY() Vec4d {
 // vector in the order of WYXZ.
 func (lhs Vec4d) SwizzleWYXZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[0],
-		lhs[2],
+		lhs.W,
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -3218,10 +3223,10 @@ func (lhs Vec4d) SwizzleWYXZ() Vec4d {
 // vector in the order of WYXW.
 func (lhs Vec4d) SwizzleWYXW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[0],
-		lhs[3],
+		lhs.W,
+		lhs.Y,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -3229,10 +3234,10 @@ func (lhs Vec4d) SwizzleWYXW() Vec4d {
 // vector in the order of WYYX.
 func (lhs Vec4d) SwizzleWYYX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[1],
-		lhs[0],
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -3240,10 +3245,10 @@ func (lhs Vec4d) SwizzleWYYX() Vec4d {
 // vector in the order of WYYY.
 func (lhs Vec4d) SwizzleWYYY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[1],
-		lhs[1],
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -3251,10 +3256,10 @@ func (lhs Vec4d) SwizzleWYYY() Vec4d {
 // vector in the order of WYYZ.
 func (lhs Vec4d) SwizzleWYYZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[1],
-		lhs[2],
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -3262,10 +3267,10 @@ func (lhs Vec4d) SwizzleWYYZ() Vec4d {
 // vector in the order of WYYW.
 func (lhs Vec4d) SwizzleWYYW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[1],
-		lhs[3],
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -3273,10 +3278,10 @@ func (lhs Vec4d) SwizzleWYYW() Vec4d {
 // vector in the order of WYZX.
 func (lhs Vec4d) SwizzleWYZX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[2],
-		lhs[0],
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -3284,10 +3289,10 @@ func (lhs Vec4d) SwizzleWYZX() Vec4d {
 // vector in the order of WYZY.
 func (lhs Vec4d) SwizzleWYZY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[2],
-		lhs[1],
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -3295,10 +3300,10 @@ func (lhs Vec4d) SwizzleWYZY() Vec4d {
 // vector in the order of WYZZ.
 func (lhs Vec4d) SwizzleWYZZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[2],
-		lhs[2],
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -3306,10 +3311,10 @@ func (lhs Vec4d) SwizzleWYZZ() Vec4d {
 // vector in the order of WYZW.
 func (lhs Vec4d) SwizzleWYZW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[2],
-		lhs[3],
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -3317,10 +3322,10 @@ func (lhs Vec4d) SwizzleWYZW() Vec4d {
 // vector in the order of WYWX.
 func (lhs Vec4d) SwizzleWYWX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[3],
-		lhs[0],
+		lhs.W,
+		lhs.Y,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -3328,10 +3333,10 @@ func (lhs Vec4d) SwizzleWYWX() Vec4d {
 // vector in the order of WYWY.
 func (lhs Vec4d) SwizzleWYWY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[3],
-		lhs[1],
+		lhs.W,
+		lhs.Y,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -3339,10 +3344,10 @@ func (lhs Vec4d) SwizzleWYWY() Vec4d {
 // vector in the order of WYWZ.
 func (lhs Vec4d) SwizzleWYWZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[3],
-		lhs[2],
+		lhs.W,
+		lhs.Y,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -3350,10 +3355,10 @@ func (lhs Vec4d) SwizzleWYWZ() Vec4d {
 // vector in the order of WYWW.
 func (lhs Vec4d) SwizzleWYWW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[1],
-		lhs[3],
-		lhs[3],
+		lhs.W,
+		lhs.Y,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -3361,10 +3366,10 @@ func (lhs Vec4d) SwizzleWYWW() Vec4d {
 // vector in the order of WZXX.
 func (lhs Vec4d) SwizzleWZXX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[0],
-		lhs[0],
+		lhs.W,
+		lhs.Z,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -3372,10 +3377,10 @@ func (lhs Vec4d) SwizzleWZXX() Vec4d {
 // vector in the order of WZXY.
 func (lhs Vec4d) SwizzleWZXY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[0],
-		lhs[1],
+		lhs.W,
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -3383,10 +3388,10 @@ func (lhs Vec4d) SwizzleWZXY() Vec4d {
 // vector in the order of WZXZ.
 func (lhs Vec4d) SwizzleWZXZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[0],
-		lhs[2],
+		lhs.W,
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -3394,10 +3399,10 @@ func (lhs Vec4d) SwizzleWZXZ() Vec4d {
 // vector in the order of WZXW.
 func (lhs Vec4d) SwizzleWZXW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[0],
-		lhs[3],
+		lhs.W,
+		lhs.Z,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -3405,10 +3410,10 @@ func (lhs Vec4d) SwizzleWZXW() Vec4d {
 // vector in the order of WZYX.
 func (lhs Vec4d) SwizzleWZYX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[1],
-		lhs[0],
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -3416,10 +3421,10 @@ func (lhs Vec4d) SwizzleWZYX() Vec4d {
 // vector in the order of WZYY.
 func (lhs Vec4d) SwizzleWZYY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[1],
-		lhs[1],
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -3427,10 +3432,10 @@ func (lhs Vec4d) SwizzleWZYY() Vec4d {
 // vector in the order of WZYZ.
 func (lhs Vec4d) SwizzleWZYZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[1],
-		lhs[2],
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -3438,10 +3443,10 @@ func (lhs Vec4d) SwizzleWZYZ() Vec4d {
 // vector in the order of WZYW.
 func (lhs Vec4d) SwizzleWZYW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[1],
-		lhs[3],
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -3449,10 +3454,10 @@ func (lhs Vec4d) SwizzleWZYW() Vec4d {
 // vector in the order of WZZX.
 func (lhs Vec4d) SwizzleWZZX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[2],
-		lhs[0],
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -3460,10 +3465,10 @@ func (lhs Vec4d) SwizzleWZZX() Vec4d {
 // vector in the order of WZZY.
 func (lhs Vec4d) SwizzleWZZY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[2],
-		lhs[1],
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -3471,10 +3476,10 @@ func (lhs Vec4d) SwizzleWZZY() Vec4d {
 // vector in the order of WZZZ.
 func (lhs Vec4d) SwizzleWZZZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[2],
-		lhs[2],
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -3482,10 +3487,10 @@ func (lhs Vec4d) SwizzleWZZZ() Vec4d {
 // vector in the order of WZZW.
 func (lhs Vec4d) SwizzleWZZW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[2],
-		lhs[3],
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -3493,10 +3498,10 @@ func (lhs Vec4d) SwizzleWZZW() Vec4d {
 // vector in the order of WZWX.
 func (lhs Vec4d) SwizzleWZWX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[3],
-		lhs[0],
+		lhs.W,
+		lhs.Z,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -3504,10 +3509,10 @@ func (lhs Vec4d) SwizzleWZWX() Vec4d {
 // vector in the order of WZWY.
 func (lhs Vec4d) SwizzleWZWY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[3],
-		lhs[1],
+		lhs.W,
+		lhs.Z,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -3515,10 +3520,10 @@ func (lhs Vec4d) SwizzleWZWY() Vec4d {
 // vector in the order of WZWZ.
 func (lhs Vec4d) SwizzleWZWZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[3],
-		lhs[2],
+		lhs.W,
+		lhs.Z,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -3526,10 +3531,10 @@ func (lhs Vec4d) SwizzleWZWZ() Vec4d {
 // vector in the order of WZWW.
 func (lhs Vec4d) SwizzleWZWW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[2],
-		lhs[3],
-		lhs[3],
+		lhs.W,
+		lhs.Z,
+		lhs.W,
+		lhs.W,
 	}
 }
 
@@ -3537,10 +3542,10 @@ func (lhs Vec4d) SwizzleWZWW() Vec4d {
 // vector in the order of WWXX.
 func (lhs Vec4d) SwizzleWWXX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[0],
-		lhs[0],
+		lhs.W,
+		lhs.W,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -3548,10 +3553,10 @@ func (lhs Vec4d) SwizzleWWXX() Vec4d {
 // vector in the order of WWXY.
 func (lhs Vec4d) SwizzleWWXY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[0],
-		lhs[1],
+		lhs.W,
+		lhs.W,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -3559,10 +3564,10 @@ func (lhs Vec4d) SwizzleWWXY() Vec4d {
 // vector in the order of WWXZ.
 func (lhs Vec4d) SwizzleWWXZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[0],
-		lhs[2],
+		lhs.W,
+		lhs.W,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -3570,10 +3575,10 @@ func (lhs Vec4d) SwizzleWWXZ() Vec4d {
 // vector in the order of WWXW.
 func (lhs Vec4d) SwizzleWWXW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[0],
-		lhs[3],
+		lhs.W,
+		lhs.W,
+		lhs.X,
+		lhs.W,
 	}
 }
 
@@ -3581,10 +3586,10 @@ func (lhs Vec4d) SwizzleWWXW() Vec4d {
 // vector in the order of WWYX.
 func (lhs Vec4d) SwizzleWWYX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[1],
-		lhs[0],
+		lhs.W,
+		lhs.W,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -3592,10 +3597,10 @@ func (lhs Vec4d) SwizzleWWYX() Vec4d {
 // vector in the order of WWYY.
 func (lhs Vec4d) SwizzleWWYY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[1],
-		lhs[1],
+		lhs.W,
+		lhs.W,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -3603,10 +3608,10 @@ func (lhs Vec4d) SwizzleWWYY() Vec4d {
 // vector in the order of WWYZ.
 func (lhs Vec4d) SwizzleWWYZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[1],
-		lhs[2],
+		lhs.W,
+		lhs.W,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -3614,10 +3619,10 @@ func (lhs Vec4d) SwizzleWWYZ() Vec4d {
 // vector in the order of WWYW.
 func (lhs Vec4d) SwizzleWWYW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[1],
-		lhs[3],
+		lhs.W,
+		lhs.W,
+		lhs.Y,
+		lhs.W,
 	}
 }
 
@@ -3625,10 +3630,10 @@ func (lhs Vec4d) SwizzleWWYW() Vec4d {
 // vector in the order of WWZX.
 func (lhs Vec4d) SwizzleWWZX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[2],
-		lhs[0],
+		lhs.W,
+		lhs.W,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -3636,10 +3641,10 @@ func (lhs Vec4d) SwizzleWWZX() Vec4d {
 // vector in the order of WWZY.
 func (lhs Vec4d) SwizzleWWZY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[2],
-		lhs[1],
+		lhs.W,
+		lhs.W,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -3647,10 +3652,10 @@ func (lhs Vec4d) SwizzleWWZY() Vec4d {
 // vector in the order of WWZZ.
 func (lhs Vec4d) SwizzleWWZZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[2],
-		lhs[2],
+		lhs.W,
+		lhs.W,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -3658,10 +3663,10 @@ func (lhs Vec4d) SwizzleWWZZ() Vec4d {
 // vector in the order of WWZW.
 func (lhs Vec4d) SwizzleWWZW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[2],
-		lhs[3],
+		lhs.W,
+		lhs.W,
+		lhs.Z,
+		lhs.W,
 	}
 }
 
@@ -3669,10 +3674,10 @@ func (lhs Vec4d) SwizzleWWZW() Vec4d {
 // vector in the order of WWWX.
 func (lhs Vec4d) SwizzleWWWX() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[3],
-		lhs[0],
+		lhs.W,
+		lhs.W,
+		lhs.W,
+		lhs.X,
 	}
 }
 
@@ -3680,10 +3685,10 @@ func (lhs Vec4d) SwizzleWWWX() Vec4d {
 // vector in the order of WWWY.
 func (lhs Vec4d) SwizzleWWWY() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[3],
-		lhs[1],
+		lhs.W,
+		lhs.W,
+		lhs.W,
+		lhs.Y,
 	}
 }
 
@@ -3691,10 +3696,10 @@ func (lhs Vec4d) SwizzleWWWY() Vec4d {
 // vector in the order of WWWZ.
 func (lhs Vec4d) SwizzleWWWZ() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[3],
-		lhs[2],
+		lhs.W,
+		lhs.W,
+		lhs.W,
+		lhs.Z,
 	}
 }
 
@@ -3702,31 +3707,31 @@ func (lhs Vec4d) SwizzleWWWZ() Vec4d {
 // vector in the order of WWWW.
 func (lhs Vec4d) SwizzleWWWW() Vec4d {
 	return Vec4d{
-		lhs[3],
-		lhs[3],
-		lhs[3],
-		lhs[3],
+		lhs.W,
+		lhs.W,
+		lhs.W,
+		lhs.W,
 	}
 }
 
 func (lhs Vec4d) XY() (x, y float64) {
-	x = lhs[0]
-	y = lhs[1]
+	x = lhs.X
+	y = lhs.Y
 	return
 }
 
 func (lhs Vec4d) XYZ() (x, y, z float64) {
-	x = lhs[0]
-	y = lhs[1]
-	z = lhs[2]
+	x = lhs.X
+	y = lhs.Y
+	z = lhs.Z
 	return
 }
 
 func (lhs Vec4d) XYZW() (x, y, z, w float64) {
-	x = lhs[0]
-	y = lhs[1]
-	z = lhs[2]
-	w = lhs[3]
+	x = lhs.X
+	y = lhs.Y
+	z = lhs.Z
+	w = lhs.W
 	return
 }
 
@@ -3736,28 +3741,48 @@ func (lhs Vec4d) IsZero() bool {
 
 func (lhs Vec4d) ToVec4f() Vec4f {
 	return Vec4f{
-		float32(lhs[0]),
-		float32(lhs[1]),
-		float32(lhs[2]),
-		float32(lhs[3]),
+		float32(lhs.X),
+		float32(lhs.Y),
+		float32(lhs.Z),
+		float32(lhs.W),
 	}
 }
 
 func (lhs Vec4d) ToWGPU() [4]float32 {
 	return [4]float32{
-		float32(lhs[0]),
-		float32(lhs[1]),
-		float32(lhs[2]),
-		float32(lhs[3]),
+		float32(lhs.X),
+		float32(lhs.Y),
+		float32(lhs.Z),
+		float32(lhs.W),
 	}
+}
+
+// Array returns the components as an array.
+func (lhs Vec4d) Array() [4]float64 {
+	return [4]float64{lhs.X, lhs.Y, lhs.Z, lhs.W}
+}
+
+// MarshalJSON encodes the vector as a JSON array.
+func (lhs Vec4d) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lhs.Array())
+}
+
+// UnmarshalJSON decodes the vector from a JSON array.
+func (lhs *Vec4d) UnmarshalJSON(data []byte) error {
+	var a [4]float64
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*lhs = Vec4d{a[0], a[1], a[2], a[3]}
+	return nil
 }
 
 func (lhs Vec4d) String() string {
 	return fmt.Sprintf(
 		"vec4(%v, %v, %v, %v)",
-		lhs[0],
-		lhs[1],
-		lhs[2],
-		lhs[3],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
+		lhs.W,
 	)
 }

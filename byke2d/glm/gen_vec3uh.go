@@ -2,10 +2,15 @@
 
 package glm
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // Vec3uh is a vector of dimension 3.
-type Vec3uh [3]uint16
+type Vec3uh struct {
+	X, Y, Z uint16
+}
 
 // V3uh creates a Vec3uh.
 func V3uh(x, y, z uint16) Vec3uh {
@@ -13,7 +18,7 @@ func V3uh(x, y, z uint16) Vec3uh {
 }
 
 func (lhs Vec3uh) Dot(rhs Vec3uh) uint16 {
-	return lhs[0]*rhs[0] + lhs[1]*rhs[1] + lhs[2]*rhs[2]
+	return lhs.X*rhs.X + lhs.Y*rhs.Y + lhs.Z*rhs.Z
 }
 
 func (lhs Vec3uh) LengthSqr() uint16 {
@@ -22,73 +27,73 @@ func (lhs Vec3uh) LengthSqr() uint16 {
 
 func (lhs Vec3uh) Scale(s uint16) Vec3uh {
 	return Vec3uh{
-		lhs[0] * s,
-		lhs[1] * s,
-		lhs[2] * s,
+		lhs.X * s,
+		lhs.Y * s,
+		lhs.Z * s,
 	}
 }
 
 func (lhs Vec3uh) Add(rhs Vec3uh) Vec3uh {
 	return Vec3uh{
-		lhs[0] + rhs[0],
-		lhs[1] + rhs[1],
-		lhs[2] + rhs[2],
+		lhs.X + rhs.X,
+		lhs.Y + rhs.Y,
+		lhs.Z + rhs.Z,
 	}
 }
 
 func (lhs Vec3uh) Sub(rhs Vec3uh) Vec3uh {
 	return Vec3uh{
-		lhs[0] - rhs[0],
-		lhs[1] - rhs[1],
-		lhs[2] - rhs[2],
+		lhs.X - rhs.X,
+		lhs.Y - rhs.Y,
+		lhs.Z - rhs.Z,
 	}
 }
 
 func (lhs Vec3uh) Mul(rhs Vec3uh) Vec3uh {
 	return Vec3uh{
-		lhs[0] * rhs[0],
-		lhs[1] * rhs[1],
-		lhs[2] * rhs[2],
+		lhs.X * rhs.X,
+		lhs.Y * rhs.Y,
+		lhs.Z * rhs.Z,
 	}
 }
 
 func (lhs Vec3uh) Div(rhs Vec3uh) Vec3uh {
 	return Vec3uh{
-		lhs[0] / rhs[0],
-		lhs[1] / rhs[1],
-		lhs[2] / rhs[2],
+		lhs.X / rhs.X,
+		lhs.Y / rhs.Y,
+		lhs.Z / rhs.Z,
 	}
 }
 
 func (lhs Vec3uh) Min(rhs Vec3uh) Vec3uh {
 	return Vec3uh{
-		min(lhs[0], rhs[0]),
-		min(lhs[1], rhs[1]),
-		min(lhs[2], rhs[2]),
+		min(lhs.X, rhs.X),
+		min(lhs.Y, rhs.Y),
+		min(lhs.Z, rhs.Z),
 	}
 }
 
 func (lhs Vec3uh) Max(rhs Vec3uh) Vec3uh {
 	return Vec3uh{
-		max(lhs[0], rhs[0]),
-		max(lhs[1], rhs[1]),
-		max(lhs[2], rhs[2]),
+		max(lhs.X, rhs.X),
+		max(lhs.Y, rhs.Y),
+		max(lhs.Z, rhs.Z),
 	}
 }
 
 func (lhs Vec3uh) Extend(w uint16) Vec4uh {
 	return Vec4uh{
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 		w,
 	}
 }
 
 func (lhs Vec3uh) Truncate() Vec2uh {
 	return Vec2uh{
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -96,8 +101,8 @@ func (lhs Vec3uh) Truncate() Vec2uh {
 // vector in the order of XX.
 func (lhs Vec3uh) SwizzleXX() Vec2uh {
 	return Vec2uh{
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -105,8 +110,8 @@ func (lhs Vec3uh) SwizzleXX() Vec2uh {
 // vector in the order of XY.
 func (lhs Vec3uh) SwizzleXY() Vec2uh {
 	return Vec2uh{
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -114,8 +119,8 @@ func (lhs Vec3uh) SwizzleXY() Vec2uh {
 // vector in the order of XZ.
 func (lhs Vec3uh) SwizzleXZ() Vec2uh {
 	return Vec2uh{
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -123,8 +128,8 @@ func (lhs Vec3uh) SwizzleXZ() Vec2uh {
 // vector in the order of YX.
 func (lhs Vec3uh) SwizzleYX() Vec2uh {
 	return Vec2uh{
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -132,8 +137,8 @@ func (lhs Vec3uh) SwizzleYX() Vec2uh {
 // vector in the order of YY.
 func (lhs Vec3uh) SwizzleYY() Vec2uh {
 	return Vec2uh{
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -141,8 +146,8 @@ func (lhs Vec3uh) SwizzleYY() Vec2uh {
 // vector in the order of YZ.
 func (lhs Vec3uh) SwizzleYZ() Vec2uh {
 	return Vec2uh{
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -150,8 +155,8 @@ func (lhs Vec3uh) SwizzleYZ() Vec2uh {
 // vector in the order of ZX.
 func (lhs Vec3uh) SwizzleZX() Vec2uh {
 	return Vec2uh{
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -159,8 +164,8 @@ func (lhs Vec3uh) SwizzleZX() Vec2uh {
 // vector in the order of ZY.
 func (lhs Vec3uh) SwizzleZY() Vec2uh {
 	return Vec2uh{
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -168,8 +173,8 @@ func (lhs Vec3uh) SwizzleZY() Vec2uh {
 // vector in the order of ZZ.
 func (lhs Vec3uh) SwizzleZZ() Vec2uh {
 	return Vec2uh{
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -177,9 +182,9 @@ func (lhs Vec3uh) SwizzleZZ() Vec2uh {
 // vector in the order of XXX.
 func (lhs Vec3uh) SwizzleXXX() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -187,9 +192,9 @@ func (lhs Vec3uh) SwizzleXXX() Vec3uh {
 // vector in the order of XXY.
 func (lhs Vec3uh) SwizzleXXY() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -197,9 +202,9 @@ func (lhs Vec3uh) SwizzleXXY() Vec3uh {
 // vector in the order of XXZ.
 func (lhs Vec3uh) SwizzleXXZ() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[0],
-		lhs[2],
+		lhs.X,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -207,9 +212,9 @@ func (lhs Vec3uh) SwizzleXXZ() Vec3uh {
 // vector in the order of XYX.
 func (lhs Vec3uh) SwizzleXYX() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[1],
-		lhs[0],
+		lhs.X,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -217,9 +222,9 @@ func (lhs Vec3uh) SwizzleXYX() Vec3uh {
 // vector in the order of XYY.
 func (lhs Vec3uh) SwizzleXYY() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[1],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -227,9 +232,9 @@ func (lhs Vec3uh) SwizzleXYY() Vec3uh {
 // vector in the order of XYZ.
 func (lhs Vec3uh) SwizzleXYZ() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -237,9 +242,9 @@ func (lhs Vec3uh) SwizzleXYZ() Vec3uh {
 // vector in the order of XZX.
 func (lhs Vec3uh) SwizzleXZX() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[2],
-		lhs[0],
+		lhs.X,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -247,9 +252,9 @@ func (lhs Vec3uh) SwizzleXZX() Vec3uh {
 // vector in the order of XZY.
 func (lhs Vec3uh) SwizzleXZY() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[2],
-		lhs[1],
+		lhs.X,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -257,9 +262,9 @@ func (lhs Vec3uh) SwizzleXZY() Vec3uh {
 // vector in the order of XZZ.
 func (lhs Vec3uh) SwizzleXZZ() Vec3uh {
 	return Vec3uh{
-		lhs[0],
-		lhs[2],
-		lhs[2],
+		lhs.X,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -267,9 +272,9 @@ func (lhs Vec3uh) SwizzleXZZ() Vec3uh {
 // vector in the order of YXX.
 func (lhs Vec3uh) SwizzleYXX() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[0],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -277,9 +282,9 @@ func (lhs Vec3uh) SwizzleYXX() Vec3uh {
 // vector in the order of YXY.
 func (lhs Vec3uh) SwizzleYXY() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[0],
-		lhs[1],
+		lhs.Y,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -287,9 +292,9 @@ func (lhs Vec3uh) SwizzleYXY() Vec3uh {
 // vector in the order of YXZ.
 func (lhs Vec3uh) SwizzleYXZ() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[0],
-		lhs[2],
+		lhs.Y,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -297,9 +302,9 @@ func (lhs Vec3uh) SwizzleYXZ() Vec3uh {
 // vector in the order of YYX.
 func (lhs Vec3uh) SwizzleYYX() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -307,9 +312,9 @@ func (lhs Vec3uh) SwizzleYYX() Vec3uh {
 // vector in the order of YYY.
 func (lhs Vec3uh) SwizzleYYY() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -317,9 +322,9 @@ func (lhs Vec3uh) SwizzleYYY() Vec3uh {
 // vector in the order of YYZ.
 func (lhs Vec3uh) SwizzleYYZ() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[1],
-		lhs[2],
+		lhs.Y,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -327,9 +332,9 @@ func (lhs Vec3uh) SwizzleYYZ() Vec3uh {
 // vector in the order of YZX.
 func (lhs Vec3uh) SwizzleYZX() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[2],
-		lhs[0],
+		lhs.Y,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -337,9 +342,9 @@ func (lhs Vec3uh) SwizzleYZX() Vec3uh {
 // vector in the order of YZY.
 func (lhs Vec3uh) SwizzleYZY() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[2],
-		lhs[1],
+		lhs.Y,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -347,9 +352,9 @@ func (lhs Vec3uh) SwizzleYZY() Vec3uh {
 // vector in the order of YZZ.
 func (lhs Vec3uh) SwizzleYZZ() Vec3uh {
 	return Vec3uh{
-		lhs[1],
-		lhs[2],
-		lhs[2],
+		lhs.Y,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
@@ -357,9 +362,9 @@ func (lhs Vec3uh) SwizzleYZZ() Vec3uh {
 // vector in the order of ZXX.
 func (lhs Vec3uh) SwizzleZXX() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[0],
-		lhs[0],
+		lhs.Z,
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -367,9 +372,9 @@ func (lhs Vec3uh) SwizzleZXX() Vec3uh {
 // vector in the order of ZXY.
 func (lhs Vec3uh) SwizzleZXY() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[0],
-		lhs[1],
+		lhs.Z,
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -377,9 +382,9 @@ func (lhs Vec3uh) SwizzleZXY() Vec3uh {
 // vector in the order of ZXZ.
 func (lhs Vec3uh) SwizzleZXZ() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[0],
-		lhs[2],
+		lhs.Z,
+		lhs.X,
+		lhs.Z,
 	}
 }
 
@@ -387,9 +392,9 @@ func (lhs Vec3uh) SwizzleZXZ() Vec3uh {
 // vector in the order of ZYX.
 func (lhs Vec3uh) SwizzleZYX() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[1],
-		lhs[0],
+		lhs.Z,
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -397,9 +402,9 @@ func (lhs Vec3uh) SwizzleZYX() Vec3uh {
 // vector in the order of ZYY.
 func (lhs Vec3uh) SwizzleZYY() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[1],
-		lhs[1],
+		lhs.Z,
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
@@ -407,9 +412,9 @@ func (lhs Vec3uh) SwizzleZYY() Vec3uh {
 // vector in the order of ZYZ.
 func (lhs Vec3uh) SwizzleZYZ() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[1],
-		lhs[2],
+		lhs.Z,
+		lhs.Y,
+		lhs.Z,
 	}
 }
 
@@ -417,9 +422,9 @@ func (lhs Vec3uh) SwizzleZYZ() Vec3uh {
 // vector in the order of ZZX.
 func (lhs Vec3uh) SwizzleZZX() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[2],
-		lhs[0],
+		lhs.Z,
+		lhs.Z,
+		lhs.X,
 	}
 }
 
@@ -427,9 +432,9 @@ func (lhs Vec3uh) SwizzleZZX() Vec3uh {
 // vector in the order of ZZY.
 func (lhs Vec3uh) SwizzleZZY() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[2],
-		lhs[1],
+		lhs.Z,
+		lhs.Z,
+		lhs.Y,
 	}
 }
 
@@ -437,22 +442,22 @@ func (lhs Vec3uh) SwizzleZZY() Vec3uh {
 // vector in the order of ZZZ.
 func (lhs Vec3uh) SwizzleZZZ() Vec3uh {
 	return Vec3uh{
-		lhs[2],
-		lhs[2],
-		lhs[2],
+		lhs.Z,
+		lhs.Z,
+		lhs.Z,
 	}
 }
 
 func (lhs Vec3uh) XY() (x, y uint16) {
-	x = lhs[0]
-	y = lhs[1]
+	x = lhs.X
+	y = lhs.Y
 	return
 }
 
 func (lhs Vec3uh) XYZ() (x, y, z uint16) {
-	x = lhs[0]
-	y = lhs[1]
-	z = lhs[2]
+	x = lhs.X
+	y = lhs.Y
+	z = lhs.Z
 	return
 }
 
@@ -462,25 +467,45 @@ func (lhs Vec3uh) IsZero() bool {
 
 func (lhs Vec3uh) ToVec3f() Vec3f {
 	return Vec3f{
-		float32(lhs[0]),
-		float32(lhs[1]),
-		float32(lhs[2]),
+		float32(lhs.X),
+		float32(lhs.Y),
+		float32(lhs.Z),
 	}
 }
 
 func (lhs Vec3uh) ToWGPU() [4]float32 {
 	return [4]float32{
-		float32(lhs[0]),
-		float32(lhs[1]),
-		float32(lhs[2]),
+		float32(lhs.X),
+		float32(lhs.Y),
+		float32(lhs.Z),
 	}
+}
+
+// Array returns the components as an array.
+func (lhs Vec3uh) Array() [3]uint16 {
+	return [3]uint16{lhs.X, lhs.Y, lhs.Z}
+}
+
+// MarshalJSON encodes the vector as a JSON array.
+func (lhs Vec3uh) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lhs.Array())
+}
+
+// UnmarshalJSON decodes the vector from a JSON array.
+func (lhs *Vec3uh) UnmarshalJSON(data []byte) error {
+	var a [3]uint16
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*lhs = Vec3uh{a[0], a[1], a[2]}
+	return nil
 }
 
 func (lhs Vec3uh) String() string {
 	return fmt.Sprintf(
 		"vec3(%v, %v, %v)",
-		lhs[0],
-		lhs[1],
-		lhs[2],
+		lhs.X,
+		lhs.Y,
+		lhs.Z,
 	)
 }

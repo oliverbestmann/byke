@@ -61,7 +61,7 @@ func (m Mat3u) Transpose() Mat3u {
 
 // Column returns a copy of the given column
 func (m Mat3u) Column(idx int) Vec3u {
-	return Vec3u(m[idx])
+	return Vec3u{m[idx][0], m[idx][1], m[idx][2]}
 }
 
 func TranslationMat3u(x, y uint32) Mat3u {
@@ -112,15 +112,15 @@ func (m Mat3u) Row(i int) Vec3u {
 
 func (m Mat3u) Transform(vec Vec3u) Vec3u {
 	return Vec3u{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2],
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2],
-		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2],
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0])*vec.Z,
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1])*vec.Z,
+		(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2])*vec.Z,
 	}
 }
 
 func (m Mat3u) Transform2(vec Vec2u) Vec2u {
 	return Vec2u{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0]),
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1]),
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0]),
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1]),
 	}
 }

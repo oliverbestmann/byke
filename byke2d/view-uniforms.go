@@ -29,8 +29,8 @@ func (v ViewUniforms) ToWGPU() []byte {
 	var w wgsl.StructWriter
 
 	w.AppendVec4f(glm.V4f(
-		v.ViewportOrigin[0], v.ViewportOrigin[1],
-		v.ViewportSize[0], v.ViewportSize[1],
+		v.ViewportOrigin.X, v.ViewportOrigin.Y,
+		v.ViewportSize.X, v.ViewportSize.Y,
 	))
 
 	w.AppendMat4f(v.CameraToScreen)

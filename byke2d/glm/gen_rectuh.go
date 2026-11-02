@@ -24,22 +24,22 @@ func RectuhFromXYWH(x, y, w, h uint16) Rectuh {
 func RectuhFromPoints(a, b Vec2uh) Rectuh {
 	return Rectuh{
 		Min: Vec2uh{
-			min(a[0], b[0]),
-			min(a[1], b[1]),
+			min(a.X, b.X),
+			min(a.Y, b.Y),
 		},
 		Max: Vec2uh{
-			max(a[0], b[0]),
-			max(a[1], b[1]),
+			max(a.X, b.X),
+			max(a.Y, b.Y),
 		},
 	}
 }
 
 func (r Rectuh) Extend(point Vec2uh) Rectuh {
-	minX := min(r.Min[0], point[0])
-	minY := min(r.Min[1], point[1])
+	minX := min(r.Min.X, point.X)
+	minY := min(r.Min.Y, point.Y)
 
-	maxX := max(r.Max[0], point[0])
-	maxY := max(r.Max[1], point[1])
+	maxX := max(r.Max.X, point.X)
+	maxY := max(r.Max.Y, point.Y)
 
 	return Rectuh{
 		Min: Vec2uh{minX, minY},
@@ -52,8 +52,8 @@ func (r Rectuh) Union(other Rectuh) Rectuh {
 }
 
 func (r Rectuh) Contains(other Rectuh) bool {
-	return r.Min[0] <= other.Min[0] && r.Min[1] <= other.Min[1] &&
-		r.Max[0] >= other.Max[0] && r.Max[1] >= other.Max[1]
+	return r.Min.X <= other.Min.X && r.Min.Y <= other.Min.Y &&
+		r.Max.X >= other.Max.X && r.Max.Y >= other.Max.Y
 }
 
 func (r Rectuh) Center() Vec2uh {
@@ -69,11 +69,11 @@ func (r Rectuh) Size() Vec2uh {
 }
 
 func (r Rectuh) Width() uint16 {
-	return r.Max[0] - r.Min[0]
+	return r.Max.X - r.Min.X
 }
 
 func (r Rectuh) Height() uint16 {
-	return r.Max[1] - r.Min[1]
+	return r.Max.Y - r.Min.Y
 }
 
 func (r Rectuh) XYWH() (uint16, uint16, uint16, uint16) {

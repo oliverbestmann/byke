@@ -272,7 +272,7 @@ func extractLightsSystem(
 
 				// the normal bias is given in texels, use the larger texel size if the map is not square.
 				// sqrt2 accounts for the worst case diagonal offset
-				texelSize := max(volume[0], volume[1]) / float32(shadowConfig.Size)
+				texelSize := max(volume.X, volume.Y) / float32(shadowConfig.Size)
 
 				lights.ShadowCascades = append(lights.ShadowCascades, ExtractedShadowCascade{
 					Position: position,
@@ -299,7 +299,7 @@ func lightWorldToView(position, direction glm.Vec3f) glm.Mat4f {
 	// lights are symmetric around their direction, so any up vector works,
 	// as long as it is not parallel to the direction
 	up := glm.V3f(0, 1, 0)
-	if math32.Abs(direction[1]) > 0.99 {
+	if math32.Abs(direction.Y) > 0.99 {
 		up = glm.V3f(1, 0, 0)
 	}
 
@@ -312,9 +312,9 @@ func lightWorldToView(position, direction glm.Vec3f) glm.Mat4f {
 // maps to 1, the far plane at z = -length maps to 0.
 func orthographicReverseZ(volume glm.Vec3f) glm.Mat4f {
 	return glm.Mat4f{
-		{2 / volume[0], 0, 0, 0},
-		{0, 2 / volume[1], 0, 0},
-		{0, 0, 1 / volume[2], 0},
+		{2 / volume.X, 0, 0, 0},
+		{0, 2 / volume.Y, 0, 0},
+		{0, 0, 1 / volume.Z, 0},
 		{0, 0, 1, 1},
 	}
 }

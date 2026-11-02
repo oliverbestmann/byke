@@ -48,7 +48,7 @@ func setupSystem(commands *Commands) {
 // cursorToWorld converts the cursor from window pixels (origin at the top left, y down)
 // to the coordinates of the centered camera (origin in the middle, y up).
 func cursorToWorld(cursor MouseCursor, screen ScreenSize) glm.Vec2f {
-	return glm.V2f(cursor.Vec2f[0]-screen.Vec2f[0]/2, screen.Vec2f[1]/2-cursor.Vec2f[1])
+	return glm.V2f(cursor.Vec2f.X-screen.Vec2f.X/2, screen.Vec2f.Y/2-cursor.Vec2f.Y)
 }
 
 func followCursorSystem(
@@ -73,7 +73,7 @@ func dropDotSystem(commands *Commands, cursor MouseCursor, screen ScreenSize) {
 	pos := cursorToWorld(cursor, screen)
 
 	commands.Spawn(
-		TransformFromXY(pos[0], pos[1]),
+		TransformFromXY(pos.X, pos.Y),
 		MeshInstance{Mesh: Circle(12, 16)},
 		ColorMaterial{Color: ColorSRGB(1, 0.5, 0.2)},
 		DespawnAfter(time.Second),

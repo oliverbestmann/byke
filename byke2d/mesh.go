@@ -399,8 +399,8 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 		cos := f32.Cos(float32(theta))
 		sin := f32.Sin(float32(theta))
 
-		x := cos * halfSize[0]
-		y := sin * halfSize[1]
+		x := cos * halfSize.X
+		y := sin * halfSize.Y
 
 		vertices = append(vertices, glm.V3f(x, y, 0))
 		normals = append(normals, glm.V3f(0, 0, 1))

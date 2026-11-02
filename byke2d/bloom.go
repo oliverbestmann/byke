@@ -167,7 +167,7 @@ func prepareBloomUniformsSystem(
 		*camera.BloomUniforms = bloomUniforms{
 			Viewport: glm.V4f(0, 0, 1, 1),
 			Scale:    camera.Bloom.Scale,
-			Aspect:   camera.ViewTarget.Size[0] / camera.ViewTarget.Size[1],
+			Aspect:   camera.ViewTarget.Size.X / camera.ViewTarget.Size.Y,
 		}
 	}
 }
@@ -444,7 +444,7 @@ func bloomGetTexture(texCache *TextureCache, viewTarget *ViewTarget, bloom Bloom
 	cameraSize := viewTarget.Size
 
 	var mipHeightRatio float32
-	if h := cameraSize[1]; h != 0 {
+	if h := cameraSize.Y; h != 0 {
 		mipHeightRatio = float32(bloom.MaxMipDimension) / h
 	}
 
@@ -453,8 +453,8 @@ func bloomGetTexture(texCache *TextureCache, viewTarget *ViewTarget, bloom Bloom
 		Usage:     wgpu.TextureUsageRenderAttachment | wgpu.TextureUsageTextureBinding,
 		Dimension: wgpu.TextureDimension2D,
 		Size: wgpu.Extent3D{
-			Width:              max(1, uint32(cameraSize[0]*mipHeightRatio+0.5)),
-			Height:             max(1, uint32(cameraSize[1]*mipHeightRatio+0.5)),
+			Width:              max(1, uint32(cameraSize.X*mipHeightRatio+0.5)),
+			Height:             max(1, uint32(cameraSize.Y*mipHeightRatio+0.5)),
 			DepthOrArrayLayers: 1,
 		},
 		Format:        wgpu.TextureFormatRG11B10Ufloat,

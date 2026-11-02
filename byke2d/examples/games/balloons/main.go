@@ -108,8 +108,8 @@ func spawnBalloonSystem(commands *Commands, vt VirtualTime, screen ScreenSize, s
 	// balloons get faster with every pop
 	speed := 100 + rng.Float32()*60 + float32(score.Popped)*5
 
-	x := (rng.Float32() - 0.5) * (screen.Vec2f[0] - 2*balloonRadius)
-	y := -screen.Vec2f[1]/2 - balloonRadius
+	x := (rng.Float32() - 0.5) * (screen.Vec2f.X - 2*balloonRadius)
+	y := -screen.Vec2f.Y/2 - balloonRadius
 
 	commands.Spawn(
 		Balloon{},
@@ -150,7 +150,7 @@ func popSystem(
 	}
 
 	// the cursor is in window pixels with y down, the camera is centered with y up
-	click := glm.V2f(cursor.Vec2f[0]-screen.Vec2f[0]/2, screen.Vec2f[1]/2-cursor.Vec2f[1])
+	click := glm.V2f(cursor.Vec2f.X-screen.Vec2f.X/2, screen.Vec2f.Y/2-cursor.Vec2f.Y)
 
 	for balloon := range balloons.Items() {
 		pos := balloon.Transform.Translation.Truncate()
@@ -168,7 +168,7 @@ func popSystem(
 
 			commands.Spawn(
 				Velocity{Vec2f: dir.Scale(250)},
-				TransformFromXYZ(pos[0], pos[1], 1),
+				TransformFromXYZ(pos.X, pos.Y, 1),
 				MeshInstance{Mesh: Circle(6, 12)},
 				ColorMaterial{Color: balloon.Material.Color},
 				DespawnAfter(400*time.Millisecond),
@@ -204,7 +204,7 @@ func escapeSystem(
 	}],
 ) {
 	for balloon := range balloons.Items() {
-		if balloon.Transform.Translation[1] < screen.Vec2f[1]/2+balloonRadius {
+		if balloon.Transform.Translation.Y < screen.Vec2f.Y/2+balloonRadius {
 			continue
 		}
 

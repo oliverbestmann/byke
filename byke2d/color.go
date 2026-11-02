@@ -20,7 +20,7 @@ type Color struct {
 
 // ColorOf converts the linear rgb values from the given vector to a Color instance.
 func ColorOf(color glm.Vec4f) Color {
-	return ColorLinearRGBA(color[0], color[1], color[2], color[3])
+	return ColorLinearRGBA(color.X, color.Y, color.Z, color.W)
 }
 
 // ColorLinearRGBA creates a new Color value from the given color values.

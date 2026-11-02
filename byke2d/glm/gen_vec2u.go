@@ -2,10 +2,15 @@
 
 package glm
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // Vec2u is a vector of dimension 2.
-type Vec2u [2]uint32
+type Vec2u struct {
+	X, Y uint32
+}
 
 // V2u creates a Vec2u.
 func V2u(x, y uint32) Vec2u {
@@ -13,7 +18,7 @@ func V2u(x, y uint32) Vec2u {
 }
 
 func (lhs Vec2u) Dot(rhs Vec2u) uint32 {
-	return lhs[0]*rhs[0] + lhs[1]*rhs[1]
+	return lhs.X*rhs.X + lhs.Y*rhs.Y
 }
 
 func (lhs Vec2u) LengthSqr() uint32 {
@@ -22,57 +27,57 @@ func (lhs Vec2u) LengthSqr() uint32 {
 
 func (lhs Vec2u) Scale(s uint32) Vec2u {
 	return Vec2u{
-		lhs[0] * s,
-		lhs[1] * s,
+		lhs.X * s,
+		lhs.Y * s,
 	}
 }
 
 func (lhs Vec2u) Add(rhs Vec2u) Vec2u {
 	return Vec2u{
-		lhs[0] + rhs[0],
-		lhs[1] + rhs[1],
+		lhs.X + rhs.X,
+		lhs.Y + rhs.Y,
 	}
 }
 
 func (lhs Vec2u) Sub(rhs Vec2u) Vec2u {
 	return Vec2u{
-		lhs[0] - rhs[0],
-		lhs[1] - rhs[1],
+		lhs.X - rhs.X,
+		lhs.Y - rhs.Y,
 	}
 }
 
 func (lhs Vec2u) Mul(rhs Vec2u) Vec2u {
 	return Vec2u{
-		lhs[0] * rhs[0],
-		lhs[1] * rhs[1],
+		lhs.X * rhs.X,
+		lhs.Y * rhs.Y,
 	}
 }
 
 func (lhs Vec2u) Div(rhs Vec2u) Vec2u {
 	return Vec2u{
-		lhs[0] / rhs[0],
-		lhs[1] / rhs[1],
+		lhs.X / rhs.X,
+		lhs.Y / rhs.Y,
 	}
 }
 
 func (lhs Vec2u) Min(rhs Vec2u) Vec2u {
 	return Vec2u{
-		min(lhs[0], rhs[0]),
-		min(lhs[1], rhs[1]),
+		min(lhs.X, rhs.X),
+		min(lhs.Y, rhs.Y),
 	}
 }
 
 func (lhs Vec2u) Max(rhs Vec2u) Vec2u {
 	return Vec2u{
-		max(lhs[0], rhs[0]),
-		max(lhs[1], rhs[1]),
+		max(lhs.X, rhs.X),
+		max(lhs.Y, rhs.Y),
 	}
 }
 
 func (lhs Vec2u) Extend(z uint32) Vec3u {
 	return Vec3u{
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 		z,
 	}
 }
@@ -81,8 +86,8 @@ func (lhs Vec2u) Extend(z uint32) Vec3u {
 // vector in the order of XX.
 func (lhs Vec2u) SwizzleXX() Vec2u {
 	return Vec2u{
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -90,8 +95,8 @@ func (lhs Vec2u) SwizzleXX() Vec2u {
 // vector in the order of XY.
 func (lhs Vec2u) SwizzleXY() Vec2u {
 	return Vec2u{
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -99,8 +104,8 @@ func (lhs Vec2u) SwizzleXY() Vec2u {
 // vector in the order of YX.
 func (lhs Vec2u) SwizzleYX() Vec2u {
 	return Vec2u{
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -108,14 +113,14 @@ func (lhs Vec2u) SwizzleYX() Vec2u {
 // vector in the order of YY.
 func (lhs Vec2u) SwizzleYY() Vec2u {
 	return Vec2u{
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
 func (lhs Vec2u) XY() (x, y uint32) {
-	x = lhs[0]
-	y = lhs[1]
+	x = lhs.X
+	y = lhs.Y
 	return
 }
 
@@ -125,22 +130,42 @@ func (lhs Vec2u) IsZero() bool {
 
 func (lhs Vec2u) ToVec2f() Vec2f {
 	return Vec2f{
-		float32(lhs[0]),
-		float32(lhs[1]),
+		float32(lhs.X),
+		float32(lhs.Y),
 	}
 }
 
 func (lhs Vec2u) ToWGPU() [2]float32 {
 	return [2]float32{
-		float32(lhs[0]),
-		float32(lhs[1]),
+		float32(lhs.X),
+		float32(lhs.Y),
 	}
+}
+
+// Array returns the components as an array.
+func (lhs Vec2u) Array() [2]uint32 {
+	return [2]uint32{lhs.X, lhs.Y}
+}
+
+// MarshalJSON encodes the vector as a JSON array.
+func (lhs Vec2u) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lhs.Array())
+}
+
+// UnmarshalJSON decodes the vector from a JSON array.
+func (lhs *Vec2u) UnmarshalJSON(data []byte) error {
+	var a [2]uint32
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*lhs = Vec2u{a[0], a[1]}
+	return nil
 }
 
 func (lhs Vec2u) String() string {
 	return fmt.Sprintf(
 		"vec2(%v, %v)",
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 	)
 }

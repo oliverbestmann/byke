@@ -69,7 +69,6 @@ func TestGlobalTransform_Mul(t *testing.T) {
 }
 
 func equalVec(t *testing.T, exp, actual glm.Vec4f) {
-	for i := range 4 {
-		require.InDelta(t, exp[i], actual[i], 1e-5)
-	}
+	e, a := exp.Array(), actual.Array()
+	require.InDeltaSlice(t, e[:], a[:], 1e-5)
 }

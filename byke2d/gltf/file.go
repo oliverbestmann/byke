@@ -72,11 +72,11 @@ func (n *Node) TransformComponents() (translation, scale glm.Vec3f, rotation glm
 	rotation = glm.IdentityQuat()
 
 	if t := n.Translation; t != nil {
-		translation = *t
+		translation = glm.V3f(t[0], t[1], t[2])
 	}
 
 	if s := n.Scale; s != nil {
-		scale = *s
+		scale = glm.V3f(s[0], s[1], s[2])
 	}
 
 	if r := n.Rotation; r != nil {
@@ -367,7 +367,8 @@ func (m *Material) BaseColor() glm.Vec4f {
 		return glm.V4f(1, 1, 1, 1)
 	}
 
-	return *m.MetallicRoughness.BaseColorFactor
+	c := m.MetallicRoughness.BaseColorFactor
+	return glm.V4f(c[0], c[1], c[2], c[3])
 }
 
 type MetallicRoughness struct {

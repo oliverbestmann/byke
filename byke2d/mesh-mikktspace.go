@@ -23,19 +23,20 @@ func (m meshMikktspaceAdapter) NumVerticesOfFace(_ mikktspace.Face) uint32 {
 }
 
 func (m meshMikktspaceAdapter) Position(fv mikktspace.FaceVertex) mikktspace.Vec3 {
-	return m.Vertices[m.Indices[vertexOffset(fv)]]
+	return m.Vertices[m.Indices[vertexOffset(fv)]].Array()
 }
 
 func (m meshMikktspaceAdapter) Normal(fv mikktspace.FaceVertex) mikktspace.Vec3 {
-	return m.Normals[m.Indices[vertexOffset(fv)]]
+	return m.Normals[m.Indices[vertexOffset(fv)]].Array()
 }
 
 func (m meshMikktspaceAdapter) TexCoord(fv mikktspace.FaceVertex) mikktspace.Vec2 {
-	return m.UVs[m.Indices[vertexOffset(fv)]]
+	return m.UVs[m.Indices[vertexOffset(fv)]].Array()
 }
 
 func (m meshMikktspaceAdapter) SetTangent(fv mikktspace.FaceVertex, tangentSpace mikktspace.TangentSpace, ok bool) {
-	m.Tangents[m.Indices[vertexOffset(fv)]] = tangentSpace.EncodedTangent()
+	t := tangentSpace.EncodedTangent()
+	m.Tangents[m.Indices[vertexOffset(fv)]] = glm.V4f(t[0], t[1], t[2], t[3])
 }
 
 func vertexOffset(fv mikktspace.FaceVertex) uint32 {

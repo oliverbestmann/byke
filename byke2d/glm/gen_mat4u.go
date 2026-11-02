@@ -80,7 +80,7 @@ func (m Mat4u) Transpose() Mat4u {
 
 // Column returns a copy of the given column
 func (m Mat4u) Column(idx int) Vec4u {
-	return Vec4u(m[idx])
+	return Vec4u{m[idx][0], m[idx][1], m[idx][2], m[idx][3]}
 }
 
 func TranslationMat4u(x, y, z uint32) Mat4u {
@@ -111,25 +111,25 @@ func (m Mat4u) Scale(x, y, z uint32) Mat4u {
 
 func (m Mat4u) Transform(vec Vec4u) Vec4u {
 	return Vec4u{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2] + (m[3][0])*vec[3],
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2] + (m[3][1])*vec[3],
-		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2] + (m[3][2])*vec[3],
-		(m[0][3])*vec[0] + (m[1][3])*vec[1] + (m[2][3])*vec[2] + (m[3][3])*vec[3],
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0])*vec.Z + (m[3][0])*vec.W,
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1])*vec.Z + (m[3][1])*vec.W,
+		(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2])*vec.Z + (m[3][2])*vec.W,
+		(m[0][3])*vec.X + (m[1][3])*vec.Y + (m[2][3])*vec.Z + (m[3][3])*vec.W,
 	}
 }
 
 func (m Mat4u) Transform3(vec Vec3u) Vec3u {
 	return Vec3u{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0] * vec[2]) + m[3][0],
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1] * vec[2]) + m[3][1],
-		(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2] * vec[2]) + m[3][2],
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0] * vec.Z) + m[3][0],
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1] * vec.Z) + m[3][1],
+		(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2] * vec.Z) + m[3][2],
 	}
 }
 
 func (m Mat4u) Transform2(vec Vec2u) Vec2u {
 	return Vec2u{
-		(m[0][0])*vec[0] + (m[1][0])*vec[1] + m[3][0],
-		(m[0][1])*vec[0] + (m[1][1])*vec[1] + m[3][1],
+		(m[0][0])*vec.X + (m[1][0])*vec.Y + m[3][0],
+		(m[0][1])*vec.X + (m[1][1])*vec.Y + m[3][1],
 	}
 }
 

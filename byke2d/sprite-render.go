@@ -143,20 +143,20 @@ func writeSpriteInstanceValues(instances *wgsl.InstanceWriter, sp *ExtractedSpri
 
 	if sp.FlipX {
 		// flip uv along the x axis
-		uvOffset[0] += uvScale[0]
-		uvScale[0] *= -1
+		uvOffset.X += uvScale.X
+		uvScale.X *= -1
 	}
 
 	if !sp.FlipY {
 		// flip uv along the y axis
-		uvOffset[1] += uvScale[1]
-		uvScale[1] *= -1
+		uvOffset.Y += uvScale.Y
+		uvScale.Y *= -1
 	}
 
 	// calculate size of the sprite
 	transform := sp.Transform
 	transform.ScaleAssign(sp.Size.Extend(1.0).XYZ())
-	transform.TranslateAssign(-1*sp.Anchor.Vec2f[0]-0.5, sp.Anchor.Vec2f[1]-0.5, 0)
+	transform.TranslateAssign(-1*sp.Anchor.Vec2f.X-0.5, sp.Anchor.Vec2f.Y-0.5, 0)
 
 	r, g, b, a := sp.Color.Components()
 

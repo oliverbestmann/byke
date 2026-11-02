@@ -99,11 +99,11 @@ func fpvMoveSystem(
 		var turn glm.Vec2f
 
 		switch {
-		case cursor.Touch && screen.Vec2f[1] > 0:
+		case cursor.Touch && screen.Vec2f.Y > 0:
 			// mirrored, so the view follows the finger, and scaled so a drag over the full screen
 			// height turns by the vertical fov. phones have many device pixels, a fixed rad/px turns way too fast there.
 			fov := item.Projection.Or(DefaultPerspectiveProjection).Fov
-			turn = delta.Scale(float32(fov) / screen.Vec2f[1])
+			turn = delta.Scale(float32(fov) / screen.Vec2f.Y)
 
 			// the release frame may still carry the last drag movement
 			dragging := buttons.IsPressed(vyn.MouseButtonLeft) || buttons.IsJustReleased(vyn.MouseButtonLeft)
@@ -113,8 +113,8 @@ func fpvMoveSystem(
 			turn = delta.Scale(-fpvMouseSensitivity)
 		}
 
-		item.FPV.Yaw += glm.Rad(turn[0])
-		item.FPV.Pitch += glm.Rad(turn[1])
+		item.FPV.Yaw += glm.Rad(turn.X)
+		item.FPV.Pitch += glm.Rad(turn.Y)
 
 		if keys.IsPressed(vyn.KeyArrowLeft) {
 			item.FPV.Yaw += glm.Rad(2 * vt.DeltaSecs)
@@ -138,19 +138,19 @@ func fpvMoveSystem(
 		velocity := cmp.Or(item.FPV.Velocity, 4.0)
 
 		if keys.IsPressed(vyn.KeyA) {
-			move[0] -= velocity * vt.DeltaSecs
+			move.X -= velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyD) {
-			move[0] += velocity * vt.DeltaSecs
+			move.X += velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyW) {
-			move[2] -= velocity * vt.DeltaSecs
+			move.Z -= velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyS) {
-			move[2] += velocity * vt.DeltaSecs
+			move.Z += velocity * vt.DeltaSecs
 		}
 
 		if keys.IsPressed(vyn.KeyQ) {
@@ -176,7 +176,7 @@ func fpvMoveSystem(
 			Affine3().
 			Transform(move.Extend(0))
 
-		moveTransformed[1] += moveAbsY
+		moveTransformed.Y += moveAbsY
 
 		item.Transform.Translation = item.Transform.Translation.Add(moveTransformed.Truncate())
 	}

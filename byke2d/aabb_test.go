@@ -27,7 +27,7 @@ func TestFrustumOutsideBox(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		model := glm.TranslationMat4f(c.at[0], c.at[1], c.at[2]).Mul(glm.ScaleMat4f(c.scale, c.scale, c.scale))
+		model := glm.TranslationMat4f(c.at.X, c.at.Y, c.at.Z).Mul(glm.ScaleMat4f(c.scale, c.scale, c.scale))
 		if got := frustum.OutsideBox(box.Transformed(model)); got != c.outside {
 			t.Errorf("%s: got outside=%v", c.name, got)
 		}
@@ -44,7 +44,7 @@ func TestFrustumNeverCullsVisibleBoxes(t *testing.T) {
 
 	for range 10000 {
 		at := glm.V3f(rng.Float32()*60-30, rng.Float32()*20-10, rng.Float32()*60-40)
-		model := glm.TranslationMat4f(at[0], at[1], at[2]).Mul(glm.RotationYMat4f(glm.Rad(rng.Float32() * 6.3)))
+		model := glm.TranslationMat4f(at.X, at.Y, at.Z).Mul(glm.RotationYMat4f(glm.Rad(rng.Float32() * 6.3)))
 
 		if frustum.OutsideBox(box.Transformed(model)) && anyCornerInside(box, worldToClip.Mul(model)) {
 			t.Fatalf("box at %v culled, but a corner is visible", at)
@@ -54,19 +54,19 @@ func TestFrustumNeverCullsVisibleBoxes(t *testing.T) {
 
 func anyCornerInside(a AABB, localToClip glm.Mat4f) bool {
 	for idx := range 8 {
-		corner := glm.V4f(a.Min[0], a.Min[1], a.Min[2], 1)
+		corner := glm.V4f(a.Min.X, a.Min.Y, a.Min.Z, 1)
 		if idx&1 != 0 {
-			corner[0] = a.Max[0]
+			corner.X = a.Max.X
 		}
 		if idx&2 != 0 {
-			corner[1] = a.Max[1]
+			corner.Y = a.Max.Y
 		}
 		if idx&4 != 0 {
-			corner[2] = a.Max[2]
+			corner.Z = a.Max.Z
 		}
 
 		c := localToClip.Transform(corner)
-		if c[3] > 0 && abs32(c[0]) <= c[3] && abs32(c[1]) <= c[3] {
+		if c.W > 0 && abs32(c.X) <= c.W && abs32(c.Y) <= c.W {
 			return true
 		}
 	}

@@ -29,7 +29,7 @@ func (q Quat) Values() Vec4f {
 func QuatFromAxisAngle(axis Vec3f, angleRad Rad) Quat {
 	sin, cos := math.Sincos(float64(angleRad) * 0.5)
 	v := axis.Scale(float32(sin))
-	return QuatOf(v[0], v[1], v[2], float32(cos))
+	return QuatOf(v.X, v.Y, v.Z, float32(cos))
 }
 
 // QuatFromScaledAxis creates a quaternion that rotates `v.Len()` radians around `v.Normalize()`.
@@ -79,7 +79,7 @@ func QuatFromRotationArc(from, to Vec3f) Quat {
 	}
 
 	c := from.Cross(to)
-	return QuatOf(Vec4f{c[0], c[1], c[2], 1.0 + dot}.Normalize().XYZW())
+	return QuatOf(Vec4f{c.X, c.Y, c.Z, 1.0 + dot}.Normalize().XYZW())
 }
 
 // QuatFromMat3 creates a quaternion from a 3x3 rotation matrix.

@@ -65,9 +65,9 @@ type Vec3fInterpolator struct{}
 
 func (Vec3fInterpolator) Interpolate(a, b glm.Vec3f, alpha float32) glm.Vec3f {
 	return glm.V3f(
-		a[0]+(b[0]-a[0])*alpha,
-		a[1]+(b[1]-a[1])*alpha,
-		a[2]+(b[2]-a[2])*alpha,
+		a.X+(b.X-a.X)*alpha,
+		a.Y+(b.Y-a.Y)*alpha,
+		a.Z+(b.Z-a.Z)*alpha,
 	)
 }
 

@@ -2,11 +2,16 @@
 
 package glm
 
-import "fmt"
-import "math"
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+)
 
 // Vec2d is a vector of dimension 2.
-type Vec2d [2]float64
+type Vec2d struct {
+	X, Y float64
+}
 
 // V2d creates a Vec2d.
 func V2d(x, y float64) Vec2d {
@@ -14,7 +19,7 @@ func V2d(x, y float64) Vec2d {
 }
 
 func (lhs Vec2d) Dot(rhs Vec2d) float64 {
-	return lhs[0]*rhs[0] + lhs[1]*rhs[1]
+	return lhs.X*rhs.X + lhs.Y*rhs.Y
 }
 
 func (lhs Vec2d) LengthSqr() float64 {
@@ -31,64 +36,64 @@ func (lhs Vec2d) Normalize() Vec2d {
 
 func (lhs Vec2d) Scale(s float64) Vec2d {
 	return Vec2d{
-		lhs[0] * s,
-		lhs[1] * s,
+		lhs.X * s,
+		lhs.Y * s,
 	}
 }
 
 func (lhs Vec2d) Reciprocal() Vec2d {
 	return Vec2d{
-		1.0 / lhs[0],
-		1.0 / lhs[1],
+		1.0 / lhs.X,
+		1.0 / lhs.Y,
 	}
 }
 
 func (lhs Vec2d) Add(rhs Vec2d) Vec2d {
 	return Vec2d{
-		lhs[0] + rhs[0],
-		lhs[1] + rhs[1],
+		lhs.X + rhs.X,
+		lhs.Y + rhs.Y,
 	}
 }
 
 func (lhs Vec2d) Sub(rhs Vec2d) Vec2d {
 	return Vec2d{
-		lhs[0] - rhs[0],
-		lhs[1] - rhs[1],
+		lhs.X - rhs.X,
+		lhs.Y - rhs.Y,
 	}
 }
 
 func (lhs Vec2d) Mul(rhs Vec2d) Vec2d {
 	return Vec2d{
-		lhs[0] * rhs[0],
-		lhs[1] * rhs[1],
+		lhs.X * rhs.X,
+		lhs.Y * rhs.Y,
 	}
 }
 
 func (lhs Vec2d) Div(rhs Vec2d) Vec2d {
 	return Vec2d{
-		lhs[0] / rhs[0],
-		lhs[1] / rhs[1],
+		lhs.X / rhs.X,
+		lhs.Y / rhs.Y,
 	}
 }
 
 func (lhs Vec2d) Min(rhs Vec2d) Vec2d {
 	return Vec2d{
-		min(lhs[0], rhs[0]),
-		min(lhs[1], rhs[1]),
+		min(lhs.X, rhs.X),
+		min(lhs.Y, rhs.Y),
 	}
 }
 
 func (lhs Vec2d) Max(rhs Vec2d) Vec2d {
 	return Vec2d{
-		max(lhs[0], rhs[0]),
-		max(lhs[1], rhs[1]),
+		max(lhs.X, rhs.X),
+		max(lhs.Y, rhs.Y),
 	}
 }
 
 func (lhs Vec2d) Extend(z float64) Vec3d {
 	return Vec3d{
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 		z,
 	}
 }
@@ -97,8 +102,8 @@ func (lhs Vec2d) Extend(z float64) Vec3d {
 // vector in the order of XX.
 func (lhs Vec2d) SwizzleXX() Vec2d {
 	return Vec2d{
-		lhs[0],
-		lhs[0],
+		lhs.X,
+		lhs.X,
 	}
 }
 
@@ -106,8 +111,8 @@ func (lhs Vec2d) SwizzleXX() Vec2d {
 // vector in the order of XY.
 func (lhs Vec2d) SwizzleXY() Vec2d {
 	return Vec2d{
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 	}
 }
 
@@ -115,8 +120,8 @@ func (lhs Vec2d) SwizzleXY() Vec2d {
 // vector in the order of YX.
 func (lhs Vec2d) SwizzleYX() Vec2d {
 	return Vec2d{
-		lhs[1],
-		lhs[0],
+		lhs.Y,
+		lhs.X,
 	}
 }
 
@@ -124,14 +129,14 @@ func (lhs Vec2d) SwizzleYX() Vec2d {
 // vector in the order of YY.
 func (lhs Vec2d) SwizzleYY() Vec2d {
 	return Vec2d{
-		lhs[1],
-		lhs[1],
+		lhs.Y,
+		lhs.Y,
 	}
 }
 
 func (lhs Vec2d) XY() (x, y float64) {
-	x = lhs[0]
-	y = lhs[1]
+	x = lhs.X
+	y = lhs.Y
 	return
 }
 
@@ -141,22 +146,42 @@ func (lhs Vec2d) IsZero() bool {
 
 func (lhs Vec2d) ToVec2f() Vec2f {
 	return Vec2f{
-		float32(lhs[0]),
-		float32(lhs[1]),
+		float32(lhs.X),
+		float32(lhs.Y),
 	}
 }
 
 func (lhs Vec2d) ToWGPU() [2]float32 {
 	return [2]float32{
-		float32(lhs[0]),
-		float32(lhs[1]),
+		float32(lhs.X),
+		float32(lhs.Y),
 	}
+}
+
+// Array returns the components as an array.
+func (lhs Vec2d) Array() [2]float64 {
+	return [2]float64{lhs.X, lhs.Y}
+}
+
+// MarshalJSON encodes the vector as a JSON array.
+func (lhs Vec2d) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lhs.Array())
+}
+
+// UnmarshalJSON decodes the vector from a JSON array.
+func (lhs *Vec2d) UnmarshalJSON(data []byte) error {
+	var a [2]float64
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*lhs = Vec2d{a[0], a[1]}
+	return nil
 }
 
 func (lhs Vec2d) String() string {
 	return fmt.Sprintf(
 		"vec2(%v, %v)",
-		lhs[0],
-		lhs[1],
+		lhs.X,
+		lhs.Y,
 	)
 }

@@ -94,8 +94,8 @@ func (t *Texture) WritePixelsToRect(ctx *RenderContext, opts ...WritePixelsOptio
 			Texture:  t.Texture,
 			MipLevel: opt.MipLevel,
 			Origin: wgpu.Origin3D{
-				X: opt.Region.Min[0],
-				Y: opt.Region.Min[1],
+				X: opt.Region.Min.X,
+				Y: opt.Region.Min.Y,
 				Z: opt.Layer,
 			},
 			Aspect: wgpu.TextureAspectAll,

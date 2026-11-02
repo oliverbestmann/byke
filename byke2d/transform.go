@@ -84,7 +84,7 @@ func (t Transform) LookingTo(direction, up glm.Vec3f) Transform {
 	right := up.Cross(back).Normalize()
 	up = back.Cross(right)
 
-	return t.WithRotation(glm.QuatFromMat3(glm.Mat3f{right, up, back}))
+	return t.WithRotation(glm.QuatFromMat3(glm.Mat3f{right.Array(), up.Array(), back.Array()}))
 }
 
 func (t Transform) TranslateAround(point glm.Vec3f, rotation glm.Quat) Transform {

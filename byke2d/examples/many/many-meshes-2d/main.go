@@ -76,7 +76,7 @@ func moveSpritesSystem(t FixedTime, query Query[struct {
 			Truncate().
 			Add(item.Velocity.Scale(t.DeltaSecs))
 
-		item.Transform.Translation[0] = posNew[0]
-		item.Transform.Translation[1] = posNew[1]
+		item.Transform.Translation.X = posNew.X
+		item.Transform.Translation.Y = posNew.Y
 	}
 }

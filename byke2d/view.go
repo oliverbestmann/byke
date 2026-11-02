@@ -280,8 +280,8 @@ func buildCameraViewDepthTexture(textureCache *TextureCache, size glm.Vec2u, msa
 		Usage:     wgpu.TextureUsageTextureBinding | wgpu.TextureUsageRenderAttachment,
 		Dimension: wgpu.TextureDimension2D,
 		Size: wgpu.Extent3D{
-			Width:              size[0],
-			Height:             size[1],
+			Width:              size.X,
+			Height:             size.Y,
 			DepthOrArrayLayers: 1,
 		},
 		Format:        wgpu.TextureFormatDepth32Float,

@@ -290,6 +290,9 @@ var funcs = template.FuncMap{
 		names := []string{"x", "y", "z", "w"}
 		return names[idx]
 	},
+	"field": func(idx int) string {
+		return "XYZW"[idx : idx+1]
+	},
 	"toComponents": func(len int) string {
 		return "XYZW"[:len]
 	},
@@ -300,13 +303,18 @@ var tmplVec = template.Must(template.New("").Funcs(funcs).Parse(`
 
 package glm
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
 {{- if .IsFloat }}
-import "math"
+	"math"
 {{- end }}
+)
 
 // {{.Name}} is a vector of dimension {{.Len}}.
-type {{.Name}} [{{ .Len }}]{{.ComponentType}}
+type {{.Name}} struct {
+	{{ range $idx := .Len }}{{ sep $idx "" ", "}}{{ field $idx }}{{ end }} {{.ComponentType}}
+}
 
 // V{{.Len}}{{.ComponentTypeSuffix}} creates a {{.Name}}.
 func V{{.Len}}{{.ComponentTypeSuffix}}({{ range $idx := .Len }}{{ sep $idx "" ", "}}{{ component $idx }}{{ end }} {{.ComponentType}}) {{.Type}} {
@@ -314,7 +322,7 @@ func V{{.Len}}{{.ComponentTypeSuffix}}({{ range $idx := .Len }}{{ sep $idx "" ",
 }
 
 func (lhs {{.Type}}) Dot(rhs {{.Type}}) {{.ComponentType}} {
-	return {{ range $idx := .Len }} {{ sep $idx "" "+"}} lhs[{{$idx}}] * rhs[{{$idx}}] {{ end }}
+	return {{ range $idx := .Len }} {{ sep $idx "" "+"}} lhs.{{field $idx}} * rhs.{{field $idx}} {{ end }}
 }
 
 func (lhs {{.Type}}) LengthSqr() {{.ComponentType}} {
@@ -334,7 +342,7 @@ func (lhs {{.Type}}) Normalize() {{.Type}} {
 func (lhs {{.Type}}) Scale(s {{.ComponentType}}) {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		lhs[{{$idx}}] * s,
+		lhs.{{field $idx}} * s,
 		{{- end }}
 	}
 }
@@ -343,7 +351,7 @@ func (lhs {{.Type}}) Scale(s {{.ComponentType}}) {{.Type}} {
 func (lhs {{.Type}}) Reciprocal() {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		1.0 / lhs[{{$idx}}],
+		1.0 / lhs.{{field $idx}},
 		{{- end }}
 	}
 }
@@ -352,7 +360,7 @@ func (lhs {{.Type}}) Reciprocal() {{.Type}} {
 func (lhs {{.Type}}) Add(rhs {{.Type}}) {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		lhs[{{$idx}}] + rhs[{{$idx}}],
+		lhs.{{field $idx}} + rhs.{{field $idx}},
 		{{- end }}
 	}
 }
@@ -360,7 +368,7 @@ func (lhs {{.Type}}) Add(rhs {{.Type}}) {{.Type}} {
 func (lhs {{.Type}}) Sub(rhs {{.Type}}) {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		lhs[{{$idx}}] - rhs[{{$idx}}],
+		lhs.{{field $idx}} - rhs.{{field $idx}},
 		{{- end }}
 	}
 }
@@ -368,7 +376,7 @@ func (lhs {{.Type}}) Sub(rhs {{.Type}}) {{.Type}} {
 func (lhs {{.Type}}) Mul(rhs {{.Type}}) {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		lhs[{{$idx}}] * rhs[{{$idx}}],
+		lhs.{{field $idx}} * rhs.{{field $idx}},
 		{{- end }}
 	}
 }
@@ -376,7 +384,7 @@ func (lhs {{.Type}}) Mul(rhs {{.Type}}) {{.Type}} {
 func (lhs {{.Type}}) Div(rhs {{.Type}}) {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		lhs[{{$idx}}] / rhs[{{$idx}}],
+		lhs.{{field $idx}} / rhs.{{field $idx}},
 		{{- end }}
 	}
 }
@@ -384,7 +392,7 @@ func (lhs {{.Type}}) Div(rhs {{.Type}}) {{.Type}} {
 func (lhs {{.Type}}) Min(rhs {{.Type}}) {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		min(lhs[{{$idx}}], rhs[{{$idx}}]),
+		min(lhs.{{field $idx}}, rhs.{{field $idx}}),
 		{{- end }}
 	}
 }
@@ -392,7 +400,7 @@ func (lhs {{.Type}}) Min(rhs {{.Type}}) {{.Type}} {
 func (lhs {{.Type}}) Max(rhs {{.Type}}) {{.Type}} {
 	return {{.Type}}{
 		{{- range $idx := .Len }}
-		max(lhs[{{$idx}}], rhs[{{$idx}}]),
+		max(lhs.{{field $idx}}, rhs.{{field $idx}}),
 		{{- end }}
 	}
 }
@@ -401,7 +409,7 @@ func (lhs {{.Type}}) Max(rhs {{.Type}}) {{.Type}} {
 	func (lhs {{.Type}}) Extend({{component .Len}} {{.ComponentType}}) Vec{{plus .Len 1}}{{.ComponentTypeSuffix}} {
 		return Vec{{plus .Len 1}}{{.ComponentTypeSuffix}}{
 			{{- range $idx := .Len }}
-			lhs[{{$idx}}],
+			lhs.{{field $idx}},
 			{{- end }}
 			{{component .Len}},
 		}
@@ -412,7 +420,7 @@ func (lhs {{.Type}}) Max(rhs {{.Type}}) {{.Type}} {
 	func (lhs {{.Type}}) Truncate() Vec{{minus .Len 1}}{{.ComponentTypeSuffix}} {
 		return Vec{{minus .Len 1}}{{.ComponentTypeSuffix}}{
 			{{- range $idx := (minus .Len 1) }}
-			lhs[{{$idx}}],
+			lhs.{{field $idx}},
 			{{- end }}
 		}
 	}
@@ -424,7 +432,7 @@ func (lhs {{.Type}}) Max(rhs {{.Type}}) {{.Type}} {
 	func (lhs {{$.Type}}) Swizzle{{$swizzle.Name}}() Vec{{ $swizzle.Components|len }}{{$.ComponentTypeSuffix}} {
 		return Vec{{ $swizzle.Components|len }}{{$.ComponentTypeSuffix}}{
 			{{- range $idx := $swizzle.Components }}
-			lhs[{{$idx}}],
+			lhs.{{field $idx}},
 			{{- end }}
 		}
 	}
@@ -434,7 +442,7 @@ func (lhs {{.Type}}) Max(rhs {{.Type}}) {{.Type}} {
 	{{ if (gt $len 1) }}
 	func (lhs {{$.Type}}) {{toComponents $len}}() ({{ range $idx := $len}}{{comma $idx}}{{ component $idx }}{{end}} {{$.ComponentType}}) {
 		{{- range $idx := $len }}
-		{{component $idx}} = lhs[{{$idx}}]
+		{{component $idx}} = lhs.{{field $idx}}
 		{{- end }}
 		return
 	}
@@ -448,7 +456,7 @@ func (lhs {{.Type}}) IsZero() bool {
 func (lhs {{.Type}}) To{{ .NameWithSuffix "f" }}() {{ .NameWithSuffix "f" }} {
 	return {{ .NameWithSuffix "f" }}{
 		{{- range $idx := .Len }}
-		float32(lhs[{{$idx}}]),
+		float32(lhs.{{field $idx}}),
 		{{- end }}
 	}
 }
@@ -456,16 +464,36 @@ func (lhs {{.Type}}) To{{ .NameWithSuffix "f" }}() {{ .NameWithSuffix "f" }} {
 func (lhs {{.Type}}) ToWGPU() [{{.LenWGPU}}]float32 {
 	return [{{.LenWGPU}}]float32{
 		{{- range $idx := .Len }}
-		float32(lhs[{{$idx}}]),
+		float32(lhs.{{field $idx}}),
 		{{- end }}
 	}
+}
+
+// Array returns the components as an array.
+func (lhs {{.Type}}) Array() [{{.Len}}]{{.ComponentType}} {
+	return [{{.Len}}]{{.ComponentType}}{ {{- range $idx := .Len }}{{ sep $idx "" ", " }}lhs.{{field $idx}}{{ end -}} }
+}
+
+// MarshalJSON encodes the vector as a JSON array.
+func (lhs {{.Type}}) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lhs.Array())
+}
+
+// UnmarshalJSON decodes the vector from a JSON array.
+func (lhs *{{.Type}}) UnmarshalJSON(data []byte) error {
+	var a [{{.Len}}]{{.ComponentType}}
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*lhs = {{.Type}}{ {{- range $idx := .Len }}{{ sep $idx "" ", " }}a[{{$idx}}]{{ end -}} }
+	return nil
 }
 
 func (lhs {{.Type}}) String() string {
 	return fmt.Sprintf(
 		"vec{{.Len}}({{range $idx := .Len}}{{sep $idx "" ", "}}%v{{end}})",
 		{{- range $idx := .Len }}
-		lhs[{{$idx}}],
+		lhs.{{field $idx}},
 		{{- end }}
 	)
 }
@@ -532,7 +560,7 @@ func (m {{.Type}}) Transpose() {{.Type}} {
 
 // Column returns a copy of the given column
 func (m {{.Type}}) Column(idx int) {{.ColumnType}} {
-	return {{.ColumnType}}(m[idx])
+	return {{.ColumnType}}{ {{- range $i := .Len }}{{ sep $i "" ", "}}m[idx][{{$i}}]{{ end -}} }
 }
 
 {{ if eq .Len 3 }} 
@@ -639,16 +667,16 @@ func (m {{.Type}}) Column(idx int) {{.ColumnType}} {
 
 	func (m {{.Type}}) Transform(vec Vec3{{.ComponentTypeSuffix}}) Vec3{{.ComponentTypeSuffix}} {
 		return Vec3{{.ComponentTypeSuffix}}{
-			(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2],
-			(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2],
-			(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2],
+			(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0])*vec.Z,
+			(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1])*vec.Z,
+			(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2])*vec.Z,
 		}
 	}
 	
 	func (m {{.Type}}) Transform2(vec Vec2{{.ComponentTypeSuffix}}) Vec2{{.ComponentTypeSuffix}} {
 		return Vec2{{.ComponentTypeSuffix}}{
-			(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0]),
-			(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1]),
+			(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0]),
+			(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1]),
 		}
 	}
 {{ end }}
@@ -748,25 +776,25 @@ func (m {{.Type}}) Column(idx int) {{.ColumnType}} {
 	
 	func (m {{.Type}}) Transform(vec Vec4{{.ComponentTypeSuffix}}) Vec4{{.ComponentTypeSuffix}} {
 		return Vec4{{.ComponentTypeSuffix}}{
-			(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0])*vec[2] + (m[3][0])*vec[3],
-			(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1])*vec[2] + (m[3][1])*vec[3],
-			(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2])*vec[2] + (m[3][2])*vec[3],
-			(m[0][3])*vec[0] + (m[1][3])*vec[1] + (m[2][3])*vec[2] + (m[3][3])*vec[3],
+			(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0])*vec.Z + (m[3][0])*vec.W,
+			(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1])*vec.Z + (m[3][1])*vec.W,
+			(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2])*vec.Z + (m[3][2])*vec.W,
+			(m[0][3])*vec.X + (m[1][3])*vec.Y + (m[2][3])*vec.Z + (m[3][3])*vec.W,
 		}
 	}
 	
 	func (m {{.Type}}) Transform3(vec Vec3{{.ComponentTypeSuffix}}) Vec3{{.ComponentTypeSuffix}} {
 		return Vec3{{.ComponentTypeSuffix}}{
-			(m[0][0])*vec[0] + (m[1][0])*vec[1] + (m[2][0] * vec[2]) + m[3][0],
-			(m[0][1])*vec[0] + (m[1][1])*vec[1] + (m[2][1] * vec[2]) + m[3][1],
-			(m[0][2])*vec[0] + (m[1][2])*vec[1] + (m[2][2] * vec[2]) + m[3][2],
+			(m[0][0])*vec.X + (m[1][0])*vec.Y + (m[2][0] * vec.Z) + m[3][0],
+			(m[0][1])*vec.X + (m[1][1])*vec.Y + (m[2][1] * vec.Z) + m[3][1],
+			(m[0][2])*vec.X + (m[1][2])*vec.Y + (m[2][2] * vec.Z) + m[3][2],
 		}
 	}
 	
 	func (m {{.Type}}) Transform2(vec Vec2{{.ComponentTypeSuffix}}) Vec2{{.ComponentTypeSuffix}} {
 		return Vec2{{.ComponentTypeSuffix}}{
-			(m[0][0])*vec[0] + (m[1][0])*vec[1] + m[3][0],
-			(m[0][1])*vec[0] + (m[1][1])*vec[1] + m[3][1],
+			(m[0][0])*vec.X + (m[1][0])*vec.Y + m[3][0],
+			(m[0][1])*vec.X + (m[1][1])*vec.Y + m[3][1],
 		}
 	}
 	
@@ -806,22 +834,22 @@ func {{.Type}}FromXYWH(x, y, w, h {{.ComponentType}}) {{.Type}}  {
 func {{.Type}}FromPoints(a, b {{.VecType}}) {{.Type}}  {
 	return {{.Type}} {
 		Min: {{.VecType}}{
-			min(a[0], b[0]),
-			min(a[1], b[1]),
+			min(a.X, b.X),
+			min(a.Y, b.Y),
 		},
 		Max: {{.VecType}}{
-			max(a[0], b[0]),
-			max(a[1], b[1]),
+			max(a.X, b.X),
+			max(a.Y, b.Y),
 		},
 	}
 }
 
 func (r {{.Type}} ) Extend(point {{.VecType}}) {{.Type}}  {
-	minX := min(r.Min[0], point[0])
-	minY := min(r.Min[1], point[1])
+	minX := min(r.Min.X, point.X)
+	minY := min(r.Min.Y, point.Y)
 
-	maxX := max(r.Max[0], point[0])
-	maxY := max(r.Max[1], point[1])
+	maxX := max(r.Max.X, point.X)
+	maxY := max(r.Max.Y, point.Y)
 
 	return {{.Type}} {
 		Min: {{.VecType}}{minX, minY},
@@ -834,8 +862,8 @@ func (r {{.Type}} ) Union(other {{.Type}} ) {{.Type}}  {
 }
 
 func (r {{.Type}} ) Contains(other {{.Type}} ) bool {
-	return r.Min[0] <= other.Min[0] && r.Min[1] <= other.Min[1] &&
-		r.Max[0] >= other.Max[0] && r.Max[1] >= other.Max[1]
+	return r.Min.X <= other.Min.X && r.Min.Y <= other.Min.Y &&
+		r.Max.X >= other.Max.X && r.Max.Y >= other.Max.Y
 }
 
 func (r {{.Type}} ) Center() {{.VecType}} {
@@ -851,11 +879,11 @@ func (r {{.Type}} ) Size() {{.VecType}} {
 }
 
 func (r {{.Type}} ) Width() {{.ComponentType}} {
-	return r.Max[0] - r.Min[0]
+	return r.Max.X - r.Min.X
 }
 
 func (r {{.Type}} ) Height() {{.ComponentType}} {
-	return r.Max[1] - r.Min[1]
+	return r.Max.Y - r.Min.Y
 }
 
 func (r {{.Type}} ) XYWH() ({{.ComponentType}}, {{.ComponentType}}, {{.ComponentType}}, {{.ComponentType}}) {

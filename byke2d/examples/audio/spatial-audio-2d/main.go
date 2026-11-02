@@ -108,22 +108,22 @@ func moveListenerSystem(
 	var dir glm.Vec2f
 
 	if keys.IsPressed(vyn.KeyArrowLeft) {
-		dir[0] -= 1
+		dir.X -= 1
 	}
 
 	if keys.IsPressed(vyn.KeyArrowRight) {
-		dir[0] += 1
+		dir.X += 1
 	}
 
 	if keys.IsPressed(vyn.KeyArrowUp) {
-		dir[1] += 1
+		dir.Y += 1
 	}
 
 	if keys.IsPressed(vyn.KeyArrowDown) {
-		dir[1] -= 1
+		dir.Y -= 1
 	}
 
 	step := dir.Scale(300 * float32(vt.DeltaSecs))
-	listener.Value.Transform.Translation[0] += step[0]
-	listener.Value.Transform.Translation[1] += step[1]
+	listener.Value.Transform.Translation.X += step.X
+	listener.Value.Transform.Translation.Y += step.Y
 }

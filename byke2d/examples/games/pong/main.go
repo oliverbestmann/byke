@@ -171,7 +171,7 @@ func paddleCollisionSystem(
 	}],
 ) {
 	for ball := range ballsQuery.Items() {
-		ballX := ball.Transform.Translation[0]
+		ballX := ball.Transform.Translation.X
 
 		if math.Abs(float64(ballX)) < PaddleAbsX-PaddleWidth/2-BallRadius {
 			// not near a paddle
@@ -185,9 +185,9 @@ func paddleCollisionSystem(
 				continue
 			}
 
-			ballY := ball.Transform.Translation[1]
+			ballY := ball.Transform.Translation.Y
 
-			paddleY := paddle.Transform.Translation[1]
+			paddleY := paddle.Transform.Translation.Y
 			paddleMin := paddleY - PaddleHeight/2 - BallRadius
 			paddleMax := paddleY + PaddleHeight/2 + BallRadius
 
@@ -195,8 +195,8 @@ func paddleCollisionSystem(
 				continue
 			}
 
-			ball.Velocity.Value[0] *= -1
-			ball.Velocity.Value[1] += paddle.Velocity.Value[1] * rng.Float32()
+			ball.Velocity.Value.X *= -1
+			ball.Velocity.Value.Y += paddle.Velocity.Value.Y * rng.Float32()
 		}
 	}
 }
@@ -231,14 +231,14 @@ func restrictBallVerticalSystem(
 	}],
 ) {
 	for ball := range ballsQuery.Items() {
-		ballY := ball.Transform.Translation[1]
+		ballY := ball.Transform.Translation.Y
 
 		if ballY-BallRadius <= -AreaHeight/2 {
-			ball.Velocity.Value[1] *= -1
+			ball.Velocity.Value.Y *= -1
 		}
 
 		if ballY+BallRadius >= AreaHeight/2 {
-			ball.Velocity.Value[1] *= -1
+			ball.Velocity.Value.Y *= -1
 		}
 	}
 }
@@ -261,7 +261,7 @@ func handleInputSystem(
 		direction = -1
 	}
 
-	paddle.Get().Velocity.Value[1] = PaddleSpeed * direction
+	paddle.Get().Velocity.Value.Y = PaddleSpeed * direction
 }
 
 func registerGameLostSystem(
@@ -273,7 +273,7 @@ func registerGameLostSystem(
 	}],
 ) {
 	for ball := range ballsQuery.Items() {
-		ballX := ball.Transform.Translation[0]
+		ballX := ball.Transform.Translation.X
 		if math.Abs(float64(ballX)) > AreaWidth/2+BallRadius {
 			gameState.Set(GameStateLost)
 		}

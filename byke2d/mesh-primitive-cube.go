@@ -9,9 +9,9 @@ func Cube() *Mesh {
 }
 
 func CubeWithSize(size glm.Vec3f) *Mesh {
-	hx := size[0] / 2
-	hy := size[1] / 2
-	hz := size[2] / 2
+	hx := size.X / 2
+	hy := size.Y / 2
+	hz := size.Z / 2
 
 	vertices := []glm.Vec3f{
 		// top (facing towards +y)

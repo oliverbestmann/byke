@@ -61,19 +61,19 @@ func moveSystem(
 	var dir glm.Vec2f
 
 	if keys.IsPressed(vyn.KeyA) || keys.IsPressed(vyn.KeyArrowLeft) {
-		dir[0] -= 1
+		dir.X -= 1
 	}
 
 	if keys.IsPressed(vyn.KeyD) || keys.IsPressed(vyn.KeyArrowRight) {
-		dir[0] += 1
+		dir.X += 1
 	}
 
 	if keys.IsPressed(vyn.KeyW) || keys.IsPressed(vyn.KeyArrowUp) {
-		dir[1] += 1
+		dir.Y += 1
 	}
 
 	if keys.IsPressed(vyn.KeyS) || keys.IsPressed(vyn.KeyArrowDown) {
-		dir[1] -= 1
+		dir.Y -= 1
 	}
 
 	if dir == (glm.Vec2f{}) {

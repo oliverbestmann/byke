@@ -130,8 +130,8 @@ func sampleQuadCurve(p0, p1, p2 glm.Vec2f, t float32) glm.Vec2f {
 	omt2 := omt * omt
 	t2 := t * t
 
-	x := omt2*p0[0] + 2*omt*t*p1[0] + t2*p2[0]
-	y := omt2*p0[1] + 2*omt*t*p1[1] + t2*p2[1]
+	x := omt2*p0.X + 2*omt*t*p1.X + t2*p2.X
+	y := omt2*p0.Y + 2*omt*t*p1.Y + t2*p2.Y
 	return glm.V2f(x, y)
 }
 
@@ -146,15 +146,15 @@ func sampleCubicCurve(p0, p1, p2, p3 glm.Vec2f, t float32) glm.Vec2f {
 	t2 := t * t
 	t3 := t2 * t
 
-	x := omt3*p0[0] +
-		3*omt2*t*p1[0] +
-		3*omt*t2*p2[0] +
-		t3*p3[0]
+	x := omt3*p0.X +
+		3*omt2*t*p1.X +
+		3*omt*t2*p2.X +
+		t3*p3.X
 
-	y := omt3*p0[1] +
-		3*omt2*t*p1[1] +
-		3*omt*t2*p2[1] +
-		t3*p3[1]
+	y := omt3*p0.Y +
+		3*omt2*t*p1.Y +
+		3*omt*t2*p2.Y +
+		t3*p3.Y
 
 	return glm.V2f(x, y)
 }
@@ -227,21 +227,21 @@ func cubicFlatEnough(p0, p1, p2, p3 glm.Vec2f, threshold float32) bool {
 }
 
 func mid(a, b glm.Vec2f) glm.Vec2f {
-	return glm.V2f((a[0]+b[0])*0.5, (a[1]+b[1])*0.5)
+	return glm.V2f((a.X+b.X)*0.5, (a.Y+b.Y)*0.5)
 }
 
 func pointLineDistance(p, a, b glm.Vec2f) float32 {
-	ab := glm.V2f(b[0]-a[0], b[1]-a[1])
-	ap := glm.V2f(p[0]-a[0], p[1]-a[1])
+	ab := glm.V2f(b.X-a.X, b.Y-a.Y)
+	ap := glm.V2f(p.X-a.X, p.Y-a.Y)
 
 	// Project AP onto AB
-	t := (ap[0]*ab[0] + ap[1]*ab[1]) / (ab[0]*ab[0] + ab[1]*ab[1])
+	t := (ap.X*ab.X + ap.Y*ab.Y) / (ab.X*ab.X + ab.Y*ab.Y)
 
 	// Closest point on AB
-	closest := glm.V2f(a[0]+t*ab[0], a[1]+t*ab[1])
+	closest := glm.V2f(a.X+t*ab.X, a.Y+t*ab.Y)
 
 	// Distance AP→closest
-	dx := p[0] - closest[0]
-	dy := p[1] - closest[1]
+	dx := p.X - closest.X
+	dy := p.Y - closest.Y
 	return float32(math.Sqrt(float64(dx*dx + dy*dy)))
 }

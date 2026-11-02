@@ -147,7 +147,7 @@ func spawnRock(commands *Commands, pos glm.Vec2f, radius float32) {
 		Rock{Radius: radius},
 		Velocity{Vec2f: glm.V2f(float32(math.Cos(angle)), float32(math.Sin(angle))).Scale(speed)},
 		Spin{Speed: glm.Rad(rng.Float32()*2 - 1)},
-		TransformFromXY(pos[0], pos[1]),
+		TransformFromXY(pos.X, pos.Y),
 		MeshInstance{Mesh: outline(path, radius)},
 		ColorMaterial{Color: ColorLinearRGB(2, 2, 2)},
 	)
@@ -195,7 +195,7 @@ func shootSystem(commands *Commands, ship Single[struct {
 	commands.Spawn(
 		Bullet{},
 		Velocity{Vec2f: ship.Value.Velocity.Add(dir.Scale(bulletSpeed))},
-		TransformFromXY(pos[0], pos[1]),
+		TransformFromXY(pos.X, pos.Y),
 		MeshInstance{Mesh: Circle(3, 8)},
 		ColorMaterial{Color: ColorLinearRGB(6, 4, 1)},
 		DespawnAfter(time.Second),
@@ -216,7 +216,7 @@ func moveSystem(vt VirtualTime, query Query[struct {
 
 	for item := range query.Items() {
 		pos := item.Transform.Translation.Add(item.Velocity.Scale(vt.DeltaSecs).Extend(0))
-		item.Transform.Translation = glm.V3f(wrap(pos[0], areaWidth/2), wrap(pos[1], areaHeight/2), pos[2])
+		item.Transform.Translation = glm.V3f(wrap(pos.X, areaWidth/2), wrap(pos.Y, areaHeight/2), pos.Z)
 	}
 }
 
@@ -276,7 +276,7 @@ func spawnDebris(commands *Commands, pos glm.Vec2f) {
 
 		commands.Spawn(
 			Velocity{Vec2f: dir.Scale(120)},
-			TransformFromXY(pos[0], pos[1]),
+			TransformFromXY(pos.X, pos.Y),
 			MeshInstance{Mesh: Circle(2, 6)},
 			ColorMaterial{Color: ColorLinearRGB(2, 2, 2)},
 			DespawnAfter(500*time.Millisecond),

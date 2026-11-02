@@ -24,22 +24,22 @@ func RectfFromXYWH(x, y, w, h float32) Rectf {
 func RectfFromPoints(a, b Vec2f) Rectf {
 	return Rectf{
 		Min: Vec2f{
-			min(a[0], b[0]),
-			min(a[1], b[1]),
+			min(a.X, b.X),
+			min(a.Y, b.Y),
 		},
 		Max: Vec2f{
-			max(a[0], b[0]),
-			max(a[1], b[1]),
+			max(a.X, b.X),
+			max(a.Y, b.Y),
 		},
 	}
 }
 
 func (r Rectf) Extend(point Vec2f) Rectf {
-	minX := min(r.Min[0], point[0])
-	minY := min(r.Min[1], point[1])
+	minX := min(r.Min.X, point.X)
+	minY := min(r.Min.Y, point.Y)
 
-	maxX := max(r.Max[0], point[0])
-	maxY := max(r.Max[1], point[1])
+	maxX := max(r.Max.X, point.X)
+	maxY := max(r.Max.Y, point.Y)
 
 	return Rectf{
 		Min: Vec2f{minX, minY},
@@ -52,8 +52,8 @@ func (r Rectf) Union(other Rectf) Rectf {
 }
 
 func (r Rectf) Contains(other Rectf) bool {
-	return r.Min[0] <= other.Min[0] && r.Min[1] <= other.Min[1] &&
-		r.Max[0] >= other.Max[0] && r.Max[1] >= other.Max[1]
+	return r.Min.X <= other.Min.X && r.Min.Y <= other.Min.Y &&
+		r.Max.X >= other.Max.X && r.Max.Y >= other.Max.Y
 }
 
 func (r Rectf) Center() Vec2f {
@@ -69,11 +69,11 @@ func (r Rectf) Size() Vec2f {
 }
 
 func (r Rectf) Width() float32 {
-	return r.Max[0] - r.Min[0]
+	return r.Max.X - r.Min.X
 }
 
 func (r Rectf) Height() float32 {
-	return r.Max[1] - r.Min[1]
+	return r.Max.Y - r.Min.Y
 }
 
 func (r Rectf) XYWH() (float32, float32, float32, float32) {

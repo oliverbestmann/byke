@@ -306,7 +306,7 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 		sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
 			PointLight{
-				Color:     ColorLinearRGB(glm.Vec3f(light.Color).XYZ()),
+				Color:     ColorLinearRGB(light.Color[0], light.Color[1], light.Color[2]),
 				Intensity: light.Intensity,
 				Range:     light.Range,
 			},
@@ -317,7 +317,7 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 		sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
 			SpotLight{
-				Color:      ColorLinearRGB(glm.Vec3f(light.Color).XYZ()),
+				Color:      ColorLinearRGB(light.Color[0], light.Color[1], light.Color[2]),
 				Intensity:  light.Intensity,
 				Range:      light.Range,
 				InnerAngle: glm.Rad(derefOr(light.InnerConeAngle, 0)),
@@ -330,7 +330,7 @@ func (sc *spawnContext) spawnLightInNode(node gltf.Node, ext *gltf.KHRLightsPunc
 		sc.Commands.Spawn(
 			byke.ChildOf{Parent: entityId},
 			DirectionalLight{
-				Color:       ColorLinearRGB(glm.Vec3f(light.Color).XYZ()),
+				Color:       ColorLinearRGB(light.Color[0], light.Color[1], light.Color[2]),
 				Illuminance: light.Intensity,
 			},
 		)

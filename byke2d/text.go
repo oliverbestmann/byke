@@ -122,8 +122,8 @@ func renderTextSystem(
 				baseline := posY - floatOf(output.LineBounds.Descent)
 
 				for _, glyph := range output.Glyphs {
-					x := posX + floatOf(glyph.XOffset) + offset[0]
-					y := baseline + floatOf(glyph.YOffset) + offset[1]
+					x := posX + floatOf(glyph.XOffset) + offset.X
+					y := baseline + floatOf(glyph.YOffset) + offset.Y
 
 					// advance to the next glyph
 					posX += floatOf(glyph.Advance)
@@ -139,8 +139,8 @@ func renderTextSystem(
 					}
 
 					// offset position by the texture offset
-					x += glyphTexture.Offset[0]
-					y -= glyphTexture.Offset[1]
+					x += glyphTexture.Offset.X
+					y -= glyphTexture.Offset.Y
 
 					// rectangle within the texture
 					rect := glm.Rectf{
@@ -163,7 +163,7 @@ func renderTextSystem(
 			}
 
 			posX = 0
-			posY += line.Size[1]
+			posY += line.Size.Y
 		}
 	}
 }
@@ -195,8 +195,8 @@ func layoutText(text []rune, faces Faces, fontSize float32) textLayout {
 		layout := layoutLine(text, line, faces, fontSize)
 		layouts = append(layouts, layout)
 
-		size[0] = max(size[0], layout.Size[0])
-		size[1] += layout.Size[1]
+		size.X = max(size.X, layout.Size.X)
+		size.Y += layout.Size.Y
 	}
 
 	return textLayout{Lines: layouts, Size: size}
@@ -262,10 +262,10 @@ func layoutLine(text []rune, line lineIndices, faces Faces, fontSize float32) li
 
 		for idx := range output.Glyphs {
 			glyph := &output.Glyphs[idx]
-			size[0] += floatOf(glyph.Advance)
+			size.X += floatOf(glyph.Advance)
 		}
 
-		size[1] = max(size[1], floatOf(output.LineBounds.LineThickness()))
+		size.Y = max(size.Y, floatOf(output.LineBounds.LineThickness()))
 
 		inputs = append(inputs, input)
 		outputs = append(outputs, output)

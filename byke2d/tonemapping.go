@@ -104,16 +104,16 @@ func (c ColorGrading) ToWGPU() []byte {
 	// The following formula is just a simplification of the above.
 	whitePointLMS := glm.V3f(0.701634, 1.15856, -0.904175).Add(
 		glm.V3f(-0.051461, 0.045854, 0.953127).Add(
-			glm.V3f(0.452749, -0.296122, -0.955206).Scale(whitePointXY[0]),
-		).Scale(1.0 / whitePointXY[1]),
+			glm.V3f(0.452749, -0.296122, -0.955206).Scale(whitePointXY.X),
+		).Scale(1.0 / whitePointXY.Y),
 	)
 
 	// Now that we're in LMS space, perform the white point scaling.
 	d := _D65Lms.Div(whitePointLMS)
 	whitePointAdjustment := glm.Mat3f{
-		{d[0], 0, 0},
-		{0, d[1], 0},
-		{0, 0, d[2]},
+		{d.X, 0, 0},
+		{0, d.Y, 0},
+		{0, 0, d.Z},
 	}
 
 	// Finally, combine the RGB → LMS → corrected LMS → corrected RGB

@@ -46,5 +46,5 @@ func (m Mat2u) Transpose() Mat2u {
 
 // Column returns a copy of the given column
 func (m Mat2u) Column(idx int) Vec2u {
-	return Vec2u(m[idx])
+	return Vec2u{m[idx][0], m[idx][1]}
 }
