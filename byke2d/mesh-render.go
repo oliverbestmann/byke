@@ -85,7 +85,7 @@ func extractMeshesWithMaterialSystem[M Material](
 			skin.InverseBind = sm.InverseBind
 		}
 
-		worldCenter, worldHalf := item.MeshAABB.Transformed(item.Transform.Affine)
+		worldCenter, worldHalf := item.MeshAABB.Transformed(&item.Transform.Affine)
 
 		meshes.Meshes = append(meshes.Meshes, ExtractedMesh{
 			Mesh:             mesh.Mesh,

@@ -28,7 +28,7 @@ func TestFrustumOutsideBox(t *testing.T) {
 
 	for _, c := range cases {
 		model := glm.TranslationMat4f(c.at.X, c.at.Y, c.at.Z).Mul(glm.ScaleMat4f(c.scale, c.scale, c.scale))
-		if got := frustum.OutsideBox(box.Transformed(model)); got != c.outside {
+		if got := frustum.OutsideBox(box.Transformed(&model)); got != c.outside {
 			t.Errorf("%s: got outside=%v", c.name, got)
 		}
 	}
@@ -46,7 +46,7 @@ func TestFrustumNeverCullsVisibleBoxes(t *testing.T) {
 		at := glm.V3f(rng.Float32()*60-30, rng.Float32()*20-10, rng.Float32()*60-40)
 		model := glm.TranslationMat4f(at.X, at.Y, at.Z).Mul(glm.RotationYMat4f(glm.Rad(rng.Float32() * 6.3)))
 
-		if frustum.OutsideBox(box.Transformed(model)) && anyCornerInside(box, worldToClip.Mul(model)) {
+		if frustum.OutsideBox(box.Transformed(&model)) && anyCornerInside(box, worldToClip.Mul(model)) {
 			t.Fatalf("box at %v culled, but a corner is visible", at)
 		}
 	}
@@ -77,7 +77,7 @@ func anyCornerInside(a AABB, localToClip glm.Mat4f) bool {
 func BenchmarkFrustumOutsideBox(b *testing.B) {
 	frustum := FrustumFromClip(DefaultPerspectiveProjection.ToMat4f(glm.V2f(16, 9)))
 	box := AABB{Min: glm.V3f(-1, 0, -0.5), Max: glm.V3f(1, 3, 0.5)}
-	center, half := box.Transformed(glm.TranslationMat4f(20, 0, -10))
+	center, half := box.Transformed(new(glm.TranslationMat4f(20, 0, -10)))
 
 	for b.Loop() {
 		frustum.OutsideBox(center, half)

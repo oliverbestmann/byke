@@ -1,6 +1,8 @@
 package byke2d
 
 import (
+	"math"
+
 	"github.com/oliverbestmann/byke"
 	"github.com/oliverbestmann/byke/byke2d/glm"
 )
@@ -17,21 +19,15 @@ func (a AABB) Center() glm.Vec3f {
 	return a.Min.Add(a.Max).Scale(0.5)
 }
 
+// abs32 compiles to a single FABS/ANDPS, unlike max(v, -v) or a sign bit mask.
 func abs32(v float32) float32 {
-	return max(v, -v)
+	return float32(math.Abs(float64(v)))
 }
 
 // Transformed returns the center and half size of the axis aligned box in the space of m that
 // encloses this box. It is larger than the box itself if m rotates.
-func (a AABB) Transformed(m glm.Mat4f) (center, half glm.Vec3f) {
-	center = m.Transform3(a.Center())
-	localHalf := a.Max.Sub(a.Min).Scale(0.5)
-
-	for col, l := range [3]float32{localHalf.X, localHalf.Y, localHalf.Z} {
-		half = half.Add(glm.V3f(abs32(m[col][0]), abs32(m[col][1]), abs32(m[col][2])).Scale(l))
-	}
-
-	return center, half
+func (a *AABB) Transformed(m *glm.Mat4f) (center, half glm.Vec3f) {
+	return m.TransformBox(a.Center(), a.Max.Sub(a.Min).Scale(0.5))
 }
 
 // Frustum holds the planes of a view: left, right, bottom, top and the camera plane.
