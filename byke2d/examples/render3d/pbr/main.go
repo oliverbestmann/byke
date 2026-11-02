@@ -38,7 +38,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 		TransformFromXYZ(0, 0, 100),
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 12},
 			Far:            200,
 		},
@@ -54,7 +54,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(50, 50, 50).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(50, 50, 50).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 		DirectionalLight{Illuminance: 1_500},
 	)
 

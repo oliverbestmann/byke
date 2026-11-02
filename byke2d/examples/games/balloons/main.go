@@ -88,7 +88,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		OrthographicProjection{ViewportOrigin: glm.Vec2f{0.5, 0.5}},
+		OrthographicProjection{ViewportOrigin: glm.V2f(0.5, 0.5)},
 	)
 
 	// the score sits large in the background
@@ -113,9 +113,9 @@ func spawnBalloonSystem(commands *Commands, vt VirtualTime, screen ScreenSize, s
 
 	commands.Spawn(
 		Balloon{},
-		Velocity{Vec2f: glm.Vec2f{0, speed}},
+		Velocity{Vec2f: glm.V2f(0, speed)},
 		TransformFromXY(x, y),
-		MeshInstance{Mesh: Ellipse(glm.Vec2f{2 * balloonRadius, 2.4 * balloonRadius}, 32)},
+		MeshInstance{Mesh: Ellipse(glm.V2f(2*balloonRadius, 2.4*balloonRadius), 32)},
 		ColorMaterial{Color: colors[rng.IntN(len(colors))]},
 		DespawnOnExitState(Playing),
 	)
@@ -150,7 +150,7 @@ func popSystem(
 	}
 
 	// the cursor is in window pixels with y down, the camera is centered with y up
-	click := glm.Vec2f{cursor.Vec2f[0] - screen.Vec2f[0]/2, screen.Vec2f[1]/2 - cursor.Vec2f[1]}
+	click := glm.V2f(cursor.Vec2f[0]-screen.Vec2f[0]/2, screen.Vec2f[1]/2-cursor.Vec2f[1])
 
 	for balloon := range balloons.Items() {
 		pos := balloon.Transform.Translation.Truncate()
@@ -164,7 +164,7 @@ func popSystem(
 		// burst into small pieces that fly apart and shrink
 		for idx := range 10 {
 			angle := float64(idx) / 10 * 2 * math.Pi
-			dir := glm.Vec2f{float32(math.Cos(angle)), float32(math.Sin(angle))}
+			dir := glm.V2f(float32(math.Cos(angle)), float32(math.Sin(angle)))
 
 			commands.Spawn(
 				Velocity{Vec2f: dir.Scale(250)},
@@ -188,7 +188,7 @@ func shrinkSystem(query Query[struct {
 ) {
 	for item := range query.Items() {
 		s := float32(item.Despawn.Timer.FractionRemaining())
-		item.Transform.Scale = glm.Vec3f{s, s, 1}
+		item.Transform.Scale = glm.V3f(s, s, 1)
 	}
 }
 

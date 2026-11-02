@@ -20,7 +20,7 @@ type Transform struct {
 
 func NewTransform() Transform {
 	return Transform{
-		Scale: glm.Vec3f{1, 1, 1},
+		Scale: glm.V3f(1, 1, 1),
 	}
 }
 
@@ -30,28 +30,28 @@ func TransformFromXY(x, y float32) Transform {
 
 func TransformFromXYZ(x, y, z float32) Transform {
 	return Transform{
-		Scale:       glm.Vec3f{1, 1, 1},
-		Translation: glm.Vec3f{x, y, z},
+		Scale:       glm.V3f(1, 1, 1),
+		Translation: glm.V3f(x, y, z),
 	}
 }
 
 func (t Transform) WithTranslationXY(x, y float32) Transform {
-	t.Translation = glm.Vec3f{x, y, 0}
+	t.Translation = glm.V3f(x, y, 0)
 	return t
 }
 
 func (t Transform) WithTranslationXYZ(x, y, z float32) Transform {
-	t.Translation = glm.Vec3f{x, y, z}
+	t.Translation = glm.V3f(x, y, z)
 	return t
 }
 
 func (t Transform) WithScaleXY(x, y float32) Transform {
-	t.Scale = glm.Vec3f{x, y, 1}
+	t.Scale = glm.V3f(x, y, 1)
 	return t
 }
 
 func (t Transform) WithScaleXYZ(x, y, z float32) Transform {
-	t.Scale = glm.Vec3f{x, y, z}
+	t.Scale = glm.V3f(x, y, z)
 	return t
 }
 

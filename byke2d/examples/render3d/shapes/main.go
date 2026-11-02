@@ -38,12 +38,12 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 
 	shapes := []*Mesh{
 		Cube(),
-		CubeWithSize(glm.Vec3f{1.5, 0.75, 0.75}),
+		CubeWithSize(glm.V3f(1.5, 0.75, 0.75)),
 		Sphere(0.6, 32, 16),
 		Sphere(0.6, 8, 6),
 		Circle(0.6, 32),
 		RegularPolygon(0.6, 6),
-		Rectangle(glm.Vec2f{1.2, 0.8}),
+		Rectangle(glm.V2f(1.2, 0.8)),
 	}
 
 	const extent = 12
@@ -61,7 +61,7 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 
 	// ground plane
 	commands.Spawn(
-		MeshInstance{Mesh: PlaneWithSize(glm.Vec2f{50, 50})},
+		MeshInstance{Mesh: PlaneWithSize(glm.V2f(50, 50))},
 		StandardMaterial{BaseColor: ColorSRGB(0.75, 0.75, 0.75), PerceptualRoughness: 0.5},
 	)
 
@@ -83,7 +83,7 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 		Camera{},
 		HDR{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0, 7, 14).LookingAt(glm.Vec3f{0, 1, 0}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0, 7, 14).LookingAt(glm.V3f(0, 1, 0), glm.V3f(0, 1, 0)),
 	)
 }
 

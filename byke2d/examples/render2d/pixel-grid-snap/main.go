@@ -44,7 +44,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		Camera2d,
 		RenderTarget{Texture: AsRenderTexture(canvas)},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 		},
 	)
 
@@ -58,7 +58,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 
 	commands.Spawn(
 		TransformFromXY(10, 0),
-		MeshInstance{Mesh: Rectangle(glm.Vec2f{24, 24})},
+		MeshInstance{Mesh: Rectangle(glm.V2f(24, 24))},
 		ColorMaterial{Color: ColorSRGB(0.9, 0.4, 0.2)},
 		shared.RotatingZ{Speed: 0.5},
 	)
@@ -69,8 +69,8 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 		Camera2d,
 		RenderLayersOf(1),
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
-			ScalingMode:    ScalingModeFixed{Viewport: glm.Vec2f{canvasWidth, canvasHeight}},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
+			ScalingMode:    ScalingModeFixed{Viewport: glm.V2f(canvasWidth, canvasHeight)},
 		},
 	)
 
@@ -81,7 +81,7 @@ func setupSystem(commands *Commands, ctx *RenderContext, assets *Assets) {
 
 	commands.Spawn(
 		TransformFromXYZ(50, 0, 0.1),
-		MeshInstance{Mesh: Rectangle(glm.Vec2f{24, 24})},
+		MeshInstance{Mesh: Rectangle(glm.V2f(24, 24))},
 		ColorMaterial{Color: ColorSRGB(0.2, 0.6, 0.9)},
 		RenderLayersOf(1),
 		shared.RotatingZ{Speed: 0.5},

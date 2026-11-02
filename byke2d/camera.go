@@ -78,7 +78,7 @@ func (Camera) RequireComponents() []spoke.ErasedComponent {
 			Color: ColorSRGBA(0.2, 0.2, 0.3, 1.0),
 		},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeWindowSize{},
 		},
 
@@ -174,7 +174,7 @@ type ScalingMode interface {
 type ScalingModeWindowSize struct{}
 
 func (s ScalingModeWindowSize) ViewportSize(width, height float32) glm.Vec2f {
-	return glm.Vec2f{width, height}
+	return glm.V2f(width, height)
 }
 
 type ScalingModeFixed struct {
@@ -194,9 +194,9 @@ func (s ScalingModeAutoMin) ViewportSize(width, height float32) (viewportSize gl
 	// Compare Pixels of current width and minimal height and Pixels of minimal width with current height.
 	// Then use bigger (min_height when true) as what it refers to (height when true) and calculate rest so it can't get under minimum.
 	if width*s.MinHeight > s.MinWidth*height {
-		viewportSize = glm.Vec2f{width * s.MinHeight / height, s.MinHeight}
+		viewportSize = glm.V2f(width*s.MinHeight/height, s.MinHeight)
 	} else {
-		viewportSize = glm.Vec2f{s.MinWidth, height * s.MinWidth / width}
+		viewportSize = glm.V2f(s.MinWidth, height*s.MinWidth/width)
 	}
 
 	return
@@ -211,9 +211,9 @@ func (s ScalingModeAutoMax) ViewportSize(width, height float32) (viewportSize gl
 	// Compare Pixels of current width and maximal height and Pixels of maximal width with current height.
 	// Then use smaller (max_height when true) as what it refers to (height when true) and calculate rest so it can't get over maximum.
 	if width*s.MaxHeight < s.MaxWidth*height {
-		viewportSize = glm.Vec2f{width * s.MaxHeight / height, s.MaxHeight}
+		viewportSize = glm.V2f(width*s.MaxHeight/height, s.MaxHeight)
 	} else {
-		viewportSize = glm.Vec2f{s.MaxWidth, height * s.MaxWidth / width}
+		viewportSize = glm.V2f(s.MaxWidth, height*s.MaxWidth/width)
 	}
 
 	return
@@ -224,7 +224,7 @@ type ScalingModeFixedVertical struct {
 }
 
 func (s ScalingModeFixedVertical) ViewportSize(width, height float32) glm.Vec2f {
-	return glm.Vec2f{width * s.ViewportHeight / height, s.ViewportHeight}
+	return glm.V2f(width*s.ViewportHeight/height, s.ViewportHeight)
 }
 
 type ScalingModeFixedHorizontal struct {
@@ -232,7 +232,7 @@ type ScalingModeFixedHorizontal struct {
 }
 
 func (s ScalingModeFixedHorizontal) ViewportSize(width, height float32) glm.Vec2f {
-	return glm.Vec2f{s.ViewportWidth, height * s.ViewportWidth / width}
+	return glm.V2f(s.ViewportWidth, height*s.ViewportWidth/width)
 }
 
 type Exposure struct {
@@ -422,7 +422,7 @@ func updateCameraViewTargetSystem(
 		commands.Entity(camera.EntityId).Insert(viewTarget)
 
 		width, height := uint32(viewTarget.Size[0]), uint32(viewTarget.Size[1])
-		depthTexture := buildCameraViewDepthTexture(textureCache, glm.Vec2u{width, height}, camera.MSAA.Exists())
+		depthTexture := buildCameraViewDepthTexture(textureCache, glm.V2u(width, height), camera.MSAA.Exists())
 		commands.Entity(camera.EntityId).Insert(depthTexture)
 	}
 }
@@ -525,12 +525,12 @@ func inverseAffine(m glm.Mat4f) (glm.Mat4f, bool) {
 	t := m[3]
 
 	// tInv = -(inv * t)
-	inv[3] = glm.Vec4f{
+	inv[3] = glm.V4f(
 		-(inv[0][0]*t[0] + inv[1][0]*t[1] + inv[2][0]*t[2]),
 		-(inv[0][1]*t[0] + inv[1][1]*t[1] + inv[2][1]*t[2]),
 		-(inv[0][2]*t[0] + inv[1][2]*t[1] + inv[2][2]*t[2]),
 		1,
-	}
+	)
 
 	return inv, true
 }

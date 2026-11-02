@@ -24,7 +24,7 @@ func main() {
 func setupSystem(commands *Commands) {
 	// ground plane
 	commands.Spawn(
-		MeshInstance{Mesh: PlaneWithSize(glm.Vec2f{10, 10})},
+		MeshInstance{Mesh: PlaneWithSize(glm.V2f(10, 10))},
 		StandardMaterial{BaseColor: ColorWhite, PerceptualRoughness: 1},
 	)
 
@@ -58,7 +58,7 @@ func setupSystem(commands *Commands) {
 
 	// green spot light, pointing down
 	commands.Spawn(
-		TransformFromXYZ(-1, 2, 0).LookingAt(glm.Vec3f{-1, 0, 0}, glm.Vec3f{0, 0, 1}),
+		TransformFromXYZ(-1, 2, 0).LookingAt(glm.V3f(-1, 0, 0), glm.V3f(0, 0, 1)),
 		SpotLight{
 			Color:      ColorSRGB(0, 1, 0),
 			Intensity:  100_000,
@@ -92,7 +92,7 @@ func setupSystem(commands *Commands) {
 
 			ShadowsEnabled: true,
 			ShadowVolumes: []glm.Vec3f{
-				{20, 20, 1000},
+				glm.V3f(20, 20, 1000),
 			},
 			ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 			ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
@@ -104,6 +104,6 @@ func setupSystem(commands *Commands) {
 		Camera{},
 		HDR{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(-2, 2.5, 5).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(-2, 2.5, 5).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 	)
 }

@@ -35,7 +35,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		HDR{},
 		FirstPersonViewController{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0, 1, 8).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0, 1, 8).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 
 		// the specular map is sharp enough to be used as the sky
 		Skybox{Texture: specular.Await(), Intensity: ColorLinearRGB(1, 1, 1)},

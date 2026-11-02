@@ -29,7 +29,7 @@ func setupSystem(commands *Commands) {
 		Camera{},
 		HDR{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0.0, 2.5, 10.0).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0.0, 2.5, 10.0).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 	)
 
 	commands.Spawn(
@@ -66,7 +66,7 @@ func setupFloorTilesSystem(
 	commands *Commands,
 ) {
 
-	plane := PlaneWithSize(glm.Vec2f{2, 2})
+	plane := PlaneWithSize(glm.V2f(2, 2))
 
 	for x := -4; x < 5; x++ {
 		for z := -4; z < 5; z++ {

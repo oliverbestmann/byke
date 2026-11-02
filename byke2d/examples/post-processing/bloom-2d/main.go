@@ -29,7 +29,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		HDR{},
 		ClearColor{Color: ColorBlack},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeAutoMin{MinWidth: 800, MinHeight: 600},
 		},
 	)
@@ -37,7 +37,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Sprite{
 			Texture:    assets.Texture("marker.png").Await(),
-			CustomSize: Some(glm.Vec2f{256, 256}),
+			CustomSize: Some(glm.V2f(256, 256)),
 			Color:      ColorLinearRGB(5, 5, 5),
 		},
 	)

@@ -23,7 +23,7 @@ func main() {
 }
 
 func setupSystem(commands *Commands) {
-	cube := CubeWithSize(glm.Vec3f{2, 2, 2})
+	cube := CubeWithSize(glm.V3f(2, 2, 2))
 	material := StandardMaterial{BaseColor: ColorSRGB(0.8, 0.7, 0.6), PerceptualRoughness: 0.5}
 
 	// the parent cube rotates around the x axis
@@ -50,6 +50,6 @@ func setupSystem(commands *Commands) {
 		Camera3d,
 		Camera{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(5, 10, 10).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(5, 10, 10).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 	)
 }

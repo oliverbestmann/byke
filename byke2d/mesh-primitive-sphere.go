@@ -34,9 +34,9 @@ func Sphere(radius float32, sectors, stacks int) *Mesh {
 			x := xy * f32.Cos(sectorAngle)
 			y := xy * f32.Sin(sectorAngle)
 
-			vertices = append(vertices, glm.Vec3f{x, y, z})
-			normals = append(normals, glm.Vec3f{x * lengthInv, y * lengthInv, z * lengthInv})
-			uvs = append(uvs, glm.Vec2f{float32(j) / fSectors, float32(i) / fStacks})
+			vertices = append(vertices, glm.V3f(x, y, z))
+			normals = append(normals, glm.V3f(x*lengthInv, y*lengthInv, z*lengthInv))
+			uvs = append(uvs, glm.V2f(float32(j)/fSectors, float32(i)/fStacks))
 		}
 	}
 

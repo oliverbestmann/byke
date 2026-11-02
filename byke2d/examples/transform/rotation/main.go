@@ -42,13 +42,13 @@ func setupSystem(commands *Commands) {
 		Camera3d,
 		Camera{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0, 5, 10).LookingAt(glm.Vec3f{0, 0, 0}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0, 5, 10).LookingAt(glm.V3f(0, 0, 0), glm.V3f(0, 1, 0)),
 	)
 
 	// Add a light source so we can see clearly.
 	commands.Spawn(
 		PointLight{Color: ColorLinearRGB(1, 1, 1), Intensity: 10000},
-		TransformFromXYZ(3, 3, 3).LookingAt(glm.Vec3f{0, 0, 0}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(3, 3, 3).LookingAt(glm.V3f(0, 0, 0), glm.V3f(0, 1, 0)),
 	)
 }
 

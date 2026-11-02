@@ -47,7 +47,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		OrthographicProjection{ViewportOrigin: glm.Vec2f{0.5, 0.5}},
+		OrthographicProjection{ViewportOrigin: glm.V2f(0.5, 0.5)},
 	)
 
 	// the sound source, a spatial looping sound
@@ -55,7 +55,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Emitter{},
 		TransformFromXY(orbitRadius, 0),
 		AudioPlayerOf(assets.Audio("engine.ogg").Await()),
-		PlaybackSettingsLoop.WithSpatialScale(glm.Vec3f{1, 1, 1}.Scale(spatialScale)),
+		PlaybackSettingsLoop.WithSpatialScale(glm.V3f(1, 1, 1).Scale(spatialScale)),
 		MeshInstance{Mesh: Circle(16, 32)},
 		ColorMaterial{Color: ColorSRGB(0.3, 0.6, 1)},
 	)
@@ -65,8 +65,8 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Listener{},
 		NewTransform(),
 		Microphone{
-			LeftEarOffset:  glm.Vec3f{-earGap, 0, 0},
-			RightEarOffset: glm.Vec3f{earGap, 0, 0},
+			LeftEarOffset:  glm.V3f(-earGap, 0, 0),
+			RightEarOffset: glm.V3f(earGap, 0, 0),
 		},
 		MeshInstance{Mesh: Circle(24, 32)},
 		ColorMaterial{Color: ColorWhite},
@@ -90,11 +90,11 @@ func orbitEmitterSystem(
 	}],
 ) {
 	angle := vt.Elapsed.Seconds()
-	emitter.Value.Transform.Translation = glm.Vec3f{
-		float32(math.Cos(angle)) * orbitRadius,
-		float32(math.Sin(angle)) * orbitRadius,
+	emitter.Value.Transform.Translation = glm.V3f(
+		float32(math.Cos(angle))*orbitRadius,
+		float32(math.Sin(angle))*orbitRadius,
 		0,
-	}
+	)
 }
 
 func moveListenerSystem(

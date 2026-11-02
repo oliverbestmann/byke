@@ -7,6 +7,11 @@ import "fmt"
 // Vec4uh is a vector of dimension 4.
 type Vec4uh [4]uint16
 
+// V4uh creates a Vec4uh.
+func V4uh(x, y, z, w uint16) Vec4uh {
+	return Vec4uh{x, y, z, w}
+}
+
 func (lhs Vec4uh) Dot(rhs Vec4uh) uint16 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1] + lhs[2]*rhs[2] + lhs[3]*rhs[3]
 }

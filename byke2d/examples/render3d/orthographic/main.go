@@ -25,17 +25,17 @@ func setupSystem(commands *Commands) {
 		Camera3d,
 		Camera{},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			// 6 world units fill the height of the window
 			ScalingMode: ScalingModeFixedVertical{ViewportHeight: 6},
 			Far:         1000,
 		},
-		TransformFromXYZ(5, 5, 5).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(5, 5, 5).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 	)
 
 	// plane
 	commands.Spawn(
-		MeshInstance{Mesh: PlaneWithSize(glm.Vec2f{5, 5})},
+		MeshInstance{Mesh: PlaneWithSize(glm.V2f(5, 5))},
 		StandardMaterial{BaseColor: ColorSRGB(0.3, 0.5, 0.3), PerceptualRoughness: 0.5},
 	)
 
@@ -43,7 +43,7 @@ func setupSystem(commands *Commands) {
 	cube := Cube()
 	material := StandardMaterial{BaseColor: ColorSRGB(0.8, 0.7, 0.6), PerceptualRoughness: 0.5}
 
-	for _, pos := range []glm.Vec3f{{1.5, 0.5, 1.5}, {1.5, 0.5, -1.5}, {-1.5, 0.5, 1.5}, {-1.5, 0.5, -1.5}} {
+	for _, pos := range []glm.Vec3f{glm.V3f(1.5, 0.5, 1.5), glm.V3f(1.5, 0.5, -1.5), glm.V3f(-1.5, 0.5, 1.5), glm.V3f(-1.5, 0.5, -1.5)} {
 		commands.Spawn(
 			TransformFromXYZ(pos.XYZ()),
 			MeshInstance{Mesh: cube},

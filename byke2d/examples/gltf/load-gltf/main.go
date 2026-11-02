@@ -24,7 +24,7 @@ func main() {
 	shared.RunAppInTest(app, shared.FramesToSnapshot{10, 100})
 }
 
-var helmetCenter = glm.Vec3f{0, 0.3, 0}
+var helmetCenter = glm.V3f(0, 0.3, 0)
 
 func setupSystem(commands *Commands, assets *Assets) {
 	opts := &LoadTextureSettings{OverrideTextureViewDimension: wgpu.TextureViewDimensionCube}
@@ -36,7 +36,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{},
 		HDR{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0.7, 0.7, 1.0).LookingAt(helmetCenter, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0.7, 0.7, 1.0).LookingAt(helmetCenter, glm.V3f(0, 1, 0)),
 		EnvironmentMapLight{
 			DiffuseMap:  diffuse.Await(),
 			SpecularMap: specular.Await(),
@@ -50,7 +50,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 			Color:            ColorWhite,
 			Illuminance:      DefaultDirectionalLight.Illuminance,
 			ShadowsEnabled:   true,
-			ShadowVolumes:    []glm.Vec3f{{1.6, 1.6, 4}},
+			ShadowVolumes:    []glm.Vec3f{glm.V3f(1.6, 1.6, 4)},
 			ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 			ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
 		},
@@ -70,7 +70,7 @@ func animateLightDirectionSystem(
 		Mul(glm.RotationXQuat(glm.Rad(-math.Pi / 4)))
 
 	// the shadow volume starts at the light, so move it back along its direction
-	direction := rot.Transform(glm.Vec3f{0, 0, -1})
+	direction := rot.Transform(glm.V3f(0, 0, -1))
 
 	light.Value.Transform.Rotation = rot
 	light.Value.Transform.Translation = helmetCenter.Sub(direction.Scale(2))

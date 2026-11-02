@@ -15,7 +15,7 @@ type OrbitingLight struct {
 	Component[OrbitingLight]
 }
 
-var boxCenter = glm.Vec3f{0, 0.5, 0}
+var boxCenter = glm.V3f(0, 0.5, 0)
 
 var pointLight = PointLight{
 	Color:     ColorLinearRGB(1, 1, 1),
@@ -44,7 +44,7 @@ var directionalLight = DirectionalLight{
 	Illuminance: 400,
 
 	ShadowsEnabled:   true,
-	ShadowVolumes:    []glm.Vec3f{{10, 10, 1000}},
+	ShadowVolumes:    []glm.Vec3f{glm.V3f(10, 10, 1000)},
 	ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 	ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,
 }
@@ -99,7 +99,7 @@ func setupSystem(commands *Commands) {
 		MeshInstance{Mesh: Sphere(0.15, 32, 16)},
 		StandardMaterial{
 			BaseColor:     ColorSRGB(1, 1, 1),
-			EmissiveScale: glm.Vec3f{4, 4, 4},
+			EmissiveScale: glm.V3f(4, 4, 4),
 		},
 		NotShadowCaster{},
 	)
@@ -113,11 +113,11 @@ func orbitLightSystem(
 	}],
 ) {
 	for item := range query.Items() {
-		pos := glm.RotationYQuat(glm.Rad(vt.Elapsed.Seconds())).Transform(glm.Vec3f{4, 4, 0})
+		pos := glm.RotationYQuat(glm.Rad(vt.Elapsed.Seconds())).Transform(glm.V3f(4, 4, 0))
 		item.Transform.Translation = pos
 
 		// lights shine along local -z, point it at the box (does not matter for the point light)
-		item.Transform.Rotation = glm.QuatFromRotationArc(glm.Vec3f{0, 0, -1}, boxCenter.Sub(pos).Normalize())
+		item.Transform.Rotation = glm.QuatFromRotationArc(glm.V3f(0, 0, -1), boxCenter.Sub(pos).Normalize())
 	}
 }
 

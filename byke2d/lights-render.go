@@ -199,7 +199,7 @@ func extractLightsSystem(
 
 		// light into the negative z axis
 		direction := item.Transform.Affine.
-			Transform(glm.Vec4f{0, 0, -1, 0}).
+			Transform(glm.V4f(0, 0, -1, 0)).
 			Truncate().
 			Normalize()
 
@@ -244,7 +244,7 @@ func extractLightsSystem(
 
 		// light into the negative z axis
 		direction := item.Transform.Affine.
-			Transform(glm.Vec4f{0, 0, -1, 0}).
+			Transform(glm.V4f(0, 0, -1, 0)).
 			Truncate().
 			Normalize()
 
@@ -298,9 +298,9 @@ func extractLightsSystem(
 func lightWorldToView(position, direction glm.Vec3f) glm.Mat4f {
 	// lights are symmetric around their direction, so any up vector works,
 	// as long as it is not parallel to the direction
-	up := glm.Vec3f{0, 1, 0}
+	up := glm.V3f(0, 1, 0)
 	if math32.Abs(direction[1]) > 0.99 {
-		up = glm.Vec3f{1, 0, 0}
+		up = glm.V3f(1, 0, 0)
 	}
 
 	return glm.LookAt(position, position.Add(direction), up)

@@ -34,7 +34,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		OrthographicProjection{ViewportOrigin: glm.Vec2f{0.5, 0.5}},
+		OrthographicProjection{ViewportOrigin: glm.V2f(0.5, 0.5)},
 	)
 
 	commands.Spawn(
@@ -48,7 +48,7 @@ func setupSystem(commands *Commands) {
 // cursorToWorld converts the cursor from window pixels (origin at the top left, y down)
 // to the coordinates of the centered camera (origin in the middle, y up).
 func cursorToWorld(cursor MouseCursor, screen ScreenSize) glm.Vec2f {
-	return glm.Vec2f{cursor.Vec2f[0] - screen.Vec2f[0]/2, screen.Vec2f[1]/2 - cursor.Vec2f[1]}
+	return glm.V2f(cursor.Vec2f[0]-screen.Vec2f[0]/2, screen.Vec2f[1]/2-cursor.Vec2f[1])
 }
 
 func followCursorSystem(
@@ -63,9 +63,9 @@ func followCursorSystem(
 	tr := follower.Value.Transform
 	tr.Translation = cursorToWorld(cursor, screen).Extend(1)
 
-	tr.Scale = glm.Vec3f{1, 1, 1}
+	tr.Scale = glm.V3f(1, 1, 1)
 	if buttons.IsPressed(vyn.MouseButtonRight) {
-		tr.Scale = glm.Vec3f{2, 2, 1}
+		tr.Scale = glm.V3f(2, 2, 1)
 	}
 }
 
@@ -88,6 +88,6 @@ func shrinkDotsSystem(query Query[struct {
 ) {
 	for item := range query.Items() {
 		s := float32(item.Despawn.Timer.FractionRemaining())
-		item.Transform.Scale = glm.Vec3f{s, s, 1}
+		item.Transform.Scale = glm.V3f(s, s, 1)
 	}
 }

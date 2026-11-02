@@ -110,7 +110,7 @@ func renderTextSystem(
 		textSize := item.Cache.Size
 
 		// calculate origin for the text
-		offset := layout.Size.Mul(item.Anchor.Mul(glm.Vec2f{-1, 1}).Add(glm.Vec2f{-0.5, -0.5}))
+		offset := layout.Size.Mul(item.Anchor.Mul(glm.V2f(-1, 1)).Add(glm.V2f(-0.5, -0.5)))
 
 		var posX float32
 		var posY float32
@@ -404,12 +404,12 @@ func (c *GlyphCache) Store(ctx *RenderContext, face *font.Face, fontSize float32
 	result := GlyphTexture{
 		Texture:   tex,
 		Rectangle: region,
-		Offset: glm.Vec2f{
+		Offset: glm.V2f(
 			// left edge of the texture relative to the glyph origin
-			float32(rectGlyph.Min.X - padding),
+			float32(rectGlyph.Min.X-padding),
 			// bottom edge of the texture below the baseline
-			float32(rectGlyph.Max.Y + padding - baseline),
-		},
+			float32(rectGlyph.Max.Y+padding-baseline),
+		),
 	}
 
 	c.cache[key] = result

@@ -35,7 +35,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		OrthographicProjection{ViewportOrigin: glm.Vec2f{0.5, 0.5}},
+		OrthographicProjection{ViewportOrigin: glm.V2f(0.5, 0.5)},
 	)
 
 	// the AudioSink is added to this entity once playback starts

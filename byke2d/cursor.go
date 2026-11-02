@@ -19,11 +19,11 @@ type MouseCursorDelta struct {
 func updateMouseCursorSystem(cursor *MouseCursor, delta *MouseCursorDelta, inputState InputState) {
 	x := inputState.state.Mouse.CursorX
 	y := inputState.state.Mouse.CursorY
-	cursor.Vec2f = glm.Vec2f{x, y}
+	cursor.Vec2f = glm.V2f(x, y)
 	cursor.Touch = inputState.state.Mouse.Touch
 	cursor.Grabbed = inputState.state.Mouse.Grabbed
 
 	dx := inputState.state.Mouse.DeltaX
 	dy := inputState.state.Mouse.DeltaY
-	delta.Vec2f = glm.Vec2f{dx, dy}
+	delta.Vec2f = glm.V2f(dx, dy)
 }

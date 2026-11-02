@@ -7,6 +7,11 @@ import "fmt"
 // Vec3uh is a vector of dimension 3.
 type Vec3uh [3]uint16
 
+// V3uh creates a Vec3uh.
+func V3uh(x, y, z uint16) Vec3uh {
+	return Vec3uh{x, y, z}
+}
+
 func (lhs Vec3uh) Dot(rhs Vec3uh) uint16 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1] + lhs[2]*rhs[2]
 }

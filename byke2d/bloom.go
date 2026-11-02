@@ -74,7 +74,7 @@ var BloomNatural = Bloom{
 	LowFrequencyBoostCurvature: 0.95,
 	HighPassFrequency:          1.0,
 	MaxMipDimension:            512,
-	Scale:                      glm.Vec2f{1, 1},
+	Scale:                      glm.V2f(1, 1),
 }
 
 var bloomBindGroupLayout = SequentialLayout(
@@ -165,7 +165,7 @@ func prepareBloomUniformsSystem(
 ) {
 	for camera := range camerasQuery.Items() {
 		*camera.BloomUniforms = bloomUniforms{
-			Viewport: glm.Vec4f{0, 0, 1, 1},
+			Viewport: glm.V4f(0, 0, 1, 1),
 			Scale:    camera.Bloom.Scale,
 			Aspect:   camera.ViewTarget.Size[0] / camera.ViewTarget.Size[1],
 		}
@@ -306,7 +306,7 @@ func applyBloomSystem(
 
 	defer puffin.NewScope("byke2d.Bloom").End()
 
-	isUniformScale := view.Bloom.Scale == glm.Vec2f{1, 1}
+	isUniformScale := view.Bloom.Scale == glm.V2f(1, 1)
 
 	downsample0 := pipelines.Specialize(bloomPipelineConfig{
 		TargetFormat:    wgpu.TextureFormatRG11B10Ufloat,

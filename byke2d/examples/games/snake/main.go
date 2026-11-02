@@ -76,7 +76,7 @@ func setupSystem(commands *Commands) {
 	// the grid
 	commands.Spawn(
 		TransformFromXYZ(cols*cellSize/2, rows*cellSize/2, -1),
-		MeshInstance{Mesh: Rectangle(glm.Vec2f{cols * cellSize, rows * cellSize})},
+		MeshInstance{Mesh: Rectangle(glm.V2f(cols*cellSize, rows*cellSize))},
 		ColorMaterial{Color: ColorSRGB(0.1, 0.1, 0.15)},
 	)
 
@@ -143,7 +143,7 @@ func stepSystem(commands *Commands, snake *Snake, segments Query[struct {
 	commands.Spawn(
 		Segment{Cell: snake.Head, Steps: snake.Length},
 		TransformAt(snake.Head),
-		MeshInstance{Mesh: Rectangle(glm.Vec2f{cellSize - 2, cellSize - 2})},
+		MeshInstance{Mesh: Rectangle(glm.V2f(cellSize-2, cellSize-2))},
 		ColorMaterial{Color: ColorSRGB(0.4, 0.9, 0.4)},
 	)
 }

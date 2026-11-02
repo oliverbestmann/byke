@@ -105,7 +105,7 @@ type DirectionalLight struct {
 var DefaultDirectionalLight = DirectionalLight{
 	Color:            ColorWhite,
 	Illuminance:      10_000,
-	ShadowVolumes:    []glm.Vec3f{{40, 40, 1000}},
+	ShadowVolumes:    []glm.Vec3f{glm.V3f(40, 40, 1000)},
 	ShadowDepthBias:  0.02,
 	ShadowNormalBias: 1.8,
 }

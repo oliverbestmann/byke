@@ -8,6 +8,11 @@ import "math"
 // Vec2f is a vector of dimension 2.
 type Vec2f [2]float32
 
+// V2f creates a Vec2f.
+func V2f(x, y float32) Vec2f {
+	return Vec2f{x, y}
+}
+
 func (lhs Vec2f) Dot(rhs Vec2f) float32 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1]
 }

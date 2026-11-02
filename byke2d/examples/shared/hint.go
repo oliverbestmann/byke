@@ -25,7 +25,7 @@ func PluginHint(text string) byke.Plugin {
 				byke2d.Camera{Order: 1},
 				byke2d.Camera2d,
 				byke2d.ClearColor{Color: byke2d.ColorSRGBA(0, 0, 0, 0)},
-				byke2d.OrthographicProjection{ViewportOrigin: glm.Vec2f{0, 0}},
+				byke2d.OrthographicProjection{ViewportOrigin: glm.V2f(0, 0)},
 				byke2d.RenderLayersOf(hintLayer),
 			)
 

@@ -19,10 +19,10 @@ type Texture struct {
 }
 
 func (t *Texture) Size() glm.Vec2f {
-	return glm.Vec2f{
+	return glm.V2f(
 		float32(t.Descriptor.Size.Width),
 		float32(t.Descriptor.Size.Height),
-	}
+	)
 }
 
 func (t *Texture) Width() uint32 {

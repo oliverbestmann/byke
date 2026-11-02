@@ -26,15 +26,15 @@ func setupSystem(commands *Commands) {
 		Camera{},
 		// HDR{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(3.0, 1.0, 3.0).LookingAt(glm.Vec3f{0.0, 0.25, 0.0}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(3.0, 1.0, 3.0).LookingAt(glm.V3f(0.0, 0.25, 0.0), glm.V3f(0, 1, 0)),
 	)
 
 	commands.Spawn(
-		TransformFromXYZ(5, 5, 10).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(5, 5, 10).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 		PointLight{Color: ColorLinearRGB(1, 1, 1), Intensity: 100},
 	)
 
-	cube := CubeWithSize(glm.Vec3f{0.5, 0.5, 0.5})
+	cube := CubeWithSize(glm.V3f(0.5, 0.5, 0.5))
 
 	color := Oklch{L: 1, C: 0.75, H: 0}
 

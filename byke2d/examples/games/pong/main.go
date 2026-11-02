@@ -88,7 +88,7 @@ func setupSystem(commands *Commands) {
 		HDR{},
 		TransformFromXYZ(0, 0, -1.0),
 		OrthographicProjection{
-			ViewportOrigin: Vec2f{0.5, 0.5},
+			ViewportOrigin: V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeAutoMin{MinWidth: 1000 + 100, MinHeight: 500 + 50},
 		},
 	)
@@ -96,7 +96,7 @@ func setupSystem(commands *Commands) {
 	// rectangle to highlight the game area
 	commands.Spawn(
 		TransformFromXYZ(0, 0, -0.8),
-		MeshInstance{Mesh: Rectangle(Vec2f{1000, 500})},
+		MeshInstance{Mesh: Rectangle(V2f(1000, 500))},
 		ColorMaterial{Color: ColorSRGBA(0.1, 0.1, 0.1, 1.0)},
 	)
 
@@ -104,7 +104,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(0, 0, -0.2),
 		Ball{},
-		Velocity{Value: Vec2f{2, rng.Float32() * 0.01}.Normalize().Scale(BallSpeed)},
+		Velocity{Value: V2f(2, rng.Float32()*0.01).Normalize().Scale(BallSpeed)},
 		MeshInstance{Mesh: Circle(BallRadius, 32)},
 		ColorMaterial{Color: ColorSRGBA(0, 5, 0, 1.0)},
 	)
@@ -114,7 +114,7 @@ func setupSystem(commands *Commands) {
 		TransformFromXYZ(-PaddleAbsX, 0, -0.1),
 		Paddle{IsLeft: true},
 		PlayerPaddle{},
-		MeshInstance{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
+		MeshInstance{Mesh: Rectangle(V2f(PaddleWidth, PaddleHeight))},
 		ColorMaterial{Color: ColorSRGBA(10, 0, 5, 1.0)},
 		Velocity{},
 	)
@@ -123,7 +123,7 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		TransformFromXYZ(PaddleAbsX, 0, -0.1),
 		Paddle{},
-		MeshInstance{Mesh: Rectangle(Vec2f{PaddleWidth, PaddleHeight})},
+		MeshInstance{Mesh: Rectangle(V2f(PaddleWidth, PaddleHeight))},
 		ColorMaterial{Color: ColorSRGBA(5, 0, 10, 1.0)},
 		Velocity{},
 	)

@@ -42,19 +42,19 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		TransformFromXY(-210, 0),
 		// the fire shader does not read the texture
-		Sprite{Texture: marker, CustomSize: Some(glm.Vec2f{160, 240})},
+		Sprite{Texture: marker, CustomSize: Some(glm.V2f(160, 240))},
 		CustomShader{Shader: fireShader},
 	)
 
 	commands.Spawn(
 		TransformFromXY(0, 0),
-		Sprite{Texture: marker, CustomSize: Some(glm.Vec2f{180, 180})},
+		Sprite{Texture: marker, CustomSize: Some(glm.V2f(180, 180))},
 		CustomShader{Shader: waveShader},
 	)
 
 	commands.Spawn(
 		TransformFromXY(210, 0),
-		Sprite{Texture: rocket, CustomSize: Some(glm.Vec2f{180, 180})},
+		Sprite{Texture: rocket, CustomSize: Some(glm.V2f(180, 180))},
 		CustomShader{Shader: dissolveShader},
 	)
 }

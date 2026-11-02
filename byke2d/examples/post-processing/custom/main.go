@@ -43,14 +43,14 @@ func setupSystem(commands *Commands) {
 		Camera2d,
 		ClearColor{Color: ColorSRGB(0.5, 0.5, 0.5)},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeAutoMin{MinWidth: 800, MinHeight: 600},
 		},
 	)
 
 	meshes := []*Mesh{
 		Circle(60, 64),
-		Rectangle(glm.Vec2f{110, 110}),
+		Rectangle(glm.V2f(110, 110)),
 		RegularPolygon(65, 6),
 		Triangle(65),
 	}

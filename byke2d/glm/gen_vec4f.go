@@ -8,6 +8,11 @@ import "math"
 // Vec4f is a vector of dimension 4.
 type Vec4f [4]float32
 
+// V4f creates a Vec4f.
+func V4f(x, y, z, w float32) Vec4f {
+	return Vec4f{x, y, z, w}
+}
+
 func (lhs Vec4f) Dot(rhs Vec4f) float32 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1] + lhs[2]*rhs[2] + lhs[3]*rhs[3]
 }

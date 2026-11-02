@@ -48,7 +48,7 @@ func (c *TypedColumn[C]) Truncate(n Row) {
 
 func (c *TypedColumn[C]) Access() ColumnAccess {
 	return ColumnAccess{
-		base:   unsafe.Pointer(unsafe.SliceData(c.values)),
+		base: unsafe.Pointer(unsafe.SliceData(c.values)),
 		// TinyGo evaluates the argument of a non-constant Sizeof, so don't index
 		// a possibly empty slice here.
 		stride: unsafe.Sizeof(*new(C)),

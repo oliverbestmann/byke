@@ -247,7 +247,7 @@ func buildCameraViewTarget(textureCache *TextureCache, surfaceValues currentSurf
 	}
 
 	view := &ViewTarget{
-		Size:                 glm.Vec2f{float32(width), float32(height)},
+		Size:                 glm.V2f(float32(width), float32(height)),
 		Format:               format,
 		SurfaceTextureView:   surfaceTextureView,
 		SurfaceTextureFormat: surfaceTextureFormat,

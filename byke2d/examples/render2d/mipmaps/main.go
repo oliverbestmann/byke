@@ -26,7 +26,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{},
 		Camera2d,
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 1100},
 		},
 	)
@@ -38,7 +38,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	for size := float32(512); size >= 16; size /= 2 {
 		commands.Spawn(
 			TransformFromXY(x+size/2, 0),
-			Sprite{Texture: texture, CustomSize: Some(glm.Vec2f{size, size})},
+			Sprite{Texture: texture, CustomSize: Some(glm.V2f(size, size))},
 		)
 
 		x += size + 16

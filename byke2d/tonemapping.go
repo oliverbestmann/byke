@@ -20,8 +20,8 @@ var (
 var tonemappingShader string
 
 var (
-	_D65Xy  = glm.Vec2f{0.31272, 0.32903}
-	_D65Lms = glm.Vec3f{0.975538, 1.01648, 1.08475}
+	_D65Xy  = glm.V2f(0.31272, 0.32903)
+	_D65Lms = glm.V3f(0.975538, 1.01648, 1.08475)
 )
 
 // / The matrix that converts from the RGB to the LMS color space.
@@ -86,7 +86,7 @@ func (c ColorGrading) ToWGPU() []byte {
 	// <https://en.wikipedia.org/wiki/Standard_illuminant#D65_values>
 	//
 	// We then adjust them based on the developer's requested white balance.
-	whitePointXY := _D65Xy.Add(glm.Vec2f{-c.Global.Temperature, c.Global.Tint})
+	whitePointXY := _D65Xy.Add(glm.V2f(-c.Global.Temperature, c.Global.Tint))
 
 	// Convert the white point from CIE 1931 *xy* to LMS. First, we convert to XYZ:
 	//
@@ -102,9 +102,9 @@ func (c ColorGrading) ToWGPU() []byte {
 	//     ⎣ S ⎦   ⎣ -0.002   0.049   0.953 ⎦ ⎣ Z ⎦
 	//
 	// The following formula is just a simplification of the above.
-	whitePointLMS := glm.Vec3f{0.701634, 1.15856, -0.904175}.Add(
-		glm.Vec3f{-0.051461, 0.045854, 0.953127}.Add(
-			glm.Vec3f{0.452749, -0.296122, -0.955206}.Scale(whitePointXY[0]),
+	whitePointLMS := glm.V3f(0.701634, 1.15856, -0.904175).Add(
+		glm.V3f(-0.051461, 0.045854, 0.953127).Add(
+			glm.V3f(0.452749, -0.296122, -0.955206).Scale(whitePointXY[0]),
 		).Scale(1.0 / whitePointXY[1]),
 	)
 
@@ -122,12 +122,12 @@ func (c ColorGrading) ToWGPU() []byte {
 
 	var w wgsl.StructWriter
 	w.AppendMat3f(balance)
-	w.AppendVec3f(glm.Vec3f{c.Shadows.Saturation, c.Midtones.Saturation, c.Highlights.Saturation})
-	w.AppendVec3f(glm.Vec3f{c.Shadows.Contrast, c.Midtones.Contrast, c.Highlights.Contrast})
-	w.AppendVec3f(glm.Vec3f{c.Shadows.Gamma, c.Midtones.Gamma, c.Highlights.Gamma})
-	w.AppendVec3f(glm.Vec3f{c.Shadows.Gain, c.Midtones.Gain, c.Highlights.Gain})
-	w.AppendVec3f(glm.Vec3f{c.Shadows.Lift, c.Midtones.Lift, c.Highlights.Lift})
-	w.AppendVec2f(glm.Vec2f{c.Global.MidtonesRange.Begin, c.Global.MidtonesRange.EndExclusive})
+	w.AppendVec3f(glm.V3f(c.Shadows.Saturation, c.Midtones.Saturation, c.Highlights.Saturation))
+	w.AppendVec3f(glm.V3f(c.Shadows.Contrast, c.Midtones.Contrast, c.Highlights.Contrast))
+	w.AppendVec3f(glm.V3f(c.Shadows.Gamma, c.Midtones.Gamma, c.Highlights.Gamma))
+	w.AppendVec3f(glm.V3f(c.Shadows.Gain, c.Midtones.Gain, c.Highlights.Gain))
+	w.AppendVec3f(glm.V3f(c.Shadows.Lift, c.Midtones.Lift, c.Highlights.Lift))
+	w.AppendVec2f(glm.V2f(c.Global.MidtonesRange.Begin, c.Global.MidtonesRange.EndExclusive))
 	w.AppendFloat32(c.Global.Exposure)
 	w.AppendFloat32(c.Global.Hue)
 	w.AppendFloat32(c.Global.PostSaturation)

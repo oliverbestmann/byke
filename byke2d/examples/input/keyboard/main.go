@@ -39,13 +39,13 @@ func setupSystem(commands *Commands) {
 	commands.Spawn(
 		Camera{},
 		Camera2d,
-		OrthographicProjection{ViewportOrigin: glm.Vec2f{0.5, 0.5}},
+		OrthographicProjection{ViewportOrigin: glm.V2f(0.5, 0.5)},
 	)
 
 	commands.Spawn(
 		Player{},
 		NewTransform(),
-		MeshInstance{Mesh: Rectangle(glm.Vec2f{64, 64})},
+		MeshInstance{Mesh: Rectangle(glm.V2f(64, 64))},
 		ColorMaterial{Color: colors[0]},
 	)
 }

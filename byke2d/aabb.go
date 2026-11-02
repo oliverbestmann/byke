@@ -44,7 +44,7 @@ type Frustum [5]glm.Vec4f
 // FrustumFromClip extracts the planes from the world to clip matrix (Gribb and Hartmann).
 func FrustumFromClip(m glm.Mat4f) Frustum {
 	row := func(idx int) glm.Vec4f {
-		return glm.Vec4f{m[0][idx], m[1][idx], m[2][idx], m[3][idx]}
+		return glm.V4f(m[0][idx], m[1][idx], m[2][idx], m[3][idx])
 	}
 
 	x, y, w := row(0), row(1), row(3)

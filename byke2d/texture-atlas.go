@@ -100,8 +100,8 @@ func TextureAtlasLayoutFromGrid(opts GridOptions) TextureAtlasLayout {
 		y1 := y0 + opts.Height
 
 		layout = append(layout, glm.RectuFromPoints(
-			glm.Vec2u{uint32(x0), uint32(y0)},
-			glm.Vec2u{uint32(x1), uint32(y1)},
+			glm.V2u(uint32(x0), uint32(y0)),
+			glm.V2u(uint32(x1), uint32(y1)),
 		))
 	}
 

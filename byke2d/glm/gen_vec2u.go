@@ -7,6 +7,11 @@ import "fmt"
 // Vec2u is a vector of dimension 2.
 type Vec2u [2]uint32
 
+// V2u creates a Vec2u.
+func V2u(x, y uint32) Vec2u {
+	return Vec2u{x, y}
+}
+
 func (lhs Vec2u) Dot(rhs Vec2u) uint32 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1]
 }

@@ -132,7 +132,7 @@ func sampleQuadCurve(p0, p1, p2 glm.Vec2f, t float32) glm.Vec2f {
 
 	x := omt2*p0[0] + 2*omt*t*p1[0] + t2*p2[0]
 	y := omt2*p0[1] + 2*omt*t*p1[1] + t2*p2[1]
-	return glm.Vec2f{x, y}
+	return glm.V2f(x, y)
 }
 
 func sampleCubicCurve(p0, p1, p2, p3 glm.Vec2f, t float32) glm.Vec2f {
@@ -156,7 +156,7 @@ func sampleCubicCurve(p0, p1, p2, p3 glm.Vec2f, t float32) glm.Vec2f {
 		3*omt*t2*p2[1] +
 		t3*p3[1]
 
-	return glm.Vec2f{x, y}
+	return glm.V2f(x, y)
 }
 
 func appendQuadCurve(points []glm.Vec2f, start, control, end glm.Vec2f, segments int) []glm.Vec2f {
@@ -227,18 +227,18 @@ func cubicFlatEnough(p0, p1, p2, p3 glm.Vec2f, threshold float32) bool {
 }
 
 func mid(a, b glm.Vec2f) glm.Vec2f {
-	return glm.Vec2f{(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5}
+	return glm.V2f((a[0]+b[0])*0.5, (a[1]+b[1])*0.5)
 }
 
 func pointLineDistance(p, a, b glm.Vec2f) float32 {
-	ab := glm.Vec2f{b[0] - a[0], b[1] - a[1]}
-	ap := glm.Vec2f{p[0] - a[0], p[1] - a[1]}
+	ab := glm.V2f(b[0]-a[0], b[1]-a[1])
+	ap := glm.V2f(p[0]-a[0], p[1]-a[1])
 
 	// Project AP onto AB
 	t := (ap[0]*ab[0] + ap[1]*ab[1]) / (ab[0]*ab[0] + ab[1]*ab[1])
 
 	// Closest point on AB
-	closest := glm.Vec2f{a[0] + t*ab[0], a[1] + t*ab[1]}
+	closest := glm.V2f(a[0]+t*ab[0], a[1]+t*ab[1])
 
 	// Distance AP→closest
 	dx := p[0] - closest[0]

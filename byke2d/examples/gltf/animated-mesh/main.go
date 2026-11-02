@@ -27,24 +27,24 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{},
 		HDR{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(100, 100, 150).LookingAt(glm.Vec3f{0, 20, 0}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(100, 100, 150).LookingAt(glm.V3f(0, 20, 0), glm.V3f(0, 1, 0)),
 	)
 
 	commands.Spawn(
 		NewTransform(),
-		MeshInstance{Mesh: PlaneWithSize(glm.Vec2f{500, 500})},
+		MeshInstance{Mesh: PlaneWithSize(glm.V2f(500, 500))},
 		StandardMaterial{BaseColor: ColorSRGB(0.3, 0.5, 0.3), PerceptualRoughness: 1},
 	)
 
 	commands.Spawn(
 		// the shadow volume starts at the light, so place it above the scene
-		TransformFromXYZ(100, 200, 50).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(100, 200, 50).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 		DirectionalLight{
 			Color:          ColorWhite,
 			Illuminance:    DefaultDirectionalLight.Illuminance,
 			ShadowsEnabled: true,
 			ShadowVolumes: []glm.Vec3f{
-				{400, 400, 400},
+				glm.V3f(400, 400, 400),
 			},
 			ShadowDepthBias:  DefaultDirectionalLight.ShadowDepthBias,
 			ShadowNormalBias: DefaultDirectionalLight.ShadowNormalBias,

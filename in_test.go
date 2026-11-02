@@ -12,8 +12,8 @@ func TestInSystemParamStateValue(t *testing.T) {
 
 	var systemWasCalledWith glm.Vec3f
 	system := func(inValue In[glm.Vec3f]) { systemWasCalledWith = inValue.Value }
-	world.RunSystemWithInValue(system, glm.Vec3f{1, 2, 3})
-	require.Equal(t, glm.Vec3f{1, 2, 3}, systemWasCalledWith)
+	world.RunSystemWithInValue(system, glm.V3f(1, 2, 3))
+	require.Equal(t, glm.V3f(1, 2, 3), systemWasCalledWith)
 }
 
 func TestInSystemParamStatePointerValue(t *testing.T) {
@@ -21,6 +21,6 @@ func TestInSystemParamStatePointerValue(t *testing.T) {
 
 	var systemWasCalledWith *glm.Vec3f
 	system := func(inValue In[*glm.Vec3f]) { systemWasCalledWith = inValue.Value }
-	world.RunSystemWithInValue(system, new(glm.Vec3f{1, 2, 3}))
-	require.Equal(t, glm.Vec3f{1, 2, 3}, *systemWasCalledWith)
+	world.RunSystemWithInValue(system, new(glm.V3f(1, 2, 3)))
+	require.Equal(t, glm.V3f(1, 2, 3), *systemWasCalledWith)
 }

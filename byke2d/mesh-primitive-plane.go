@@ -5,7 +5,7 @@ import (
 )
 
 func Plane() *Mesh {
-	return PlaneWithSize(glm.Vec2f{1, 1})
+	return PlaneWithSize(glm.V2f(1, 1))
 }
 
 func PlaneWithSize(size glm.Vec2f) *Mesh {
@@ -13,10 +13,10 @@ func PlaneWithSize(size glm.Vec2f) *Mesh {
 	hz := size[1] / 2
 
 	vertices := []glm.Vec3f{
-		{-hx, 0, -hz},
-		{hx, 0, -hz},
-		{hx, 0, hz},
-		{-hx, 0, hz},
+		glm.V3f(-hx, 0, -hz),
+		glm.V3f(hx, 0, -hz),
+		glm.V3f(hx, 0, hz),
+		glm.V3f(-hx, 0, hz),
 	}
 
 	indices := []uint32{
@@ -25,14 +25,14 @@ func PlaneWithSize(size glm.Vec2f) *Mesh {
 	}
 
 	uvs := []glm.Vec2f{
-		{0.0, 0.0}, {0.0, 1.0}, {1.0, 0.0}, {1.0, 1.0},
+		glm.V2f(0.0, 0.0), glm.V2f(0.0, 1.0), glm.V2f(1.0, 0.0), glm.V2f(1.0, 1.0),
 	}
 
 	normals := []glm.Vec3f{
-		{0.0, 1.0, 0.0},
-		{0.0, 1.0, 0.0},
-		{0.0, 1.0, 0.0},
-		{0.0, 1.0, 0.0},
+		glm.V3f(0.0, 1.0, 0.0),
+		glm.V3f(0.0, 1.0, 0.0),
+		glm.V3f(0.0, 1.0, 0.0),
+		glm.V3f(0.0, 1.0, 0.0),
 	}
 
 	return MeshOf(indices, vertices).

@@ -29,15 +29,15 @@ func setupSystem(commands *Commands, assets *Assets) {
 		Camera{},
 		Camera2d,
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: viewWidth},
 		},
 	)
 
 	meshes := []*Mesh{
 		Circle(50, 32),
-		Ellipse(glm.Vec2f{100, 50}, 32),
-		Rectangle(glm.Vec2f{80, 60}),
+		Ellipse(glm.V2f(100, 50), 32),
+		Rectangle(glm.V2f(80, 60)),
 		Triangle(50),
 		RegularPolygon(50, 6),
 		CircularSector(50, 1, 16),

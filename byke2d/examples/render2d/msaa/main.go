@@ -41,7 +41,7 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 		Camera2d,
 		RenderLayersOf(1),
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 140},
 		},
 	)
@@ -74,7 +74,7 @@ func spawnTextureCamera(commands *Commands, ctx *RenderContext, msaa bool) *Text
 		Camera{},
 		Camera2d,
 		RenderTarget{Texture: AsRenderTexture(texture)},
-		OrthographicProjection{ViewportOrigin: glm.Vec2f{0.5, 0.5}},
+		OrthographicProjection{ViewportOrigin: glm.V2f(0.5, 0.5)},
 	)
 
 	if msaa {

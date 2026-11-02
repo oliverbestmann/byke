@@ -59,12 +59,12 @@ func ColorSRGB(r, g, b float32) Color {
 // ToVec returns a glm.Vec4f containing the components of this Color instance in
 // linear rgb space.
 func (c Color) ToVec() glm.Vec4f {
-	return glm.Vec4f{
-		c.r1 + 1,
-		c.g1 + 1,
-		c.b1 + 1,
-		c.a1 + 1,
-	}
+	return glm.V4f(
+		c.r1+1,
+		c.g1+1,
+		c.b1+1,
+		c.a1+1,
+	)
 }
 
 func (c Color) IsBlack() bool {
@@ -78,11 +78,11 @@ func (c Color) IsWhite() bool {
 // ToVec3f returns a glm.Vec3f containing the components of this Color instance in
 // linear rgb space, dropping the alpha channel
 func (c Color) ToVec3f() glm.Vec3f {
-	return glm.Vec3f{
-		c.r1 + 1,
-		c.g1 + 1,
-		c.b1 + 1,
-	}
+	return glm.V3f(
+		c.r1+1,
+		c.g1+1,
+		c.b1+1,
+	)
 }
 
 // Components returns the color components.

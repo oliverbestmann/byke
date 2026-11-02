@@ -28,10 +28,10 @@ type ViewUniforms struct {
 func (v ViewUniforms) ToWGPU() []byte {
 	var w wgsl.StructWriter
 
-	w.AppendVec4f(glm.Vec4f{
+	w.AppendVec4f(glm.V4f(
 		v.ViewportOrigin[0], v.ViewportOrigin[1],
 		v.ViewportSize[0], v.ViewportSize[1],
-	})
+	))
 
 	w.AppendMat4f(v.CameraToScreen)
 	w.AppendMat4f(v.CameraToScreenInv)

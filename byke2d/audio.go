@@ -63,7 +63,7 @@ func init() {
 func pluginAudio(app *byke.App) {
 	app.InsertResource(AudioContext{audioContext})
 	app.InsertResource(GlobalVolume{Volume: 1.0})
-	app.InsertResource(GlobalSpatialScale{Scale: glm.Vec3f{1, 1, 1}})
+	app.InsertResource(GlobalSpatialScale{Scale: glm.V3f(1, 1, 1)})
 
 	app.AddSystems(byke.PostUpdate, byke.
 		System(createAudioSinkSystem, adjustSpatialAudioVolume, cleanupAudioSinkSystem).

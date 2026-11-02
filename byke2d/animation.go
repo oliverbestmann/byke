@@ -64,11 +64,11 @@ func (FloatInterpolator) Interpolate(a, b float32, alpha float32) float32 {
 type Vec3fInterpolator struct{}
 
 func (Vec3fInterpolator) Interpolate(a, b glm.Vec3f, alpha float32) glm.Vec3f {
-	return glm.Vec3f{
-		a[0] + (b[0]-a[0])*alpha,
-		a[1] + (b[1]-a[1])*alpha,
-		a[2] + (b[2]-a[2])*alpha,
-	}
+	return glm.V3f(
+		a[0]+(b[0]-a[0])*alpha,
+		a[1]+(b[1]-a[1])*alpha,
+		a[2]+(b[2]-a[2])*alpha,
+	)
 }
 
 // QuatInterpolator implements spherical linear interpolation for quaternion values.

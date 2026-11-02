@@ -8,6 +8,11 @@ import "math"
 // Vec3d is a vector of dimension 3.
 type Vec3d [3]float64
 
+// V3d creates a Vec3d.
+func V3d(x, y, z float64) Vec3d {
+	return Vec3d{x, y, z}
+}
+
 func (lhs Vec3d) Dot(rhs Vec3d) float64 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1] + lhs[2]*rhs[2]
 }

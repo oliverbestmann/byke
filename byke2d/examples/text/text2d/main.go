@@ -26,7 +26,7 @@ func setupSystem(commands *Commands) {
 		Camera{},
 		Camera2d,
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 		},
 	)
 

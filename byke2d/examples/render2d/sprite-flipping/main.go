@@ -37,7 +37,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	}
 
 	for idx, sprite := range sprites {
-		sprite.CustomSize = Some(glm.Vec2f{128, 128})
+		sprite.CustomSize = Some(glm.V2f(128, 128))
 
 		commands.Spawn(
 			TransformFromXY(float32(idx)*150-225, 0),

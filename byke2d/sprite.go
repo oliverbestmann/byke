@@ -43,15 +43,15 @@ type Anchor struct {
 }
 
 var (
-	AnchorTopLeft      = &Anchor{Vec2f: glm.Vec2f{-0.5, -0.5}}
-	AnchorTopCenter    = &Anchor{Vec2f: glm.Vec2f{0.0, -0.5}}
-	AnchorTopRight     = &Anchor{Vec2f: glm.Vec2f{0.5, -0.5}}
-	AnchorCenterLeft   = &Anchor{Vec2f: glm.Vec2f{-0.5, 0}}
-	AnchorCenter       = &Anchor{Vec2f: glm.Vec2f{0.0, 0}}
-	AnchorCenterRight  = &Anchor{Vec2f: glm.Vec2f{0.5, 0}}
-	AnchorBottomLeft   = &Anchor{Vec2f: glm.Vec2f{-0.5, 0.5}}
-	AnchorBottomCenter = &Anchor{Vec2f: glm.Vec2f{0.0, 0.5}}
-	AnchorBottomRight  = &Anchor{Vec2f: glm.Vec2f{0.5, 0.5}}
+	AnchorTopLeft      = &Anchor{Vec2f: glm.V2f(-0.5, -0.5)}
+	AnchorTopCenter    = &Anchor{Vec2f: glm.V2f(0.0, -0.5)}
+	AnchorTopRight     = &Anchor{Vec2f: glm.V2f(0.5, -0.5)}
+	AnchorCenterLeft   = &Anchor{Vec2f: glm.V2f(-0.5, 0)}
+	AnchorCenter       = &Anchor{Vec2f: glm.V2f(0.0, 0)}
+	AnchorCenterRight  = &Anchor{Vec2f: glm.V2f(0.5, 0)}
+	AnchorBottomLeft   = &Anchor{Vec2f: glm.V2f(-0.5, 0.5)}
+	AnchorBottomCenter = &Anchor{Vec2f: glm.V2f(0.0, 0.5)}
+	AnchorBottomRight  = &Anchor{Vec2f: glm.V2f(0.5, 0.5)}
 )
 
 func pluginSprite(app *byke.App) {

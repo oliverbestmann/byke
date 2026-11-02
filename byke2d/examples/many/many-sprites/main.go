@@ -33,7 +33,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Camera{Order: 0},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.0, 0.0},
+			ViewportOrigin: glm.V2f(0.0, 0.0),
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 1000},
 		},
 	)
@@ -53,11 +53,11 @@ func setupSystem(commands *Commands, assets *Assets) {
 
 			Sprite{
 				Texture:    asset,
-				CustomSize: Some(glm.Vec2f{32, 32}),
+				CustomSize: Some(glm.V2f(32, 32)),
 				Color:      ColorSRGBA(1, 1, 1, 0.01),
 			},
 
-			Velocity{Vec2f: glm.Vec2f{rng.Float32() - 0.5, rng.Float32() - 0.5}.Scale(32)},
+			Velocity{Vec2f: glm.V2f(rng.Float32()-0.5, rng.Float32()-0.5).Scale(32)},
 		)
 	}
 }

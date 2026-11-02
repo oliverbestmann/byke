@@ -28,7 +28,7 @@ func setupSystem(commands *Commands) {
 		Camera{},
 		Camera2d,
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 600},
 		},
 	)
@@ -53,11 +53,11 @@ func setupSystem(commands *Commands) {
 
 func heart() Path {
 	var path Path
-	path.MoveTo(glm.Vec2f{0, -70})
-	path.CubicCurveTo(glm.Vec2f{-20, -50}, glm.Vec2f{-80, -20}, glm.Vec2f{-80, 20})
-	path.CubicCurveTo(glm.Vec2f{-80, 60}, glm.Vec2f{-20, 70}, glm.Vec2f{0, 40})
-	path.CubicCurveTo(glm.Vec2f{20, 70}, glm.Vec2f{80, 60}, glm.Vec2f{80, 20})
-	path.CubicCurveTo(glm.Vec2f{80, -20}, glm.Vec2f{20, -50}, glm.Vec2f{0, -70})
+	path.MoveTo(glm.V2f(0, -70))
+	path.CubicCurveTo(glm.V2f(-20, -50), glm.V2f(-80, -20), glm.V2f(-80, 20))
+	path.CubicCurveTo(glm.V2f(-80, 60), glm.V2f(-20, 70), glm.V2f(0, 40))
+	path.CubicCurveTo(glm.V2f(20, 70), glm.V2f(80, 60), glm.V2f(80, 20))
+	path.CubicCurveTo(glm.V2f(80, -20), glm.V2f(20, -50), glm.V2f(0, -70))
 	path.Close()
 	return path
 }
@@ -72,7 +72,7 @@ func star() Path {
 		}
 
 		angle := math.Pi/2 + float64(idx)*math.Pi/5
-		point := glm.Vec2f{float32(math.Cos(angle)), float32(math.Sin(angle))}.Scale(radius)
+		point := glm.V2f(float32(math.Cos(angle)), float32(math.Sin(angle))).Scale(radius)
 
 		if idx == 0 {
 			path.MoveTo(point)
@@ -87,9 +87,9 @@ func star() Path {
 
 func crescent() Path {
 	var path Path
-	path.MoveTo(glm.Vec2f{20, 75})
-	path.QuadCurveTo(glm.Vec2f{-140, 0}, glm.Vec2f{20, -75})
-	path.QuadCurveTo(glm.Vec2f{-60, 0}, glm.Vec2f{20, 75})
+	path.MoveTo(glm.V2f(20, 75))
+	path.QuadCurveTo(glm.V2f(-140, 0), glm.V2f(20, -75))
+	path.QuadCurveTo(glm.V2f(-60, 0), glm.V2f(20, 75))
 	path.Close()
 	return path
 }

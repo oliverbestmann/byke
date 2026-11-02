@@ -8,6 +8,11 @@ import "math"
 // Vec3f is a vector of dimension 3.
 type Vec3f [3]float32
 
+// V3f creates a Vec3f.
+func V3f(x, y, z float32) Vec3f {
+	return Vec3f{x, y, z}
+}
+
 func (lhs Vec3f) Dot(rhs Vec3f) float32 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1] + lhs[2]*rhs[2]
 }

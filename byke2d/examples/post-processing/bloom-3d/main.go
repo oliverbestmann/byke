@@ -29,14 +29,14 @@ func setupSystem(commands *Commands) {
 		HDR{},
 		ClearColor{Color: ColorBlack},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(-2, 2.5, 5).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(-2, 2.5, 5).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 	)
 
 	// emissive values above 1 are what makes the material glow
 	materials := []StandardMaterial{
-		{BaseColor: ColorWhite, EmissiveScale: glm.Vec3f{13.99, 5.32, 2.0}},
-		{BaseColor: ColorWhite, EmissiveScale: glm.Vec3f{2.0, 13.99, 5.32}},
-		{BaseColor: ColorWhite, EmissiveScale: glm.Vec3f{5.32, 2.0, 13.99}},
+		{BaseColor: ColorWhite, EmissiveScale: glm.V3f(13.99, 5.32, 2.0)},
+		{BaseColor: ColorWhite, EmissiveScale: glm.V3f(2.0, 13.99, 5.32)},
+		{BaseColor: ColorWhite, EmissiveScale: glm.V3f(5.32, 2.0, 13.99)},
 	}
 
 	nonEmissive := StandardMaterial{BaseColor: ColorSRGB(0.5, 0.5, 0.5), PerceptualRoughness: 0.5}

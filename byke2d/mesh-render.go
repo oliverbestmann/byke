@@ -164,7 +164,7 @@ func queueMeshInstancesSystem(
 	for view := range viewsQuery.Items() {
 		// forward axis of camera, i.e. view direction
 		forwardCameraAxis := view.Transform.Affine.
-			Transform(glm.Vec4f{0, 0, -1, 0}).
+			Transform(glm.V4f(0, 0, -1, 0)).
 			Truncate().
 			Normalize()
 

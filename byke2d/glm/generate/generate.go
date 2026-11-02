@@ -308,6 +308,11 @@ import "math"
 // {{.Name}} is a vector of dimension {{.Len}}.
 type {{.Name}} [{{ .Len }}]{{.ComponentType}}
 
+// V{{.Len}}{{.ComponentTypeSuffix}} creates a {{.Name}}.
+func V{{.Len}}{{.ComponentTypeSuffix}}({{ range $idx := .Len }}{{ sep $idx "" ", "}}{{ component $idx }}{{ end }} {{.ComponentType}}) {{.Type}} {
+	return {{.Type}}{ {{- range $idx := .Len }}{{ sep $idx "" ", "}}{{ component $idx }}{{ end -}} }
+}
+
 func (lhs {{.Type}}) Dot(rhs {{.Type}}) {{.ComponentType}} {
 	return {{ range $idx := .Len }} {{ sep $idx "" "+"}} lhs[{{$idx}}] * rhs[{{$idx}}] {{ end }}
 }

@@ -79,7 +79,7 @@ func setupDebugCameraSystem(commands *byke.Commands, options DebugOptions) {
 		ClearColor{Color: ColorSRGBA(0, 0, 0, 0)},
 		OrthographicProjection{
 			// origin at the top left, y points up
-			ViewportOrigin: glm.Vec2f{0, 1},
+			ViewportOrigin: glm.V2f(0, 1),
 			ScalingMode:    ScalingModeWindowSize{},
 			//  ScalingModeFixedVertical{ViewportHeight: 600},
 		},

@@ -33,7 +33,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	commands.Spawn(
 		Camera{Order: 0},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.0, 0.0},
+			ViewportOrigin: glm.V2f(0.0, 0.0),
 			ScalingMode:    ScalingModeFixedHorizontal{ViewportWidth: 1000},
 		},
 	)
@@ -43,7 +43,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 	// fixed seed, so every run spawns the same sprites
 	rng := rand.New(rand.NewPCG(1, 2))
 
-	rect := Rectangle(glm.Vec2f{32, 32})
+	rect := Rectangle(glm.V2f(32, 32))
 
 	for idx := range SpriteCount {
 		z := float32(idx) / SpriteCount
@@ -61,7 +61,7 @@ func setupSystem(commands *Commands, assets *Assets) {
 				AlphaCutoff: 0.5,
 			},
 
-			Velocity{Vec2f: glm.Vec2f{rng.Float32() - 0.5, rng.Float32() - 0.5}.Scale(32)},
+			Velocity{Vec2f: glm.V2f(rng.Float32()-0.5, rng.Float32()-0.5).Scale(32)},
 		)
 	}
 }

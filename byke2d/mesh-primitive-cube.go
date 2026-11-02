@@ -5,7 +5,7 @@ import (
 )
 
 func Cube() *Mesh {
-	return CubeWithSize(glm.Vec3f{1, 1, 1})
+	return CubeWithSize(glm.V3f(1, 1, 1))
 }
 
 func CubeWithSize(size glm.Vec3f) *Mesh {
@@ -15,35 +15,35 @@ func CubeWithSize(size glm.Vec3f) *Mesh {
 
 	vertices := []glm.Vec3f{
 		// top (facing towards +y)
-		{-hx, hy, -hz},
-		{hx, hy, -hz},
-		{hx, hy, hz},
-		{-hx, hy, hz},
+		glm.V3f(-hx, hy, -hz),
+		glm.V3f(hx, hy, -hz),
+		glm.V3f(hx, hy, hz),
+		glm.V3f(-hx, hy, hz),
 		// bottom   (-y)
-		{-hx, -hy, -hz},
-		{hx, -hy, -hz},
-		{hx, -hy, hz},
-		{-hx, -hy, hz},
+		glm.V3f(-hx, -hy, -hz),
+		glm.V3f(hx, -hy, -hz),
+		glm.V3f(hx, -hy, hz),
+		glm.V3f(-hx, -hy, hz),
 		// right    (+x)
-		{hx, -hy, -hz},
-		{hx, -hy, hz},
-		{hx, hy, hz},
-		{hx, hy, -hz},
+		glm.V3f(hx, -hy, -hz),
+		glm.V3f(hx, -hy, hz),
+		glm.V3f(hx, hy, hz),
+		glm.V3f(hx, hy, -hz),
 		// left     (-x)
-		{-hx, -hy, -hz},
-		{-hx, -hy, hz},
-		{-hx, hy, hz},
-		{-hx, hy, -hz},
+		glm.V3f(-hx, -hy, -hz),
+		glm.V3f(-hx, -hy, hz),
+		glm.V3f(-hx, hy, hz),
+		glm.V3f(-hx, hy, -hz),
 		// back     (+z)
-		{-hx, -hy, hz},
-		{-hx, hy, hz},
-		{hx, hy, hz},
-		{hx, -hy, hz},
+		glm.V3f(-hx, -hy, hz),
+		glm.V3f(-hx, hy, hz),
+		glm.V3f(hx, hy, hz),
+		glm.V3f(hx, -hy, hz),
 		// forward  (-z)
-		{-hx, -hy, -hz},
-		{-hx, hy, -hz},
-		{hx, hy, -hz},
-		{hx, -hy, -hz},
+		glm.V3f(-hx, -hy, -hz),
+		glm.V3f(-hx, hy, -hz),
+		glm.V3f(hx, hy, -hz),
+		glm.V3f(hx, -hy, -hz),
 	}
 
 	indices := []uint32{
@@ -58,50 +58,50 @@ func CubeWithSize(size glm.Vec3f) *Mesh {
 	// each face maps the full texture, upright when looking at the face from outside
 	uvs := []glm.Vec2f{
 		// top (+y)
-		{0, 0}, {1, 0}, {1, 1}, {0, 1},
+		glm.V2f(0, 0), glm.V2f(1, 0), glm.V2f(1, 1), glm.V2f(0, 1),
 		// bottom (-y)
-		{0, 1}, {1, 1}, {1, 0}, {0, 0},
+		glm.V2f(0, 1), glm.V2f(1, 1), glm.V2f(1, 0), glm.V2f(0, 0),
 		// right (+x)
-		{1, 1}, {0, 1}, {0, 0}, {1, 0},
+		glm.V2f(1, 1), glm.V2f(0, 1), glm.V2f(0, 0), glm.V2f(1, 0),
 		// left (-x)
-		{0, 1}, {1, 1}, {1, 0}, {0, 0},
+		glm.V2f(0, 1), glm.V2f(1, 1), glm.V2f(1, 0), glm.V2f(0, 0),
 		// back (+z)
-		{0, 1}, {0, 0}, {1, 0}, {1, 1},
+		glm.V2f(0, 1), glm.V2f(0, 0), glm.V2f(1, 0), glm.V2f(1, 1),
 		// forward (-z)
-		{1, 1}, {1, 0}, {0, 0}, {0, 1},
+		glm.V2f(1, 1), glm.V2f(1, 0), glm.V2f(0, 0), glm.V2f(0, 1),
 	}
 
 	normals := []glm.Vec3f{
 		// Normals for the top side (towards +y)
-		{0.0, 1.0, 0.0},
-		{0.0, 1.0, 0.0},
-		{0.0, 1.0, 0.0},
-		{0.0, 1.0, 0.0},
+		glm.V3f(0.0, 1.0, 0.0),
+		glm.V3f(0.0, 1.0, 0.0),
+		glm.V3f(0.0, 1.0, 0.0),
+		glm.V3f(0.0, 1.0, 0.0),
 		// Normals for the bottom side (towards -y)
-		{0.0, -1.0, 0.0},
-		{0.0, -1.0, 0.0},
-		{0.0, -1.0, 0.0},
-		{0.0, -1.0, 0.0},
+		glm.V3f(0.0, -1.0, 0.0),
+		glm.V3f(0.0, -1.0, 0.0),
+		glm.V3f(0.0, -1.0, 0.0),
+		glm.V3f(0.0, -1.0, 0.0),
 		// Normals for the right side (towards +x)
-		{1.0, 0.0, 0.0},
-		{1.0, 0.0, 0.0},
-		{1.0, 0.0, 0.0},
-		{1.0, 0.0, 0.0},
+		glm.V3f(1.0, 0.0, 0.0),
+		glm.V3f(1.0, 0.0, 0.0),
+		glm.V3f(1.0, 0.0, 0.0),
+		glm.V3f(1.0, 0.0, 0.0),
 		// Normals for the left side (towards -x)
-		{-1.0, 0.0, 0.0},
-		{-1.0, 0.0, 0.0},
-		{-1.0, 0.0, 0.0},
-		{-1.0, 0.0, 0.0},
+		glm.V3f(-1.0, 0.0, 0.0),
+		glm.V3f(-1.0, 0.0, 0.0),
+		glm.V3f(-1.0, 0.0, 0.0),
+		glm.V3f(-1.0, 0.0, 0.0),
 		// Normals for the back side (towards +z)
-		{0.0, 0.0, 1.0},
-		{0.0, 0.0, 1.0},
-		{0.0, 0.0, 1.0},
-		{0.0, 0.0, 1.0},
+		glm.V3f(0.0, 0.0, 1.0),
+		glm.V3f(0.0, 0.0, 1.0),
+		glm.V3f(0.0, 0.0, 1.0),
+		glm.V3f(0.0, 0.0, 1.0),
 		// Normals for the forward side (towards -z)
-		{0.0, 0.0, -1.0},
-		{0.0, 0.0, -1.0},
-		{0.0, 0.0, -1.0},
-		{0.0, 0.0, -1.0},
+		glm.V3f(0.0, 0.0, -1.0),
+		glm.V3f(0.0, 0.0, -1.0),
+		glm.V3f(0.0, 0.0, -1.0),
+		glm.V3f(0.0, 0.0, -1.0),
 	}
 
 	return MeshOf(indices, vertices).

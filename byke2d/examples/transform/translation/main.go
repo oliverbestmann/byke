@@ -45,7 +45,7 @@ func setupSystem(commands *Commands) {
 		Camera3d,
 		Camera{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0, 5, 10).LookingAt(glm.Vec3f{0, 0, 0}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0, 5, 10).LookingAt(glm.V3f(0, 0, 0), glm.V3f(0, 1, 0)),
 	)
 
 	// Add a light source so we can see clearly.
@@ -69,7 +69,7 @@ func moveCubeSystem(
 			item.Movable.Speed *= -1
 		}
 
-		direction := item.Transform.Rotation.Transform(glm.Vec3f{1, 0, 0})
+		direction := item.Transform.Rotation.Transform(glm.V3f(1, 0, 0))
 		item.Transform.Translation = item.Transform.Translation.Add(direction.Scale(item.Movable.Speed * vt.DeltaSecs))
 	}
 }

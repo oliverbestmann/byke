@@ -87,17 +87,17 @@ func setupSystem(commands *Commands) {
 		MSAA{},
 		ClearColor{Color: ColorBlack},
 		OrthographicProjection{
-			ViewportOrigin: glm.Vec2f{0.5, 0.5},
+			ViewportOrigin: glm.V2f(0.5, 0.5),
 			ScalingMode:    ScalingModeAutoMin{MinWidth: areaWidth, MinHeight: areaHeight},
 		},
 	)
 
 	// an arrow pointing to the right, with a notch at the back
 	var path Path
-	path.MoveTo(glm.Vec2f{shipRadius, 0})
-	path.LineTo(glm.Vec2f{-12, 12})
-	path.LineTo(glm.Vec2f{-6, 0})
-	path.LineTo(glm.Vec2f{-12, -12})
+	path.MoveTo(glm.V2f(shipRadius, 0))
+	path.LineTo(glm.V2f(-12, 12))
+	path.LineTo(glm.V2f(-6, 0))
+	path.LineTo(glm.V2f(-12, -12))
 	path.Close()
 
 	commands.Spawn(
@@ -128,7 +128,7 @@ func spawnRock(commands *Commands, pos glm.Vec2f, radius float32) {
 	for idx := range 12 {
 		angle := float64(idx) / 12 * 2 * math.Pi
 		dist := radius * (0.6 + 0.4*rng.Float32())
-		point := glm.Vec2f{float32(math.Cos(angle)), float32(math.Sin(angle))}.Scale(dist)
+		point := glm.V2f(float32(math.Cos(angle)), float32(math.Sin(angle))).Scale(dist)
 
 		if idx == 0 {
 			path.MoveTo(point)
@@ -145,7 +145,7 @@ func spawnRock(commands *Commands, pos glm.Vec2f, radius float32) {
 
 	commands.Spawn(
 		Rock{Radius: radius},
-		Velocity{Vec2f: glm.Vec2f{float32(math.Cos(angle)), float32(math.Sin(angle))}.Scale(speed)},
+		Velocity{Vec2f: glm.V2f(float32(math.Cos(angle)), float32(math.Sin(angle))).Scale(speed)},
 		Spin{Speed: glm.Rad(rng.Float32()*2 - 1)},
 		TransformFromXY(pos[0], pos[1]),
 		MeshInstance{Mesh: outline(path, radius)},
@@ -154,7 +154,7 @@ func spawnRock(commands *Commands, pos glm.Vec2f, radius float32) {
 }
 
 func forward(angle glm.Rad) glm.Vec2f {
-	return glm.Vec2f{float32(math.Cos(float64(angle))), float32(math.Sin(float64(angle)))}
+	return glm.V2f(float32(math.Cos(float64(angle))), float32(math.Sin(float64(angle))))
 }
 
 func steerSystem(vt VirtualTime, keys Keys, ship Single[struct {
@@ -216,7 +216,7 @@ func moveSystem(vt VirtualTime, query Query[struct {
 
 	for item := range query.Items() {
 		pos := item.Transform.Translation.Add(item.Velocity.Scale(vt.DeltaSecs).Extend(0))
-		item.Transform.Translation = glm.Vec3f{wrap(pos[0], areaWidth/2), wrap(pos[1], areaHeight/2), pos[2]}
+		item.Transform.Translation = glm.V3f(wrap(pos[0], areaWidth/2), wrap(pos[1], areaHeight/2), pos[2])
 	}
 }
 
@@ -293,7 +293,7 @@ func shrinkSystem(query Query[struct {
 ) {
 	for item := range query.Items() {
 		s := float32(item.Despawn.Timer.FractionRemaining())
-		item.Transform.Scale = glm.Vec3f{s, s, 1}
+		item.Transform.Scale = glm.V3f(s, s, 1)
 	}
 }
 

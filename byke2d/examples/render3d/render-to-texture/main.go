@@ -33,7 +33,7 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 		MipmapLevels: 1,
 	})
 
-	cube := CubeWithSize(glm.Vec3f{4, 4, 4})
+	cube := CubeWithSize(glm.V3f(4, 4, 4))
 
 	// the cube rendered into the texture, only visible to the first camera
 	commands.Spawn(
@@ -57,7 +57,7 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 		ClearColor{Color: ColorWhite},
 		RenderLayersOf(1),
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0, 0, 15).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0, 0, 15).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 	)
 
 	// the main cube shows the texture
@@ -78,6 +78,6 @@ func setupSystem(commands *Commands, ctx *RenderContext) {
 		Camera3d,
 		Camera{},
 		DefaultPerspectiveProjection,
-		TransformFromXYZ(0, 0, 15).LookingAt(glm.Vec3f{}, glm.Vec3f{0, 1, 0}),
+		TransformFromXYZ(0, 0, 15).LookingAt(glm.Vec3f{}, glm.V3f(0, 1, 0)),
 	)
 }

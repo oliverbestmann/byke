@@ -49,12 +49,12 @@ type ShadowView struct {
 // layer order of a cube texture (+x, -x, +y, -y, +z, -z). Cube maps are left-handed,
 // so the z faces are swapped and the shader flips z when sampling. Same as Bevy.
 var cubeMapFaces = [6]struct{ Target, Up glm.Vec3f }{
-	{glm.Vec3f{1, 0, 0}, glm.Vec3f{0, 1, 0}},
-	{glm.Vec3f{-1, 0, 0}, glm.Vec3f{0, 1, 0}},
-	{glm.Vec3f{0, 1, 0}, glm.Vec3f{0, 0, 1}},
-	{glm.Vec3f{0, -1, 0}, glm.Vec3f{0, 0, -1}},
-	{glm.Vec3f{0, 0, -1}, glm.Vec3f{0, 1, 0}},
-	{glm.Vec3f{0, 0, 1}, glm.Vec3f{0, 1, 0}},
+	{glm.V3f(1, 0, 0), glm.V3f(0, 1, 0)},
+	{glm.V3f(-1, 0, 0), glm.V3f(0, 1, 0)},
+	{glm.V3f(0, 1, 0), glm.V3f(0, 0, 1)},
+	{glm.V3f(0, -1, 0), glm.V3f(0, 0, -1)},
+	{glm.V3f(0, 0, -1), glm.V3f(0, 1, 0)},
+	{glm.V3f(0, 0, 1), glm.V3f(0, 1, 0)},
 }
 
 // shadowMaps holds the depth textures of all shadow casting lights.
@@ -274,7 +274,7 @@ func shadowViewUniforms(worldToCamera, cameraToScreen glm.Mat4f, position glm.Ve
 	worldToCameraInv, _ := worldToCamera.TryInverse()
 
 	return ViewUniforms{
-		ViewportSize:      glm.Vec2f{float32(size), float32(size)},
+		ViewportSize:      glm.V2f(float32(size), float32(size)),
 		CameraToScreen:    cameraToScreen,
 		CameraToScreenInv: cameraToScreenInv,
 		WorldToCamera:     worldToCamera,

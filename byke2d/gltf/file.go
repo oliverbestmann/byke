@@ -68,7 +68,7 @@ type Node struct {
 }
 
 func (n *Node) TransformComponents() (translation, scale glm.Vec3f, rotation glm.Quat) {
-	scale = glm.Vec3f{1, 1, 1}
+	scale = glm.V3f(1, 1, 1)
 	rotation = glm.IdentityQuat()
 
 	if t := n.Translation; t != nil {
@@ -360,11 +360,11 @@ type Material struct {
 
 func (m *Material) BaseColor() glm.Vec4f {
 	if m.MetallicRoughness == nil {
-		return glm.Vec4f{1, 1, 1, 1}
+		return glm.V4f(1, 1, 1, 1)
 	}
 
 	if m.MetallicRoughness.BaseColorFactor == nil {
-		return glm.Vec4f{1, 1, 1, 1}
+		return glm.V4f(1, 1, 1, 1)
 	}
 
 	return *m.MetallicRoughness.BaseColorFactor

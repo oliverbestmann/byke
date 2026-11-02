@@ -378,7 +378,7 @@ func RegularPolygon(radius float32, sides uint) *Mesh {
 
 // Circle creates a mesh representing a circle with the given radius and vertex resolution.
 func Circle(radius float32, resolution uint) *Mesh {
-	size := glm.Vec2f{radius, radius}.Scale(2.0)
+	size := glm.V2f(radius, radius).Scale(2.0)
 	return Ellipse(size, resolution)
 }
 
@@ -402,13 +402,13 @@ func Ellipse(size glm.Vec2f, resolution uint) *Mesh {
 		x := cos * halfSize[0]
 		y := sin * halfSize[1]
 
-		vertices = append(vertices, glm.Vec3f{x, y})
-		normals = append(normals, glm.Vec3f{0, 0, 1})
+		vertices = append(vertices, glm.V3f(x, y, 0))
+		normals = append(normals, glm.V3f(0, 0, 1))
 
-		uvs = append(uvs, glm.Vec2f{
-			0.5 * (cos + 1.0),
-			1.0 - 0.5*(sin+1.0),
-		})
+		uvs = append(uvs, glm.V2f(
+			0.5*(cos+1.0),
+			1.0-0.5*(sin+1.0),
+		))
 	}
 
 	for i := uint32(1); i < uint32(resolution)-1; i++ {
@@ -432,8 +432,8 @@ func CircularSector(radius float32, halfAngle glm.Rad, segments int) *Mesh {
 
 	// first vertex is center
 	vertices = append(vertices, glm.Vec3f{})
-	normals = append(normals, glm.Vec3f{0, 0, 1})
-	uvs = append(uvs, glm.Vec2f{0.5, 0.5})
+	normals = append(normals, glm.V3f(0, 0, 1))
+	uvs = append(uvs, glm.V2f(0.5, 0.5))
 
 	for i := range segments + 1 {
 		theta := startAngle + glm.Rad(i)*step
@@ -442,13 +442,13 @@ func CircularSector(radius float32, halfAngle glm.Rad, segments int) *Mesh {
 		x := cos * radius
 		y := sin * radius
 
-		vertices = append(vertices, glm.Vec3f{x, y})
-		normals = append(normals, glm.Vec3f{0, 0, 1})
+		vertices = append(vertices, glm.V3f(x, y, 0))
+		normals = append(normals, glm.V3f(0, 0, 1))
 
-		uvs = append(uvs, glm.Vec2f{
-			0.5 * (cos + 1.0),
-			1.0 - 0.5*(sin+1.0),
-		})
+		uvs = append(uvs, glm.V2f(
+			0.5*(cos+1.0),
+			1.0-0.5*(sin+1.0),
+		))
 	}
 
 	// build triangles
@@ -466,17 +466,17 @@ func Rectangle(size glm.Vec2f) *Mesh {
 	hw, hh := size.Scale(0.5).XY()
 
 	vertices := [4]glm.Vec3f{
-		{hw, hh},
-		{-hw, hh},
-		{-hw, -hh},
-		{hw, -hh},
+		glm.V3f(hw, hh, 0),
+		glm.V3f(-hw, hh, 0),
+		glm.V3f(-hw, -hh, 0),
+		glm.V3f(hw, -hh, 0),
 	}
 
 	uvs := [4]glm.Vec2f{
-		{1, 0},
-		{0, 0},
-		{0, 1},
-		{1, 1},
+		glm.V2f(1, 0),
+		glm.V2f(0, 0),
+		glm.V2f(0, 1),
+		glm.V2f(1, 1),
 	}
 
 	indices := []uint32{0, 1, 2, 0, 2, 3}
@@ -517,7 +517,7 @@ func Polygon(polygon []glm.Vec2f, holes ...[]glm.Vec2f) *Mesh {
 
 	var vertices []glm.Vec3f
 	for _, point := range points {
-		vertices = append(vertices, glm.Vec3f{point.X, point.Y})
+		vertices = append(vertices, glm.V3f(point.X, point.Y, 0))
 	}
 
 	return MeshOf(indices, vertices).WithAttributes(VertexAttributeNormal, flatNormals(len(vertices)))
@@ -525,7 +525,7 @@ func Polygon(polygon []glm.Vec2f, holes ...[]glm.Vec2f) *Mesh {
 
 // flatNormals returns count normals facing +z, for flat 2d shapes.
 func flatNormals(count int) []glm.Vec3f {
-	return slices.Repeat([]glm.Vec3f{{0, 0, 1}}, count)
+	return slices.Repeat([]glm.Vec3f{glm.V3f(0, 0, 1)}, count)
 }
 
 func castVecsToEarcutPoints(vecs []glm.Vec2f) []earcut.Point[float32] {

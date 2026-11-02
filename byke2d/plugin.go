@@ -489,7 +489,7 @@ func ensureSurfaceConfigured(ctx *RenderContext, world *byke.World, surfaceWidth
 	state.Config = *surfaceConfig
 
 	// expose screen size in variable
-	screenSize := glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)}
+	screenSize := glm.V2f(float32(surfaceWidth), float32(surfaceHeight))
 	world.InsertResource(ScreenSize{screenSize})
 }
 
@@ -554,7 +554,7 @@ func renderMainSystem(
 		Texture:     surface,
 		TextureView: surfaceTextureView,
 		Format:      surfaceConfig.ViewFormat,
-		Size:        glm.Vec2f{float32(surfaceWidth), float32(surfaceHeight)},
+		Size:        glm.V2f(float32(surfaceWidth), float32(surfaceHeight)),
 	})
 	defer world.RemoveResource(reflect.TypeFor[currentSurfaceValues]())
 

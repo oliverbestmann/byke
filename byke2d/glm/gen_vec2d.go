@@ -8,6 +8,11 @@ import "math"
 // Vec2d is a vector of dimension 2.
 type Vec2d [2]float64
 
+// V2d creates a Vec2d.
+func V2d(x, y float64) Vec2d {
+	return Vec2d{x, y}
+}
+
 func (lhs Vec2d) Dot(rhs Vec2d) float64 {
 	return lhs[0]*rhs[0] + lhs[1]*rhs[1]
 }
