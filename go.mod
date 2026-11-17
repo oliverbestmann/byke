@@ -15,7 +15,7 @@ require (
 	github.com/oliverbestmann/earcut-go v1.1.1
 	github.com/oliverbestmann/mikktspace-go v0.0.0-20261021165803-21f42ec57da7
 	github.com/oliverbestmann/puffin-go v1.1.0
-	github.com/oliverbestmann/webgpu v1.37.2
+	github.com/oliverbestmann/webgpu v1.38.1
 	github.com/oliverbestmann/wesl-go v1.2.1
 	github.com/stretchr/testify v1.11.1
 	github.com/x448/float16 v0.8.4
@@ -31,11 +31,11 @@ require (
 	github.com/hajimehoshi/ekuma v0.0.0-20261117101154-7d4904718612 // indirect
 	github.com/jfreymuth/pulse v0.1.3 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
-	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20260628152806-6b27e30a172e // indirect
-	github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20260628152755-66a5dfa57f8d // indirect
-	github.com/oliverbestmann/webgpu/libs-ios v0.0.0-20260628152757-fe2537e7ddac // indirect
-	github.com/oliverbestmann/webgpu/libs-linux v0.0.0-20260628152803-421b8a341d08 // indirect
-	github.com/oliverbestmann/webgpu/libs-windows v0.0.0-20260628152801-f47d1b682eb8 // indirect
+	github.com/oliverbestmann/webgpu/libs-android v0.0.0-20261112101134-9fc0777bdf01 // indirect
+	github.com/oliverbestmann/webgpu/libs-darwin v0.0.0-20261112101121-f12e930cb707 // indirect
+	github.com/oliverbestmann/webgpu/libs-ios v0.0.0-20261112101124-0a18a0d4d894 // indirect
+	github.com/oliverbestmann/webgpu/libs-linux v0.0.0-20261112101129-823eab7d2391 // indirect
+	github.com/oliverbestmann/webgpu/libs-windows v0.0.0-20261112110423-e4fd7225cf83 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
